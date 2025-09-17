@@ -32,8 +32,8 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
               const SizedBox(height: 16),
               _buildHatcheryCard(),
               const SizedBox(height: 16),
-              _buildHatcheryCard(), // You would typically use a ListView.builder here
-              const SizedBox(height: 16),
+              _buildHatcheryCard(),
+              const SizedBox(height: 80),
             ],
           ),
         ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/broadstock/broad_stock_screen.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/home/home_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/news_ads_screen.dart';
 import 'package:seedsuser/app/seed_price/seed_price_screen.dart';
 import 'package:seedsuser/app/updates/update_screen.dart';
@@ -41,7 +42,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   ];
 
   final List<Widget> bottomBarPages = [
-    const Center(child: Text("Home Screen")),
+    HomeScreen(),
     SeedPricesScreen(),
     BroodStockScreen(),
     NewsAdsScreen(),

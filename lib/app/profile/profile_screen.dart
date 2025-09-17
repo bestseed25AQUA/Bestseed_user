@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 
@@ -9,73 +10,94 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {},
-        ),
-        title: Text(
-          'Profile',
-          style: GoogleFonts.roboto(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
+      body: CustomScrollView(
+        slivers: [
+          /// Collapsible SliverAppBar
+          SliverAppBar(
+            pinned: true,
+            expandedHeight: 180,
+            backgroundColor: AppColors.primary,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () {
+                Get.back();
+              },
+            ),
+            title: Text(
+              'Profile',
+              style: GoogleFonts.roboto(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            flexibleSpace: FlexibleSpaceBar(
+              background: Column(
+                children: const [
+                  SizedBox(
+                    height: kToolbarHeight + 38,
+                  ), // leave space for status bar & toolbar
+                  ProfileHeader(),
+                ],
+              ),
+            ),
           ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: ListView(
-        children: [
-          // Profile Header Section
-          const ProfileHeader(),
-          const SizedBox(height: 16),
-          // List of Menu Items
-          ProfileMenuItem(
-            icon: Icons.notifications_none,
-            title: 'Notification',
-            onTap: () {},
+
+          /// Body List
+          SliverList(
+            delegate: SliverChildListDelegate([
+              const SizedBox(height: 16),
+              ProfileMenuItem(
+                icon: Icons.notifications_none,
+                title: 'Notification',
+                onTap: () {},
+              ),
+              ProfileMenuItem(
+                icon: Icons.track_changes,
+                title: 'Tracking',
+                onTap: () {},
+              ),
+              ProfileMenuItem(
+                icon: Icons.menu_open,
+                title: 'My bookings',
+                onTap: () {},
+              ),
+              ProfileMenuItem(
+                icon: Icons.headset_mic_outlined,
+                title: 'Customer support',
+                onTap: () {},
+              ),
+              ProfileMenuItem(
+                icon: Icons.description_outlined,
+                title: 'Terms and conditions',
+                onTap: () {},
+              ),
+              ProfileMenuItem(
+                icon: FontAwesomeIcons.language,
+                title: 'Change language',
+                onTap: () {},
+              ),
+              ProfileMenuItem(
+                icon: Icons.privacy_tip_outlined,
+                title: 'Privacy Policy',
+                onTap: () {},
+              ),
+              ProfileMenuItem(
+                icon: Icons.star_border,
+                title: 'Rate us',
+                onTap: () {},
+              ),
+              ProfileMenuItem(
+                icon: Icons.share_outlined,
+                title: 'Share app',
+                onTap: () {},
+              ),
+              ProfileMenuItem(
+                icon: Icons.logout,
+                title: 'Logout',
+                onTap: () {},
+              ),
+            ]),
           ),
-          ProfileMenuItem(
-            icon: Icons.track_changes,
-            title: 'Tracking',
-            onTap: () {},
-          ),
-          ProfileMenuItem(
-            icon: Icons.menu_open,
-            title: 'My bookings',
-            onTap: () {},
-          ),
-          ProfileMenuItem(
-            icon: Icons.headset_mic_outlined,
-            title: 'Customer support',
-            onTap: () {},
-          ),
-          ProfileMenuItem(
-            icon: Icons.description_outlined,
-            title: 'Terms and conditions',
-            onTap: () {},
-          ),
-          ProfileMenuItem(
-            icon: FontAwesomeIcons.language,
-            title: 'Change language',
-            onTap: () {},
-          ),
-          ProfileMenuItem(
-            icon: Icons.privacy_tip_outlined,
-            title: 'Privacy Policy',
-            onTap: () {},
-          ),
-          ProfileMenuItem(
-            icon: Icons.star_border,
-            title: 'Rate us',
-            onTap: () {},
-          ),
-          ProfileMenuItem(
-            icon: Icons.share_outlined,
-            title: 'Share app',
-            onTap: () {},
-          ),
-          ProfileMenuItem(icon: Icons.logout, title: 'Logout', onTap: () {}),
         ],
       ),
     );
@@ -94,6 +116,13 @@ class ProfileHeader extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -125,8 +154,8 @@ class ProfileHeader extends StatelessWidget {
             icon: const Icon(Icons.edit, size: 16),
             label: const Text('Edit'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.blue.shade600,
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20.0),
               ),

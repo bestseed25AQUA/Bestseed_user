@@ -157,6 +157,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
               const SizedBox(height: 20),
               // Bottom Card: Wanted: Crop Buyers
               Image.asset('assets/images/us.png'),
+              const SizedBox(height: 80),
             ],
           ),
         ),

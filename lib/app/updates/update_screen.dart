@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/profile/profile_screen.dart';
+import 'package:seedsuser/app/updates/hatchery_details_screen.dart';
 
 class UpdatesScreen extends StatelessWidget {
   final List<Map<String, dynamic>> posts = [
@@ -111,112 +112,117 @@ class _PostWidgetState extends State<PostWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      elevation: 0.0,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Post Header
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundImage: AssetImage(widget.postData['logo']),
-                  radius: 20,
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.postData['name'],
-                      style: GoogleFonts.roboto(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+    return InkWell(
+      onTap: () {
+        Get.to(() => HatcheryDetailsScreen());
+      },
+      child: Card(
+        margin: const EdgeInsets.symmetric(vertical: 8.0),
+        elevation: 0.0,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Post Header
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundImage: AssetImage(widget.postData['logo']),
+                    radius: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.postData['name'],
+                        style: GoogleFonts.roboto(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
-                    ),
-                    Text(
-                      widget.postData['time'],
-                      style: GoogleFonts.roboto(
-                        color: Colors.grey,
-                        fontSize: 12,
+                      Text(
+                        widget.postData['time'],
+                        style: GoogleFonts.roboto(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // Post Text
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: Text(
-              widget.postData['text'],
-              style: GoogleFonts.roboto(fontSize: 14),
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Media Carousel
-          Stack(
-            alignment: Alignment.bottomCenter,
-            children: [
-              SizedBox(
-                height: 250,
-                child: PageView.builder(
-                  controller: _pageController,
-                  itemCount: widget.postData['media'].length,
-                  itemBuilder: (context, index) {
-                    return Image.asset(
-                      widget.postData['media'][index],
-                      fit: BoxFit.cover,
-                    );
-                  },
-                ),
+                    ],
+                  ),
+                ],
               ),
-              // Page Indicator Dots
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    widget.postData['media'].length,
-                    (index) => buildDot(index),
+            ),
+            // Post Text
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              child: Text(
+                widget.postData['text'],
+                style: GoogleFonts.roboto(fontSize: 14),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Media Carousel
+            Stack(
+              alignment: Alignment.bottomCenter,
+              children: [
+                SizedBox(
+                  height: 250,
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: widget.postData['media'].length,
+                    itemBuilder: (context, index) {
+                      return Image.asset(
+                        widget.postData['media'][index],
+                        fit: BoxFit.cover,
+                      );
+                    },
                   ),
                 ),
-              ),
-            ],
-          ),
-          // Action Buttons
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Image.asset('assets/images/call.png', height: 38),
-                    Image.asset('assets/images/whatsApp.png', height: 32),
-                    IconButton(
-                      icon: const Icon(Icons.facebook),
-                      onPressed: () {},
-                      color: Colors.blue.shade800,
+                // Page Indicator Dots
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      widget.postData['media'].length,
+                      (index) => buildDot(index),
                     ),
-                  ],
-                ),
-                TextButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.share, size: 18),
-                  label: const Text('Share'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primary,
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+            // Action Buttons
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Image.asset('assets/images/call.png', height: 38),
+                      Image.asset('assets/images/whatsApp.png', height: 32),
+                      IconButton(
+                        icon: const Icon(Icons.facebook),
+                        onPressed: () {},
+                        color: Colors.blue.shade800,
+                      ),
+                    ],
+                  ),
+                  TextButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.share, size: 18),
+                    label: const Text('Share'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
