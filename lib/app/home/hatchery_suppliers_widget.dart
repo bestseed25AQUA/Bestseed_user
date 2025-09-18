@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 
 class HatcherySuppliersWidget extends StatelessWidget {
   const HatcherySuppliersWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final dashboardCtrl = Get.find<DashboardController>();
+
     return Column(
       children: [
         Row(
@@ -21,7 +25,7 @@ class HatcherySuppliersWidget extends StatelessWidget {
             ),
             TextButton(
               onPressed: () {
-                // Handle "View all" action
+                dashboardCtrl.changeIndex(2);
               },
               child: Text(
                 "View all",

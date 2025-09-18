@@ -40,6 +40,15 @@ dependencies:
   animated_notch_bottom_bar: ^1.0.3
   font_awesome_flutter: ^10.9.1
   carousel_slider: ^5.1.1
+  flutter_polyline_points: ^3.0.1
+  google_maps_flutter: ^2.10.0
+  geolocator: ^13.0.2
+  geocoding: ^3.0.0
+  flutter_google_places_sdk: ^0.3.9
+  url_launcher: ^6.3.2
+  speech_to_text: ^7.3.0
+  image_picker: ^1.2.0
+  
 
 dev_dependencies:
   flutter_test:

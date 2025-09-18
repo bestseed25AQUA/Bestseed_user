@@ -4,6 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/all_screen.dart';
 import 'package:seedsuser/app/home/filter_bottom_sheet.dart';
+import 'package:seedsuser/app/home/search_screen.dart';
+import 'package:seedsuser/app/language/language_screen.dart';
+import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -63,36 +66,11 @@ class _HomeScreenState extends State<HomeScreen>
           controller: _tabController,
           children: [
             HomePage(),
-            Center(
-              child: Text(
-                "Tab content",
-                style: GoogleFonts.roboto(fontSize: 18),
-              ),
-            ),
-            Center(
-              child: Text(
-                "Tab content",
-                style: GoogleFonts.roboto(fontSize: 18),
-              ),
-            ),
-            Center(
-              child: Text(
-                "Tab content",
-                style: GoogleFonts.roboto(fontSize: 18),
-              ),
-            ),
-            Center(
-              child: Text(
-                "Tab content",
-                style: GoogleFonts.roboto(fontSize: 18),
-              ),
-            ),
-            Center(
-              child: Text(
-                "Tab content",
-                style: GoogleFonts.roboto(fontSize: 18),
-              ),
-            ),
+            HomePage(),
+            HomePage(),
+            HomePage(),
+            HomePage(),
+            HomePage(),
           ],
         ),
       ),
@@ -154,9 +132,25 @@ class _HomeScreenState extends State<HomeScreen>
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Image.asset('assets/images/lan_image.png', height: 32),
+                  InkWell(
+                    onTap: () {
+                      Get.to(() => LanguageSelectionScreen());
+                    },
+                    child: Image.asset(
+                      'assets/images/lan_image.png',
+                      height: 32,
+                    ),
+                  ),
                   const SizedBox(width: 16),
-                  Image.asset('assets/images/notification.png', height: 32),
+                  InkWell(
+                    onTap: () {
+                      Get.to(() => NotificationsScreen());
+                    },
+                    child: Image.asset(
+                      'assets/images/notification.png',
+                      height: 32,
+                    ),
+                  ),
                   const SizedBox(width: 16),
                   InkWell(
                     onTap: () {
@@ -197,11 +191,16 @@ class _HomeScreenState extends State<HomeScreen>
       children: [
         Expanded(
           child: TextField(
+            readOnly: true,
+            onTap: () {
+              Get.to(() => const SearchScreen());
+            },
             decoration: InputDecoration(
               hintText: 'Search for Hatcheries, locationseeds',
               hintStyle: GoogleFonts.roboto(color: Colors.grey),
               prefixIcon: const Icon(Icons.search, color: Colors.grey),
               filled: true,
+
               fillColor: Colors.white,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),

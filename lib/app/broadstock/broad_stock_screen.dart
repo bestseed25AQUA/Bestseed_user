@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/language/language_screen.dart';
+import 'package:seedsuser/app/notification/notification_screen.dart';
+import 'package:seedsuser/app/profile/profile_screen.dart';
 
 class BroodStockScreen extends StatefulWidget {
   const BroodStockScreen({super.key});
@@ -54,11 +58,26 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
         ),
       ),
       actions: [
-        Image.asset('assets/images/lan_image.png', height: 32),
-        SizedBox(width: 16),
-        Image.asset('assets/images/notification.png', height: 32),
-        SizedBox(width: 16),
-        Image.asset('assets/images/person.png', height: 32),
+        InkWell(
+          onTap: () {
+            Get.to(() => LanguageSelectionScreen());
+          },
+          child: Image.asset('assets/images/lan_image.png', height: 32),
+        ),
+        const SizedBox(width: 16),
+        InkWell(
+          onTap: () {
+            Get.to(() => NotificationsScreen());
+          },
+          child: Image.asset('assets/images/notification.png', height: 32),
+        ),
+        const SizedBox(width: 16),
+        InkWell(
+          onTap: () {
+            Get.to(() => ProfileScreen());
+          },
+          child: Image.asset('assets/images/person.png', height: 32),
+        ),
         SizedBox(width: 16),
       ],
     );
@@ -104,7 +123,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
             },
           ),
         ),
-        const SizedBox(width: 32),
+        const SizedBox(width: 64),
         Expanded(
           child: _buildDropdownButton(
             selectedDate,
@@ -127,6 +146,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
     Function(String?) onChanged,
   ) {
     return Container(
+      height: 46,
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2.0),
       decoration: BoxDecoration(
         color: Color(0xFFDCEEF8),

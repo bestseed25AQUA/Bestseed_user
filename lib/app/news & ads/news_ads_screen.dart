@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/language/language_screen.dart';
+import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/profile_screen.dart';
 
 class NewsAdsScreen extends StatelessWidget {
@@ -20,10 +22,20 @@ class NewsAdsScreen extends StatelessWidget {
           ),
         ),
         actions: [
-          Image.asset('assets/images/lan_image.png', height: 32),
-          SizedBox(width: 16),
-          Image.asset('assets/images/notification.png', height: 32),
-          SizedBox(width: 16),
+          InkWell(
+            onTap: () {
+              Get.to(() => LanguageSelectionScreen());
+            },
+            child: Image.asset('assets/images/lan_image.png', height: 32),
+          ),
+          const SizedBox(width: 16),
+          InkWell(
+            onTap: () {
+              Get.to(() => NotificationsScreen());
+            },
+            child: Image.asset('assets/images/notification.png', height: 32),
+          ),
+          const SizedBox(width: 16),
           InkWell(
             onTap: () {
               Get.to(() => ProfileScreen());

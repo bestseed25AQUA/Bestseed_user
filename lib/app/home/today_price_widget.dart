@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 
 class TodayPricesWidget extends StatefulWidget {
   const TodayPricesWidget({super.key});
@@ -11,6 +13,8 @@ class TodayPricesWidget extends StatefulWidget {
 
 class _TodayPricesWidgetState extends State<TodayPricesWidget> {
   String selectedValue = "Vannamei";
+  final dashboardCtrl = Get.find<DashboardController>();
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -117,7 +121,7 @@ class _TodayPricesWidgetState extends State<TodayPricesWidget> {
             ),
             InkWell(
               onTap: () {
-                // Handle "See all" action
+                dashboardCtrl.changeIndex(1);
               },
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),

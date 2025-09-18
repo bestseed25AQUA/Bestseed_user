@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 
@@ -66,9 +67,9 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 8.0),
-                                const Text(
+                                Text(
                                   'Rama Hatchery',
-                                  style: TextStyle(
+                                  style: GoogleFonts.roboto(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black,
@@ -78,7 +79,7 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
                             ),
                             const SizedBox(width: 16.0),
                             Row(
-                              children: const [
+                              children: [
                                 Icon(
                                   Icons.location_on,
                                   color: Color(0xFF0076BE),
@@ -87,7 +88,9 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
                                 SizedBox(width: 4.0),
                                 Text(
                                   'Bapatla unit- 2',
-                                  style: TextStyle(color: Colors.black),
+                                  style: GoogleFonts.roboto(
+                                    color: Colors.black,
+                                  ),
                                 ),
                               ],
                             ),
@@ -121,25 +124,25 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
                             ),
                           ),
                           const SizedBox(width: 8.0),
-                          const Text(
+                          Text(
                             'Rama Hatchery',
-                            style: TextStyle(
+                            style: GoogleFonts.roboto(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
                           ),
                           const Spacer(),
-                          const Text(
+                          Text(
                             'Posted 2 days ago',
-                            style: TextStyle(color: Colors.grey),
+                            style: GoogleFonts.roboto(color: Colors.grey),
                           ),
                         ],
                       ),
                       const SizedBox(height: 16.0),
-                      const Text(
+                      Text(
                         'Rama Hatchery\'s new crop SyAqua farming 🦐.....'
                         '#Aquaculture #Shrimp #Water #Premium Quality Seeds',
-                        style: TextStyle(fontSize: 16),
+                        style: GoogleFonts.roboto(fontSize: 16),
                       ),
                       const SizedBox(height: 16.0),
                       CarouselSlider(

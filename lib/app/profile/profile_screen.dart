@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/booking/booking_screen.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/language/language_screen.dart';
+import 'package:seedsuser/app/notification/notification_screen.dart';
+import 'package:seedsuser/app/profile/edit_profile_screen.dart';
+import 'package:seedsuser/app/tracking/vehicle_tracking_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -49,32 +54,44 @@ class ProfileScreen extends StatelessWidget {
               ProfileMenuItem(
                 icon: Icons.notifications_none,
                 title: 'Notification',
-                onTap: () {},
+                onTap: () {
+                  Get.to(() => NotificationsScreen());
+                },
               ),
               ProfileMenuItem(
-                icon: Icons.track_changes,
+                icon: Icons.fire_truck_outlined,
                 title: 'Tracking',
-                onTap: () {},
+                onTap: () {
+                  Get.to(() => VehicleTrackingPage());
+                },
               ),
               ProfileMenuItem(
-                icon: Icons.menu_open,
+                icon: Icons.menu,
                 title: 'My bookings',
-                onTap: () {},
+                onTap: () {
+                  Get.to(() => MyBookingScreen());
+                },
               ),
               ProfileMenuItem(
                 icon: Icons.headset_mic_outlined,
                 title: 'Customer support',
-                onTap: () {},
+                onTap: () {
+                  Get.to(() => VehicleTrackingPage());
+                },
               ),
               ProfileMenuItem(
                 icon: Icons.description_outlined,
                 title: 'Terms and conditions',
-                onTap: () {},
+                onTap: () {
+                  Get.to(() => VehicleTrackingPage());
+                },
               ),
               ProfileMenuItem(
                 icon: FontAwesomeIcons.language,
                 title: 'Change language',
-                onTap: () {},
+                onTap: () {
+                  Get.to(() => LanguageSelectionScreen());
+                },
               ),
               ProfileMenuItem(
                 icon: Icons.privacy_tip_outlined,
@@ -95,6 +112,7 @@ class ProfileScreen extends StatelessWidget {
                 icon: Icons.logout,
                 title: 'Logout',
                 onTap: () {},
+                isShow: false,
               ),
             ]),
           ),
@@ -128,14 +146,14 @@ class ProfileHeader extends StatelessWidget {
         children: [
           const CircleAvatar(
             radius: 30,
-            backgroundImage: AssetImage('assets/profile_pic.png'),
+            backgroundImage: AssetImage('assets/images/logo.png'),
           ),
           const SizedBox(width: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'M.Ram kumar',
+                'B Subbu',
                 style: GoogleFonts.roboto(
                   color: Colors.black,
                   fontWeight: FontWeight.bold,
@@ -143,21 +161,23 @@ class ProfileHeader extends StatelessWidget {
                 ),
               ),
               Text(
-                '+91XXXXXX',
+                '+918977778784',
                 style: GoogleFonts.roboto(color: Colors.black, fontSize: 14),
               ),
             ],
           ),
           const Spacer(),
           ElevatedButton.icon(
-            onPressed: () {},
+            onPressed: () {
+              Get.to(() => EditProfileScreen());
+            },
             icon: const Icon(Icons.edit, size: 16),
             label: const Text('Edit'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20.0),
+                borderRadius: BorderRadius.circular(16.0),
               ),
             ),
           ),
@@ -172,12 +192,14 @@ class ProfileMenuItem extends StatelessWidget {
   final IconData icon;
   final String title;
   final VoidCallback onTap;
+  final bool isShow;
 
   const ProfileMenuItem({
     super.key,
     required this.icon,
     required this.title,
     required this.onTap,
+    this.isShow = true,
   });
 
   @override
@@ -185,11 +207,9 @@ class ProfileMenuItem extends StatelessWidget {
     return ListTile(
       leading: Icon(icon, color: Colors.black54),
       title: Text(title),
-      trailing: const Icon(
-        Icons.arrow_forward,
-        size: 24,
-        color: AppColors.primary,
-      ),
+      trailing: isShow
+          ? const Icon(Icons.arrow_forward, size: 24, color: AppColors.primary)
+          : null,
       onTap: onTap,
     );
   }

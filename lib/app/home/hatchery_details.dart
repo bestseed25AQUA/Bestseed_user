@@ -221,6 +221,7 @@ class HatcheryDetail extends StatelessWidget {
                           ],
                         ),
                       ),
+                      SizedBox(width: 4),
                       Container(
                         padding: EdgeInsets.symmetric(
                           horizontal: 12,
@@ -248,6 +249,8 @@ class HatcheryDetail extends StatelessWidget {
                           ],
                         ),
                       ),
+                      SizedBox(width: 4),
+
                       InkWell(
                         onTap: () {
                           showBookingBottomSheet(context);

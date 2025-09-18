@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/language/language_screen.dart';
+import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/profile_screen.dart';
+import 'package:seedsuser/app/wanted/wanted_screen.dart';
 
 class SeedPriceItem {
   final String count;
@@ -45,9 +48,19 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
           ),
         ),
         actions: [
-          Image.asset('assets/images/lan_image.png', height: 32),
-          SizedBox(width: 16),
-          Image.asset('assets/images/notification.png', height: 32),
+          InkWell(
+            onTap: () {
+              Get.to(() => LanguageSelectionScreen());
+            },
+            child: Image.asset('assets/images/lan_image.png', height: 32),
+          ),
+          const SizedBox(width: 16),
+          InkWell(
+            onTap: () {
+              Get.to(() => NotificationsScreen());
+            },
+            child: Image.asset('assets/images/notification.png', height: 32),
+          ),
           SizedBox(width: 16),
           InkWell(
             onTap: () {
@@ -151,12 +164,17 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                     ],
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 10),
 
               const SizedBox(height: 20),
               // Bottom Card: Wanted: Crop Buyers
-              Image.asset('assets/images/us.png'),
+              InkWell(
+                onTap: () {
+                  Get.to(() => WantedCropBuyersScreen());
+                },
+                child: Image.asset('assets/images/us.png'),
+              ),
               const SizedBox(height: 80),
             ],
           ),

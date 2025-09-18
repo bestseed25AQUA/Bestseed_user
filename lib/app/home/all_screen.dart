@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/home/contact_us.dart';
 import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/hatchery_suppliers_widget.dart';
 import 'package:seedsuser/app/home/hatchery_updates_widget.dart';
 import 'package:seedsuser/app/home/today_price_widget.dart';
+import 'package:seedsuser/app/home/vehicle_availability_screen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -20,6 +22,9 @@ class _HomePageState extends State<HomePage>
   late AnimationController _controller;
   late Animation<Offset> _leftAnimation;
   late Animation<Offset> _rightAnimation;
+
+  final dashboardCtrl = Get.find<DashboardController>();
+
   // late Animation<Offset> _fishAnimation;
 
   @override
@@ -125,32 +130,37 @@ class _HomePageState extends State<HomePage>
                   ],
                 ),
                 const SizedBox(height: 30),
-                Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Vehicle \nAvailability',
-                        style: GoogleFonts.roboto(
-                          color: Colors.black,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                InkWell(
+                  onTap: () {
+                    Get.to(() => VehicleAvailabilityScreen());
+                  },
+                  child: Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Vehicle \nAvailability',
+                          style: GoogleFonts.roboto(
+                            color: Colors.black,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      const Icon(
-                        Icons.arrow_circle_right,
-                        color: Colors.black,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 10),
-                      Image.asset('assets/images/truck.png', height: 80),
-                    ],
+                        const SizedBox(width: 10),
+                        const Icon(
+                          Icons.arrow_circle_right,
+                          color: Colors.black,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 10),
+                        Image.asset('assets/images/truck.png', height: 80),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -440,7 +450,7 @@ class _HomePageState extends State<HomePage>
 
         TextButton(
           onPressed: () {
-            // Handle "View all" action
+            dashboardCtrl.changeIndex(3);
           },
           child: Text(
             "View all",
