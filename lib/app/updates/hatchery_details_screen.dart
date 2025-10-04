@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HatcheryDetailsScreen extends StatefulWidget {
   const HatcheryDetailsScreen({super.key});
@@ -14,8 +15,8 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
   int _currentIndex = 0;
 
   final List<String> imageList = [
-    'assets/images/rama.png',
-    'assets/images/rama.png',
+    'assets/images/WhatsApp Image 2025-10-04 at 1.24.19 PM.jpeg',
+    'assets/images/WhatsApp Image 2025-10-04 at 1.24.17 PM.jpeg',
     'assets/images/rama.png',
     'assets/images/rama.png',
     'assets/images/rama.png',
@@ -215,9 +216,19 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
                           children: [
                             Row(
                               children: [
-                                Image.asset(
-                                  'assets/images/call.png',
-                                  height: 38,
+                                GestureDetector(
+                                  onTap: () async {
+                                    final phoneNumber = "tel:+918977778784";
+                                    if (await canLaunch(phoneNumber)) {
+                                      await launch(phoneNumber);
+                                    } else {
+                                      print("Could not launch phone call.");
+                                    }
+                                  },
+                                  child: Image.asset(
+                                    'assets/images/call.png',
+                                    height: 38,
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
                                 Image.asset(

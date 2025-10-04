@@ -100,6 +100,7 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
         children: [
           _buildImageSection(),
           _buildInfoSection(),
+          SizedBox(height: 16),
           _buildDriverDetails(),
           CustomButton(
             text: 'Tracking your vehicle',

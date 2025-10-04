@@ -8,18 +8,23 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.CALL_PHONE"/>
+    <uses-permission android:name="android.permission.SEND_SMS"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+
 
 
 
     <application
         android:label="Best Seeds"
         android:name="${applicationName}"
+        android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher">
 
         <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyA111b89Exrm83RRWF-2hP1EPeUxvos87I"/>
+            android:value="AIzaSyB3OGmcoQQkpL5s1Enzf3D0rGlYgnIUFnU"/>
 
         <activity
             android:name=".MainActivity"

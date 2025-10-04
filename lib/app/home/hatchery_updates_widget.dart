@@ -22,8 +22,7 @@ class HatcheryUpdatesWidget extends StatelessWidget {
             itemCount: 3, // Number of hatchery cards to display
             itemBuilder: (context, index) {
               return _buildHatcheryCard(
-                imagePath:
-                    'assets/rama_logo.png', // Replace with actual asset path or network image
+                imagePath: 'assets/images/rama.png',
                 hatcheryName: "Rama Hatchery",
               );
             },
@@ -77,7 +76,10 @@ class HatcheryUpdatesWidget extends StatelessWidget {
             ),
             child: Text(
               "View Profile",
-              style: GoogleFonts.roboto(color: AppColors.primary),
+              style: GoogleFonts.roboto(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],

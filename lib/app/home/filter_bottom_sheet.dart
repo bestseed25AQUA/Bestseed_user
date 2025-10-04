@@ -57,27 +57,40 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             runSpacing: 10.0,
             children: brandSeedOptions.map((option) {
               final isSelected = selectedBrandSeed == option;
-              return ChoiceChip(
-                label: Text(option),
+
+              return RawChip(
+                labelPadding: EdgeInsets.zero,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      option,
+                      style: GoogleFonts.roboto(
+                        color: isSelected ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    if (isSelected) ...[
+                      const SizedBox(width: 8),
+                      const Icon(Icons.check, color: Colors.white, size: 18),
+                    ],
+                  ],
+                ),
                 selected: isSelected,
+                showCheckmark: false, // hide default checkmark
+                selectedColor: AppColors.primary,
+                backgroundColor: Colors.grey[200],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
                 onSelected: (bool value) {
                   setState(() {
                     selectedBrandSeed = value ? option : null;
                   });
                 },
-                checkmarkColor: Colors.white,
-                selectedColor: AppColors.primary,
-                backgroundColor: Colors.grey[200],
-                labelStyle: GoogleFonts.roboto(
-                  color: isSelected ? Colors.white : Colors.black87,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
               );
             }).toList(),
           ),

@@ -29,7 +29,7 @@ class _VehicleTrackingBottomSheetState
 
   Future<void> _setPolyline() async {
     PolylinePoints polylinePoints = PolylinePoints(
-      apiKey: 'AIzaSyA111b89Exrm83RRWF-2hP1EPeUxvos87I',
+      apiKey: 'AIzaSyB3OGmcoQQkpL5s1Enzf3D0rGlYgnIUFnU',
     );
 
     PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
@@ -85,14 +85,16 @@ class _VehicleTrackingBottomSheetState
             children: [
               _buildHeader(context),
               Expanded(
-                child: ListView(
+                child: SingleChildScrollView(
                   controller: scrollController,
-                  children: [
-                    _buildMapSection(),
-                    _buildDeliveryUpdates(),
-                    _buildTimeline(),
-                    _buildOkayButton(context),
-                  ],
+                  child: Column(
+                    children: [
+                      _buildMapSection(),
+                      _buildDeliveryUpdates(),
+                      _buildTimeline(),
+                      _buildOkayButton(context),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -151,6 +153,7 @@ class _VehicleTrackingBottomSheetState
           },
           onMapCreated: (controller) {
             _mapController = controller;
+            _setPolyline();
           },
         ),
       ),

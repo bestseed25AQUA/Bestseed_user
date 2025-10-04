@@ -35,6 +35,15 @@ class _SplashScreenState extends State<SplashScreen> {
           ],
         ),
       ),
+      // bottomNavigationBar: SizedBox(
+      //   height: 300,
+      //   child: Image.asset(
+      //     "assets/images/Neutral Minimalist Launch Instagram Post (3).gif",
+      //     height: 300,
+      //     width: 380,
+      //     fit: BoxFit.fill,
+      //   ),
+      // ),
     );
   }
 }

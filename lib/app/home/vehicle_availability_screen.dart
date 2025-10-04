@@ -28,6 +28,9 @@ class VehicleAvailabilityScreen extends StatelessWidget {
 class VehicleCard extends StatelessWidget {
   const VehicleCard({super.key});
 
+  final String phone = "+918977778784";
+  final String message = "Hello, I want to know more!";
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -155,28 +158,34 @@ class VehicleCard extends StatelessWidget {
                       ),
                     ),
                     SizedBox(width: 4),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 16,
-                      ),
+                    GestureDetector(
+                      onTap: () => openWhatsApp(context),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 16,
+                        ),
 
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.green),
-                      ),
-                      child: Row(
-                        children: [
-                          Image.asset('assets/images/whatsApp.png', height: 20),
-                          SizedBox(width: 4),
-                          Text(
-                            'WhatsApp',
-                            style: GoogleFonts.roboto(
-                              color: Colors.green,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.green),
+                        ),
+                        child: Row(
+                          children: [
+                            Image.asset(
+                              'assets/images/whatsApp.png',
+                              height: 20,
                             ),
-                          ),
-                        ],
+                            SizedBox(width: 4),
+                            Text(
+                              'WhatsApp',
+                              style: GoogleFonts.roboto(
+                                color: Colors.green,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     SizedBox(width: 4),
@@ -226,6 +235,31 @@ class VehicleCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> openWhatsApp(BuildContext context) async {
+    final String phone = "+918977778784";
+    final String message = "Hello, I want to know more!";
+
+    final Uri whatsappUri = Uri.parse(
+      "whatsapp://send?phone=$phone&text=${Uri.encodeComponent(message)}",
+    );
+
+    try {
+      if (await canLaunchUrl(whatsappUri)) {
+        await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("WhatsApp not installed on this device"),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error opening WhatsApp: $e")));
+    }
   }
 
   Future<void> _makePhoneCall(String phoneNumber) async {

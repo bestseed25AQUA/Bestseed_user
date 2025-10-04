@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/language/language_screen.dart';
+import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/profile_screen.dart';
 import 'package:seedsuser/app/updates/hatchery_details_screen.dart';
+import 'package:share_plus/share_plus.dart';
 
 class UpdatesScreen extends StatelessWidget {
   final List<Map<String, dynamic>> posts = [
@@ -14,8 +17,8 @@ class UpdatesScreen extends StatelessWidget {
       'text':
           'Rama Hatchery\'s new crop Srydqn farming #Aquaculture #Shrimp #Water #PremiumQuality #Seeds',
       'media': [
-        'assets/images/rama.png',
-        'assets/images/rama.png',
+        'assets/images/WhatsApp Image 2025-10-04 at 1.24.17 PM.jpeg',
+        'assets/images/WhatsApp Image 2025-10-04 at 1.24.17 PM.jpeg',
         'assets/images/rama.png',
       ],
     },
@@ -25,7 +28,10 @@ class UpdatesScreen extends StatelessWidget {
       'time': 'new crop',
       'text':
           'Gayathri hatchery new crop Sry Hantline farming #Aquaculture #Shrimp #Water #PremiumQuality #Seeds',
-      'media': ['assets/images/rama.png', 'assets/images/rama.png'],
+      'media': [
+        'assets/images/WhatsApp Image 2025-10-04 at 1.24.19 PM.jpeg',
+        'assets/images/rama.png',
+      ],
     },
   ];
 
@@ -45,9 +51,19 @@ class UpdatesScreen extends StatelessWidget {
           ),
         ),
         actions: [
-          Image.asset('assets/images/lan_image.png', height: 32),
-          SizedBox(width: 16),
-          Image.asset('assets/images/notification.png', height: 32),
+          InkWell(
+            onTap: () {
+              Get.to(() => LanguageSelectionScreen());
+            },
+            child: Image.asset('assets/images/lan_image.png', height: 32),
+          ),
+          const SizedBox(width: 16),
+          InkWell(
+            onTap: () {
+              Get.to(() => NotificationsScreen());
+            },
+            child: Image.asset('assets/images/notification.png', height: 32),
+          ),
           SizedBox(width: 16),
           InkWell(
             onTap: () {
@@ -211,7 +227,12 @@ class _PostWidgetState extends State<PostWidget> {
                     ],
                   ),
                   TextButton.icon(
-                    onPressed: () {},
+                    onPressed: () {
+                      Share.share(
+                        'Check out this delivery tracking app: https://example.com',
+                        subject: 'Vehicle Tracking Info',
+                      );
+                    },
                     icon: const Icon(Icons.share, size: 18),
                     label: const Text('Share'),
                     style: TextButton.styleFrom(

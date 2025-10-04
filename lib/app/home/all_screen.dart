@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -7,6 +8,8 @@ import 'package:seedsuser/app/home/contact_us.dart';
 import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/hatchery_suppliers_widget.dart';
 import 'package:seedsuser/app/home/hatchery_updates_widget.dart';
+import 'package:seedsuser/app/home/seed_request_screen.dart';
+import 'package:seedsuser/app/home/spot_hatchery_screen.dart';
 import 'package:seedsuser/app/home/today_price_widget.dart';
 import 'package:seedsuser/app/home/vehicle_availability_screen.dart';
 
@@ -158,7 +161,27 @@ class _HomePageState extends State<HomePage>
                           size: 24,
                         ),
                         const SizedBox(width: 10),
-                        Image.asset('assets/images/truck.png', height: 80),
+                        Stack(
+                          children: [
+                            Image.asset('assets/images/truck.png', height: 80),
+                            Positioned(
+                              top: 28,
+
+                              left: 32,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Image.asset(
+                                  'assets/images/roya.png',
+                                  height: 20,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -178,7 +201,16 @@ class _HomePageState extends State<HomePage>
                   child: _buildMenuItem(
                     'Farm Management',
                     'assets/images/farm.png',
-                    () {},
+                    () {
+                      Fluttertoast.showToast(
+                        msg: "Working on it...",
+                        toastLength: Toast.LENGTH_SHORT,
+                        gravity: ToastGravity.BOTTOM,
+                        backgroundColor: Colors.black54,
+                        textColor: Colors.red,
+                        fontSize: 16.0,
+                      );
+                    },
                   ),
                 ),
                 SizedBox(width: 8),
@@ -187,7 +219,9 @@ class _HomePageState extends State<HomePage>
                   child: _buildMenuItem(
                     'Spot Hatcheries',
                     'assets/images/hatchery_icon.png',
-                    () {},
+                    () {
+                      Get.to(() => const SpotHatcheryScreen());
+                    },
                   ),
                 ),
                 SizedBox(width: 8),
@@ -195,7 +229,9 @@ class _HomePageState extends State<HomePage>
                   child: _buildMenuItem(
                     'Seeds Requests',
                     'assets/images/seeds.png',
-                    () {},
+                    () {
+                      Get.to(() => const SeedRequestsFormScreen());
+                    },
                   ),
                 ),
               ],

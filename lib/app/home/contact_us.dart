@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ContactUsPage extends StatefulWidget {
   const ContactUsPage({super.key});
@@ -11,38 +14,93 @@ class ContactUsPage extends StatefulWidget {
 
 class _ContactUsPageState extends State<ContactUsPage> {
   late ScrollController _scrollController;
+  bool _isScrolling = true;
+  Timer? _scrollTimer;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-
-    // Start auto scrolling after build
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startScrolling();
+      _startAutoScroll();
     });
   }
 
-  void _startScrolling() async {
-    while (mounted) {
-      try {
-        // Scroll to the end
-        await _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(seconds: 8),
-          curve: Curves.linear,
-        );
+  void _startAutoScroll() {
+    _scrollTimer?.cancel();
+    _scrollTimer = Timer.periodic(const Duration(milliseconds: 10), (timer) {
+      if (!mounted || !_isScrolling) return;
 
-        // Jump back instantly to the start (loop effect)
+      final maxScroll = _scrollController.position.maxScrollExtent;
+      final currentScroll = _scrollController.offset;
+
+      if (currentScroll >= maxScroll) {
         _scrollController.jumpTo(0);
-      } catch (_) {
-        break; // Prevent error if widget is disposed
+      } else {
+        _scrollController.jumpTo(currentScroll + 3); // 8 pixels per frame
       }
+    });
+  }
+
+  void _pauseScrolling() {
+    if (mounted) {
+      setState(() {
+        _isScrolling = false;
+      });
+    }
+  }
+
+  void _resumeScrolling() {
+    if (mounted) {
+      setState(() {
+        _isScrolling = true;
+      });
+    }
+  }
+
+  Future<void> _launchWhatsApp() async {
+    _pauseScrolling();
+
+    try {
+      final Uri whatsappUri = Uri.parse(
+        "https://wa.me/918977778784?text=Hello,%20I%20have%20a%20query",
+      );
+      if (await canLaunchUrl(whatsappUri)) {
+        await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+      } else {
+        print("Could not open WhatsApp.");
+      }
+    } catch (e) {
+      print("Error launching WhatsApp: $e");
+    } finally {
+      // Add a small delay before resuming to ensure the external app has opened
+      await Future.delayed(const Duration(seconds: 1));
+      _resumeScrolling();
+    }
+  }
+
+  Future<void> _launchPhoneCall() async {
+    _pauseScrolling();
+
+    try {
+      final Uri phoneUri = Uri(scheme: 'tel', path: '+918977778784');
+      if (await canLaunchUrl(phoneUri)) {
+        await launchUrl(phoneUri, mode: LaunchMode.externalApplication);
+      } else {
+        print("Could not launch phone call.");
+      }
+    } catch (e) {
+      print("Error launching phone call: $e");
+    } finally {
+      // Add a small delay before resuming to ensure the external app has opened
+      await Future.delayed(const Duration(seconds: 1));
+      _resumeScrolling();
     }
   }
 
   @override
   void dispose() {
+    _scrollTimer?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
@@ -56,25 +114,23 @@ class _ContactUsPageState extends State<ContactUsPage> {
           color: AppColors.primary,
           child: Image.asset('assets/images/contact_us.png'),
         ),
-
-        // 👇 Auto-scrolling WhatsApp + Phone sections
         SingleChildScrollView(
           controller: _scrollController,
           scrollDirection: Axis.horizontal,
+          physics:
+              const NeverScrollableScrollPhysics(), // Disable manual scrolling
           child: Row(
             children: [
               _buildWhatsAppSection(),
               const SizedBox(width: 20),
               _buildPhoneSection(),
               const SizedBox(width: 20),
-              _buildWhatsAppSection(), // duplicate for smoother loop
+              _buildWhatsAppSection(), // Duplicate for continuous scroll
               const SizedBox(width: 20),
-              _buildPhoneSection(),
+              _buildPhoneSection(), // Duplicate for continuous scroll
             ],
           ),
         ),
-
-        // Top title
         Positioned(
           top: 6,
           left: 0,
@@ -96,93 +152,113 @@ class _ContactUsPageState extends State<ContactUsPage> {
   }
 
   Widget _buildWhatsAppSection() {
-    return Container(
-      margin: const EdgeInsets.only(right: 20, top: 44),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E2749),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Image.asset('assets/images/whatsApp.png', height: 20),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Have a question?',
-                style: GoogleFonts.roboto(color: Colors.white, fontSize: 12),
-              ),
-              Text(
-                'Message us on WhatsApp',
-                style: GoogleFonts.roboto(color: Colors.white, fontSize: 12),
-              ),
-            ],
-          ),
-          const SizedBox(width: 15),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.green,
+    return InkWell(
+      onTap: _launchWhatsApp,
+      child: Container(
+        margin: const EdgeInsets.only(right: 20, top: 44),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E2749),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Image.asset('assets/images/whatsApp.png', height: 20),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Have a question?',
+                  style: GoogleFonts.roboto(color: Colors.white, fontSize: 12),
+                ),
+                Text(
+                  'Message us on WhatsApp',
+                  style: GoogleFonts.roboto(color: Colors.white, fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(width: 15),
+            InkWell(
+              onTap: _launchWhatsApp,
               borderRadius: BorderRadius.circular(30),
-            ),
-            child: Text(
-              'Chat',
-              style: GoogleFonts.roboto(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Text(
+                  'Chat',
+                  style: GoogleFonts.roboto(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildPhoneSection() {
-    return Container(
-      margin: const EdgeInsets.only(right: 20, top: 44),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E2749),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Image.asset('assets/images/phone.png', height: 24),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Need Help? ',
-                style: GoogleFonts.roboto(color: Colors.white, fontSize: 12),
-              ),
-              Text(
-                'Call Us Now!  We’re happy to talk with you',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.roboto(color: Colors.white, fontSize: 12),
-              ),
-            ],
-          ),
-          const SizedBox(width: 15),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.green,
+    return InkWell(
+      onTap: _launchPhoneCall,
+      child: Container(
+        margin: const EdgeInsets.only(right: 20, top: 44),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E2749),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Image.asset('assets/images/phone.png', height: 24),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Need Help? ',
+                  style: GoogleFonts.roboto(color: Colors.white, fontSize: 12),
+                ),
+                Text(
+                  'Call Us Now! We\'re happy to talk with you',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.roboto(color: Colors.white, fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(width: 15),
+            InkWell(
+              onTap: _launchPhoneCall,
               borderRadius: BorderRadius.circular(30),
-            ),
-            child: Text(
-              'Call',
-              style: GoogleFonts.roboto(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Text(
+                  'Call',
+                  style: GoogleFonts.roboto(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

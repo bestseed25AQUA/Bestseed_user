@@ -2,9 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/booking_hatchery_widget.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
 
-class HatcheryDetail extends StatelessWidget {
-  const HatcheryDetail({super.key});
+class HatcheryDetail extends StatefulWidget {
+  final String videoUrl;
+  const HatcheryDetail({super.key, required this.videoUrl});
+
+  @override
+  State<HatcheryDetail> createState() => _HatcheryDetailState();
+}
+
+class _HatcheryDetailState extends State<HatcheryDetail> {
+  late VideoPlayerController _controller;
+  bool videoStarted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize controller in initState
+    _controller =
+        VideoPlayerController.asset(
+            'assets/images/WhatsApp Video 2025-10-04 at 11.11.46 AM.mp4',
+          )
+          ..initialize().then((_) {
+            setState(() {});
+          })
+          ..setLooping(false);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,52 +60,97 @@ class HatcheryDetail extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Image with Play Button Overlay and Status
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(12.0),
-                  ),
-                  child: Image.asset(
-                    'assets/images/royalu.png',
-                    height: 150,
+            // Video Section
+            GestureDetector(
+              onTap: () async {
+                setState(() => videoStarted = true);
+                _controller = VideoPlayerController.asset(
+                  'assets/images/video_20250921_103157.mp4',
+                );
+                setState(() {}); // show loading indicator
+                await _controller.initialize();
+                _controller.setLooping(false);
+                _controller.play();
+
+                // Listener to update UI and detect end
+                _controller.addListener(() {
+                  if (_controller.value.position >=
+                      _controller.value.duration) {
+                    setState(() {
+                      videoStarted = false;
+                    });
+                  } else {
+                    setState(() {}); // update position/time
+                  }
+                });
+
+                setState(() {}); // refresh UI after initialization
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: SizedBox(
                     width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                Positioned(
-                  top: 10,
-                  left: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(6.0),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.play_circle_filled,
-                          color: Colors.white.withOpacity(0.8),
-                          size: 18,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          "Play Video",
-                          style: GoogleFonts.roboto(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 12,
+                    height: 200,
+                    child: _controller.value.isInitialized
+                        ? Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Video Player
+                              SizedBox(
+                                width: double.infinity,
+                                child: AspectRatio(
+                                  aspectRatio: _controller.value.aspectRatio,
+                                  child: VideoPlayer(_controller),
+                                ),
+                              ),
+                              // Play/Pause Button
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _controller.value.isPlaying
+                                        ? _controller.pause()
+                                        : _controller.play();
+                                  });
+                                },
+                                child: Icon(
+                                  _controller.value.isPlaying
+                                      ? Icons.pause_circle_filled
+                                      : Icons.play_circle_fill,
+                                  color: Colors.white,
+                                  size: 60,
+                                ),
+                              ),
+                              // Video Progress / Time
+                              Positioned(
+                                bottom: 8,
+                                right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    '${_formatDuration(_controller.value.position)} / ${_formatDuration(_controller.value.duration)}',
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : const Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.primary,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
-              ],
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -182,7 +258,8 @@ class HatcheryDetail extends StatelessWidget {
                         return Padding(
                           padding: EdgeInsets.only(right: 16),
                           child: _buildGalleryImage(
-                            imageUrl: 'assets/images/royalu.png',
+                            imageUrl:
+                                'assets/images/WhatsApp Image 2025-10-04 at 11.11.43 AM.jpeg',
                           ),
                         );
                       },
@@ -192,69 +269,47 @@ class HatcheryDetail extends StatelessWidget {
 
                   // Action Buttons
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    // mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 16,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.only(
-                            bottomLeft: Radius.circular(16),
-                            topLeft: Radius.circular(16),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            _makePhoneCall('+918977778784');
+                          },
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 16,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.only(
+                                bottomLeft: Radius.circular(16),
+                                topLeft: Radius.circular(16),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Image.asset(
+                                  'assets/images/phone.png',
+                                  height: 20,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Call Now',
+                                  style: GoogleFonts.roboto(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            Image.asset('assets/images/phone.png', height: 20),
-                            SizedBox(width: 4),
-                            Text(
-                              'Call Now',
-                              style: GoogleFonts.roboto(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                       SizedBox(width: 4),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 16,
-                        ),
-
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.green),
-                        ),
-                        child: Row(
-                          children: [
-                            Image.asset(
-                              'assets/images/whatsApp.png',
-                              height: 20,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'WhatsApp',
-                              style: GoogleFonts.roboto(
-                                color: Colors.green,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(width: 4),
-
-                      InkWell(
-                        onTap: () {
-                          showBookingBottomSheet(context);
-                        },
+                      Expanded(
                         child: Container(
                           padding: EdgeInsets.symmetric(
                             horizontal: 12,
@@ -262,29 +317,65 @@ class HatcheryDetail extends StatelessWidget {
                           ),
 
                           decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.only(
-                              topRight: Radius.circular(16),
-                              bottomRight: Radius.circular(16),
-                            ),
+                            border: Border.all(color: Colors.green),
                           ),
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Image.asset(
-                                'assets/images/Lightning.png',
+                                'assets/images/whatsApp.png',
                                 height: 20,
                               ),
                               SizedBox(width: 4),
                               Text(
-                                'Book Now',
+                                'WhatsApp',
                                 style: GoogleFonts.roboto(
-                                  color: Colors.white,
+                                  color: Colors.green,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 4),
+
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            showBookingBottomSheet(context);
+                          },
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 16,
+                            ),
+
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.only(
+                                topRight: Radius.circular(16),
+                                bottomRight: Radius.circular(16),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Image.asset(
+                                  'assets/images/Lightning.png',
+                                  height: 20,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Book Now',
+                                  style: GoogleFonts.roboto(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -297,6 +388,43 @@ class HatcheryDetail extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
+  }
+
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    // Clean the phone number (remove any non-digit characters except +)
+    final cleanedNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
+
+    if (cleanedNumber.isEmpty) {
+      debugPrint("Invalid phone number: $phoneNumber");
+      return;
+    }
+
+    final Uri uri = Uri(scheme: 'tel', path: cleanedNumber);
+
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        debugPrint("Could not launch phone dialer for: $cleanedNumber");
+        // Optional: Show a snackbar or dialog to the user
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(content: Text('Cannot make phone call to $cleanedNumber')),
+        // );
+      }
+    } catch (e) {
+      debugPrint("Error making phone call: $e");
+      // Optional: Show error to user
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(content: Text('Error making phone call: $e')),
+      // );
+    }
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {

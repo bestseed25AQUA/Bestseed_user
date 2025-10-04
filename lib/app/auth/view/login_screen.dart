@@ -21,7 +21,7 @@ class _LoginWithMobileScreenState extends State<LoginWithMobileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.primary,
-      resizeToAvoidBottomInset: true, // important!
+      resizeToAvoidBottomInset: true, 
       body: SafeArea(
         child: Column(
           children: [
