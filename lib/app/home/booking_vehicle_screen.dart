@@ -119,11 +119,11 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
                 keyboardType: TextInputType.phone,
               ),
               _buildDateField(),
-              _buildTextField(
-                "Pickup Address",
-                _pickupController,
-                Icons.location_on,
-              ),
+              // _buildTextField(
+              //   "Pickup Address",
+              //   _pickupController,
+              //   Icons.location_on,
+              // ),
               _buildTextField(
                 "Delivery Address",
                 _deliveryController,

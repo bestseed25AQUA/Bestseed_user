@@ -231,9 +231,29 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                Image.asset(
-                                  'assets/images/whatsApp.png',
-                                  height: 32,
+                                InkWell(
+                                  onTap: () async {
+                                    final whatsappUrl =
+                                        "https://wa.me/${'+918977778784'.replaceAll('+', '')}";
+                                    final Uri uri = Uri.parse(whatsappUrl);
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri);
+                                    } else {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            "Cannot launch WhatsApp",
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  child: Image.asset(
+                                    'assets/images/whatsApp.png',
+                                    height: 32,
+                                  ),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.facebook),

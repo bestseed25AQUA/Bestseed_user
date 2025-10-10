@@ -7,7 +7,7 @@ import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/medicine_news_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/trending_updates_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
-import 'package:seedsuser/app/profile/profile_screen.dart';
+import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:video_player/video_player.dart';
 
 class NewsAdsScreen extends StatefulWidget {

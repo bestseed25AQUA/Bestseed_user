@@ -1,9 +1,11 @@
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
+import 'package:seedsuser/app/home/carousel_slider_options_card.dart';
 import 'package:seedsuser/app/home/contact_us.dart';
 import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/hatchery_suppliers_widget.dart';
@@ -94,98 +96,52 @@ class _HomePageState extends State<HomePage>
     ];
     return SingleChildScrollView(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Section
           Container(
             color: AppColors.primary,
-            padding: const EdgeInsets.all(16.0),
+            // padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // 👈 Left image moves left→right
-                    SlideTransition(
-                      position: _leftAnimation,
-                      child: Image.asset(
-                        'assets/images/fish_icon.png',
-                        height: 50,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // 👈 Left image moves left→right
+                      SlideTransition(
+                        position: _leftAnimation,
+                        child: Image.asset(
+                          'assets/images/fish_icon.png',
+                          height: 50,
+                        ),
                       ),
-                    ),
 
-                    // Center text
-                    Text(
-                      '"Grow More with the Best Seeds –\nQuality, Variety, and Trust”',
-                      style: GoogleFonts.roboto(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                      // Center text
+                      Text(
+                        '"Grow More with the Best Seeds –\nQuality, Variety, and Trust”',
+                        style: GoogleFonts.roboto(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
 
-                    // 👉 Right image moves right→left
-                    SlideTransition(
-                      position: _rightAnimation,
-                      child: Image.asset('assets/images/roya.png', height: 50),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 30),
-                InkWell(
-                  onTap: () {
-                    Get.to(() => VehicleAvailabilityScreen());
-                  },
-                  child: Container(
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Vehicle \nAvailability',
-                          style: GoogleFonts.roboto(
-                            color: Colors.black,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      // 👉 Right image moves right→left
+                      SlideTransition(
+                        position: _rightAnimation,
+                        child: Image.asset(
+                          'assets/images/roya.png',
+                          height: 50,
                         ),
-                        const SizedBox(width: 10),
-                        const Icon(
-                          Icons.arrow_circle_right,
-                          color: Colors.black,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 10),
-                        Stack(
-                          children: [
-                            Image.asset('assets/images/truck.png', height: 80),
-                            Positioned(
-                              top: 28,
-
-                              left: 32,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Image.asset(
-                                  'assets/images/roya.png',
-                                  height: 20,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
+                // const SizedBox(height: 8),
+                CarouselCardsScreen(),
               ],
             ),
           ),
@@ -224,28 +180,33 @@ class _HomePageState extends State<HomePage>
                     },
                   ),
                 ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: _buildMenuItem(
-                    'Seeds Requests',
-                    'assets/images/seeds.png',
-                    () {
-                      Get.to(() => const SeedRequestsFormScreen());
-                    },
-                  ),
-                ),
+                // SizedBox(width: 8),
+                // Expanded(
+                //   child: _buildMenuItem(
+                //     'Seeds Requests',
+                //     'assets/images/seeds.png',
+                //     () {
+                //       Get.to(() => const SeedRequestsFormScreen());
+                //     },
+                //   ),
+                // ),
               ],
             ),
           ),
 
           Container(
-            color: AppColors.primary,
-            padding: const EdgeInsets.all(16.0),
-            height: 32,
+            padding: const EdgeInsets.only(left: 16.0, bottom: 16, right: 16),
+            // height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(16),
+                bottomRight: Radius.circular(16),
+              ),
+            ),
+            child: // Contact Us Section
+                ContactUsPage(),
           ),
-
-          // Contact Us Section
-          ContactUsPage(),
 
           // Hatcheries Section
           Padding(
@@ -263,24 +224,24 @@ class _HomePageState extends State<HomePage>
                     Text(
                       'Hatcheries',
                       style: GoogleFonts.roboto(
-                        fontSize: 24,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF008080),
+                        color: Color(0xFF0076BE),
                       ),
                     ),
                     Image.asset("assets/images/redline.png", width: 121),
-                    Text(
-                      'Find nearby hatcheries for fish \nor shrimp seeds.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.roboto(
-                        fontSize: 16,
-                        color: Colors.grey,
-                      ),
-                    ),
+                    // Text(
+                    //   'Find nearby hatcheries for fish \nor shrimp seeds.',
+                    //   textAlign: TextAlign.center,
+                    //   style: GoogleFonts.roboto(
+                    //     fontSize: 16,
+                    //     color: Colors.grey,
+                    //   ),
+                    // ),
                   ],
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
                 Row(
                   children: [
@@ -333,6 +294,60 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  Widget buildCard({
+    required String title,
+    required String icon,
+    String? overlayIcon,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.roboto(
+                color: Colors.black,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Icon(Icons.arrow_circle_right, color: Colors.black, size: 24),
+            const SizedBox(width: 10),
+            overlayIcon != null
+                ? Stack(
+                    children: [
+                      Image.asset(icon, height: 80),
+                      Positioned(
+                        top: 28,
+                        left: 32,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Image.asset(overlayIcon, height: 20),
+                        ),
+                      ),
+                    ],
+                  )
+                : Image.asset(icon, height: 80),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMenuItem(String text, String iconPath, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
@@ -344,6 +359,8 @@ class _HomePageState extends State<HomePage>
         ),
         child: Column(
           children: [
+            Image.asset(iconPath, height: 50),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -363,8 +380,6 @@ class _HomePageState extends State<HomePage>
                 Icon(Icons.arrow_circle_right, color: Colors.black),
               ],
             ),
-            const SizedBox(height: 8),
-            Image.asset(iconPath, height: 50),
           ],
         ),
       ),

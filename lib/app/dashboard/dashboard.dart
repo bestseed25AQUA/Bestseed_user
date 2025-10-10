@@ -16,20 +16,20 @@ class DashboardScreen extends StatelessWidget {
 
   final DashboardController controller = Get.put(DashboardController());
 
+  final List<Widget> pages = [
+    HomeScreen(),
+    SeedPricesScreen(),
+    BroodStockScreen(),
+    NewsAdsScreen(),
+    UpdatesScreen(),
+  ];
+
   final List<IconData> icons = [
     Icons.home_outlined,
     Icons.local_offer_outlined,
     Icons.store_outlined,
     Icons.article_outlined,
     Icons.location_on_outlined,
-  ];
-
-  final List<Widget> bottomBarPages = [
-    HomeScreen(),
-    SeedPricesScreen(),
-    BroodStockScreen(),
-    NewsAdsScreen(),
-    UpdatesScreen(),
   ];
 
   final List<String> labels = [
@@ -43,49 +43,119 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Obx(() => bottomBarPages[controller.currentIndex.value]),
-
-      extendBody: true,
+      body: Obx(() => pages[controller.currentIndex.value]),
       bottomNavigationBar: Obx(
-        () => AnimatedNotchBottomBar(
-          notchBottomBarController: NotchBottomBarController(
-            index: controller.currentIndex.value,
+        () => ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
           ),
-          color: AppColors.primary,
-          showLabel: true,
-          textOverflow: TextOverflow.visible,
-          maxLine: 1,
-          shadowElevation: 5,
-          kBottomRadius: 28.0,
-          notchColor: AppColors.primary,
-          removeMargins: false,
-          bottomBarWidth: 500,
-          showShadow: false,
-          durationInMilliSeconds: 300,
-          itemLabelStyle: GoogleFonts.roboto(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-          elevation: 1,
-
-          /// Build bottom bar items dynamically
-          bottomBarItems: List.generate(
-            icons.length,
-            (index) => BottomBarItem(
-              inActiveItem: Icon(icons[index], color: Colors.white),
-              activeItem: Icon(icons[index], color: Colors.white),
-              itemLabel: labels[index],
+          child: BottomNavigationBar(
+            currentIndex: controller.currentIndex.value,
+            selectedItemColor: Colors.white,
+            unselectedItemColor: Colors.white70,
+            backgroundColor: AppColors.primary,
+            type: BottomNavigationBarType.fixed,
+            selectedFontSize: 12,
+            unselectedFontSize: 12,
+            selectedLabelStyle: GoogleFonts.roboto(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+            unselectedLabelStyle: GoogleFonts.roboto(
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+            ),
+            onTap: (index) => controller.changeIndex(index),
+            items: List.generate(
+              icons.length,
+              (index) => BottomNavigationBarItem(
+                icon: Icon(icons[index]),
+                label: labels[index],
+              ),
             ),
           ),
-
-          onTap: (index) {
-            log('current selected index $index');
-            controller.changeIndex(index); // 👈 Update index via GetX
-          },
-          kIconSize: 24.0,
         ),
       ),
     );
   }
 }
+
+// class DashboardScreen extends StatelessWidget {
+//   DashboardScreen({super.key});
+
+//   final DashboardController controller = Get.put(DashboardController());
+
+//   final List<IconData> icons = [
+//     Icons.home_outlined,
+//     Icons.local_offer_outlined,
+//     Icons.store_outlined,
+//     Icons.article_outlined,
+//     Icons.location_on_outlined,
+//   ];
+
+//   final List<Widget> bottomBarPages = [
+//     HomeScreen(),
+//     SeedPricesScreen(),
+//     BroodStockScreen(),
+//     NewsAdsScreen(),
+//     UpdatesScreen(),
+//   ];
+
+//   final List<String> labels = [
+//     "Home",
+//     "Price",
+//     "Broadstock",
+//     "News & Ads",
+//     "Updates",
+//   ];
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       body: Obx(() => bottomBarPages[controller.currentIndex.value]),
+
+//       extendBody: true,
+//       bottomNavigationBar: Obx(
+//         () => AnimatedNotchBottomBar(
+//           notchBottomBarController: NotchBottomBarController(
+//             index: controller.currentIndex.value,
+//           ),
+//           color: AppColors.primary,
+//           showLabel: true,
+//           textOverflow: TextOverflow.visible,
+//           maxLine: 1,
+//           shadowElevation: 5,
+//           kBottomRadius: 28.0,
+//           notchColor: AppColors.primary,
+//           removeMargins: false,
+//           bottomBarWidth: 500,
+//           showShadow: false,
+//           durationInMilliSeconds: 300,
+//           itemLabelStyle: GoogleFonts.roboto(
+//             fontSize: 10,
+//             fontWeight: FontWeight.w600,
+//             color: Colors.white,
+//           ),
+//           elevation: 1,
+
+//           /// Build bottom bar items dynamically
+//           bottomBarItems: List.generate(
+//             icons.length,
+//             (index) => BottomBarItem(
+//               inActiveItem: Icon(icons[index], color: Colors.white),
+//               activeItem: Icon(icons[index], color: Colors.white),
+//               itemLabel: labels[index],
+//             ),
+//           ),
+
+//           onTap: (index) {
+//             log('current selected index $index');
+//             controller.changeIndex(index); // 👈 Update index via GetX
+//           },
+//           kIconSize: 24.0,
+//         ),
+//       ),
+//     );
+//   }
+// }

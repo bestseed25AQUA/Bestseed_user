@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:seedsuser/app/auth/view/otp_verification_screen.dart';
+import 'package:seedsuser/app/auth/controller/auth_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
 
@@ -17,11 +17,14 @@ class _LoginWithMobileScreenState extends State<LoginWithMobileScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
+  // Initialize AuthController
+  final AuthController authController = Get.put(AuthController());
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.primary,
-      resizeToAvoidBottomInset: true, 
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Column(
           children: [
@@ -91,20 +94,38 @@ class _LoginWithMobileScreenState extends State<LoginWithMobileScreen> {
                       },
                     ),
                     const SizedBox(height: 20),
-                    CustomButton(
-                      text: "Continue",
-                      isLoading: false,
-                      borderRadius: 16,
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          Get.to(
-                            () => OtpVerificationScreen(
-                              phoneNumber: _phoneController.text,
-                            ),
-                          );
-                        }
-                      },
-                    ),
+                    Obx(() {
+                      return authController.isLoading.value
+                          ? Center(child: CircularProgressIndicator())
+                          : CustomButton(
+                              text: "Continue",
+                              isLoading: authController.isLoading.value,
+                              borderRadius: 16,
+                              onPressed: () async {
+                                if (_formKey.currentState!.validate()) {
+                                  authController.phoneNumber.value =
+                                      _phoneController.text.trim();
+
+                                  await authController.sendOtp();
+                                }
+                              },
+                            );
+                    }),
+
+                    // CustomButton(
+                    //   text: "Continue",
+                    //   isLoading: false,
+                    //   borderRadius: 16,
+                    //   onPressed: () {
+                    //     if (_formKey.currentState!.validate()) {
+                    //       Get.to(
+                    //         () => OtpVerificationScreen(
+                    //           phoneNumber: _phoneController.text,
+                    //         ),
+                    //       );
+                    //     }
+                    //   },
+                    // ),
                     const SizedBox(height: 10),
                     Center(
                       child: Text.rich(

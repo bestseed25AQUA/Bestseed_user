@@ -2,28 +2,51 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
-import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/auth/controller/otp_verify_controller.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
-import 'package:seedsuser/app/dashboard/dashboard.dart';
+import 'package:seedsuser/app/common/custom_toast.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String phoneNumber;
+  final String otp; // OTP received from API
 
-  const OtpVerificationScreen({super.key, required this.phoneNumber});
+  const OtpVerificationScreen({
+    super.key,
+    required this.phoneNumber,
+    required this.otp,
+  });
 
   @override
   State<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
 }
 
 class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
-  String otpCode = "";
+  late TextEditingController _otpController;
+  final OtpVerifyController otpController = Get.put(OtpVerifyController());
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Autofill OTP from API
+    _otpController = TextEditingController(text: widget.otp);
+
+    otpController.phoneNumber.value = widget.phoneNumber;
+    otpController.otp.value = widget.otp; // set OTP in controller
+  }
+
+  // @override
+  // void dispose() {
+  //   _otpController.dispose();
+  //   super.dispose();
+  // }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0076BE), // Primary Blue
+        backgroundColor: const Color(0xFF0076BE),
         elevation: 0,
         title: Text(
           "OTP Verification",
@@ -44,104 +67,78 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               "We have sent the verification code to your",
               style: GoogleFonts.roboto(fontSize: 15, color: Colors.black87),
             ),
-            Row(
-              children: [
-                Text(
-                  "Mobile number",
-                  style: GoogleFonts.roboto(
-                    fontSize: 16,
-                    fontWeight: FontWeight.normal,
-                  ),
-                ),
-                Text(
-                  " ${widget.phoneNumber}",
-                  style: GoogleFonts.roboto(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  " Edit",
-                  style: GoogleFonts.roboto(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
-                  child: const Icon(
-                    Icons.edit,
-                    size: 16,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
+            Text(
+              widget.phoneNumber,
+              style: GoogleFonts.roboto(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 30),
 
-            // OTP Input
+            // OTP Input (pre-filled)
             PinCodeTextField(
               appContext: context,
-              length: 4,
+              length: 6,
+              controller: _otpController,
               keyboardType: TextInputType.number,
               animationType: AnimationType.fade,
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               pinTheme: PinTheme(
                 shape: PinCodeFieldShape.box,
                 borderRadius: BorderRadius.circular(8),
-                fieldHeight: 45, // Adjust size
-                fieldWidth: 45, // Adjust size
+                fieldHeight: 45,
+                fieldWidth: 45,
                 inactiveColor: Colors.grey.shade400,
                 activeColor: const Color(0xFF0076BE),
                 selectedColor: const Color(0xFF0076BE),
               ),
               onChanged: (value) {
-                otpCode = value;
+                otpController.otp.value = value;
               },
             ),
 
             const SizedBox(height: 30),
 
             // Confirm Button
-            CustomButton(
-              text: "Confirm",
-              isLoading: false,
-              borderRadius: 16,
-              onPressed: () {
-                if (otpCode.length == 4) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Entered OTP: $otpCode")),
-                  );
-                } else {
-                  Get.to(() => DashboardScreen());
-                }
-              },
-            ),
+            Obx(() {
+              return otpController.isLoading.value
+                  ? Center(child: CircularProgressIndicator())
+                  : CustomButton(
+                      text: "Confirm",
+                      isLoading: otpController.isLoading.value,
+                      borderRadius: 16,
+                      onPressed: () async {
+                        if (otpController.otp.value.length == 6) {
+                          await otpController.verifyOtp();
+                        } else {
+                          CustomToast.error("Please enter a valid 6-digit OTP");
+                        }
+                      },
+                    );
+            }),
 
             const SizedBox(height: 20),
 
             // Resend Code
-            Center(
-              child: Text.rich(
-                TextSpan(
-                  text: "Didn’t receive the code? ",
-                  style: GoogleFonts.roboto(color: Colors.black54),
-                  children: [
-                    TextSpan(
-                      text: "Resend code",
-                      style: GoogleFonts.roboto(
-                        color: const Color(0xFF0076BE),
-                        fontWeight: FontWeight.bold,
-                      ),
+            Obx(() {
+              return Center(
+                child: GestureDetector(
+                  onTap: otpController.isResending.value
+                      ? null
+                      : () => otpController.resendOtp(),
+                  child: Text(
+                    otpController.isResending.value
+                        ? "Resending..."
+                        : "Didn’t receive the code? Resend code",
+                    style: GoogleFonts.roboto(
+                      color: const Color(0xFF0076BE),
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            }),
 
             Expanded(
               child: Center(

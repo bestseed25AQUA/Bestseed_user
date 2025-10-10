@@ -21,14 +21,11 @@ class _HatcheryDetailState extends State<HatcheryDetail> {
   void initState() {
     super.initState();
     // Initialize controller in initState
-    _controller =
-        VideoPlayerController.asset(
-            'assets/images/WhatsApp Video 2025-10-04 at 11.11.46 AM.mp4',
-          )
-          ..initialize().then((_) {
-            setState(() {});
-          })
-          ..setLooping(false);
+    _controller = VideoPlayerController.asset(widget.videoUrl)
+      ..initialize().then((_) {
+        setState(() {});
+      })
+      ..setLooping(false);
   }
 
   @override
@@ -60,13 +57,12 @@ class _HatcheryDetailState extends State<HatcheryDetail> {
       body: SingleChildScrollView(
         child: Column(
           children: [
+            SizedBox(height: 8),
             // Video Section
             GestureDetector(
               onTap: () async {
                 setState(() => videoStarted = true);
-                _controller = VideoPlayerController.asset(
-                  'assets/images/video_20250921_103157.mp4',
-                );
+                _controller = VideoPlayerController.asset(widget.videoUrl);
                 setState(() {}); // show loading indicator
                 await _controller.initialize();
                 _controller.setLooping(false);
@@ -310,31 +306,47 @@ class _HatcheryDetailState extends State<HatcheryDetail> {
                       ),
                       SizedBox(width: 4),
                       Expanded(
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 16,
-                          ),
-
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.green),
-                          ),
-                          child: Row(
-                            children: [
-                              Image.asset(
-                                'assets/images/whatsApp.png',
-                                height: 20,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                'WhatsApp',
-                                style: GoogleFonts.roboto(
-                                  color: Colors.green,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                        child: InkWell(
+                          onTap: () async {
+                            final whatsappUrl =
+                                "https://wa.me/${'+918977778784'.replaceAll('+', '')}";
+                            final Uri uri = Uri.parse(whatsappUrl);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Cannot launch WhatsApp"),
                                 ),
-                              ),
-                            ],
+                              );
+                            }
+                          },
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 16,
+                            ),
+
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.green),
+                            ),
+                            child: Row(
+                              children: [
+                                Image.asset(
+                                  'assets/images/whatsApp.png',
+                                  height: 20,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'WhatsApp',
+                                  style: GoogleFonts.roboto(
+                                    color: Colors.green,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

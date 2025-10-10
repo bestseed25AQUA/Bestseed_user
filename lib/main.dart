@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:seedsuser/app/auth/view/splash_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 

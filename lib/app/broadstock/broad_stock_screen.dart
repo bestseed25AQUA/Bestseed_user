@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
-import 'package:seedsuser/app/profile/profile_screen.dart';
+import 'package:seedsuser/app/profile/view/profile_screen.dart';
 
 class BroodStockScreen extends StatefulWidget {
   const BroodStockScreen({super.key});
@@ -208,7 +208,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
+                    color: Colors.green.withOpacity(0.6),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(

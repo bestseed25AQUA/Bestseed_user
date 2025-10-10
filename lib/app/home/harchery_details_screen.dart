@@ -49,8 +49,7 @@ class HatcheryDetailScreen extends StatelessWidget {
           // Hatchery Item 2
           HarcheryCardWidget(
             hatcheryName: "SIS Hardline",
-            videoUrl:
-                "assets/images/WhatsApp Video 2025-10-04 at 11.11.46 AM.mp4",
+            videoUrl: "assets/images/video_20251009_120614.mp4",
             unit1: "Bapatla",
             unit2: "Vizag",
             broadstock: "1200 Pieces",

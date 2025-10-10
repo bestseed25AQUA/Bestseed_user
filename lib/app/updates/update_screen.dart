@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/home/carousel_slider_options_card.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
-import 'package:seedsuser/app/profile/profile_screen.dart';
+import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:seedsuser/app/updates/hatchery_details_screen.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class UpdatesScreen extends StatelessWidget {
   final List<Map<String, dynamic>> posts = [
@@ -76,10 +78,11 @@ class UpdatesScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Image.asset('assets/images/us.png'),
-          ),
+          // Padding(
+          //   padding: const EdgeInsets.all(16.0),
+          //   child: Image.asset('assets/images/us.png'),
+          // ),
+          CarouselCardsScreen(),
           Expanded(
             child: ListView.builder(
               itemCount: posts.length,
@@ -218,7 +221,26 @@ class _PostWidgetState extends State<PostWidget> {
                   Row(
                     children: [
                       Image.asset('assets/images/call.png', height: 38),
-                      Image.asset('assets/images/whatsApp.png', height: 32),
+                      InkWell(
+                        onTap: () async {
+                          final whatsappUrl =
+                              "https://wa.me/${'+918977778784'.replaceAll('+', '')}";
+                          final Uri uri = Uri.parse(whatsappUrl);
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Cannot launch WhatsApp"),
+                              ),
+                            );
+                          }
+                        },
+                        child: Image.asset(
+                          'assets/images/whatsApp.png',
+                          height: 32,
+                        ),
+                      ),
                       IconButton(
                         icon: const Icon(Icons.facebook),
                         onPressed: () {},

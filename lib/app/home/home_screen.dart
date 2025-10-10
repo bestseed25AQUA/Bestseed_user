@@ -7,7 +7,7 @@ import 'package:seedsuser/app/home/filter_bottom_sheet.dart';
 import 'package:seedsuser/app/home/search_screen.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
-import 'package:seedsuser/app/profile/profile_screen.dart';
+import 'package:seedsuser/app/profile/view/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -81,12 +81,12 @@ class _HomeScreenState extends State<HomeScreen>
     return SliverAppBar(
       pinned: true,
       floating: false,
-      expandedHeight: 160,
+      expandedHeight: 120,
       automaticallyImplyLeading: false,
       backgroundColor: AppColors.primary,
       title: Column(
         children: [
-          SizedBox(height: 24),
+          SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -190,29 +190,32 @@ class _HomeScreenState extends State<HomeScreen>
     return Row(
       children: [
         Expanded(
-          child: TextField(
-            readOnly: true,
-            onTap: () {
-              Get.to(() => const SearchScreen());
-            },
-            decoration: InputDecoration(
-              hintText: 'Search for Hatcheries, locationseeds',
-              hintStyle: GoogleFonts.roboto(color: Colors.grey),
-              prefixIcon: const Icon(Icons.search, color: Colors.grey),
-              filled: true,
+          child: SizedBox(
+            height: 46,
+            child: TextField(
+              readOnly: true,
+              onTap: () {
+                Get.to(() => const SearchScreen());
+              },
+              decoration: InputDecoration(
+                hintText: 'Search for Hatcheries, locationseeds',
+                hintStyle: GoogleFonts.roboto(color: Colors.grey),
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                filled: true,
 
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
           ),
@@ -224,6 +227,7 @@ class _HomeScreenState extends State<HomeScreen>
           },
           child: Container(
             padding: const EdgeInsets.all(12),
+            height: 46,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),

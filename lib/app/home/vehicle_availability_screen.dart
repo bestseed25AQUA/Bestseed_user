@@ -240,25 +240,48 @@ class VehicleCard extends StatelessWidget {
   Future<void> openWhatsApp(BuildContext context) async {
     final String phone = "+918977778784";
     final String message = "Hello, I want to know more!";
-
-    final Uri whatsappUri = Uri.parse(
-      "whatsapp://send?phone=$phone&text=${Uri.encodeComponent(message)}",
+    // Build a properly encoded URI for the WhatsApp app scheme.
+    final Uri whatsappUri = Uri(
+      scheme: 'whatsapp',
+      host: 'send',
+      queryParameters: {'phone': phone, 'text': message},
     );
 
+    // Fallback to web intent if app is not available.
+    final Uri webFallback = Uri.https('api.whatsapp.com', '/send', {
+      'phone': phone,
+      'text': message,
+    });
+
     try {
+      // Try to open the WhatsApp native app using an external intent.
       if (await canLaunchUrl(whatsappUri)) {
         await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
-      } else {
+        return;
+      }
+
+      // If native app isn't available, open the web fallback.
+      if (await canLaunchUrl(webFallback)) {
+        await launchUrl(webFallback, mode: LaunchMode.externalApplication);
+        return;
+      }
+
+      // If neither can be launched, show a helpful message.
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("WhatsApp not installed on this device"),
+            content: Text('WhatsApp is not available on this device.'),
           ),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error opening WhatsApp: $e")));
+    } catch (e, s) {
+      debugPrint('Error opening WhatsApp: $e');
+      debugPrint('Stack trace: $s');
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error opening WhatsApp: $e')));
+      }
     }
   }
 
@@ -278,17 +301,9 @@ class VehicleCard extends StatelessWidget {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
         debugPrint("Could not launch phone dialer for: $cleanedNumber");
-        // Optional: Show a snackbar or dialog to the user
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   SnackBar(content: Text('Cannot make phone call to $cleanedNumber')),
-        // );
       }
     } catch (e) {
       debugPrint("Error making phone call: $e");
-      // Optional: Show error to user
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(content: Text('Error making phone call: $e')),
-      // );
     }
   }
 }

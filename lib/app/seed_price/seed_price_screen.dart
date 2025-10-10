@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/home/carousel_slider_options_card.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
-import 'package:seedsuser/app/profile/profile_screen.dart';
+import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:seedsuser/app/wanted/wanted_screen.dart';
 
 class SeedPriceItem {
@@ -72,112 +73,117 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Top Card: From Hatchery to Farmer
-              Image.asset('assets/images/image.png'),
-              const SizedBox(height: 20),
-              // Location Dropdowns
-              Row(
+        child: Column(
+          children: [
+            CarouselCardsScreen(),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    flex: 2,
-                    child: _buildDropdownButton(
-                      selected,
-                      ["East Godavari", "West Godavari"],
-                      (newValue) {
-                        setState(() {
-                          selected = newValue!;
-                        });
-                      },
-                    ),
-                  ),
-                  Expanded(child: const SizedBox()),
-                  Expanded(
-                    flex: 2,
-                    child: _buildDropdownButton(
-                      selectedValue,
-                      ["Vannamei", "Monodon", "Scampi"],
-                      (newValue) {
-                        setState(() {
-                          selectedValue = newValue!;
-                        });
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              // Price List
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Count',
-                    style: GoogleFonts.roboto(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    "Today's Prices",
-                    style: GoogleFonts.roboto(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              ...seedPrices.map((item) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 16.0,
-                    horizontal: 16,
-                  ),
-                  margin: EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Color(0xFFF2F2F2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // Top Card: From Hatchery to Farmer
+                  // Image.asset('assets/images/image.png'),
+                  const SizedBox(height: 12),
+                  // Location Dropdowns
+                  Row(
                     children: [
-                      Text(
-                        item.count,
-                        style: GoogleFonts.roboto(
-                          fontSize: 16,
-                          color: Colors.black54,
+                      Expanded(
+                        flex: 2,
+                        child: _buildDropdownButton(
+                          selected,
+                          ["East Godavari", "West Godavari"],
+                          (newValue) {
+                            setState(() {
+                              selected = newValue!;
+                            });
+                          },
                         ),
                       ),
-                      Text(
-                        item.price,
-                        style: GoogleFonts.roboto(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
+                      Expanded(child: const SizedBox()),
+                      Expanded(
+                        flex: 2,
+                        child: _buildDropdownButton(
+                          selectedValue,
+                          ["Vannamei", "Monodon", "Scampi"],
+                          (newValue) {
+                            setState(() {
+                              selectedValue = newValue!;
+                            });
+                          },
                         ),
                       ),
                     ],
                   ),
-                );
-              }),
-              const SizedBox(height: 10),
+                  const SizedBox(height: 20),
+                  // Price List
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Count',
+                        style: GoogleFonts.roboto(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        "Today's Prices",
+                        style: GoogleFonts.roboto(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ...seedPrices.map((item) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16.0,
+                        horizontal: 16,
+                      ),
+                      margin: EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Color(0xFFF2F2F2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            item.count,
+                            style: GoogleFonts.roboto(
+                              fontSize: 16,
+                              color: Colors.black,
+                            ),
+                          ),
+                          Text(
+                            item.price,
+                            style: GoogleFonts.roboto(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 10),
 
-              const SizedBox(height: 20),
-              // Bottom Card: Wanted: Crop Buyers
-              InkWell(
-                onTap: () {
-                  Get.to(() => WantedCropBuyersScreen());
-                },
-                child: Image.asset('assets/images/us.png'),
+                  const SizedBox(height: 20),
+                  // Bottom Card: Wanted: Crop Buyers
+                  InkWell(
+                    onTap: () {
+                      Get.to(() => WantedCropBuyersScreen());
+                    },
+                    child: Image.asset('assets/images/us.png'),
+                  ),
+                  const SizedBox(height: 80),
+                ],
               ),
-              const SizedBox(height: 80),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

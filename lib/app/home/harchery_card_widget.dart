@@ -297,30 +297,46 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                       ),
                       SizedBox(width: 4),
                       Expanded(
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 16,
-                          ),
-
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.green),
-                          ),
-                          child: Row(
-                            children: [
-                              Image.asset(
-                                'assets/images/whatsApp.png',
-                                height: 20,
-                              ),
-                              Text(
-                                'WhatsApp',
-                                style: GoogleFonts.roboto(
-                                  color: Colors.green,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                        child: InkWell(
+                          onTap: () async {
+                            final whatsappUrl =
+                                "https://wa.me/${'+918977778784'.replaceAll('+', '')}";
+                            final Uri uri = Uri.parse(whatsappUrl);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Cannot launch WhatsApp"),
                                 ),
-                              ),
-                            ],
+                              );
+                            }
+                          },
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 16,
+                            ),
+
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.green),
+                            ),
+                            child: Row(
+                              children: [
+                                Image.asset(
+                                  'assets/images/whatsApp.png',
+                                  height: 20,
+                                ),
+                                Text(
+                                  'WhatsApp',
+                                  style: GoogleFonts.roboto(
+                                    color: Colors.green,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
