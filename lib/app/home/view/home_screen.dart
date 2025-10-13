@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
-import 'package:seedsuser/app/home/all_screen.dart';
+import 'package:seedsuser/app/home/view/all_screen.dart';
 import 'package:seedsuser/app/home/filter_bottom_sheet.dart';
 import 'package:seedsuser/app/home/search_screen.dart';
 import 'package:seedsuser/app/language/language_screen.dart';

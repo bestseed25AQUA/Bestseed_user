@@ -2,44 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
-import 'package:seedsuser/app/common/custom_button.dart';
+import 'package:seedsuser/app/language/controller/language_controller.dart';
+import 'package:seedsuser/l10n/app_localizations.dart';
 
-class LanguageSelectionScreen extends StatefulWidget {
-  const LanguageSelectionScreen({super.key});
+class LanguageSelectionScreen extends StatelessWidget {
+  LanguageSelectionScreen({super.key});
 
-  @override
-  State<LanguageSelectionScreen> createState() =>
-      _LanguageSelectionScreenState();
-}
-
-class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
-  String _selectedLanguage = 'Telugu';
-
-  final List<String> _languages = [
-    'Telugu',
-    'Hindi',
-    'English',
-    'Tamil',
-    'Kannada',
-    'Malayalam',
-    'Marathi',
-    'Gujarati',
-    'Punjabi',
-    'Bengali',
-    'Odia',
-    'Urdu',
-  ];
+  final LanguageController controller = Get.find();
 
   @override
   Widget build(BuildContext context) {
+    final languages = controller.langMap.keys.toList();
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Choose language',
+          AppLocalizations.of(context).selectLanguage,
           style: GoogleFonts.roboto(color: Colors.white),
         ),
-        iconTheme: IconThemeData(color: Colors.white),
         backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -47,7 +29,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Your preferred language is ?',
+              'preferred_language'.tr,
               style: GoogleFonts.roboto(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -60,69 +42,73 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                   crossAxisCount: 2,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
-                  childAspectRatio: 2.8, // Adjust as needed
+                  childAspectRatio: 2.8,
                 ),
-                itemCount: _languages.length,
+                itemCount: languages.length,
                 itemBuilder: (context, index) {
-                  final language = _languages[index];
-                  return _buildLanguageOption(language);
-                },
-              ),
-            ),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: CustomButton(
-                onPressed: () {
-                  // Handle save button press
-                  Get.back();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Selected language: $_selectedLanguage'),
+                  final lang = languages[index];
+                  final isSelected = controller.isSelected(lang);
+
+                  return GestureDetector(
+                    onTap: () => controller.setLanguage(lang),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.primary.withOpacity(0.1)
+                            : const Color(0xFFEEEEEE),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.primary
+                              : Colors.transparent,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              lang,
+                              style: GoogleFonts.roboto(
+                                fontSize: 16,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                          Radio<String>(
+                            value: lang,
+                            groupValue: controller.currentLanguageName.value,
+                            onChanged: (value) =>
+                                controller.setLanguage(value!),
+                            activeColor: AppColors.primary,
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                      ),
                     ),
                   );
                 },
-
-                text: 'Save',
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
+            const SizedBox(height: 16),
+            // CustomButton(
+            //   text: 'save'.tr,
+            //   onPressed: () {
 
-  Widget _buildLanguageOption(String language) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedLanguage = language;
-        });
-      },
-      child: Container(
-        height: 80,
-        decoration: BoxDecoration(
-          color: Color(0xFFEEEEEE),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 16),
-            Text(language, style: GoogleFonts.roboto(fontSize: 16)),
-            const Spacer(),
-            Radio<String>(
-              value: language,
-              groupValue: _selectedLanguage,
-              onChanged: (String? value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedLanguage = value;
-                  });
-                }
-              },
-              activeColor: AppColors.primary,
-            ),
-            const SizedBox(width: 8),
+            //     Get.back();
+            //     Get.snackbar(
+            //       'language_saved'.tr,
+            //       '${'selected'.tr}: ${controller.currentLanguageName.value}',
+            //       backgroundColor: AppColors.primary,
+            //       colorText: Colors.white,
+            //       snackPosition: SnackPosition.BOTTOM,
+            //       duration: const Duration(seconds: 2),
+            //     );
+            //   },
+            // ),
           ],
         ),
       ),

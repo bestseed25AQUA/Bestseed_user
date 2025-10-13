@@ -1,15 +1,14 @@
-import 'dart:developer';
-import 'package:animated_notch_bottom_bar/animated_notch_bottom_bar/animated_notch_bottom_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/broadstock/broad_stock_screen.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
-import 'package:seedsuser/app/home/home_screen.dart';
+import 'package:seedsuser/app/home/view/home_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/news_ads_screen.dart';
-import 'package:seedsuser/app/seed_price/seed_price_screen.dart';
+import 'package:seedsuser/app/seed_price/view/seed_price_screen.dart';
 import 'package:seedsuser/app/updates/update_screen.dart';
+import 'package:seedsuser/l10n/app_localizations.dart';
 
 class DashboardScreen extends StatelessWidget {
   DashboardScreen({super.key});
@@ -32,16 +31,17 @@ class DashboardScreen extends StatelessWidget {
     Icons.location_on_outlined,
   ];
 
-  final List<String> labels = [
-    "Home",
-    "Price",
-    "Broadstock",
-    "News & Ads",
-    "Updates",
-  ];
-
   @override
   Widget build(BuildContext context) {
+    // Get localized labels inside build
+    final List<String> labels = [
+      AppLocalizations.of(context).home,
+      AppLocalizations.of(context).price,
+      AppLocalizations.of(context).broadstock,
+      AppLocalizations.of(context).news_ads,
+      AppLocalizations.of(context).updates,
+    ];
+
     return Scaffold(
       body: Obx(() => pages[controller.currentIndex.value]),
       bottomNavigationBar: Obx(

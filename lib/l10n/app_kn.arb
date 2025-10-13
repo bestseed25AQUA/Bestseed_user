@@ -1,0 +1,36 @@
+{
+  "appTitle": "ನನ್ನ ಅಪ್ಲಿಕೇಶನ್",
+  "welcome": "ಸ್ವಾಗತ",
+  "hello": "ಹಲೋ, {name}!",
+  "settings": "ಸೆಟ್ಟಿಂಗ್‌ಗಳು",
+  "language": "ಭಾಷೆ",
+  "selectLanguage": "ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ",
+  "save": "ಉಳಿಸು",
+  "cancel": "ರದ್ದುಮಾಡು",
+  
+  "profile": "ಪ್ರೊಫೈಲ್",
+  "search": "ಹುಡುಕು",
+  "notifications": "ಅಧಿಸೂಚನೆಗಳು",
+  "logout": "ಲಾಗ್ ಔಟ್",
+  "login": "ಲಾಗಿನ್",
+  "signup": "ಸೈನ್ ಅಪ್",
+  "email": "ಇಮೇಲ್",
+  "password": "ಗುಪ್ತಪದ",
+  "confirmPassword": "ಗುಪ್ತಪದ ದೃಢೀಕರಿಸಿ",
+  "forgotPassword": "ಗುಪ್ತಪದ ಮರೆತಿರಾ?",
+  "submit": "ಸಲ್ಲಿಸು",
+  "error": "ದೋಷ",
+  "success": "ಯಶಸ್ಸು",
+  "loading": "ಲೋಡ್ ಆಗುತ್ತಿದೆ...",
+  "noInternet": "ಇಂಟರ್‌ನೆಟ್ ಸಂಪರ್ಕವಿಲ್ಲ",
+  "tryAgain": "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ",
+
+  "home": "ಮನೆ",
+  "price": "ಬೆಲೆ",
+  "broadstock": "ಬ್ರಾಡ್‌ಸ್ಟಾಕ್",
+  "news_ads": "ಸುದ್ದಿ & ಜಾಹೀರಿ",
+  "updates": "ಅಪ್ಡೇಟ್ಗಳು",
+
+  "send_request": "ಕೋರಿಕೆ ಕಳುಹಿಸಿ"
+
+}

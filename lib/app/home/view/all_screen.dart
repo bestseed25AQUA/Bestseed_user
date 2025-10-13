@@ -13,7 +13,8 @@ import 'package:seedsuser/app/home/hatchery_updates_widget.dart';
 import 'package:seedsuser/app/home/seed_request_screen.dart';
 import 'package:seedsuser/app/home/spot_hatchery_screen.dart';
 import 'package:seedsuser/app/home/today_price_widget.dart';
-import 'package:seedsuser/app/home/vehicle_availability_screen.dart';
+import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
+import 'package:seedsuser/app/home/widget/home_banner_carousel.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -141,7 +142,8 @@ class _HomePageState extends State<HomePage>
                   ),
                 ),
                 // const SizedBox(height: 8),
-                CarouselCardsScreen(),
+                // CarouselCardsScreen(),
+                HomeBannerCarousel(),
               ],
             ),
           ),

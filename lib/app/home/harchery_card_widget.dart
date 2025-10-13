@@ -257,36 +257,35 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                   ),
                   const SizedBox(height: 20),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      // 📞 Call Now
                       Expanded(
-                        child: GestureDetector(
+                        child: InkWell(
                           onTap: () {
                             _makePhoneCall("+918977778784");
                           },
                           child: Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 16,
-                            ),
+                            height: 48, // fixed height for perfect alignment
                             decoration: BoxDecoration(
                               color: AppColors.primary,
-                              borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(16),
+                              borderRadius: const BorderRadius.only(
                                 topLeft: Radius.circular(16),
+                                bottomLeft: Radius.circular(16),
                               ),
                             ),
                             child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Image.asset(
                                   'assets/images/phone.png',
-                                  height: 20,
+                                  height: 18,
                                 ),
+                                const SizedBox(width: 6),
                                 Text(
                                   'Call Now',
                                   style: GoogleFonts.roboto(
                                     color: Colors.white,
-                                    fontSize: 12,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -295,7 +294,10 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                           ),
                         ),
                       ),
-                      SizedBox(width: 4),
+
+                      const SizedBox(width: 4),
+
+                      // 💬 WhatsApp
                       Expanded(
                         child: InkWell(
                           onTap: () async {
@@ -313,25 +315,26 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                             }
                           },
                           child: Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 16,
-                            ),
-
+                            height: 48,
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.green),
+                              border: Border.all(
+                                color: Colors.green,
+                                width: 1.5,
+                              ),
                             ),
                             child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Image.asset(
                                   'assets/images/whatsApp.png',
-                                  height: 20,
+                                  height: 18,
                                 ),
+                                const SizedBox(width: 6),
                                 Text(
                                   'WhatsApp',
                                   style: GoogleFonts.roboto(
                                     color: Colors.green,
-                                    fontSize: 12,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -340,37 +343,37 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                           ),
                         ),
                       ),
-                      SizedBox(width: 4),
+
+                      const SizedBox(width: 4),
+
+                      // ⚡ Book Now
                       Expanded(
                         child: InkWell(
                           onTap: () {
                             showBookingBottomSheet(context);
                           },
                           child: Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 16,
-                            ),
-
+                            height: 48,
                             decoration: BoxDecoration(
                               color: AppColors.primary,
-                              borderRadius: BorderRadius.only(
+                              borderRadius: const BorderRadius.only(
                                 topRight: Radius.circular(16),
                                 bottomRight: Radius.circular(16),
                               ),
                             ),
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Image.asset(
                                   'assets/images/Lightning.png',
-                                  height: 20,
+                                  height: 18,
                                 ),
+                                const SizedBox(width: 6),
                                 Text(
                                   'Book Now',
                                   style: GoogleFonts.roboto(
                                     color: Colors.white,
-                                    fontSize: 12,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),

@@ -135,9 +135,6 @@ class _SearchScreenState extends State<SearchScreen> {
             // Category section
             _buildSection("Category", categories),
 
-            // Brands section
-            _buildSection("Brands", brands),
-
             // Locations section
             _buildSection("Locations", locations),
 

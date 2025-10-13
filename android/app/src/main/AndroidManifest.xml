@@ -37,6 +37,7 @@
         android:label="Best Seeds"
         android:name="${applicationName}"
         android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="true"
         android:icon="@mipmap/ic_launcher">
 
         <!-- Google Maps API Key -->

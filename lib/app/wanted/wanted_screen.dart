@@ -13,6 +13,23 @@ class WantedCropBuyersScreen extends StatefulWidget {
 class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
   String selectedValue = "Vannamei";
   String selected = "East Godavari";
+
+  // Controller for search text
+  TextEditingController searchController = TextEditingController();
+
+  String? selectedFilter;
+
+  void _selectFilter(String? filter) {
+    setState(() {
+      if (selectedFilter == filter) {
+        selectedFilter = null; // toggle off
+      } else {
+        selectedFilter = filter;
+      }
+    });
+    // _filterBuyers(searchController.text);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -24,16 +41,48 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: BorderRadiusGeometry.circular(16),
-              child: Image.asset(
-                'assets/images/wanted_banner.png',
-                height: 140,
-                width: double.infinity,
-                fit: BoxFit.cover,
+            TextField(
+              controller: searchController,
+              onChanged: (value) {},
+              decoration: InputDecoration(
+                hintText: "Search buyers...",
+                prefixIcon: Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
-            const SizedBox(height: 16),
+
+            const SizedBox(height: 8),
+
+            // Filter chips
+            Wrap(
+              spacing: 8,
+              children: ["Vannamei", "Fish", "Tiger"].map((type) {
+                final isSelected = selectedFilter == type;
+                return ChoiceChip(
+                  label: Text(type),
+                  selected: isSelected,
+                  selectedColor: Colors.green,
+                  backgroundColor: Colors.grey[200],
+                  checkmarkColor: Colors.white,
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black,
+                  ),
+                  onSelected: (_) => _selectFilter(type),
+                );
+              }).toList(),
+            ),
+
+            const SizedBox(height: 8),
+
             _buildFilterSection(),
 
             const SizedBox(height: 16),
@@ -199,7 +248,19 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                Text(
+                  'Popular shrimp species, fast-growing and high market demand.',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.roboto(
+                    fontSize: 12,
+                    color: selectedFilter == "Vannamei"
+                        ? Colors.white70
+                        : Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(

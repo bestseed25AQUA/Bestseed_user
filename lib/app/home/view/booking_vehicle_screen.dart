@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
+import 'package:seedsuser/app/home/controller/vehicle_availability_controller.dart';
 import 'package:seedsuser/app/home/map_screen.dart';
+import 'package:seedsuser/app/model/vehicle_availability_model.dart';
+import 'package:seedsuser/l10n/app_localizations.dart';
 
 class BookingVehicleScreen extends StatefulWidget {
-  const BookingVehicleScreen({super.key});
+  final Vehicle vehicle;
+  const BookingVehicleScreen({super.key, required this.vehicle});
 
   @override
   State<BookingVehicleScreen> createState() => _BookingVehicleScreenState();
@@ -14,7 +19,6 @@ class BookingVehicleScreen extends StatefulWidget {
 class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers for form fields
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _pickupController = TextEditingController();
@@ -22,40 +26,17 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
   final _quantityController = TextEditingController();
   final _dateController = TextEditingController();
 
-  Future<void> _showConfirmationDialog() async {
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.0),
-          ),
-          content: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Image.asset(
-                  'assets/images/SealCheck.png',
-                  height: 109,
-                  width: 109,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Your request was recorded',
-                  style: GoogleFonts.roboto(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18.0,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  final VehicleController _vehicleController = Get.find();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _pickupController.dispose();
+    _deliveryController.dispose();
+    _quantityController.dispose();
+    _dateController.dispose();
+    super.dispose();
   }
 
   Future<void> _pickDate() async {
@@ -66,7 +47,8 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
       lastDate: DateTime(2101),
     );
     if (picked != null) {
-      _dateController.text = "${picked.day}/${picked.month}/${picked.year}";
+      _dateController.text =
+          "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
     }
   }
 
@@ -83,22 +65,32 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _pickupController.dispose();
-    _deliveryController.dispose();
-    _quantityController.dispose();
-    _dateController.dispose();
-    super.dispose();
+  void _submitBooking() {
+    if (_formKey.currentState!.validate()) {
+      _vehicleController
+          .bookVehicle(
+            vehicleNumber: widget.vehicle.vehicleNumber,
+            hatcheryName: widget.vehicle.hatcheryName,
+            name: _nameController.text.trim(),
+            mobile: _phoneController.text.trim(),
+            date: _dateController.text.trim(),
+            pickupAddress: _pickupController.text.trim().isEmpty
+                ? widget.vehicle.hatcheryLocation ?? 'Pakala'
+                : 'Pakala',
+            deliveryAddress: _deliveryController.text.trim(),
+            seedQuantity: int.tryParse(_quantityController.text.trim()) ?? 0,
+          )
+          .then((_) {
+            // _showConfirmationDialog();
+          });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Booking vehicle at Seven sta...'),
+        title: Text('Booking vehicle at ${widget.vehicle.hatcheryName}'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -119,17 +111,12 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
                 keyboardType: TextInputType.phone,
               ),
               _buildDateField(),
-              // _buildTextField(
-              //   "Pickup Address",
-              //   _pickupController,
-              //   Icons.location_on,
-              // ),
               _buildTextField(
                 "Delivery Address",
                 _deliveryController,
                 Icons.location_on,
                 readOnly: true,
-                onTap: _pickDeliveryAddress, // <-- open map picker
+                onTap: _pickDeliveryAddress,
               ),
               _buildTextField(
                 "Seed Quantity",
@@ -142,16 +129,15 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: Container(
-        height: 86,
-        padding: const EdgeInsets.all(16.0),
-        child: CustomButton(
-          text: 'Send request',
-          onPressed: () {
-            // if (_formKey.currentState!.validate()) {
-            _showConfirmationDialog();
-            // }
-          },
+      bottomNavigationBar: Obx(
+        () => Container(
+          height: 86,
+          padding: const EdgeInsets.all(16.0),
+          child: CustomButton(
+            text: AppLocalizations.of(context).send_request,
+            onPressed: _submitBooking,
+            isLoading: _vehicleController.isBooking.value,
+          ),
         ),
       ),
     );
@@ -168,13 +154,13 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Seven Star Hatchery seeds',
+            widget.vehicle.hatcheryName,
             style: GoogleFonts.roboto(
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const Text('Prakasam, Andhra Pradesh'),
+          Text(widget.vehicle.hatcheryLocation ?? ''),
           const SizedBox(height: 16),
           Text(
             'Vehicle Driver Details',
@@ -185,22 +171,22 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
           ),
           const SizedBox(height: 8),
           Row(
-            children: const [
-              Icon(Icons.person),
-              SizedBox(width: 8),
-              Text('Ramesh'),
-              Spacer(),
-              Icon(Icons.phone),
-              SizedBox(width: 8),
-              Text('+91xxxxxxxxx'),
+            children: [
+              const Icon(Icons.person),
+              const SizedBox(width: 8),
+              Text(widget.vehicle.driverName),
+              const Spacer(),
+              const Icon(Icons.phone),
+              const SizedBox(width: 8),
+              Text('+91${widget.vehicle.driverMobile}'),
             ],
           ),
           const SizedBox(height: 8),
-          const Row(
+          Row(
             children: [
-              Icon(Icons.directions_car),
-              SizedBox(width: 8),
-              Text('TSN05656'),
+              const Icon(Icons.directions_car),
+              const SizedBox(width: 8),
+              Text(widget.vehicle.vehicleNumber),
             ],
           ),
         ],

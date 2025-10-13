@@ -114,7 +114,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
                   // Price List
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -135,14 +135,14 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   ...seedPrices.map((item) {
                     return Container(
                       padding: const EdgeInsets.symmetric(
-                        vertical: 16.0,
+                        vertical: 10.0,
                         horizontal: 16,
                       ),
-                      margin: EdgeInsets.only(bottom: 12),
+                      margin: EdgeInsets.only(bottom: 6),
                       decoration: BoxDecoration(
                         color: Color(0xFFF2F2F2),
                         borderRadius: BorderRadius.circular(8),
@@ -160,7 +160,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                           Text(
                             item.price,
                             style: GoogleFonts.roboto(
-                              fontSize: 16,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: Colors.blue,
                             ),
@@ -169,7 +169,16 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                       ),
                     );
                   }),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
+
+                  Text(
+                    'description...........',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.roboto(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
 
                   const SizedBox(height: 20),
                   // Bottom Card: Wanted: Crop Buyers
