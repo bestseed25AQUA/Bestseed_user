@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:seedsuser/app/booking/booking_screen.dart';
+import 'package:seedsuser/app/booking/view/booking_screen.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
@@ -10,6 +10,7 @@ import 'package:seedsuser/app/profile/controller/logout_controller.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/profile/view/edit_profile_screen.dart';
 import 'package:seedsuser/app/tracking/vehicle_tracking_screen.dart';
+import 'package:seedsuser/l10n/app_localizations.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -62,59 +63,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
               ProfileMenuItem(
                 icon: Icons.notifications_none,
-                title: 'Notification',
+                title: AppLocalizations.of(context).notifications,
                 onTap: () {
                   Get.to(() => NotificationsScreen());
                 },
               ),
               ProfileMenuItem(
                 icon: Icons.fire_truck_outlined,
-                title: 'Tracking',
+                title: AppLocalizations.of(context).tracking,
                 onTap: () {
                   Get.to(() => VehicleTrackingPage());
                 },
               ),
               ProfileMenuItem(
                 icon: Icons.menu,
-                title: 'My bookings',
+                title: AppLocalizations.of(context).my_bookings,
                 onTap: () {
                   Get.to(() => MyBookingScreen());
                 },
               ),
               ProfileMenuItem(
                 icon: Icons.headset_mic_outlined,
-                title: 'Customer support',
+                title: AppLocalizations.of(context).customer_support,
                 onTap: () {
                   Get.to(() => VehicleTrackingPage());
                 },
               ),
               ProfileMenuItem(
                 icon: Icons.description_outlined,
-                title: 'Terms and conditions',
+                title: AppLocalizations.of(context).terms_conditions,
                 onTap: () {
                   Get.to(() => VehicleTrackingPage());
                 },
               ),
               ProfileMenuItem(
                 icon: FontAwesomeIcons.language,
-                title: 'Change language',
+                title: AppLocalizations.of(context).change_languages,
                 onTap: () {
                   Get.to(() => LanguageSelectionScreen());
                 },
               ),
               ProfileMenuItem(
                 icon: Icons.privacy_tip_outlined,
-                title: 'Privacy Policy',
+                title: AppLocalizations.of(context).privacy_policy,
                 onTap: () {},
               ),
               ProfileMenuItem(
                 icon: Icons.star_border,
-                title: 'Rate us',
+                title: AppLocalizations.of(context).rate_us,
                 onTap: () {},
               ),
               ProfileMenuItem(
                 icon: Icons.share_outlined,
-                title: 'Share app',
+                title: AppLocalizations.of(context).share_app,
                 onTap: () {},
               ),
               Obx(() {
@@ -122,7 +123,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ? Center(child: CircularProgressIndicator())
                     : ProfileMenuItem(
                         icon: Icons.logout,
-                        title: 'Logout',
+                        title: AppLocalizations.of(context).logout,
                         onTap: () {
                           Get.bottomSheet(
                             Container(

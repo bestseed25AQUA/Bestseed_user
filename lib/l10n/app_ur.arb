@@ -1,7 +1,6 @@
 {
   "appTitle": "میری ایپ",
   "welcome": "خوش آمدید",
-  "hello": "ہیلو، {name}!",
   "settings": "ترتیبات",
   "language": "زبان",
   "selectLanguage": "زبان منتخب کریں",
@@ -29,5 +28,16 @@
   "news_ads": "خبریں اور اشتہارات",
   "updates": "اپ ڈیٹس",
 
-  "send_request": "درخواست بھیجیں"
+  "send_request": "درخواست بھیجیں",
+
+  "wanted_crops": "مطلوب فصلیں",
+  "search_buyers": "خریدار تلاش کریں...",
+  "tracking": "ٹریکنگ",
+  "my_bookings": "میری بکنگز",
+  "customer_support": "کسٹمر سپورٹ",
+  "terms_conditions": "شرائط و ضوابط",
+  "change_languages": "زبانیں تبدیل کریں",
+  "privacy_policy": "رازداری کی پالیسی",
+  "rate_us": "ہمیں ریٹ کریں",
+  "share_app": "ایپ شیئر کریں"
 }

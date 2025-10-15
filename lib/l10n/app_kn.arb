@@ -1,7 +1,6 @@
 {
   "appTitle": "ನನ್ನ ಅಪ್ಲಿಕೇಶನ್",
   "welcome": "ಸ್ವಾಗತ",
-  "hello": "ಹಲೋ, {name}!",
   "settings": "ಸೆಟ್ಟಿಂಗ್‌ಗಳು",
   "language": "ಭಾಷೆ",
   "selectLanguage": "ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ",
@@ -31,6 +30,16 @@
   "news_ads": "ಸುದ್ದಿ & ಜಾಹೀರಿ",
   "updates": "ಅಪ್ಡೇಟ್ಗಳು",
 
-  "send_request": "ಕೋರಿಕೆ ಕಳುಹಿಸಿ"
+  "send_request": "ಕೋರಿಕೆ ಕಳುಹಿಸಿ",
+  "wanted_crops": "ಕೋರಿಕೆಯ ಬೆಳೆಗಳು",
+  "search_buyers": "ಖರೀದಿದಾರರನ್ನು ಹುಡುಕಿ...",
+  "tracking": "ಟ್ರ್ಯಾಕಿಂಗ್",
+  "my_bookings": "ನನ್ನ ಬುಕ್ಕಿಂಗ್‌ಗಳು",
+  "customer_support": "ಗ್ರಾಹಕ ಬೆಂಬಲ",
+  "terms_conditions": "ನಿಯಮಗಳು ಮತ್ತು ಷರತ್ತುಗಳು",
+  "change_languages": "ಭಾಷೆಗಳನ್ನು ಬದಲಿಸಿ",
+  "privacy_policy": "ಗೌಪ್ಯತಾ ನೀತಿ",
+  "rate_us": "ನಮಗೆ ಮೌಲ್ಯಮಾಪನ ನೀಡಿ",
+  "share_app": "ಅ್ಯಪ್ ಹಂಚಿಕೊಳ್ಳಿ"
 
 }

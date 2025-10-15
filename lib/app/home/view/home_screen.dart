@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/view/all_screen.dart';
 import 'package:seedsuser/app/home/filter_bottom_sheet.dart';
@@ -20,16 +22,69 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  String currentCity = "Fetching...";
+  String currentState = "";
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 6, vsync: this);
+    _getCurrentLocation();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  /// ✅ Get current location and reverse geocode it
+  Future<void> _getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      setState(() {
+        currentCity = "Location disabled";
+      });
+      return;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        setState(() {
+          currentCity = "Permission denied";
+        });
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      setState(() {
+        currentCity = "Permission permanently denied";
+      });
+      return;
+    }
+
+    final position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+
+    List<Placemark> placemarks = await placemarkFromCoordinates(
+      position.latitude,
+      position.longitude,
+    );
+
+    if (placemarks.isNotEmpty) {
+      final place = placemarks.first;
+      setState(() {
+        currentCity = place.subLocality ?? "Unknown";
+        currentState = place.street ?? "";
+      });
+    }
   }
 
   @override
@@ -77,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  /// ✅ App bar with current location title/subtitle
   Widget _buildSliverAppBar() {
     return SliverAppBar(
       pinned: true,
@@ -86,12 +142,11 @@ class _HomeScreenState extends State<HomeScreen>
       backgroundColor: AppColors.primary,
       title: Column(
         children: [
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                // ✅ prevents overflow
                 child: Row(
                   children: [
                     Image.asset(
@@ -101,26 +156,41 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     const SizedBox(width: 4),
                     Expanded(
-                      // ✅ text will ellipsize instead of overflowing
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Kakinada',
-                            style: GoogleFonts.roboto(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.location_on_outlined,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  currentCity,
+                                  style: GoogleFonts.roboto(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
+                          const SizedBox(height: 2),
                           Text(
-                            '9-135 Kakinada, Andhra Pradesh',
+                            currentState.isNotEmpty
+                                ? currentState
+                                : "Fetching current area...",
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.roboto(
-                              color: Colors.white,
-                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                         ],
@@ -144,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen>
                   const SizedBox(width: 16),
                   InkWell(
                     onTap: () {
-                      Get.to(() => NotificationsScreen());
+                      Get.to(() => const NotificationsScreen());
                     },
                     child: Image.asset(
                       'assets/images/notification.png',
@@ -154,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen>
                   const SizedBox(width: 16),
                   InkWell(
                     onTap: () {
-                      Get.to(() => ProfileScreen());
+                      Get.to(() => const ProfileScreen());
                     },
                     child: Image.asset('assets/images/person.png', height: 32),
                   ),
@@ -198,21 +268,12 @@ class _HomeScreenState extends State<HomeScreen>
                 Get.to(() => const SearchScreen());
               },
               decoration: InputDecoration(
-                hintText: 'Search for Hatcheries, locationseeds',
+                hintText: 'Search for Hatcheries, locations, seeds',
                 hintStyle: GoogleFonts.roboto(color: Colors.grey),
                 prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 filled: true,
-
                 fillColor: Colors.white,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
@@ -242,7 +303,7 @@ class _HomeScreenState extends State<HomeScreen>
   void showFilterBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Allows the bottom sheet to take full height
+      isScrollControlled: true,
       builder: (BuildContext context) {
         return const FilterBottomSheet();
       },

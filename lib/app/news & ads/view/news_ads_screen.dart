@@ -4,8 +4,8 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
-import 'package:seedsuser/app/news%20&%20ads/medicine_news_screen.dart';
-import 'package:seedsuser/app/news%20&%20ads/trending_updates_screen.dart';
+import 'package:seedsuser/app/news%20&%20ads/view/medicine_news_screen.dart';
+import 'package:seedsuser/app/news%20&%20ads/widget/news_banner_widget.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:video_player/video_player.dart';
@@ -92,10 +92,12 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionHeader('Trending updates', () {
-              Get.to(() => TrendingUpdatesScreen());
-            }),
-            _buildTrendingSection(),
+            // _buildSectionHeader('Trending updates', () {
+            //   Get.to(() => TrendingUpdatesScreen());
+            // }),
+            // _buildTrendingSection(),
+            const SizedBox(height: 16),
+            NewsBannerWidget(),
             const SizedBox(height: 20),
             _buildSectionHeader('Medicine news', () {
               Get.to(() => const MedicineNewsScreen());
@@ -140,114 +142,114 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
     );
   }
 
-  Widget _buildTrendingSection() {
-    return GestureDetector(
-      onTap: () async {
-        setState(() => videoStarted = true);
-        _controller = VideoPlayerController.asset(
-          'assets/images/video_20250921_103157.mp4',
-        );
-        setState(() {}); // show loading indicator
-        await _controller.initialize();
-        _controller.setLooping(false);
-        _controller.play();
+  // Widget _buildTrendingSection() {
+  //   return GestureDetector(
+  //     onTap: () async {
+  //       setState(() => videoStarted = true);
+  //       _controller = VideoPlayerController.asset(
+  //         'assets/images/video_20250921_103157.mp4',
+  //       );
+  //       setState(() {}); // show loading indicator
+  //       await _controller.initialize();
+  //       _controller.setLooping(false);
+  //       _controller.play();
 
-        // Listener to update UI and detect end
-        _controller.addListener(() {
-          if (_controller.value.position >= _controller.value.duration) {
-            setState(() {
-              videoStarted = false; // video ended
-            });
-          } else {
-            setState(() {}); // update position/time
-          }
-        });
+  //       // Listener to update UI and detect end
+  //       _controller.addListener(() {
+  //         if (_controller.value.position >= _controller.value.duration) {
+  //           setState(() {
+  //             videoStarted = false; // video ended
+  //           });
+  //         } else {
+  //           setState(() {}); // update position/time
+  //         }
+  //       });
 
-        setState(() {}); // refresh UI after initialization
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: SizedBox(
-            width: double.infinity,
-            height: 200,
-            child: _controller.value.isInitialized
-                ? Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Video Player
-                      SizedBox(
-                        width: double.infinity,
-                        child: AspectRatio(
-                          aspectRatio: _controller.value.aspectRatio,
-                          child: VideoPlayer(_controller),
-                        ),
-                      ),
-                      // Play/Pause Button
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _controller.value.isPlaying
-                                ? _controller.pause()
-                                : _controller.play();
-                          });
-                        },
-                        child: Icon(
-                          _controller.value.isPlaying
-                              ? Icons.pause_circle_filled
-                              : Icons.play_circle_fill,
-                          color: Colors.white,
-                          size: 60,
-                        ),
-                      ),
-                      // Video Progress / Time
-                      Positioned(
-                        bottom: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '${_formatDuration(_controller.value.position)} / ${_formatDuration(_controller.value.duration)}',
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                // : Stack(
-                //     alignment: Alignment.center,
-                //     children: [
-                //       const Icon(
-                //         Icons.play_circle_fill,
-                //         color: Colors.white,
-                //         size: 60,
-                //       ),
-                //     ],
-                //   )
-                : const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
+  //       setState(() {}); // refresh UI after initialization
+  //     },
+  //     child: Padding(
+  //       padding: const EdgeInsets.symmetric(horizontal: 16.0),
+  //       child: ClipRRect(
+  //         borderRadius: BorderRadius.circular(16),
+  //         child: SizedBox(
+  //           width: double.infinity,
+  //           height: 200,
+  //           child: _controller.value.isInitialized
+  //               ? Stack(
+  //                   alignment: Alignment.center,
+  //                   children: [
+  //                     // Video Player
+  //                     SizedBox(
+  //                       width: double.infinity,
+  //                       child: AspectRatio(
+  //                         aspectRatio: _controller.value.aspectRatio,
+  //                         child: VideoPlayer(_controller),
+  //                       ),
+  //                     ),
+  //                     // Play/Pause Button
+  //                     GestureDetector(
+  //                       onTap: () {
+  //                         setState(() {
+  //                           _controller.value.isPlaying
+  //                               ? _controller.pause()
+  //                               : _controller.play();
+  //                         });
+  //                       },
+  //                       child: Icon(
+  //                         _controller.value.isPlaying
+  //                             ? Icons.pause_circle_filled
+  //                             : Icons.play_circle_fill,
+  //                         color: Colors.white,
+  //                         size: 60,
+  //                       ),
+  //                     ),
+  //                     // Video Progress / Time
+  //                     Positioned(
+  //                       bottom: 8,
+  //                       right: 8,
+  //                       child: Container(
+  //                         padding: const EdgeInsets.symmetric(
+  //                           horizontal: 6,
+  //                           vertical: 2,
+  //                         ),
+  //                         decoration: BoxDecoration(
+  //                           color: Colors.black54,
+  //                           borderRadius: BorderRadius.circular(4),
+  //                         ),
+  //                         child: Text(
+  //                           '${_formatDuration(_controller.value.position)} / ${_formatDuration(_controller.value.duration)}',
+  //                           style: const TextStyle(color: Colors.white),
+  //                         ),
+  //                       ),
+  //                     ),
+  //                   ],
+  //                 )
+  //               // : Stack(
+  //               //     alignment: Alignment.center,
+  //               //     children: [
+  //               //       const Icon(
+  //               //         Icons.play_circle_fill,
+  //               //         color: Colors.white,
+  //               //         size: 60,
+  //               //       ),
+  //               //     ],
+  //               //   )
+  //               : const Center(
+  //                   child: CircularProgressIndicator(color: AppColors.primary),
+  //                 ),
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 
   // Helper to format duration as mm:ss
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return '$minutes:$seconds';
-  }
+  // String _formatDuration(Duration duration) {
+  //   String twoDigits(int n) => n.toString().padLeft(2, '0');
+  //   final minutes = twoDigits(duration.inMinutes.remainder(60));
+  //   final seconds = twoDigits(duration.inSeconds.remainder(60));
+  //   return '$minutes:$seconds';
+  // }
 
   Widget _buildMedicineNewsSection() {
     return SizedBox(

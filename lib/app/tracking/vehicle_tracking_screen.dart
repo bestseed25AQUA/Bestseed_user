@@ -184,8 +184,8 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildInfoRow(Icons.location_on, "Unit - 1", 'Kakinada'),
-                  const SizedBox(height: 12),
+                  // _buildInfoRow(Icons.location_on, "Unit - 1", 'Kakinada'),
+                  // const SizedBox(height: 12),
                   _buildInfoRow(
                     Icons.water_drop_outlined,
                     "Broadstock",
@@ -204,8 +204,8 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
                 mainAxisAlignment: MainAxisAlignment.start,
 
                 children: [
-                  _buildInfoRow(Icons.location_on, "Unit - 2", 'Godavari'),
-                  const SizedBox(height: 12),
+                  // _buildInfoRow(Icons.location_on, "Unit - 2", 'Godavari'),
+                  // const SizedBox(height: 12),
                   _buildInfoRow(
                     Icons.calendar_today,
                     "Available Date",

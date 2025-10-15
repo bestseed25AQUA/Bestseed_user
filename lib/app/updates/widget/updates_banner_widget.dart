@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
-import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
 import 'package:seedsuser/app/home/view/full_video_screen.dart';
+import 'package:seedsuser/app/updates/controller/updates_banner_controller.dart';
 import 'package:video_player/video_player.dart';
 
-class HomeBannerCarousel extends StatefulWidget {
-  const HomeBannerCarousel({super.key});
+class UpdatesBannerWidget extends StatefulWidget {
+  const UpdatesBannerWidget({super.key});
 
   @override
-  State<HomeBannerCarousel> createState() => _HomeBannerCarouselState();
+  State<UpdatesBannerWidget> createState() => _UpdatesBannerWidgetState();
 }
 
-class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
-  final HomeBannerController controller = Get.put(HomeBannerController());
+class _UpdatesBannerWidgetState extends State<UpdatesBannerWidget> {
+  final UpdatesBannerController controller = Get.put(UpdatesBannerController());
   int _currentIndex = 0; // Track current banner index
 
   @override
@@ -35,7 +34,7 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                 if (banner.type == "image") {
                   return GestureDetector(
                     onTap: () {
-                      Get.to(() => VehicleAvailabilityScreen());
+                      // Get.to(() => VehicleAvailabilityScreen());
                     },
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
@@ -146,14 +145,11 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
                 ),
               ),
 
-              Positioned.fill(
-                child: Align(
-                  alignment: Alignment.center,
-                  child: Icon(
-                    Icons.play_circle_fill,
-                    color: Colors.white,
-                    size: 70,
-                  ),
+              Center(
+                child: Icon(
+                  Icons.play_circle_fill,
+                  color: Colors.white,
+                  size: 70,
                 ),
               ),
             ],

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/state_manager.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:seedsuser/app/news%20&%20ads/medicine_details.dart';
+import 'package:seedsuser/app/news%20&%20ads/view/medicine_details.dart';
 
 class MedicineNewsScreen extends StatefulWidget {
   const MedicineNewsScreen({super.key});

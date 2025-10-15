@@ -1,7 +1,7 @@
 {
   "appTitle": "আমার অ্যাপ",
   "welcome": "স্বাগত",
-  "hello": "হ্যালো, {name}!",
+
   "settings": "সেটিংস",
   "language": "ভাষা",
   "selectLanguage": "ভাষা নির্বাচন করুন",
@@ -29,5 +29,17 @@
   "news_ads": "সংবাদ & বিজ্ঞাপন",
   "updates": "আপডেটস",
 
-  "send_request": "অনুরোধ পাঠান"
+  "send_request": "অনুরোধ পাঠান",
+
+   "wanted_crops": "চাওয়া ফসল",
+   "search_buyers": "ক্রেতা অনুসন্ধান করুন...",
+   "tracking": "ট্র্যাকিং",
+   "my_bookings": "আমার বুকিংস",
+   "customer_support": "গ্রাহক সমর্থন",
+   "terms_conditions": "শর্তাবলী",
+   "change_languages": "ভাষা পরিবর্তন করুন",
+   "privacy_policy": "গোপনীয়তা নীতি",
+   "rate_us": "আমাদের রেট করুন",
+   "share_app": "অ্যাপ শেয়ার করুন"
+   
 }

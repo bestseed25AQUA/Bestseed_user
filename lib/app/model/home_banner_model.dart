@@ -17,14 +17,21 @@ class HomeBannerModel {
 }
 
 class BannerItem {
+  dynamic id;
   String title;
   String type; // "image" or "video"
   String url;
 
-  BannerItem({required this.title, required this.type, required this.url});
+  BannerItem({
+    required this.title,
+    required this.type,
+    required this.url,
+    this.id,
+  });
 
   factory BannerItem.fromJson(Map<String, dynamic> json) {
     return BannerItem(
+      id: json['id'] ?? '',
       title: json['title'] ?? '',
       type: json['type'] ?? 'image',
       url: json['url'] ?? '',

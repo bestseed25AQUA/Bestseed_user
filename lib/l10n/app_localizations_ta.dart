@@ -15,11 +15,6 @@ class AppLocalizationsTa extends AppLocalizations {
   String get welcome => 'வரவேற்கிறோம்';
 
   @override
-  String hello(Object name) {
-    return 'வணக்கம், $name!';
-  }
-
-  @override
   String get settings => 'அமைப்புகள்';
 
   @override
@@ -99,4 +94,34 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get send_request => 'கோரிக்கை அனுப்பவும்';
+
+  @override
+  String get wanted_crops => 'விரும்பிய பயிர்கள்';
+
+  @override
+  String get search_buyers => 'வாங்குநர்களை தேடவும்...';
+
+  @override
+  String get tracking => 'பின்தொடர்தல்';
+
+  @override
+  String get my_bookings => 'எனது முன்பதிவுகள்';
+
+  @override
+  String get customer_support => 'வாடிக்கையாளர் ஆதரவு';
+
+  @override
+  String get terms_conditions => 'விதிமுறைகள் மற்றும் நிபந்தனைகள்';
+
+  @override
+  String get change_languages => 'மொழிகளை மாற்று';
+
+  @override
+  String get privacy_policy => 'தனியுரிமைக் கொள்கை';
+
+  @override
+  String get rate_us => 'எங்களை மதிப்பிடுக';
+
+  @override
+  String get share_app => 'செயலியை பகிரவும்';
 }

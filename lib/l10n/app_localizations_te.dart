@@ -15,11 +15,6 @@ class AppLocalizationsTe extends AppLocalizations {
   String get welcome => 'స్వాగతం';
 
   @override
-  String hello(Object name) {
-    return 'హలో, $name!';
-  }
-
-  @override
   String get settings => 'సెట్టింగ్స్';
 
   @override
@@ -99,4 +94,34 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get send_request => 'వినతి పంపండి';
+
+  @override
+  String get wanted_crops => 'వాంటెడ్ క్రాప్‌లు';
+
+  @override
+  String get search_buyers => 'కొత్త కొనుగోలు దారులను శోధించండి...';
+
+  @override
+  String get tracking => 'ట్రాకింగ్';
+
+  @override
+  String get my_bookings => 'నా బుకింగ్స్';
+
+  @override
+  String get customer_support => 'కస్టమర్ సపోర్ట్';
+
+  @override
+  String get terms_conditions => 'నియమాలు మరియు షరతులు';
+
+  @override
+  String get change_languages => 'భాషలను మార్చండి';
+
+  @override
+  String get privacy_policy => 'గోప్యతా విధానం';
+
+  @override
+  String get rate_us => 'మాకు రేట్ ఇవ్వండి';
+
+  @override
+  String get share_app => 'అప్లికేషన్‌ను షేర్ చేయండి';
 }

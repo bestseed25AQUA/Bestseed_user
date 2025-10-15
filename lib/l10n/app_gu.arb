@@ -1,7 +1,6 @@
 {
   "appTitle": "મારું એપ",
   "welcome": "સ્વાગત છે",
-  "hello": "હેલો, {name}!",
   "settings": "સેટિંગ્સ",
   "language": "ભાષા",
   "selectLanguage": "ભાષા પસંદ કરો",
@@ -29,6 +28,17 @@
   "news_ads": "સમાચાર & જાહેરાતો",
   "updates": "અપડેટ્સ",
 
-  "send_request": "વિનંતી મોકલો"
+  "send_request": "વિનંતી મોકલો",
+
+   "wanted_crops": "ઇચ્છિત પાકો",
+   "search_buyers": "ખરીદદાર શોધો...",
+   "tracking": "ટ્રેકિંગ",
+   "my_bookings": "મારી બુકિંગ્સ",
+   "customer_support": "ગ્રાહક સહાયતા",
+   "terms_conditions": "નિયમો અને શરતો",
+   "change_languages": "ભાષાઓ બદલો",
+   "privacy_policy": "ગોપનીયતા નીતિ",
+   "rate_us": "અમને રેટ કરો",
+   "share_app": "એપ શેયર કરો"
 
 }

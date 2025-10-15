@@ -15,11 +15,6 @@ class AppLocalizationsMl extends AppLocalizations {
   String get welcome => 'സ്വാഗതം';
 
   @override
-  String hello(Object name) {
-    return 'ഹലോ, $name!';
-  }
-
-  @override
   String get settings => 'സെറ്റിംഗ്സ്';
 
   @override
@@ -99,4 +94,34 @@ class AppLocalizationsMl extends AppLocalizations {
 
   @override
   String get send_request => 'അഭ്യർത്ഥന അയയ്ക്കുക';
+
+  @override
+  String get wanted_crops => 'അവശ്യ വിളകൾ';
+
+  @override
+  String get search_buyers => 'വാങ്ങുന്നവരെ തിരയുക...';
+
+  @override
+  String get tracking => 'ട്രാക്കിംഗ്';
+
+  @override
+  String get my_bookings => 'എന്റെ ബുക്കിംഗ്‌സ്';
+
+  @override
+  String get customer_support => 'കസ്റ്റമർ പിന്തുണ';
+
+  @override
+  String get terms_conditions => 'നിയമങ്ങളും നിബന്ധനകളും';
+
+  @override
+  String get change_languages => 'ഭാഷകൾ മാറ്റുക';
+
+  @override
+  String get privacy_policy => 'സ്വകാര്യതാ നയം';
+
+  @override
+  String get rate_us => 'ഞങ്ങളെ റേറ്റ് ചെയ്യുക';
+
+  @override
+  String get share_app => 'ആപ്പ് ഷെയർ ചെയ്യുക';
 }

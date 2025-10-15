@@ -1,7 +1,6 @@
 {
   "appTitle": "माझे अॅप",
   "welcome": "स्वागत आहे",
-  "hello": "नमस्कार, {name}!",
   "settings": "सेटिंग्ज",
   "language": "भाषा",
   "selectLanguage": "भाषा निवडा",
@@ -29,6 +28,17 @@
   "news_ads": "बातम्या & जाहिराती",
   "updates": "अपडेट्स",
 
-  "send_request": "विनंती पाठवा"
+  "send_request": "विनंती पाठवा",
+
+  "wanted_crops": "हव्या पिकांची यादी",
+  "search_buyers": "खरेदीदार शोधा...",
+  "tracking": "ट्रॅकिंग",
+  "my_bookings": "माझ्या बुकिंग्ज",
+  "customer_support": "ग्राहक समर्थन",
+  "terms_conditions": "अटी व शर्ती",
+  "change_languages": "भाषा बदला",
+  "privacy_policy": "गोपनीयता धोरण",
+  "rate_us": "आम्हाला रेट करा",
+  "share_app": "अॅप शेअर करा"
 
 }

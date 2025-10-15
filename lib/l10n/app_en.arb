@@ -1,7 +1,7 @@
 {
   "appTitle": "My App",
   "welcome": "Welcome",
-  "hello": "Hello, {name}!",
+ 
   "settings": "Settings",
   "language": "Language",
   "selectLanguage": "Select Language",
@@ -32,5 +32,17 @@
   "news_ads": "News & Ads",
   "updates": "Updates",
 
-  "send_request": "Send request"
+  "send_request": "Send request",
+
+  "wanted_crops": "Wanted Crops",
+  "search_buyers": "Search buyers...",
+  "tracking": "Tracking",
+  "my_bookings": "My bookings",
+  "customer_support": "Customer support",
+  "terms_conditions": "Terms and conditions",
+  "change_languages": "Change languages",
+  "privacy_policy": "Privacy policy",
+  "rate_us": "Rate us",
+  "share_app": "Share app"
+  
 }

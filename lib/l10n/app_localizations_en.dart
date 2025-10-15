@@ -15,11 +15,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get welcome => 'Welcome';
 
   @override
-  String hello(Object name) {
-    return 'Hello, $name!';
-  }
-
-  @override
   String get settings => 'Settings';
 
   @override
@@ -99,4 +94,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get send_request => 'Send request';
+
+  @override
+  String get wanted_crops => 'Wanted Crops';
+
+  @override
+  String get search_buyers => 'Search buyers...';
+
+  @override
+  String get tracking => 'Tracking';
+
+  @override
+  String get my_bookings => 'My bookings';
+
+  @override
+  String get customer_support => 'Customer support';
+
+  @override
+  String get terms_conditions => 'Terms and conditions';
+
+  @override
+  String get change_languages => 'Change languages';
+
+  @override
+  String get privacy_policy => 'Privacy policy';
+
+  @override
+  String get rate_us => 'Rate us';
+
+  @override
+  String get share_app => 'Share app';
 }

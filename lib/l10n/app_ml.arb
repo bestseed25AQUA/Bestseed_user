@@ -1,7 +1,6 @@
 {
   "appTitle": "എൻ ആപ്പ്",
   "welcome": "സ്വാഗതം",
-  "hello": "ഹലോ, {name}!",
   "settings": "സെറ്റിംഗ്സ്",
   "language": "ഭാഷ",
   "selectLanguage": "ഭാഷ തിരഞ്ഞെടുക്കുക",
@@ -29,6 +28,17 @@
   "news_ads": "വാർത്ത & പരസ്യങ്ങൾ",
   "updates": "അപ്‌ഡേറ്റുകൾ",
 
-  "send_request": "അഭ്യർത്ഥന അയയ്ക്കുക"
+  "send_request": "അഭ്യർത്ഥന അയയ്ക്കുക",
+
+   "wanted_crops": "അവശ്യ വിളകൾ",
+   "search_buyers": "വാങ്ങുന്നവരെ തിരയുക...",
+   "tracking": "ട്രാക്കിംഗ്",
+   "my_bookings": "എന്റെ ബുക്കിംഗ്‌സ്",
+   "customer_support": "കസ്റ്റമർ പിന്തുണ",
+   "terms_conditions": "നിയമങ്ങളും നിബന്ധനകളും",
+   "change_languages": "ഭാഷകൾ മാറ്റുക",
+   "privacy_policy": "സ്വകാര്യതാ നയം",
+   "rate_us": "ഞങ്ങളെ റേറ്റ് ചെയ്യുക",
+   "share_app": "ആപ്പ് ഷെയർ ചെയ്യുക"
 
 }

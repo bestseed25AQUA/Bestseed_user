@@ -15,11 +15,6 @@ class AppLocalizationsOr extends AppLocalizations {
   String get welcome => 'ସ୍ବାଗତ';
 
   @override
-  String hello(Object name) {
-    return 'ନମସ୍କାର, $name!';
-  }
-
-  @override
   String get settings => 'ସେଟିଂସ୍';
 
   @override
@@ -99,4 +94,34 @@ class AppLocalizationsOr extends AppLocalizations {
 
   @override
   String get send_request => 'ଅନୁରୋଧ ପଠାନ୍ତୁ';
+
+  @override
+  String get wanted_crops => 'ઇચ્છિત પાકો';
+
+  @override
+  String get search_buyers => 'ખરીદદાર શોધો...';
+
+  @override
+  String get tracking => 'ટ્રેકિંગ';
+
+  @override
+  String get my_bookings => 'મારી બુકિંગ્સ';
+
+  @override
+  String get customer_support => 'ગ્રાહક સહાયતા';
+
+  @override
+  String get terms_conditions => 'નિયમો અને શરતો';
+
+  @override
+  String get change_languages => 'ભાષાઓ બદલો';
+
+  @override
+  String get privacy_policy => 'ગોપનીયતા નીતિ';
+
+  @override
+  String get rate_us => 'અમને રેટ કરો';
+
+  @override
+  String get share_app => 'એપ શેયર કરો';
 }

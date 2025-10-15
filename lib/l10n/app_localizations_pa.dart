@@ -15,11 +15,6 @@ class AppLocalizationsPa extends AppLocalizations {
   String get welcome => 'ਸਵਾਗਤ ਹੈ';
 
   @override
-  String hello(Object name) {
-    return 'ਸਤ ਸ੍ਰੀ ਅਕਾਲ, $name!';
-  }
-
-  @override
   String get settings => 'ਸੈਟਿੰਗਸ';
 
   @override
@@ -99,4 +94,34 @@ class AppLocalizationsPa extends AppLocalizations {
 
   @override
   String get send_request => 'ਬੇਨਤੀ ਭੇਜੋ';
+
+  @override
+  String get wanted_crops => 'ਚਾਹਵੀਂ ਫਸਲਾਂ';
+
+  @override
+  String get search_buyers => 'ਖਰੀਦਦਾਰਾਂ ਨੂੰ ਖੋਜੋ...';
+
+  @override
+  String get tracking => 'ਟ੍ਰੈਕਿੰਗ';
+
+  @override
+  String get my_bookings => 'ਮੇਰੀਆਂ ਬੁਕਿੰਗਾਂ';
+
+  @override
+  String get customer_support => 'ਗਾਹਕ ਸਹਾਇਤਾ';
+
+  @override
+  String get terms_conditions => 'ਸ਼ਰਤਾਂ ਅਤੇ ਨਿਯਮ';
+
+  @override
+  String get change_languages => 'ਭਾਸ਼ਾ ਬਦਲੋ';
+
+  @override
+  String get privacy_policy => 'ਗੋਪਨੀਯਤਾ ਨੀਤੀ';
+
+  @override
+  String get rate_us => 'ਸਾਨੂੰ ਰੇਟ ਕਰੋ';
+
+  @override
+  String get share_app => 'ਐਪ ਸਾਂਝਾ ਕਰੋ';
 }

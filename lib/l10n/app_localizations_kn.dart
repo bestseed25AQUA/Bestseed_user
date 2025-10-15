@@ -15,11 +15,6 @@ class AppLocalizationsKn extends AppLocalizations {
   String get welcome => 'ಸ್ವಾಗತ';
 
   @override
-  String hello(Object name) {
-    return 'ಹಲೋ, $name!';
-  }
-
-  @override
   String get settings => 'ಸೆಟ್ಟಿಂಗ್‌ಗಳು';
 
   @override
@@ -99,4 +94,34 @@ class AppLocalizationsKn extends AppLocalizations {
 
   @override
   String get send_request => 'ಕೋರಿಕೆ ಕಳುಹಿಸಿ';
+
+  @override
+  String get wanted_crops => 'ಕೋರಿಕೆಯ ಬೆಳೆಗಳು';
+
+  @override
+  String get search_buyers => 'ಖರೀದಿದಾರರನ್ನು ಹುಡುಕಿ...';
+
+  @override
+  String get tracking => 'ಟ್ರ್ಯಾಕಿಂಗ್';
+
+  @override
+  String get my_bookings => 'ನನ್ನ ಬುಕ್ಕಿಂಗ್‌ಗಳು';
+
+  @override
+  String get customer_support => 'ಗ್ರಾಹಕ ಬೆಂಬಲ';
+
+  @override
+  String get terms_conditions => 'ನಿಯಮಗಳು ಮತ್ತು ಷರತ್ತುಗಳು';
+
+  @override
+  String get change_languages => 'ಭಾಷೆಗಳನ್ನು ಬದಲಿಸಿ';
+
+  @override
+  String get privacy_policy => 'ಗೌಪ್ಯತಾ ನೀತಿ';
+
+  @override
+  String get rate_us => 'ನಮಗೆ ಮೌಲ್ಯಮಾಪನ ನೀಡಿ';
+
+  @override
+  String get share_app => 'ಅ್ಯಪ್ ಹಂಚಿಕೊಳ್ಳಿ';
 }

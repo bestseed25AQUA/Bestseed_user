@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:seedsuser/app/home/carousel_slider_options_card.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
-import 'package:seedsuser/app/wanted/wanted_screen.dart';
+import 'package:seedsuser/app/seed_price/widget/seed_price_banner_widget.dart';
+import 'package:seedsuser/app/wanted/view/wanted_screen.dart';
 
 class SeedPriceItem {
   final String count;
@@ -75,7 +75,9 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            CarouselCardsScreen(),
+            SizedBox(height: 16),
+            // CarouselCardsScreen(),
+            SeedPriceBannerWidget(),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(

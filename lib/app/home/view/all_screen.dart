@@ -1,19 +1,15 @@
-import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
-import 'package:seedsuser/app/home/carousel_slider_options_card.dart';
 import 'package:seedsuser/app/home/contact_us.dart';
 import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/hatchery_suppliers_widget.dart';
 import 'package:seedsuser/app/home/hatchery_updates_widget.dart';
-import 'package:seedsuser/app/home/seed_request_screen.dart';
 import 'package:seedsuser/app/home/spot_hatchery_screen.dart';
 import 'package:seedsuser/app/home/today_price_widget.dart';
-import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
 import 'package:seedsuser/app/home/widget/home_banner_carousel.dart';
 
 class HomePage extends StatefulWidget {
@@ -141,7 +137,7 @@ class _HomePageState extends State<HomePage>
                     ],
                   ),
                 ),
-                // const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 // CarouselCardsScreen(),
                 HomeBannerCarousel(),
               ],

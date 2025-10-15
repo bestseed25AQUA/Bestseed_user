@@ -15,11 +15,6 @@ class AppLocalizationsHi extends AppLocalizations {
   String get welcome => 'स्वागत है';
 
   @override
-  String hello(Object name) {
-    return 'नमस्ते, $name!';
-  }
-
-  @override
   String get settings => 'सेटिंग्स';
 
   @override
@@ -83,20 +78,50 @@ class AppLocalizationsHi extends AppLocalizations {
   String get tryAgain => 'फिर से कोशिश करें';
 
   @override
-  String get home => 'హోమ్';
+  String get home => 'होम';
 
   @override
-  String get price => 'ధర';
+  String get price => 'कीमत';
 
   @override
-  String get broadstock => 'బ్రాడ్‌స్టాక్';
+  String get broadstock => 'ब्रॉडकास्ट';
 
   @override
-  String get news_ads => 'సమాచారం & ప్రకటనలు';
+  String get news_ads => 'समाचार और विज्ञापन';
 
   @override
-  String get updates => 'తాజాకరణలు';
+  String get updates => 'अपडेट्स';
 
   @override
   String get send_request => 'अनुरोध भेजें';
+
+  @override
+  String get wanted_crops => 'वांछित फसलें';
+
+  @override
+  String get search_buyers => 'खरीदार खोजें...';
+
+  @override
+  String get tracking => 'ट्रैकिंग';
+
+  @override
+  String get my_bookings => 'मेरी बुकिंग्स';
+
+  @override
+  String get customer_support => 'ग्राहक सहायता';
+
+  @override
+  String get terms_conditions => 'नियम और शर्तें';
+
+  @override
+  String get change_languages => 'भाषा बदलें';
+
+  @override
+  String get privacy_policy => 'गोपनीयता नीति';
+
+  @override
+  String get rate_us => 'हमें रेट करें';
+
+  @override
+  String get share_app => 'ऐप साझा करें';
 }

@@ -1,7 +1,6 @@
 {
   "appTitle": "ਮੇਰੀ ਐਪ",
   "welcome": "ਸਵਾਗਤ ਹੈ",
-  "hello": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ, {name}!",
   "settings": "ਸੈਟਿੰਗਸ",
   "language": "ਭਾਸ਼ਾ",
   "selectLanguage": "ਭਾਸ਼ਾ ਚੁਣੋ",
@@ -29,6 +28,17 @@
   "news_ads": "ਖਬਰਾਂ & ਵਿਗਿਆਪਨ",
   "updates": "ਅਪਡੇਟਸ",
   
-  "send_request": "ਬੇਨਤੀ ਭੇਜੋ"
+  "send_request": "ਬੇਨਤੀ ਭੇਜੋ",
+
+  "wanted_crops": "ਚਾਹਵੀਂ ਫਸਲਾਂ",
+  "search_buyers": "ਖਰੀਦਦਾਰਾਂ ਨੂੰ ਖੋਜੋ...",
+  "tracking": "ਟ੍ਰੈਕਿੰਗ",
+  "my_bookings": "ਮੇਰੀਆਂ ਬੁਕਿੰਗਾਂ",
+  "customer_support": "ਗਾਹਕ ਸਹਾਇਤਾ",
+  "terms_conditions": "ਸ਼ਰਤਾਂ ਅਤੇ ਨਿਯਮ",
+  "change_languages": "ਭਾਸ਼ਾ ਬਦਲੋ",
+  "privacy_policy": "ਗੋਪਨੀਯਤਾ ਨੀਤੀ",
+  "rate_us": "ਸਾਨੂੰ ਰੇਟ ਕਰੋ",
+  "share_app": "ਐਪ ਸਾਂਝਾ ਕਰੋ"
 
 }

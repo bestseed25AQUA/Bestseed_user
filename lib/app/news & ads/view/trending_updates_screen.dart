@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
-import 'package:seedsuser/app/news%20&%20ads/trending_updates_details_screen.dart';
+import 'package:seedsuser/app/news%20&%20ads/view/trending_updates_details_screen.dart';
 import 'package:video_player/video_player.dart';
 
 class TrendingUpdatesScreen extends StatefulWidget {

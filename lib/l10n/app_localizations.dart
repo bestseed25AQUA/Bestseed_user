@@ -130,12 +130,6 @@ abstract class AppLocalizations {
   /// **'Welcome'**
   String get welcome;
 
-  /// No description provided for @hello.
-  ///
-  /// In en, this message translates to:
-  /// **'Hello, {name}!'**
-  String hello(Object name);
-
   /// No description provided for @settings.
   ///
   /// In en, this message translates to:
@@ -297,6 +291,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Send request'**
   String get send_request;
+
+  /// No description provided for @wanted_crops.
+  ///
+  /// In en, this message translates to:
+  /// **'Wanted Crops'**
+  String get wanted_crops;
+
+  /// No description provided for @search_buyers.
+  ///
+  /// In en, this message translates to:
+  /// **'Search buyers...'**
+  String get search_buyers;
+
+  /// No description provided for @tracking.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracking'**
+  String get tracking;
+
+  /// No description provided for @my_bookings.
+  ///
+  /// In en, this message translates to:
+  /// **'My bookings'**
+  String get my_bookings;
+
+  /// No description provided for @customer_support.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer support'**
+  String get customer_support;
+
+  /// No description provided for @terms_conditions.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms and conditions'**
+  String get terms_conditions;
+
+  /// No description provided for @change_languages.
+  ///
+  /// In en, this message translates to:
+  /// **'Change languages'**
+  String get change_languages;
+
+  /// No description provided for @privacy_policy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy policy'**
+  String get privacy_policy;
+
+  /// No description provided for @rate_us.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate us'**
+  String get rate_us;
+
+  /// No description provided for @share_app.
+  ///
+  /// In en, this message translates to:
+  /// **'Share app'**
+  String get share_app;
 }
 
 class _AppLocalizationsDelegate
