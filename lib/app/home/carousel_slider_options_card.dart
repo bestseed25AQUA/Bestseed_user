@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:seedsuser/app/home/seed_request_screen.dart';
+import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
 import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
 
 class CarouselCardsScreen extends StatefulWidget {

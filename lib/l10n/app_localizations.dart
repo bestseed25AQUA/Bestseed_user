@@ -271,7 +271,7 @@ abstract class AppLocalizations {
   /// No description provided for @broadstock.
   ///
   /// In en, this message translates to:
-  /// **'Broadstock'**
+  /// **'Broodstock'**
   String get broadstock;
 
   /// No description provided for @news_ads.

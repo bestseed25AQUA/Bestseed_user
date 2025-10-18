@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
+import 'package:seedsuser/app/model/category_model.dart';
+import 'package:seedsuser/app/model/location_model.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
+import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 import 'package:seedsuser/app/seed_price/widget/seed_price_banner_widget.dart';
 import 'package:seedsuser/app/wanted/view/wanted_screen.dart';
-
-class SeedPriceItem {
-  final String count;
-  final String price;
-
-  SeedPriceItem({required this.count, required this.price});
-}
+import 'package:seedsuser/app/model/price_model.dart';
 
 class SeedPricesScreen extends StatefulWidget {
   const SeedPricesScreen({super.key});
@@ -22,22 +20,34 @@ class SeedPricesScreen extends StatefulWidget {
 }
 
 class _SeedPricesScreenState extends State<SeedPricesScreen> {
-  String selectedValue = "Vannamei";
-  String selected = "East Godavari";
-  final List<SeedPriceItem> seedPrices = [
-    SeedPriceItem(count: '100C', price: '₹220'),
-    SeedPriceItem(count: '90C', price: '₹230'),
-    SeedPriceItem(count: '80C', price: '₹240'),
-    SeedPriceItem(count: '70C', price: '₹260'),
-    SeedPriceItem(count: '60C', price: '₹290'),
-    SeedPriceItem(count: '48C-50C', price: '₹320'),
-    SeedPriceItem(count: '46C-47C', price: '₹325'),
-    SeedPriceItem(count: '43C-45C', price: '₹325'),
-  ];
+  final SeedsPriceController controller = Get.put(SeedsPriceController());
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Wait for locations and categories to load and set default
+    ever(controller.locations, (_) {
+      if (controller.locations.isNotEmpty &&
+          controller.selectedLocation.value == null) {
+        controller.selectedLocation.value = controller.locations.first;
+        controller.getPrices();
+      }
+    });
+
+    ever(controller.categories, (_) {
+      if (controller.categories.isNotEmpty &&
+          controller.selectedCategory.value == null) {
+        controller.selectedCategory.value = controller.categories.first;
+        controller.getPrices();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: Colors.blue[800],
         automaticallyImplyLeading: false,
@@ -49,177 +59,298 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
           ),
         ),
         actions: [
-          InkWell(
-            onTap: () {
-              Get.to(() => LanguageSelectionScreen());
-            },
-            child: Image.asset('assets/images/lan_image.png', height: 32),
+          IconButton(
+            icon: Image.asset('assets/images/lan_image.png', height: 28),
+            onPressed: () => Get.to(() => LanguageSelectionScreen()),
           ),
-          const SizedBox(width: 16),
-          InkWell(
-            onTap: () {
-              Get.to(() => NotificationsScreen());
-            },
-            child: Image.asset('assets/images/notification.png', height: 32),
+          IconButton(
+            icon: Image.asset('assets/images/notification.png', height: 28),
+            onPressed: () => Get.to(() => NotificationsScreen()),
           ),
-          SizedBox(width: 16),
-          InkWell(
-            onTap: () {
-              Get.to(() => ProfileScreen());
-            },
-            child: Image.asset('assets/images/person.png', height: 32),
+          IconButton(
+            icon: Image.asset('assets/images/person.png', height: 28),
+            onPressed: () => Get.to(() => ProfileScreen()),
           ),
-          SizedBox(width: 16),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            SizedBox(height: 16),
-            // CarouselCardsScreen(),
-            SeedPriceBannerWidget(),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Top Card: From Hatchery to Farmer
-                  // Image.asset('assets/images/image.png'),
-                  const SizedBox(height: 12),
-                  // Location Dropdowns
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: _buildDropdownButton(
-                          selected,
-                          ["East Godavari", "West Godavari"],
-                          (newValue) {
-                            setState(() {
-                              selected = newValue!;
-                            });
-                          },
-                        ),
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        PriceModel? priceData = controller.priceModel.value;
+
+        if (priceData == null || priceData.prices.isEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Get.dialog(
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  margin: const EdgeInsets.symmetric(horizontal: 32),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
-                      Expanded(child: const SizedBox()),
-                      Expanded(
-                        flex: 2,
-                        child: _buildDropdownButton(
-                          selectedValue,
-                          ["Vannamei", "Monodon", "Scampi"],
-                          (newValue) {
-                            setState(() {
-                              selectedValue = newValue!;
-                            });
-                          },
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.orange, size: 48),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No Prices Found',
+                        style: GoogleFonts.roboto(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        priceData?.msg ??
+                            'No price data is available for the selected filters.',
+                        style: GoogleFonts.roboto(
+                          fontSize: 16,
+                          color: Colors.grey[700],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Get.back(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(
+                            'OK',
+                            style: GoogleFonts.roboto(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  // Price List
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Count',
-                        style: GoogleFonts.roboto(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                ),
+              ),
+              barrierDismissible: true,
+            );
+          });
+        }
+
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              const SizedBox(height: 16),
+              SeedPriceBannerWidget(),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // --- Filters: Location & Category ---
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Obx(() {
+                            if (controller.locations.isEmpty) {
+                              return const SizedBox();
+                            }
+                            return _buildDropdown<Location>(
+                              selectedValue: controller.selectedLocation.value,
+                              items: controller.locations,
+                              itemLabel: (loc) => loc.locationName,
+                              onChanged: (loc) {
+                                controller.selectedLocation.value = loc!;
+                                controller.getPrices();
+                              },
+                            );
+                          }),
                         ),
-                      ),
-                      Text(
-                        "Today's Prices",
-                        style: GoogleFonts.roboto(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Obx(() {
+                            if (controller.categories.isEmpty) {
+                              return const SizedBox();
+                            }
+                            return _buildDropdown<Category>(
+                              selectedValue: controller.selectedCategory.value,
+                              items: controller.categories,
+                              itemLabel: (cat) => cat.categoryName,
+                              onChanged: (cat) {
+                                controller.selectedCategory.value = cat!;
+                                controller.getPrices();
+                              },
+                            );
+                          }),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ...seedPrices.map((item) {
-                    return Container(
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // --- Price List Header ---
+                    Container(
                       padding: const EdgeInsets.symmetric(
-                        vertical: 10.0,
+                        vertical: 12,
                         horizontal: 16,
                       ),
-                      margin: EdgeInsets.only(bottom: 6),
                       decoration: BoxDecoration(
-                        color: Color(0xFFF2F2F2),
-                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            item.count,
+                            'Count',
                             style: GoogleFonts.roboto(
                               fontSize: 16,
-                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blueGrey[700],
                             ),
                           ),
                           Text(
-                            item.price,
+                            "Today's Prices",
                             style: GoogleFonts.roboto(
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.blue,
+                              color: Colors.blueGrey[700],
                             ),
                           ),
                         ],
                       ),
-                    );
-                  }),
-                  const SizedBox(height: 12),
-
-                  Text(
-                    'description...........',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.roboto(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
                     ),
-                  ),
+                    const SizedBox(height: 12),
 
-                  const SizedBox(height: 20),
-                  // Bottom Card: Wanted: Crop Buyers
-                  InkWell(
-                    onTap: () {
-                      Get.to(() => WantedCropBuyersScreen());
-                    },
-                    child: Image.asset('assets/images/us.png'),
-                  ),
-                  const SizedBox(height: 80),
-                ],
+                    // --- Prices ---
+                    if (priceData == null || priceData.prices.isEmpty)
+                      const Center(child: Text("No prices available.")),
+
+                    if (priceData != null && priceData.prices.isNotEmpty)
+                      ...priceData.prices.map((item) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 6,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                item.size,
+                                style: GoogleFonts.roboto(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Text(
+                                "₹${item.todayPrice}",
+                                style: GoogleFonts.roboto(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue[800],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+
+                    const SizedBox(height: 20),
+                    if (priceData != null)
+                      Text(
+                        priceData.description,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.roboto(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+
+                    const SizedBox(height: 30),
+                    // Wanted Crop Buyers Section
+                    InkWell(
+                      onTap: () => Get.to(() => WantedCropBuyersScreen()),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.asset('assets/images/us.png'),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      }),
     );
   }
 
-  Widget _buildDropdownButton(
-    String value,
-    List<String> items,
-    Function(String?) onChanged,
-  ) {
+  // --- Dropdown Builder ---
+  Widget _buildDropdown<T>({
+    required T? selectedValue,
+    required List<T> items,
+    required String Function(T) itemLabel,
+    required Function(T?) onChanged,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Color(0xFFDCEEF8),
-        borderRadius: BorderRadius.circular(10),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true, // takes full width
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
+        child: DropdownButton<T>(
+          value: selectedValue,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.blueGrey),
           items: items
               .map(
-                (item) =>
-                    DropdownMenuItem<String>(value: item, child: Text(item)),
+                (item) => DropdownMenuItem<T>(
+                  value: item,
+                  child: Text(itemLabel(item)),
+                ),
               )
               .toList(),
           onChanged: onChanged,

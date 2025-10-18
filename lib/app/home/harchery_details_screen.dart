@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
-import 'package:seedsuser/app/home/harchery_card_widget.dart';
 
 class HatcheryDetailScreen extends StatelessWidget {
   const HatcheryDetailScreen({super.key});
@@ -33,33 +32,33 @@ class HatcheryDetailScreen extends StatelessWidget {
           const SizedBox(height: 20),
 
           // Hatchery Item 1
-          HarcheryCardWidget(
-            hatcheryName: "Syqua",
-            videoUrl: "assets/images/video_20250921_103246.mp4",
-            unit1: "Kakinada",
-            unit2: "Vizag",
-            broadstock: "1200 Pieces",
-            availableDate: "27 Sep 2024",
-            pricePerPiece: "₹0.36",
-            status: "Available",
-            statusColor: Colors.green,
-          ),
-          const SizedBox(height: 20),
+          // HarcheryCardWidget(
+          //   hatcheryName: "Syqua",
+          //   videoUrl: "assets/images/video_20250921_103246.mp4",
+          //   unit1: "Kakinada",
+          //   unit2: "Vizag",
+          //   broadstock: "1200 Pieces",
+          //   availableDate: "27 Sep 2024",
+          //   pricePerPiece: "₹0.36",
+          //   status: "Available",
+          //   statusColor: Colors.green,
+          // ),
+          // const SizedBox(height: 20),
 
           // Hatchery Item 2
-          HarcheryCardWidget(
-            hatcheryName: "SIS Hardline",
-            videoUrl: "assets/images/video_20251009_120614.mp4",
-            unit1: "Bapatla",
-            unit2: "Vizag",
-            broadstock: "1200 Pieces",
-            availableDate: "27 Sep 2024",
-            pricePerPiece: "₹0.36",
-            status: "Closed",
-            statusColor: Colors.red,
+          // HarcheryCardWidget(
+          //   hatcheryName: "SIS Hardline",
+          //   videoUrl: "assets/images/video_20251009_120614.mp4",
+          //   unit1: "Bapatla",
+          //   unit2: "Vizag",
+          //   broadstock: "1200 Pieces",
+          //   availableDate: "27 Sep 2024",
+          //   pricePerPiece: "₹0.36",
+          //   status: "Closed",
+          //   statusColor: Colors.red,
 
-            // nextAvailable: "Next available at 30/08/2025",
-          ),
+          //   // nextAvailable: "Next available at 30/08/2025",
+          // ),
           const SizedBox(height: 30),
 
           // Similar Hatcheries Section

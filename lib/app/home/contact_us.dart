@@ -237,7 +237,7 @@ class _ContactUsPageState extends State<ContactUsPage> {
                   ),
                 ),
                 if (title == 'Call')
-                  Icon(Icons.phone, color: Colors.green, size: 18)
+                  Icon(Icons.phone, color: Colors.blue, size: 18)
                 else
                   Image.asset(imagePath, height: 18),
               ],

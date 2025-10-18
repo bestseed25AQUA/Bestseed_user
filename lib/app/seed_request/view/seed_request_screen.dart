@@ -90,7 +90,7 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
               _buildTextFormField(
                 label: 'No of Pieces',
                 hint: 'Enter no. of pieces',
-                icon: Icons.upload_file,
+                // icon: Icons.upload_file,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 keyboardType: TextInputType.number,
                 validator: (value) =>
@@ -160,7 +160,7 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
   Widget _buildTextFormField({
     required String label,
     required String hint,
-    required IconData icon,
+    IconData? icon,
     TextInputType keyboardType = TextInputType.text,
     bool readOnly = false,
     VoidCallback? onTap,
@@ -180,7 +180,23 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
           controller: controller,
           decoration: InputDecoration(
             hintText: hint,
-            suffixIcon: Icon(icon, color: Colors.grey),
+
+            suffixIcon: icon != null
+                ? Icon(icon, color: Colors.grey)
+                : Padding(
+                    padding: const EdgeInsets.only(right: 12.0),
+
+                    child: SizedBox(
+                      height: 12,
+                      width: 12,
+                      child: Image.asset(
+                        'assets/images/pieces_icon.png',
+                        height: 12,
+                        fit: BoxFit.cover,
+                        width: 12,
+                      ),
+                    ),
+                  ),
             filled: true,
             fillColor: Colors.grey[100],
 

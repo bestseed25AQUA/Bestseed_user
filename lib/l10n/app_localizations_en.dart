@@ -84,7 +84,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get price => 'Price';
 
   @override
-  String get broadstock => 'Broadstock';
+  String get broadstock => 'Broodstock';
 
   @override
   String get news_ads => 'News & Ads';

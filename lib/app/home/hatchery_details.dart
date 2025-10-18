@@ -201,7 +201,7 @@ class _HatcheryDetailState extends State<HatcheryDetail> {
                             const SizedBox(height: 12),
                             _buildInfoRow(
                               Icons.water_drop_outlined,
-                              "Broadstock",
+                              "Broodstock",
                               "1200 Pieces",
                             ),
                             const SizedBox(height: 12),

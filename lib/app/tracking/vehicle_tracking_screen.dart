@@ -188,7 +188,7 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
                   // const SizedBox(height: 12),
                   _buildInfoRow(
                     Icons.water_drop_outlined,
-                    "Broadstock",
+                    "Broodstock",
                     "1200 Pieces",
                   ),
                   const SizedBox(height: 12),

@@ -76,24 +76,26 @@ class UpdatesScreen extends StatelessWidget {
           SizedBox(width: 16),
         ],
       ),
-      body: Column(
-        children: [
-          // Padding(
-          //   padding: const EdgeInsets.all(16.0),
-          //   child: Image.asset('assets/images/us.png'),
-          // ),
-          // CarouselCardsScreen(),
-          SizedBox(height: 16),
-          UpdatesBannerWidget(),
-          Expanded(
-            child: ListView.builder(
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Padding(
+            //   padding: const EdgeInsets.all(16.0),
+            //   child: Image.asset('assets/images/us.png'),
+            // ),
+            // CarouselCardsScreen(),
+            SizedBox(height: 16),
+            UpdatesBannerWidget(),
+            ListView.builder(
+              physics: NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
               itemCount: posts.length,
               itemBuilder: (context, index) {
                 return PostWidget(postData: posts[index]);
               },
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

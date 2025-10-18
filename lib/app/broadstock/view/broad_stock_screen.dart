@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
@@ -14,8 +15,36 @@ class BroodStockScreen extends StatefulWidget {
 }
 
 class _BroodStockScreenState extends State<BroodStockScreen> {
-  String selectedValue = "Vannamei";
-  String selectedDate = "Jan 2025";
+  final BroodStockController controller = Get.put(BroodStockController());
+
+  RxString selectedMonthYear = "".obs;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedMonthYear.value = getPastMonths(12).first; // current month
+  }
+
+  // Generate list of past N months in "MMM yyyy" format
+  List<String> getPastMonths(int count) {
+    final now = DateTime.now();
+    List<String> months = [];
+    for (int i = 0; i < count; i++) {
+      final date = DateTime(now.year, now.month - i, 1);
+      months.add("${_monthName(date.month)} ${date.year}");
+    }
+    return months;
+  }
+
+  String _monthName(int month) {
+    const monthNames = [
+      '', // placeholder
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return monthNames[month];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -51,7 +80,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
       backgroundColor: Colors.blue[800],
       automaticallyImplyLeading: false,
       title: Text(
-        'Broad Stock',
+        'Brood Stock',
         style: GoogleFonts.roboto(
           color: Colors.white,
           fontWeight: FontWeight.bold,
@@ -112,25 +141,34 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
   Widget _buildFilterSection() {
     return Row(
       children: [
+        // Category Dropdown
         Expanded(
-          child: _buildDropdownButton(
-            selectedValue,
-            ["Vannamei", "Monodon", "Scampi"],
-            (newValue) {
-              setState(() {
-                selectedValue = newValue!;
-              });
-            },
+          child: Obx(
+            () => controller.categories.isEmpty
+                ? const CircularProgressIndicator()
+                : _buildDropdownButton(
+                    controller.selectedCategory.value?.categoryName ??
+                        "Select Category",
+                    controller.categories.map((e) => e.categoryName).toList(),
+                    (newValue) {
+                      final cat = controller.categories.firstWhere(
+                        (e) => e.categoryName == newValue,
+                      );
+                      controller.onCategoryChanged(cat);
+                    },
+                  ),
           ),
         ),
-        const SizedBox(width: 64),
+        const SizedBox(width: 16),
+
+        // Month-Year Dropdown
         Expanded(
           child: _buildDropdownButton(
-            selectedDate,
-            ["Jan 2025", "Fru 2025", "March 2025"],
+            selectedMonthYear.value,
+            getPastMonths(12),
             (newValue) {
               setState(() {
-                selectedDate = newValue!;
+                selectedMonthYear.value = newValue!;
               });
             },
           ),
@@ -149,13 +187,13 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
       height: 46,
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2.0),
       decoration: BoxDecoration(
-        color: Color(0xFFDCEEF8),
+        color: const Color(0xFFDCEEF8),
         borderRadius: BorderRadius.circular(10),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
-          isExpanded: true, // takes full width
+          isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
           items: items
               .map(

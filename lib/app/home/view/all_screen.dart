@@ -8,7 +8,7 @@ import 'package:seedsuser/app/home/contact_us.dart';
 import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/hatchery_suppliers_widget.dart';
 import 'package:seedsuser/app/home/hatchery_updates_widget.dart';
-import 'package:seedsuser/app/home/spot_hatchery_screen.dart';
+import 'package:seedsuser/app/spot_hatchery/view/spot_hatchery_screen.dart';
 import 'package:seedsuser/app/home/today_price_widget.dart';
 import 'package:seedsuser/app/home/widget/home_banner_carousel.dart';
 
