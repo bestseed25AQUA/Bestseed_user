@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
+import 'package:seedsuser/app/farm_management/farm_home/farm_home_screen.dart';
 import 'package:seedsuser/app/home/contact_us.dart';
 import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/hatchery_suppliers_widget.dart';
@@ -156,14 +156,15 @@ class _HomePageState extends State<HomePage>
                     'Farm Management',
                     'assets/images/farm.png',
                     () {
-                      Fluttertoast.showToast(
-                        msg: "Working on it...",
-                        toastLength: Toast.LENGTH_SHORT,
-                        gravity: ToastGravity.BOTTOM,
-                        backgroundColor: Colors.black54,
-                        textColor: Colors.red,
-                        fontSize: 16.0,
-                      );
+                      Get.to(() => FarmHomeScreen());
+                      // Fluttertoast.showToast(
+                      //   msg: "Working on it...",
+                      //   toastLength: Toast.LENGTH_SHORT,
+                      //   gravity: ToastGravity.BOTTOM,
+                      //   backgroundColor: Colors.black54,
+                      //   textColor: Colors.red,
+                      //   fontSize: 16.0,
+                      // );
                     },
                   ),
                 ),
