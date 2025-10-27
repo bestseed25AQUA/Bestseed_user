@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
@@ -9,10 +12,17 @@ import 'package:seedsuser/app/news%20&%20ads/view/news_ads_screen.dart';
 import 'package:seedsuser/app/seed_price/view/seed_price_screen.dart';
 import 'package:seedsuser/app/updates/view/update_screen.dart';
 import 'package:seedsuser/l10n/app_localizations.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:internet_connection_checker/internet_connection_checker.dart';
 
-class DashboardScreen extends StatelessWidget {
-  DashboardScreen({super.key});
+class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
 
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
   final DashboardController controller = Get.put(DashboardController());
 
   final List<Widget> pages = [
@@ -30,6 +40,58 @@ class DashboardScreen extends StatelessWidget {
     Icons.article_outlined,
     Icons.location_on_outlined,
   ];
+
+  late StreamSubscription subscription;
+  bool isDeviceConnected = false;
+  bool isAlertSet = false;
+
+  @override
+  void initState() {
+    super.initState();
+    getConnectivity();
+  }
+
+  void getConnectivity() {
+    subscription = Connectivity().onConnectivityChanged.listen((
+      List<ConnectivityResult> results,
+    ) async {
+      bool currentStatus =
+          await InternetConnectionChecker.createInstance().hasConnection;
+
+      if (!currentStatus && !isAlertSet) {
+        showDialogBox();
+        setState(() => isAlertSet = true);
+      } else if (currentStatus && isAlertSet) {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        setState(() => isAlertSet = false);
+      }
+    });
+  }
+
+  showDialogBox() => showCupertinoDialog<String>(
+    context: context,
+    builder: (BuildContext context) => CupertinoAlertDialog(
+      title: const Text('No Connection'),
+      content: const Text('Please check your internet connectivity'),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () async {
+            Navigator.pop(context, 'Cancel');
+            setState(() => isAlertSet = false);
+            isDeviceConnected =
+                await InternetConnectionChecker.createInstance().hasConnection;
+            if (!isDeviceConnected && isAlertSet == false) {
+              showDialogBox();
+              setState(() => isAlertSet = true);
+            }
+          },
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {

@@ -116,14 +116,16 @@ class _HomePageState extends State<HomePage>
                       ),
 
                       // Center text
-                      Text(
-                        '"Grow More with the Best Seeds –\nQuality, Variety, and Trust”',
-                        style: GoogleFonts.roboto(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Text(
+                          '"Grow More with the Best Seeds –\nQuality, Variety, and Trust”',
+                          style: GoogleFonts.roboto(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
                       ),
 
                       // 👉 Right image moves right→left

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/state_manager.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_details.dart';
 
@@ -12,12 +11,46 @@ class MedicineNewsScreen extends StatefulWidget {
 }
 
 class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, String>> allNews = [];
+  List<Map<String, String>> filteredNews = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Sample news data
+    allNews = List.generate(10, (index) {
+      return {
+        "title": "New Medicine Discovery $index",
+        "subtitle": "Scientists have discovered a new medicine that...",
+        "image": "https://picsum.photos/200/300?random=$index",
+      };
+    });
+
+    filteredNews = List.from(allNews);
+  }
+
+  void _filterNews(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        filteredNews = List.from(allNews);
+      } else {
+        filteredNews = allNews
+            .where(
+              (item) =>
+                  item["title"]!.toLowerCase().contains(query.toLowerCase()),
+            )
+            .toList();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.blue[800],
-        // automaticallyImplyLeading: false,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0),
           child: CircleAvatar(
@@ -32,37 +65,74 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
           ),
         ),
         title: Text(
-          'Medicine news',
+          'Medicine News',
           style: GoogleFonts.roboto(
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
       ),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(8.0),
-
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 8.0,
-          crossAxisSpacing: 8.0,
-          childAspectRatio: 1,
-        ),
-        itemCount: 10,
-        itemBuilder: (context, index) {
-          return InkWell(
-            onTap: () {
-              Get.to(
-                () => MedicineDetailScreen(title: 'New Medicine Discovery'),
-              );
-            },
-            child: _buildNewsCard(
-              'New Medicine Discovery',
-              'Scientists have discovered a new medicine that...',
-              'https://picsum.photos/200/300?random=$index',
+      body: Column(
+        children: [
+          // 🔍 Search Field
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8.0,
+                vertical: 4.0,
+              ),
+              decoration: BoxDecoration(
+                color: Color(0xFFEEEEEE),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: _filterNews,
+                decoration: InputDecoration(
+                  hintText: 'Search medicine news...',
+                  prefixIcon: const Icon(Icons.search),
+                  // filled: true,
+                  // fillColor: Colors.grey[200],
+                  // contentPadding: const EdgeInsets.symmetric(
+                  //   horizontal: 16,
+                  //   vertical: 16,
+                  // ),
+                  border: InputBorder.none,
+                ),
+              ),
             ),
-          );
-        },
+          ),
+
+          // 📰 Grid of News
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.all(8.0),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 8.0,
+                crossAxisSpacing: 8.0,
+                childAspectRatio: 1,
+              ),
+              itemCount: filteredNews.length,
+              itemBuilder: (context, index) {
+                final news = filteredNews[index];
+                return InkWell(
+                  onTap: () {
+                    Get.to(
+                      () => MedicineDetailScreen(title: news["title"] ?? ""),
+                    );
+                  },
+                  child: _buildNewsCard(
+                    news["title"] ?? "",
+                    news["subtitle"] ?? "",
+                    news["image"] ?? "",
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -79,7 +149,7 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
             child: Image.network(
               imageUrl,
               height: 120,
-              width: 150,
+              width: double.infinity,
               fit: BoxFit.cover,
             ),
           ),

@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/home/controller/filter_controller.dart';
+import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/view/all_screen.dart';
-import 'package:seedsuser/app/home/filter_bottom_sheet.dart';
-import 'package:seedsuser/app/home/search_screen.dart';
-import 'package:seedsuser/app/language/language_screen.dart';
-import 'package:seedsuser/app/notification/notification_screen.dart';
-import 'package:seedsuser/app/profile/view/profile_screen.dart';
+import 'package:seedsuser/app/home/view/home_appbar_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,7 +17,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  TabController? _tabController;
+  final HomeController _homeController = Get.put(HomeController());
+  final FilterController filterController = Get.put(FilterController());
 
   String currentCity = "Fetching...";
   String currentState = "";
@@ -28,26 +27,49 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
     _getCurrentLocation();
+
+    // _homeController.getCategories();
+
+    // React to category updates
+    ever(_homeController.categories, (_) {
+      _initTabController();
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _initTabController() {
+    if (_homeController.categories.isNotEmpty) {
+      _tabController?.dispose();
+      _tabController = TabController(
+        length: _homeController.categories.length + 1, // +1 for "All"
+        vsync: this,
+      );
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reinitialize TabController safely whenever widget becomes active again
+    if (_homeController.categories.isNotEmpty) {
+      _initTabController();
+    }
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
-  /// ✅ Get current location and reverse geocode it
   Future<void> _getCurrentLocation() async {
     bool serviceEnabled;
     LocationPermission permission;
 
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      setState(() {
-        currentCity = "Location disabled";
-      });
+      setState(() => currentCity = "Location disabled");
       return;
     }
 
@@ -55,17 +77,13 @@ class _HomeScreenState extends State<HomeScreen>
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        setState(() {
-          currentCity = "Permission denied";
-        });
+        setState(() => currentCity = "Permission denied");
         return;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      setState(() {
-        currentCity = "Permission permanently denied";
-      });
+      setState(() => currentCity = "Permission permanently denied");
       return;
     }
 
@@ -81,8 +99,9 @@ class _HomeScreenState extends State<HomeScreen>
     if (placemarks.isNotEmpty) {
       final place = placemarks.first;
       setState(() {
-        currentCity = place.subLocality ?? "Unknown";
-        currentState = place.street ?? "";
+        currentCity = place.subLocality ?? place.locality ?? "Unknown";
+        currentState =
+            "${place.street ?? ""}, ${place.locality ?? ""}, ${place.administrativeArea ?? ""}";
       });
     }
   }
@@ -92,234 +111,77 @@ class _HomeScreenState extends State<HomeScreen>
     return Scaffold(
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          _buildSliverAppBar(),
+          HomeAppBar(currentCity: currentCity, currentStreet: currentState),
           SliverPersistentHeader(
             pinned: true,
             delegate: _SliverAppBarDelegate(
-              TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                tabAlignment: TabAlignment.start,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white70,
-                indicatorColor: Colors.white,
-                indicatorSize: TabBarIndicatorSize.label,
-                indicatorWeight: 3,
-                tabs: const [
-                  Tab(text: "All"),
-                  Tab(text: "Syaqua"),
-                  Tab(text: "SIS Hardline"),
-                  Tab(text: "Hardline Plus"),
-                  Tab(text: "SIS Hardline"),
-                  Tab(text: "Hardline Plus"),
-                ],
-              ),
-            ),
-          ),
-        ],
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            HomePage(),
-            HomePage(),
-            HomePage(),
-            HomePage(),
-            HomePage(),
-            HomePage(),
-          ],
-        ),
-      ),
-    );
-  }
+              Obx(() {
+                final categories = _homeController.categories;
 
-  /// ✅ App bar with current location title/subtitle
-  Widget _buildSliverAppBar() {
-    return SliverAppBar(
-      pinned: true,
-      floating: false,
-      expandedHeight: 120,
-      automaticallyImplyLeading: false,
-      backgroundColor: AppColors.primary,
-      title: Column(
-        children: [
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Image.asset(
-                      'assets/images/wheather.png',
-                      height: 40,
-                      width: 47,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.location_on_outlined,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  currentCity,
-                                  style: GoogleFonts.roboto(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            currentState.isNotEmpty
-                                ? currentState
-                                : "Fetching current area...",
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.roboto(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                // ✅ Always provide a valid TabController
+                if (categories.isEmpty || _tabController == null) {
+                  return const DefaultTabController(
+                    length: 1,
+                    child: TabBar(isScrollable: true, tabs: [Tab(text: "All")]),
+                  );
+                }
+
+                return TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white70,
+                  indicatorColor: Colors.white,
+                  indicatorSize: TabBarIndicatorSize.label,
+                  indicatorWeight: 3,
+                  tabs: [
+                    const Tab(text: "All"),
+                    ...categories
+                        .map((cat) => Tab(text: cat.categoryName))
+                        .toList(),
                   ],
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  InkWell(
-                    onTap: () {
-                      Get.to(() => LanguageSelectionScreen());
-                    },
-                    child: Image.asset(
-                      'assets/images/lan_image.png',
-                      height: 32,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  InkWell(
-                    onTap: () {
-                      Get.to(() => const NotificationsScreen());
-                    },
-                    child: Image.asset(
-                      'assets/images/notification.png',
-                      height: 32,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  InkWell(
-                    onTap: () {
-                      Get.to(() => const ProfileScreen());
-                    },
-                    child: Image.asset('assets/images/person.png', height: 32),
-                  ),
-                  const SizedBox(width: 16),
-                ],
-              ),
-            ],
+                );
+              }),
+            ),
           ),
         ],
-      ),
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [AppColors.primary, AppColors.primary],
-            ),
-          ),
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: _buildSearchBar(),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+        body: Obx(() {
+          if (_homeController.isLoading.value) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-  Widget _buildSearchBar() {
-    return Row(
-      children: [
-        Expanded(
-          child: SizedBox(
-            height: 46,
-            child: TextField(
-              readOnly: true,
-              onTap: () {
-                Get.to(() => const SearchScreen());
-              },
-              decoration: InputDecoration(
-                hintText: 'Search for Hatcheries, locations, seeds',
-                hintStyle: GoogleFonts.roboto(color: Colors.grey),
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        InkWell(
-          onTap: () {
-            showFilterBottomSheet(context);
-          },
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            height: 46,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(Icons.tune, color: Colors.grey),
-          ),
-        ),
-      ],
-    );
-  }
+          if (_tabController == null) {
+            return const Center(child: Text("Loading categories..."));
+          }
 
-  void showFilterBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (BuildContext context) {
-        return const FilterBottomSheet();
-      },
+          return TabBarView(
+            key: ValueKey(_homeController.categories.length),
+            controller: _tabController,
+            children: [
+              const HomePage(), // All tab
+              ..._homeController.categories.map((cat) => HomePage()).toList(),
+            ],
+          );
+        }),
+      ),
     );
   }
 }
 
+/// Custom Delegate for Sticky TabBar
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverAppBarDelegate(this._tabBar);
 
-  final TabBar _tabBar;
+  final Widget _tabBar;
 
   @override
-  double get minExtent => _tabBar.preferredSize.height;
+  double get minExtent =>
+      _tabBar is TabBar ? (_tabBar as TabBar).preferredSize.height : 48;
+
   @override
-  double get maxExtent => _tabBar.preferredSize.height;
+  double get maxExtent =>
+      _tabBar is TabBar ? (_tabBar as TabBar).preferredSize.height : 48;
 
   @override
   Widget build(
@@ -335,5 +197,5 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => false;
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => true;
 }

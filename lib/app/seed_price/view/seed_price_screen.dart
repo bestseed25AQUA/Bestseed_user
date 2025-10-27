@@ -21,28 +21,7 @@ class SeedPricesScreen extends StatefulWidget {
 
 class _SeedPricesScreenState extends State<SeedPricesScreen> {
   final SeedsPriceController controller = Get.put(SeedsPriceController());
-
-  @override
-  void initState() {
-    super.initState();
-
-    // Wait for locations and categories to load and set default
-    ever(controller.locations, (_) {
-      if (controller.locations.isNotEmpty &&
-          controller.selectedLocation.value == null) {
-        controller.selectedLocation.value = controller.locations.first;
-        controller.getPrices();
-      }
-    });
-
-    ever(controller.categories, (_) {
-      if (controller.categories.isNotEmpty &&
-          controller.selectedCategory.value == null) {
-        controller.selectedCategory.value = controller.categories.first;
-        controller.getPrices();
-      }
-    });
-  }
+  bool _dialogShown = false;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +59,8 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
 
         PriceModel? priceData = controller.priceModel.value;
 
-        if (priceData == null || priceData.prices.isEmpty) {
+        if ((priceData == null || priceData.prices.isEmpty) && !_dialogShown) {
+          _dialogShown = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Get.dialog(
               Center(
@@ -180,6 +160,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                               itemLabel: (loc) => loc.locationName,
                               onChanged: (loc) {
                                 controller.selectedLocation.value = loc!;
+                                _dialogShown = false;
                                 controller.getPrices();
                               },
                             );
@@ -197,6 +178,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                               itemLabel: (cat) => cat.categoryName,
                               onChanged: (cat) {
                                 controller.selectedCategory.value = cat!;
+                                _dialogShown = false;
                                 controller.getPrices();
                               },
                             );

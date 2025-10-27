@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
+import 'package:seedsuser/app/model/brood_stock_model.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
 
@@ -16,13 +17,13 @@ class BroodStockScreen extends StatefulWidget {
 
 class _BroodStockScreenState extends State<BroodStockScreen> {
   final BroodStockController controller = Get.put(BroodStockController());
-
   RxString selectedMonthYear = "".obs;
 
   @override
   void initState() {
     super.initState();
-    selectedMonthYear.value = getPastMonths(12).first; // current month
+    selectedMonthYear.value = getPastMonths(12).first;
+    controller.getBroodStock();
   }
 
   // Generate list of past N months in "MMM yyyy" format
@@ -38,9 +39,19 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
 
   String _monthName(int month) {
     const monthNames = [
-      '', // placeholder
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return monthNames[month];
   }
@@ -50,31 +61,46 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: _buildAppBar(),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              _buildSearchBar(),
-              const SizedBox(height: 16),
-              _buildFilterSection(),
-              const SizedBox(height: 24),
-              _buildHatcheryListHeader(),
-              const SizedBox(height: 16),
-              _buildHatcheryCard(),
-              const SizedBox(height: 16),
-              _buildHatcheryCard(),
-              const SizedBox(height: 80),
-            ],
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                _buildSearchBar(),
+                const SizedBox(height: 16),
+                _buildFilterSection(),
+                const SizedBox(height: 24),
+                _buildHatcheryListHeader(),
+                const SizedBox(height: 16),
+                if (controller.filteredBroodStocks.isEmpty)
+                  const Center(child: Text('No brood stock available.'))
+                else
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: controller.filteredBroodStocks.length,
+                    itemBuilder: (context, index) {
+                      BroodstockData data =
+                          controller.filteredBroodStocks[index];
+                      return _buildHatcheryCard(data);
+                    },
+                  ),
+                const SizedBox(height: 80),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 
-  // A helper method to build the app bar
   AppBar _buildAppBar() {
     return AppBar(
       backgroundColor: Colors.blue[800],
@@ -88,64 +114,59 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
       ),
       actions: [
         InkWell(
-          onTap: () {
-            Get.to(() => LanguageSelectionScreen());
-          },
-          child: Image.asset('assets/images/lan_image.png', height: 32),
+          onTap: () => Get.to(() => LanguageSelectionScreen()),
+          child: Image.asset('assets/images/lan_image.png', height: 28),
         ),
         const SizedBox(width: 16),
         InkWell(
-          onTap: () {
-            Get.to(() => NotificationsScreen());
-          },
-          child: Image.asset('assets/images/notification.png', height: 32),
+          onTap: () => Get.to(() => NotificationsScreen()),
+          child: Image.asset('assets/images/notification.png', height: 28),
         ),
         const SizedBox(width: 16),
         InkWell(
-          onTap: () {
-            Get.to(() => ProfileScreen());
-          },
-          child: Image.asset('assets/images/person.png', height: 32),
+          onTap: () => Get.to(() => ProfileScreen()),
+          child: Image.asset('assets/images/person.png', height: 28),
         ),
-        SizedBox(width: 16),
+        const SizedBox(width: 16),
       ],
     );
   }
 
-  // A helper method to build the search bar
   Widget _buildSearchBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       decoration: BoxDecoration(
-        color: Color(0xFFEEEEEE),
+        color: const Color(0xFFEEEEEE),
         borderRadius: BorderRadius.circular(12),
       ),
       child: TextField(
         decoration: InputDecoration(
-          icon: Icon(Icons.search, color: Colors.grey),
+          icon: const Icon(Icons.search, color: Colors.grey),
           hintText: 'Search for hatcheries...',
           border: InputBorder.none,
           suffixIcon: Container(
+            margin: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(color: AppColors.primary),
             ),
-            child: Icon(Icons.mic, color: Colors.blue),
+            child: const Icon(Icons.mic, color: Colors.blue),
           ),
         ),
+        onChanged: (query) {
+          controller.filterBroodStocks(query);
+        },
       ),
     );
   }
 
-  // A helper method to build the filter section
   Widget _buildFilterSection() {
     return Row(
       children: [
-        // Category Dropdown
         Expanded(
           child: Obx(
             () => controller.categories.isEmpty
-                ? const CircularProgressIndicator()
+                ? const Center(child: CircularProgressIndicator())
                 : _buildDropdownButton(
                     controller.selectedCategory.value?.categoryName ??
                         "Select Category",
@@ -160,24 +181,34 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
           ),
         ),
         const SizedBox(width: 16),
-
-        // Month-Year Dropdown
         Expanded(
-          child: _buildDropdownButton(
-            selectedMonthYear.value,
-            getPastMonths(12),
-            (newValue) {
-              setState(() {
-                selectedMonthYear.value = newValue!;
-              });
-            },
-          ),
+          child: Obx(() {
+            return _buildDropdownButton(
+              selectedMonthYear.value,
+              getPastMonths(12),
+              (newValue) {
+                if (newValue != null) {
+                  selectedMonthYear.value = newValue;
+
+                  // 🔹 Extract month & year from string (e.g. "Oct 2025")
+                  final parts = newValue.split(' ');
+                  if (parts.length == 2) {
+                    final monthName = parts[0];
+                    final year = parts[1];
+                    final month = monthName.toLowerCase();
+
+                    // 🔹 Call controller function to refresh data
+                    controller.onMonthYearChanged(month, year);
+                  }
+                }
+              },
+            );
+          }),
         ),
       ],
     );
   }
 
-  // A helper method to build a dropdown button
   Widget _buildDropdownButton(
     String value,
     List<String> items,
@@ -207,7 +238,6 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
     );
   }
 
-  // A helper method to build the header for the hatchery list
   Widget _buildHatcheryListHeader() {
     return Text(
       'Hatchery & Suppliers',
@@ -215,10 +245,10 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
     );
   }
 
-  // A helper method to build a single hatchery card
-  Widget _buildHatcheryCard() {
+  Widget _buildHatcheryCard(BroodstockData data) {
     return Card(
-      elevation: 2,
+      elevation: 3,
+      margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,11 +260,16 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(15),
                 ),
-                child: Image.asset(
-                  'assets/images/hatchery.png',
-                  height: 141,
+                child: Image.network(
+                  data.images.isNotEmpty ? data.images[0] : '',
+                  height: 160,
                   width: double.infinity,
                   fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 160,
+                    color: Colors.grey[300],
+                    child: const Center(child: Icon(Icons.broken_image)),
+                  ),
                 ),
               ),
               Positioned(
@@ -246,11 +281,11 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.6),
+                    color: Colors.green.withOpacity(0.7),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'Available on 23/06/2025',
+                    data.availableOn,
                     style: GoogleFonts.roboto(
                       color: Colors.white,
                       fontSize: 12,
@@ -260,26 +295,24 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
               ),
             ],
           ),
-          // Packing start date
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Center(
             child: Text(
-              'Packing Start From 25/06/2025',
+              data.packingStart,
               style: GoogleFonts.roboto(
                 color: AppColors.primary,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ),
-
-          // Hatchery details
+          const SizedBox(height: 8),
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(14.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'NSR hatcheries',
+                  data.hatcheryName,
                   style: GoogleFonts.roboto(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -291,25 +324,29 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                     const Icon(Icons.location_on, color: Colors.grey, size: 16),
                     const SizedBox(width: 4),
                     Text(
-                      'Prakasam,Anakapalli',
+                      data.location,
                       style: GoogleFonts.roboto(color: Colors.grey),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Syaqua Americas Inc, Florida',
+                  data.category.map((e) => e.capitalizeFirst ?? e).join(', '),
                   style: GoogleFonts.roboto(fontWeight: FontWeight.w500),
                 ),
+
                 const SizedBox(height: 4),
                 Text(
-                  'Imported Date on 20/06/2025',
+                  'Imported Date: 20/06/2025',
                   style: GoogleFonts.roboto(color: Colors.grey),
                 ),
                 const SizedBox(height: 8),
-                const Text('Available Quantity'),
                 Text(
-                  '600 Pieces',
+                  'Available Quantity',
+                  style: GoogleFonts.roboto(color: Colors.grey[700]),
+                ),
+                Text(
+                  data.availableQuantity,
                   style: GoogleFonts.roboto(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,

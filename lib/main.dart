@@ -34,41 +34,46 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<LanguageController>(
       builder: (languageController) {
-        return GetMaterialApp(
-          debugShowCheckedModeBanner: false,
-          title: 'Seeds User',
-
-          // Localization setup
-          locale: languageController.currentLocale.value,
-          fallbackLocale: const Locale('en', 'US'),
-          localizationsDelegates: [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: const [
-            Locale('en', 'US'), // English
-            Locale('te', 'IN'), // Telugu
-            Locale('hi', 'IN'), // Hindi
-            Locale('ta', 'IN'), // Tamil
-            Locale('kn', 'IN'), // Kannada
-            Locale('ml', 'IN'), // Malayalam
-            Locale('mr', 'IN'), // Marathi
-            Locale('gu', 'IN'), // Gujarati
-            Locale('pa', 'IN'), // Punjabi
-            Locale('bn', 'IN'), // Bengali
-            Locale('or', 'IN'), // Odia
-            Locale('ur', 'IN'), // Urdu
-          ],
-
-          // Theme setup
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-            useMaterial3: true,
-          ),
-
-          home: const SplashScreen(),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final mediaQueryData = MediaQuery.of(context);
+            return MediaQuery(
+              data: mediaQueryData.copyWith(textScaleFactor: 1.0),
+              child: GetMaterialApp(
+                debugShowCheckedModeBanner: false,
+                title: 'Seeds User',
+                locale: languageController.currentLocale.value,
+                fallbackLocale: const Locale('en', 'US'),
+                localizationsDelegates: [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                supportedLocales: const [
+                  Locale('en', 'US'),
+                  Locale('te', 'IN'),
+                  Locale('hi', 'IN'),
+                  Locale('ta', 'IN'),
+                  Locale('kn', 'IN'),
+                  Locale('ml', 'IN'),
+                  Locale('mr', 'IN'),
+                  Locale('gu', 'IN'),
+                  Locale('pa', 'IN'),
+                  Locale('bn', 'IN'),
+                  Locale('or', 'IN'),
+                  Locale('ur', 'IN'),
+                ],
+                theme: ThemeData(
+                  colorScheme: ColorScheme.fromSeed(
+                    seedColor: Colors.deepPurple,
+                  ),
+                  useMaterial3: true,
+                ),
+                home: const SplashScreen(),
+              ),
+            );
+          },
         );
       },
     );
