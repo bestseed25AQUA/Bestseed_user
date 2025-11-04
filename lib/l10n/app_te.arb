@@ -1,0 +1,46 @@
+{
+  "appTitle": "నా యాప్",
+  "welcome": "స్వాగతం",
+
+  "settings": "సెట్టింగ్స్",
+  "language": "భాష",
+  "selectLanguage": "భాషను ఎంచుకోండి",
+  "save": "సేవ్ చేయండి",
+  "cancel": "రద్దు",
+  
+  "profile": "ప్రొఫైల్",
+  "search": "శోధించండి",
+  "notifications": "నోటిఫికేషన్స్",
+  "logout": "లాగ్ అవుట్",
+  "login": "లాగిన్",
+  "signup": "సైన్ అప్",
+  "email": "ఇమెయిల్",
+  "password": "పాస్‌వర్డ్",
+  "confirmPassword": "పాస్‌వర్డ్ ధృవీకరించండి",
+  "forgotPassword": "పాస్‌వర్డ్ మర్చిపోయారా?",
+  "submit": "సబ్మిట్ చేయండి",
+  "error": "లోపం",
+  "success": "సఫలీకృతం",
+  "loading": "లోడ్ అవుతోంది...",
+  "noInternet": "ఇంటర్నెట్ కనెక్షన్ లేదు",
+  "tryAgain": "మళ్లీ ప్రయత్నించండి",
+
+  "home": "హోమ్",
+  "price": "ధర",
+  "broadstock": "బ్రాడ్‌స్టాక్",
+  "news_ads": "సమాచారం & ప్రకటనలు",
+  "updates": "తాజాకరణలు",
+
+  "send_request": "వినతి పంపండి",
+
+  "wanted_crops": "వాంటెడ్ క్రాప్‌లు",
+  "search_buyers": "కొత్త కొనుగోలు దారులను శోధించండి...",
+  "tracking": "ట్రాకింగ్",
+  "my_bookings": "నా బుకింగ్స్",
+  "customer_support": "కస్టమర్ సపోర్ట్",
+  "terms_conditions": "నియమాలు మరియు షరతులు",
+  "change_languages": "భాషలను మార్చండి",
+  "privacy_policy": "గోప్యతా విధానం",
+  "rate_us": "మాకు రేట్ ఇవ్వండి",
+  "share_app": "అప్లికేషన్‌ను షేర్ చేయండి"
+}

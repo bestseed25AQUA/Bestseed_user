@@ -1,0 +1,48 @@
+{
+  "appTitle": "My App",
+  "welcome": "Welcome",
+ 
+  "settings": "Settings",
+  "language": "Language",
+  "selectLanguage": "Select Language",
+  "save": "Save",
+  "cancel": "Cancel",
+  
+  "profile": "Profile",
+  "search": "Search",
+  "notifications": "Notifications",
+  "logout": "Logout",
+  "login": "Login",
+  "signup": "Sign Up",
+  "email": "Email",
+  "password": "Password",
+  "confirmPassword": "Confirm Password",
+  "forgotPassword": "Forgot Password?",
+  "submit": "Submit",
+  "error": "Error",
+  "success": "Success",
+  "loading": "Loading...",
+  "noInternet": "No Internet Connection",
+  "tryAgain": "Try Again",
+
+
+  "home": "Home",
+  "price": "Price",
+  "broadstock": "Broodstock",
+  "news_ads": "News & Ads",
+  "updates": "Updates",
+
+  "send_request": "Send request",
+
+  "wanted_crops": "Wanted Crops",
+  "search_buyers": "Search buyers...",
+  "tracking": "Tracking",
+  "my_bookings": "My bookings",
+  "customer_support": "Customer support",
+  "terms_conditions": "Terms and conditions",
+  "change_languages": "Change languages",
+  "privacy_policy": "Privacy policy",
+  "rate_us": "Rate us",
+  "share_app": "Share app"
+  
+}
