@@ -1,9 +1,14 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/utils/network_config.dart';
+import 'package:seedsuser/app/utils/network_utils.dart';
 
 class LocationSelectionScreen extends StatefulWidget {
   const LocationSelectionScreen({super.key});
@@ -18,12 +23,12 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
   String currentStreet = "";
   bool isLoading = false;
 
-  final List<String> recentLocations = [
-    "Chennai, Tamil Nadu",
-    "Hyderabad, Telangana",
-    "Bangalore, Karnataka",
-    "Coimbatore, Tamil Nadu",
-    "Madurai, Tamil Nadu",
+  List<String> recentLocations = [
+    // "Chennai, Tamil Nadu",
+    // "Hyderabad, Telangana",
+    // "Bangalore, Karnataka",
+    // "Coimbatore, Tamil Nadu",
+    // "Madurai, Tamil Nadu",
   ];
 
   /// ✅ Get Current Location and return both City + Street
@@ -64,7 +69,6 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
       });
       return;
     }
-
     final position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
@@ -87,12 +91,59 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
         isLoading = false;
       });
 
-      // ✅ Return city and street as Map
       Get.back(result: {'city': city, 'street': street});
     } else {
       setState(() {
         currentCity = "Unable to fetch location";
         isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    print('calling init');
+    getAllLocation();
+  }
+
+  bool allLocationLoading = true;
+  Future<void> getAllLocation() async {
+
+    try {
+      
+      final response = await getRequest(
+        endPoint:
+            "${NetworkConfig.baseURL}/farmer/locations/all",
+        headers: await buildHeader(),
+      );
+      print('============');
+      print("${NetworkConfig.baseURL}/farmer/locations/all");
+      print(response.statusCode);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        try {
+          recentLocations = List.generate(
+            data['locations'].length,
+            (index) => data['locations'][index]['location_name'].toString(),
+          );
+        } catch (e) {
+          print(e.toString());
+        }
+
+        print('========all locaitons=======');
+        print(data.toString());
+      } else {
+        print('else error');
+      }
+    } catch (e, s) {
+      print(e);
+      print(s);
+      CustomToast.error("Something went wrong: $e");
+    } finally {
+      allLocationLoading = false;
+      setState(() {
+        
       });
     }
   }
@@ -170,7 +221,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
             const SizedBox(height: 24),
 
             Text(
-              "Recent Locations",
+              "Locations",
               style: GoogleFonts.roboto(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -181,6 +232,15 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
             const SizedBox(height: 12),
 
             // 🏙️ List of Recent Locations
+            if(recentLocations.isEmpty)Padding(
+              padding:  EdgeInsets.only(top: MediaQuery.of(context).size.height*.2),
+              child: Center(
+                child: SizedBox(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            )
+            else
             Expanded(
               child: ListView.separated(
                 itemCount: recentLocations.length,

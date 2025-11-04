@@ -28,9 +28,23 @@ class BroodStockController extends GetxController {
   /// Fetch both categories & broodstock initially
   Future<void> fetchInitialData() async {
     await getCategories();
-
+     //default 
     if (categories.isNotEmpty) {
-      selectedCategory.value = categories.first;
+      try {
+        bool isFound = false;
+        for (var category in categories) {
+          if (category.categoryName == "Vannamei") {
+            selectedCategory.value = category;
+            isFound = true;
+            break;
+          }
+        }
+        if (!isFound) {
+          selectedCategory.value = categories.first;
+        }
+      } catch (e) {
+        selectedCategory.value = categories.first;
+      }
     }
 
     // Default month & year = current date

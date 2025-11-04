@@ -65,9 +65,12 @@ class OtpVerifyController extends GetxController {
       );
 
       debugPrint("Verify OTP Response: ${response.body}");
+       
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
+        print("=======token at login time=========");
+        print('=====${data['token'].toString()}====');
         // Save token & mobile locally
         if (data['token'] != null) {
           await AuthLocalStorage.saveUserData(

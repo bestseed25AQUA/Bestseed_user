@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_details.dart';
 
 class MedicineNewsScreen extends StatefulWidget {
@@ -12,6 +13,7 @@ class MedicineNewsScreen extends StatefulWidget {
 
 class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final newsSpecificController = Get.put(NewsSpecificController());
   List<Map<String, String>> allNews = [];
   List<Map<String, String>> filteredNews = [];
 
@@ -19,16 +21,7 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
   void initState() {
     super.initState();
 
-    // Sample news data
-    allNews = List.generate(10, (index) {
-      return {
-        "title": "New Medicine Discovery $index",
-        "subtitle": "Scientists have discovered a new medicine that...",
-        "image": "https://picsum.photos/200/300?random=$index",
-      };
-    });
-
-    filteredNews = List.from(allNews);
+    newsSpecificController.fetch('medicine news');
   }
 
   void _filterNews(String query) {
@@ -75,6 +68,7 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
       body: Column(
         children: [
           // 🔍 Search Field
+          if(false)
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Container(
@@ -105,33 +99,65 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
           ),
 
           // 📰 Grid of News
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(8.0),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 8.0,
-                crossAxisSpacing: 8.0,
-                childAspectRatio: 1,
+          Obx(() {
+            if (newsSpecificController.isLoading.value) {
+              return Padding(
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).size.height * .3,
+                ),
+                child: Align(
+                  alignment: Alignment.center,
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            if ((newsSpecificController.newsSpecificData.value?.data?.length ??
+                    0) ==
+                0) {
+              return Padding(
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).size.height * .3,
+                ),
+                child: Align(
+                  alignment: Alignment.center,
+                  child: Text('No Medicine News Availables'),
+                ),
+              );
+            }
+            return Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.all(8.0),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 8.0,
+                  crossAxisSpacing: 8.0,
+                  childAspectRatio: 1,
+                ),
+                itemCount:
+                    newsSpecificController.newsSpecificData.value?.data?.length,
+                itemBuilder: (context, index) {
+                  final data = newsSpecificController
+                      .newsSpecificData
+                      .value
+                      ?.data?[index];
+                  return InkWell(
+                    onTap: () {
+                      Get.to(
+                        () => MedicineDetailScreen(
+                          title: data?.medicineName ?? '',
+                        ),
+                      );
+                    },
+                    child: _buildNewsCard(
+                      data?.medicineName ?? '',
+                      data?.curesFor ?? '',
+                      data?.mediaPath ?? '',
+                    ),
+                  );
+                },
               ),
-              itemCount: filteredNews.length,
-              itemBuilder: (context, index) {
-                final news = filteredNews[index];
-                return InkWell(
-                  onTap: () {
-                    Get.to(
-                      () => MedicineDetailScreen(title: news["title"] ?? ""),
-                    );
-                  },
-                  child: _buildNewsCard(
-                    news["title"] ?? "",
-                    news["subtitle"] ?? "",
-                    news["image"] ?? "",
-                  ),
-                );
-              },
-            ),
-          ),
+            );
+          }),
         ],
       ),
     );
@@ -144,13 +170,24 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              imageUrl,
-              height: 120,
-              width: double.infinity,
-              fit: BoxFit.cover,
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.white.withOpacity(.7),
+              border: Border.all(width: .1, color: Colors.grey),
+              boxShadow: [BoxShadow(color: Colors.grey)],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                imageUrl,
+                height: 120,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return SizedBox(height: 120, width: 150);
+                },
+              ),
             ),
           ),
           const SizedBox(height: 8),

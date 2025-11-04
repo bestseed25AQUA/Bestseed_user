@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/home/view/full_video_screen.dart';
+import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/trending_updates_details_screen.dart';
+import 'package:seedsuser/app/news%20&%20ads/widget/news_banner_widget.dart';
 import 'package:video_player/video_player.dart';
 
 class TrendingUpdatesScreen extends StatefulWidget {
@@ -16,20 +19,22 @@ class TrendingUpdatesScreen extends StatefulWidget {
 class _TrendingUpdatesScreenState extends State<TrendingUpdatesScreen> {
   late VideoPlayerController _controller;
   bool videoStarted = false;
+  final newsSpecificController = Get.put(NewsSpecificController());
 
   @override
   void initState() {
     super.initState();
+    newsSpecificController.fetch('trending updates');
     // Initialize controller in initState
-    _controller =
-        VideoPlayerController.asset('assets/images/video_20250921_103157.mp4')
-          ..initialize().then((_) {
-            setState(() {}); // Refresh UI when initialized
-          })
-          ..setLooping(false); // No looping
-    _controller.addListener(() {
-      if (mounted) setState(() {});
-    });
+    // _controller =
+    //     VideoPlayerController.asset('assets/images/video_20250921_103157.mp4')
+    //       ..initialize().then((_) {
+    //         setState(() {});
+    //       })
+    //       ..setLooping(false);
+    // _controller.addListener(() {
+    //   if (mounted) setState(() {});
+    // });
   }
 
   void checkAsset() async {
@@ -77,10 +82,77 @@ class _TrendingUpdatesScreenState extends State<TrendingUpdatesScreen> {
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [_buildTrendingSection()],
-          ),
+          child: Obx(() {
+            if (newsSpecificController.isLoading.value) {
+              return Padding(
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).size.height * .3,
+                ),
+                child: Align(
+                  alignment: Alignment.center,
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            if ((newsSpecificController.newsSpecificData.value?.data?.length ??
+                    0) ==
+                0) {
+              return Padding(
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).size.height * .3,
+                ),
+                child: Align(
+                  alignment: Alignment.center,
+                  child: Text('No Trending Updates Availables'),
+                ),
+              );
+            } else {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: List.generate(
+                  newsSpecificController.newsSpecificData.value?.data?.length ??
+                      0,
+
+                  (index) {
+                    final data = newsSpecificController
+                        .newsSpecificData
+                        .value
+                        ?.data?[index];
+                    if (data?.mediaType == "image") {
+                      return GestureDetector(
+                        onTap: () {},
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            data?.mediaPath ?? "",
+                            width: double.infinity,
+                            height: 180,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return SizedBox();
+                            },
+                          ),
+                        ),
+                      );
+                    } else if (data?.mediaType == "video") {
+                      return GestureDetector(
+                        onTap: () {
+                          Get.to(
+                            () => FullScreenVideoPlayer(
+                              videoUrl: data?.mediaPath ?? '',
+                            ),
+                          );
+                        },
+                        child: VideoPlayerBanner(url: data?.mediaPath ?? ''),
+                      );
+                    } else {
+                      return const SizedBox.shrink();
+                    }
+                  },
+                ),
+              );
+            }
+          }),
         ),
       ),
     );

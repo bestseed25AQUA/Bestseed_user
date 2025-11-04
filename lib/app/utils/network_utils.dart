@@ -11,6 +11,7 @@ import 'package:seedsuser/app/utils/network_config.dart';
 Future<Map<String, String>> buildHeader() async {
   String token = await AuthLocalStorage.getToken() ?? "";
   print("User Token : $token");
+
   return {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'};
 }
 

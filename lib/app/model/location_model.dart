@@ -1,6 +1,7 @@
 class LocationModel {
   final bool status;
   final List<Location> locations;
+  
 
   LocationModel({required this.status, required this.locations});
 
@@ -38,6 +39,7 @@ class Location {
 
   factory Location.fromJson(Map<String, dynamic> json) {
     return Location(
+
       id: json['id'] ?? 0,
       locationName: json['location_name'] ?? '',
       longitude: json['longitude'] ?? '',

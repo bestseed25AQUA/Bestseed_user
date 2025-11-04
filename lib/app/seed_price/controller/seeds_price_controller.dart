@@ -27,8 +27,46 @@ class SeedsPriceController extends GetxController {
   Future<void> fetchData() async {
     await Future.wait([getLocations(), getCategories()]);
     // Set default selection if lists are not empty
-    if (locations.isNotEmpty) selectedLocation.value = locations.first;
-    if (categories.isNotEmpty) selectedCategory.value = categories.first;
+    // if (locations.isNotEmpty) selectedLocation.value = locations.first;
+    // if (categories.isNotEmpty) selectedCategory.value = categories.first;
+    /// for default location
+    if (locations.isNotEmpty) {
+      try {
+        bool isFound = false;
+        for (var location in locations) {
+          if (location.locationName == "East Godawari") {
+            selectedLocation.value = location;
+            isFound = true;
+            break;
+          }
+        }
+        if (!isFound) {
+          selectedLocation.value = locations.first;
+        }
+      } catch (e) {
+        selectedLocation.value = locations.first;
+      }
+    }
+
+     /// for default category
+    if (categories.isNotEmpty) {
+      try {
+        bool isFound = false;
+        for (var category in categories) {
+          if (category.categoryName == "Vannamei") {
+            selectedCategory.value = category;
+            isFound = true;
+            break;
+          }
+        }
+        if (!isFound) {
+          selectedCategory.value = categories.first;
+        }
+      } catch (e) {
+        selectedCategory.value = categories.first;
+      }
+    }
+
     await getPrices();
   }
 

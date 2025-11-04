@@ -20,9 +20,11 @@ class _NewsBannerWidgetState extends State<NewsBannerWidget> {
   Widget build(BuildContext context) {
     return Obx(() {
       if (controller.isLoading.value) {
-        return const Center(child: CircularProgressIndicator());
+        // return const Center(child: CircularProgressIndicator());
+        return SizedBox();
       } else if (controller.banners.isEmpty) {
-        return const Center(child: Text("No banners available"));
+        // return const Center(child: Text("No banners available"));
+        return SizedBox();
       } else {
         return Stack(
           alignment: Alignment.bottomCenter,

@@ -12,14 +12,16 @@ class FarmDetailsFormScreen extends StatefulWidget {
 }
 
 class _FarmDetailsFormScreenState extends State<FarmDetailsFormScreen> {
-  final List<String> _tankOptions = [
-    '1 Tank',
-    '2 Tanks',
-    '3 Tanks',
-    '4+ Tanks',
-  ];
+  // final List<String> _tankOptions = [
+  //   '1 Tank',
+  //   '2 Tanks',
+  //   '3 Tanks',
+  //   '4+ Tanks',
+  // ];
 
-  String? _selectedTanks;
+  // String? _selectedTanks;
+
+  final TextEditingController _tankController = TextEditingController();
   final List<File> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
 
@@ -268,22 +270,12 @@ class _FarmDetailsFormScreenState extends State<FarmDetailsFormScreen> {
               style: GoogleFonts.roboto(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
+           TextField(
               decoration: _inputDecoration.copyWith(
-                hintText: 'Select number of tanks',
+                hintText: 'Enter No. of tank',
               ),
-              value: _selectedTanks,
-              items: _tankOptions.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (String? newValue) {
-                setState(() {
-                  _selectedTanks = newValue;
-                });
-              },
+              controller: _tankController,
+              keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 24),
 

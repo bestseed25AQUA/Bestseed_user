@@ -16,14 +16,18 @@ class HomeController extends GetxController {
     getCategories();
   }
 
+
   Future<void> getCategories() async {
+    print('enter in get cat');
     try {
       isLoading.value = true;
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/categories",
         headers: await buildHeader(),
       );
-
+      print('=====get cat apis========');
+      print(response.body);
+      print(response.statusCode);
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         final List<dynamic> catList = data['categories'];
@@ -32,6 +36,7 @@ class HomeController extends GetxController {
         CustomToast.error("Failed to fetch categories: ${response.statusCode}");
       }
     } catch (e, s) {
+      print('enter in get cat error');
       print(e);
       print(s);
       CustomToast.error("Something went wrong: $e");

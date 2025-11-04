@@ -24,11 +24,7 @@ android {
         applicationId = "com.example.seedsuser"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-<<<<<<< HEAD
         minSdk = flutter.minSdkVersion
-=======
-        minSdk = 21
->>>>>>> 7bdbd47104e86fe5ce894edfe7e7826fad7bed33
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName

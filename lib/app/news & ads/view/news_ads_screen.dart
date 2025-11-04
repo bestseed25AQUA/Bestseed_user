@@ -1,13 +1,21 @@
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/home/view/full_video_screen.dart';
+import 'package:seedsuser/app/home/widget/home_banner_carousel.dart'
+    hide VideoPlayerBanner;
 import 'package:seedsuser/app/language/language_screen.dart';
+import 'package:seedsuser/app/news%20&%20ads/controller/news_ads_controller.dart';
+import 'package:seedsuser/app/news%20&%20ads/view/climate_news_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_news_screen.dart';
+import 'package:seedsuser/app/news%20&%20ads/view/trending_updates_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/widget/news_banner_widget.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
+import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
 import 'package:video_player/video_player.dart';
 
 class NewsAdsScreen extends StatefulWidget {
@@ -20,7 +28,8 @@ class NewsAdsScreen extends StatefulWidget {
 class _NewsAdsScreenState extends State<NewsAdsScreen> {
   late VideoPlayerController _controller;
   bool videoStarted = false;
-
+  final newsAdsController = Get.put(NewsAdsController());
+  int _currentIndex = 0;
   @override
   void initState() {
     super.initState();
@@ -98,15 +107,216 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
             // _buildTrendingSection(),
             const SizedBox(height: 16),
             NewsBannerWidget(),
-            const SizedBox(height: 20),
-            _buildSectionHeader('Medicine news', () {
-              Get.to(() => const MedicineNewsScreen());
+
+            Obx(() {
+              if (newsAdsController.nesAndAdsData.value?.data == null) {
+                return Align(
+                  alignment: Alignment.center,
+                  child: Padding(
+                    padding: EdgeInsets.only(top: MediaQuery.of(context).size.height*.3),
+                    child: CircularProgressIndicator()));
+              }
+              return Column(
+                children: [
+                  _buildSectionHeader('Trendinig Update', () {
+                    Get.to(TrendingUpdatesScreen());
+                  }),
+                  Stack(
+                    alignment: Alignment.bottomCenter,
+                    children: [
+                      CarouselSlider.builder(
+                        itemCount:
+                            newsAdsController
+                                .nesAndAdsData
+                                .value
+                                ?.data
+                                ?.trendingUpdate
+                                ?.length ??
+                            0,
+                        itemBuilder: (context, index, realIndex) {
+                          final data = newsAdsController
+                              .nesAndAdsData
+                              .value
+                              ?.data
+                              ?.trendingUpdate?[index];
+                          if (data?.mediaType == "image") {
+                            return GestureDetector(
+                              onTap: () {},
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: Colors.white.withOpacity(.7),
+                                  border: Border.all(
+                                    width: .1,
+                                    color: Colors.grey,
+                                  ),
+                                  boxShadow: [BoxShadow(color: Colors.grey)],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    data?.mediaPath ?? '',
+                                    width: double.infinity,
+                                    height: 180,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return SizedBox(height: 180);
+                                    },
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                            );
+                          } else if (data?.mediaType == "video") {
+                            return GestureDetector(
+                              onTap: () {
+                                Get.to(
+                                  () => FullScreenVideoPlayer(
+                                    videoUrl: data?.mediaPath ?? "",
+                                  ),
+                                );
+                              },
+                              child: VideoPlayerBanner(
+                                url: data?.mediaPath ?? "",
+                              ),
+                            );
+                          } else {
+                            return const SizedBox.shrink();
+                          }
+                        },
+                        options: CarouselOptions(
+                          height: 160,
+                          autoPlay: true,
+                          enlargeCenterPage: true,
+                          viewportFraction: 0.9,
+                          onPageChanged: (index, reason) {
+                            setState(() {
+                              _currentIndex = index; // update current index
+                            });
+                          },
+                        ),
+                      ),
+
+                      // Indicator Dots
+                      Positioned(
+                        bottom: 10,
+                        left: 0,
+                        right: 0,
+                        child: Builder(
+                          builder: (context) {
+                            try {
+                              return Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children:
+                                    newsAdsController
+                                            .nesAndAdsData
+                                            ?.value
+                                            ?.data
+                                            ?.trendingUpdate
+                                            ?.asMap()
+                                            .entries
+                                            .map((entry) {
+                                              return Container(
+                                                    width: 8.0,
+                                                    height: 8.0,
+                                                    margin:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 4.0,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      shape: BoxShape.circle,
+                                                      color:
+                                                          _currentIndex ==
+                                                              entry.key
+                                                          ? Colors
+                                                                .blue // Active dot
+                                                          : Colors
+                                                                .grey, // Inactive dot
+                                                    ),
+                                                  )
+                                                  as Widget;
+                                            })
+                                            .toList()
+                                        as List<Widget>,
+                              );
+                            } catch (e) {
+                              SizedBox();
+                            } finally {
+                              // ignore: control_flow_in_finally
+                              return SizedBox();
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _buildSectionHeader('Medicine news', () {
+                    Get.to(() => const MedicineNewsScreen());
+                  }),
+                  SizedBox(
+                    height: 180,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      children: List.generate(
+                        newsAdsController
+                                .nesAndAdsData
+                                ?.value
+                                ?.data
+                                ?.medicineNews
+                                ?.length ??
+                            0,
+                        (index) {
+                          final data = newsAdsController
+                              .nesAndAdsData
+                              ?.value
+                              ?.data
+                              ?.medicineNews?[index];
+                          return _buildNewsCard(
+                            data?.medicineName ?? "",
+                            data?.curesFor ?? "",
+                            data?.mediaPath ?? "",
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildSectionHeader('Climate news', () {
+                    Get.to(ClimateNewsScreen());
+                  }),
+                  SizedBox(
+                    height: 180,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      children: List.generate(
+                        newsAdsController
+                                .nesAndAdsData
+                                ?.value
+                                ?.data
+                                ?.climateNews
+                                ?.length ??
+                            0,
+                        (index) {
+                          final data = newsAdsController
+                              .nesAndAdsData
+                              .value
+                              ?.data
+                              ?.climateNews?[index];
+                          return _buildNewsCard(
+                            data?.title ?? "",
+                            null,
+                            data?.mediaPath ?? "",
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 80),
+                ],
+              );
             }),
-            _buildMedicineNewsSection(),
-            const SizedBox(height: 20),
-            _buildSectionHeader('Climate news', () {}),
-            _buildClimateNewsSection(),
-            const SizedBox(height: 80),
           ],
         ),
       ),
@@ -251,60 +461,6 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
   //   return '$minutes:$seconds';
   // }
 
-  Widget _buildMedicineNewsSection() {
-    return SizedBox(
-      height: 180,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-        children: [
-          _buildNewsCard(
-            'Probiotic Powder',
-            'Gutwell, Vibract',
-            'https://picsum.photos/200/300?random=2',
-          ),
-          _buildNewsCard(
-            'Immuno Boosters',
-            'ImmuGuard, Immuno',
-            'https://picsum.photos/200/300?random=3',
-          ),
-          _buildNewsCard(
-            'Immuno Boosters',
-            'ImmuGuard, Immuno',
-            'https://picsum.photos/200/300?random=4',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildClimateNewsSection() {
-    return SizedBox(
-      height: 180,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-        children: [
-          _buildNewsCard(
-            'Rising sea temperature',
-            null,
-            'https://picsum.photos/200/300?random=5',
-          ),
-          _buildNewsCard(
-            'Floods are ahead',
-            null,
-            'https://picsum.photos/200/300?random=6',
-          ),
-          _buildNewsCard(
-            'Tsunami Risk',
-            null,
-            'https://picsum.photos/200/300?random=7',
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildNewsCard(String title, String? subtitle, String imageUrl) {
     return Container(
       width: 150,
@@ -314,11 +470,22 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              imageUrl,
-              height: 120,
-              width: 150,
-              fit: BoxFit.cover,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.white.withOpacity(.7),
+                border: Border.all(width: .1, color: Colors.grey),
+                boxShadow: [BoxShadow(color: Colors.grey)],
+              ),
+              child: Image.network(
+                imageUrl,
+                height: 120,
+                width: 150,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return SizedBox(height: 120, width: 150);
+                },
+              ),
             ),
           ),
           const SizedBox(height: 8),
