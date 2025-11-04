@@ -42,7 +42,7 @@ class LanguageController extends GetxController {
       _box.write(_key, {
         'languageCode': currentLocale.value.languageCode,
         'countryCode': currentLocale.value.countryCode,
-        'languageName': languageName
+        'languageName': languageName,
       });
     }
   }
