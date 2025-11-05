@@ -109,12 +109,16 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
             NewsBannerWidget(),
 
             Obx(() {
-              if (newsAdsController.nesAndAdsData.value?.data == null) {
+              if (newsAdsController.newsAdsData.value?.data == null) {
                 return Align(
                   alignment: Alignment.center,
                   child: Padding(
-                    padding: EdgeInsets.only(top: MediaQuery.of(context).size.height*.3),
-                    child: CircularProgressIndicator()));
+                    padding: EdgeInsets.only(
+                      top: MediaQuery.of(context).size.height * .3,
+                    ),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
               }
               return Column(
                 children: [
@@ -127,7 +131,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                       CarouselSlider.builder(
                         itemCount:
                             newsAdsController
-                                .nesAndAdsData
+                                .newsAdsData
                                 .value
                                 ?.data
                                 ?.trendingUpdate
@@ -135,7 +139,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                             0,
                         itemBuilder: (context, index, realIndex) {
                           final data = newsAdsController
-                              .nesAndAdsData
+                              .newsAdsData
                               .value
                               ?.data
                               ?.trendingUpdate?[index];
@@ -208,7 +212,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children:
                                     newsAdsController
-                                            .nesAndAdsData
+                                            .newsAdsData
                                             ?.value
                                             ?.data
                                             ?.trendingUpdate
@@ -260,7 +264,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
                       children: List.generate(
                         newsAdsController
-                                .nesAndAdsData
+                                .newsAdsData
                                 ?.value
                                 ?.data
                                 ?.medicineNews
@@ -268,7 +272,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                             0,
                         (index) {
                           final data = newsAdsController
-                              .nesAndAdsData
+                              .newsAdsData
                               ?.value
                               ?.data
                               ?.medicineNews?[index];
@@ -292,7 +296,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
                       children: List.generate(
                         newsAdsController
-                                .nesAndAdsData
+                                .newsAdsData
                                 ?.value
                                 ?.data
                                 ?.climateNews
@@ -300,7 +304,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                             0,
                         (index) {
                           final data = newsAdsController
-                              .nesAndAdsData
+                              .newsAdsData
                               .value
                               ?.data
                               ?.climateNews?[index];

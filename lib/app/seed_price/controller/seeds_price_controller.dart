@@ -10,7 +10,8 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 class SeedsPriceController extends GetxController {
   var isLoading = false.obs;
 
-  Rx<PriceModel?> priceModel = Rx<PriceModel?>(null);
+  Rx<PriceModel?> priceData = Rx<PriceModel?>(null);
+  Rx<PriceModel?> homePriceData = Rx<PriceModel?>(null);
 
   var locations = <Location>[].obs;
   var categories = <Category>[].obs;
@@ -48,7 +49,7 @@ class SeedsPriceController extends GetxController {
       }
     }
 
-     /// for default category
+    /// for default category
     if (categories.isNotEmpty) {
       try {
         bool isFound = false;
@@ -128,7 +129,7 @@ class SeedsPriceController extends GetxController {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        priceModel.value = PriceModel.fromJson(data);
+        priceData.value = PriceModel.fromJson(data);
       } else {
         CustomToast.error("Failed to fetch prices: ${response.statusCode}");
       }
@@ -137,6 +138,28 @@ class SeedsPriceController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> getPricesForHome({
+    required String categoryId,
+    required String locationId,
+  }) async {
+    try {
+      final response = await getRequest(
+        endPoint:
+            "${NetworkConfig.baseURL}/farmer/prices?category_id=$categoryId&location_id=$locationId",
+        headers: await buildHeader(),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        homePriceData.value = PriceModel.fromJson(data);
+      } else {
+        CustomToast.error("Failed to fetch prices: ${response.statusCode}");
+      }
+    } catch (e) {
+      CustomToast.error("Something went wrong: $e");
+    } finally {}
   }
 
   void onLocationChanged(Location? loc) {

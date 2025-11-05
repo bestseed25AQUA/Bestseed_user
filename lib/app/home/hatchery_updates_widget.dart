@@ -36,53 +36,51 @@ class HatcheryUpdatesWidget extends StatelessWidget {
     required String imagePath,
     required String hatcheryName,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      margin: EdgeInsets.only(right: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min, // To make the column take minimum space
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircleAvatar(
-            radius: 36,
-            backgroundImage: AssetImage(
-              imagePath,
-            ), // Use AssetImage for local assets
-            // If using network image:
-            // backgroundImage: NetworkImage(imagePath),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            hatcheryName,
-            style: GoogleFonts.roboto(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+    return Card(
+      color: Colors.white,
+      child: Padding(
+       padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // To make the column take minimum space
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 36,
+              backgroundImage: AssetImage(
+                imagePath,
+              ), // Use AssetImage for local assets
+              // If using network image:
+              // backgroundImage: NetworkImage(imagePath),
             ),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton(
-            onPressed: () {
-              // Handle "View Profile" action
-            },
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.primary),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30.0),
-              ),
-            ),
-            child: Text(
-              "View Profile",
+            const SizedBox(height: 10),
+            Text(
+              hatcheryName,
               style: GoogleFonts.roboto(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            OutlinedButton(
+              onPressed: () {
+                // Handle "View Profile" action
+              },
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30.0),
+                ),
+              ),
+              child: Text(
+                "View Profile",
+                style: GoogleFonts.roboto(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -17,58 +17,69 @@ class _TodayPricesWidgetState extends State<TodayPricesWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "Today's Prices",
-                style: GoogleFonts.roboto(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+    return Card(
+      color: Colors.white,
+      // padding: const EdgeInsets.all(12.0),
+      // decoration: BoxDecoration(
+      //   color: Colors.white,
+      //   borderRadius: BorderRadius.circular(16),
+      //   boxShadow: [
+      //     BoxShadow(
+      //       color: Colors.grey.withOpacity(.2),
+      //       offset: Offset(2, 2)
+      //     )
+      //   ]
+      // ),
+      
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Today's Prices",
+                  style: GoogleFonts.roboto(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              _buildDropdownButton(
-                selectedValue,
-                ["Vannamei", "Monodon", "Scampi"],
-                (newValue) {
-                  setState(() {
-                    selectedValue = newValue!;
-                  });
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _buildPriceSection(
-            title: "Godavari",
-            prices: [
-              PriceItem(quantity: "100C", price: "₹240"),
-              PriceItem(quantity: "90C", price: "₹210"),
-              PriceItem(quantity: "70C", price: ""),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _buildPriceSection(
-            title: "Krishna",
-            prices: [
-              PriceItem(quantity: "100C", price: "₹220"),
-              PriceItem(quantity: "90C", price: "₹230"),
-              PriceItem(
-                quantity: "80C",
-                price: "",
-              ), // Example of an empty price
-            ],
-          ),
-        ],
+                _buildDropdownButton(
+                  selectedValue,
+                  ["Vannamei", "Monodon", "Scampi"],
+                  (newValue) {
+                    setState(() {
+                      selectedValue = newValue!;
+                    });
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _buildPriceSection(
+              title: "Godavari",
+              prices: [
+                PriceItem(quantity: "100C", price: "₹240"),
+                PriceItem(quantity: "90C", price: "₹210"),
+                PriceItem(quantity: "70C", price: ""),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _buildPriceSection(
+              title: "Krishna",
+              prices: [
+                PriceItem(quantity: "100C", price: "₹220"),
+                PriceItem(quantity: "90C", price: "₹230"),
+                PriceItem(
+                  quantity: "80C",
+                  price: "",
+                ), // Example of an empty price
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

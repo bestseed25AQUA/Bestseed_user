@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
-import 'package:seedsuser/app/news%20&%20ads/view/medicine_details.dart';
+import 'package:seedsuser/app/news%20&%20ads/view/climate_news_detail_screen.dart';
+import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
 
 class ClimateNewsScreen extends StatefulWidget {
   const ClimateNewsScreen({super.key});
@@ -142,8 +143,8 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
                   return InkWell(
                     onTap: () {
                       Get.to(
-                        () => MedicineDetailScreen(
-                          title: data?.medicineName ?? '',
+                        () => ClimateDetailScreen(
+                          id: data?.id.toString()??'', title:  data?.title??"",
                         ),
                       );
                     },

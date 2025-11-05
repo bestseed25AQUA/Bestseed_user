@@ -5,8 +5,13 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/home/controller/location_controller.dart';
+import 'package:seedsuser/app/home/map_screen.dart';
+import 'package:seedsuser/app/home/map_search_screen.dart';
+import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
 
@@ -19,20 +24,13 @@ class LocationSelectionScreen extends StatefulWidget {
 }
 
 class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
-  String currentCity = "Use Current Location";
+  String currentCity = "Add Current Location";
   String currentStreet = "";
   bool isLoading = false;
 
-  List<String> recentLocations = [
-    // "Chennai, Tamil Nadu",
-    // "Hyderabad, Telangana",
-    // "Bangalore, Karnataka",
-    // "Coimbatore, Tamil Nadu",
-    // "Madurai, Tamil Nadu",
-  ];
-
-  /// ✅ Get Current Location and return both City + Street
-  Future<void> _getCurrentLocation() async {
+  final _locationController = Get.put(LocationController());
+  final _profileController = Get.put(ProfileController());
+  Future<void> _addCorrentLocation() async {
     setState(() {
       isLoading = true;
       currentCity = "Fetching location...";
@@ -70,6 +68,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
       return;
     }
     final position = await Geolocator.getCurrentPosition(
+      // ignore: deprecated_member_use
       desiredAccuracy: LocationAccuracy.high,
     );
 
@@ -91,7 +90,14 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
         isLoading = false;
       });
 
-      Get.back(result: {'city': city, 'street': street});
+      _locationController.addAllLocation(
+        latitude: position.longitude.toString(),
+        longitude: position.latitude.toString(),
+        locationName: city,
+        farmerId: _profileController.profile.value?.id.toString() ?? '',
+      );
+
+      // Get.back(result: {'city': city, 'street': street});
     } else {
       setState(() {
         currentCity = "Unable to fetch location";
@@ -103,49 +109,8 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
   @override
   void initState() {
     super.initState();
+    _locationController.getAllLocation();
     print('calling init');
-    getAllLocation();
-  }
-
-  bool allLocationLoading = true;
-  Future<void> getAllLocation() async {
-
-    try {
-      
-      final response = await getRequest(
-        endPoint:
-            "${NetworkConfig.baseURL}/farmer/locations/all",
-        headers: await buildHeader(),
-      );
-      print('============');
-      print("${NetworkConfig.baseURL}/farmer/locations/all");
-      print(response.statusCode);
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        try {
-          recentLocations = List.generate(
-            data['locations'].length,
-            (index) => data['locations'][index]['location_name'].toString(),
-          );
-        } catch (e) {
-          print(e.toString());
-        }
-
-        print('========all locaitons=======');
-        print(data.toString());
-      } else {
-        print('else error');
-      }
-    } catch (e, s) {
-      print(e);
-      print(s);
-      CustomToast.error("Something went wrong: $e");
-    } finally {
-      allLocationLoading = false;
-      setState(() {
-        
-      });
-    }
   }
 
   @override
@@ -171,7 +136,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
 
             // 📍 Use Current Location
             InkWell(
-              onTap: _getCurrentLocation,
+              onTap: _addCorrentLocation,
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -217,9 +182,24 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 24),
-
+            // TextButton(
+            //   onPressed: () async {
+            //     final position = await Geolocator.getCurrentPosition(
+            //       // ignore: deprecated_member_use
+            //       desiredAccuracy: LocationAccuracy.high,
+            //     );
+            //     Get.to(
+            //       GoogleMapSearchPlacesScreen(
+            //         latitude: position.latitude,
+            //         longitude: position.longitude,
+            //         ontapSelectLocation: (LatLng latLong) {},
+            //       ),
+            //     );
+            //   },
+            //   child: Text('Add Location'),
+            // ),
+            const SizedBox(height: 24),
             Text(
               "Locations",
               style: GoogleFonts.roboto(
@@ -230,71 +210,89 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
             ),
 
             const SizedBox(height: 12),
+            Obx(() {
+              if (_locationController.allLocations.isEmpty) {
+                return Padding(
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).size.height * .2,
+                  ),
+                  child: Center(
+                    child: SizedBox(child: CircularProgressIndicator()),
+                  ),
+                );
+              }
+              return Expanded(
+                child: ListView.separated(
+                  itemCount: _locationController.allLocations.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    return InkWell(
+                      onTap: () {
+                        // final selectedCity =
+                        //     _locationController.recentLocations[index];
+                        // // Dummy street for demo
+                        // final selectedStreet = "Main Road";
 
-            // 🏙️ List of Recent Locations
-            if(recentLocations.isEmpty)Padding(
-              padding:  EdgeInsets.only(top: MediaQuery.of(context).size.height*.2),
-              child: Center(
-                child: SizedBox(
-                  child: CircularProgressIndicator(),
-                ),
-              ),
-            )
-            else
-            Expanded(
-              child: ListView.separated(
-                itemCount: recentLocations.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  return InkWell(
-                    onTap: () {
-                      final selectedCity = recentLocations[index];
-                      // Dummy street for demo
-                      final selectedStreet = "Main Road";
+                        // Get.back(
+                        //   result: {
+                        //     'city': selectedCity,
+                        //     'street': selectedStreet,
+                        //   },
+                        // );
 
-                      Get.back(
-                        result: {
-                          'city': selectedCity,
-                          'street': selectedStreet,
-                        },
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+                        try{
+                          print(_locationController.selectedLocation['id']);
+                        print( _locationController.allLocations[index]);
+                        }catch(e,s){
+                          print(e.toString());
+                          print(s.toString());
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            // color:
+                            //     _locationController.selectedLocation['id'].toString() ==
+                            //         _locationController.allLocations[index]['id'].toString()
+                            //     ? Colors.black
+                            //     : Colors.transparent,
                           ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on_outlined,
-                            color: AppColors.primary,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              recentLocations[index],
-                              style: GoogleFonts.roboto(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on_outlined,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _locationController.allLocations[index]['location_name'],
+                                style: GoogleFonts.roboto(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
+                    );
+                  },
+                ),
+              );
+            }),
           ],
         ),
       ),

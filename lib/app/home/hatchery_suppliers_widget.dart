@@ -10,58 +10,65 @@ class HatcherySuppliersWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dashboardCtrl = Get.find<DashboardController>();
-
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    
+    return Card(
+      color: Colors.white, 
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
           children: [
-            Text(
-              "Hatchery & Suppliers",
-              style: GoogleFonts.roboto(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                dashboardCtrl.changeIndex(2);
-              },
-              child: Text(
-                "View all",
-                style: GoogleFonts.roboto(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Hatchery & Suppliers",
+                  style: GoogleFonts.roboto(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
+                TextButton(
+                  onPressed: () {
+                    dashboardCtrl.changeIndex(2);
+                  },
+                  child: Text(
+                    "View all",
+                    style: GoogleFonts.roboto(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _buildHatcheryCard(
+              imageUrl:
+                  'assets/images/hatchery.png', // Replace with actual image URL
+              availableDate: "23/06/2025",
+              packingStartDate: "25/06/2025",
+              hatcheryName: "NSR hatcheries",
+              location: "Prakasam,Anakapalli",
+              availableQuantity: "600 Pieces",
+              supplierName: "Syaqua Americas Inc, Florida",
+              importedDate: "20/06/2025",
+            ),
+            const SizedBox(height: 16),
+            Divider(height: 1,),
+            _buildHatcheryCard(
+              imageUrl:
+                  'assets/images/hatchery.png', // Replace with actual image URL
+              availableDate: "23/06/2025",
+              packingStartDate: "25/06/2025",
+              hatcheryName: "NSR hatcheries",
+              location: "Prakasam,Anakapalli",
+              availableQuantity: "600 Pieces",
+              supplierName: "Syaqua Americas Inc, Florida",
+              importedDate: "20/06/2025",
             ),
           ],
         ),
-        const SizedBox(height: 10),
-        _buildHatcheryCard(
-          imageUrl:
-              'assets/images/hatchery.png', // Replace with actual image URL
-          availableDate: "23/06/2025",
-          packingStartDate: "25/06/2025",
-          hatcheryName: "NSR hatcheries",
-          location: "Prakasam,Anakapalli",
-          availableQuantity: "600 Pieces",
-          supplierName: "Syaqua Americas Inc, Florida",
-          importedDate: "20/06/2025",
-        ),
-        const SizedBox(height: 16),
-        _buildHatcheryCard(
-          imageUrl:
-              'assets/images/hatchery.png', // Replace with actual image URL
-          availableDate: "23/06/2025",
-          packingStartDate: "25/06/2025",
-          hatcheryName: "NSR hatcheries",
-          location: "Prakasam,Anakapalli",
-          availableQuantity: "600 Pieces",
-          supplierName: "Syaqua Americas Inc, Florida",
-          importedDate: "20/06/2025",
-        ),
-      ],
+      ),
     );
   }
 

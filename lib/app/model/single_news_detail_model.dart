@@ -39,6 +39,8 @@ class Data {
     String? description;
     String? mediaType;
     String? mediaPath;
+    String? medicineName;
+
 
     Data({
         this.id,
@@ -47,6 +49,7 @@ class Data {
         this.description,
         this.mediaType,
         this.mediaPath,
+        this.medicineName
     });
 
     factory Data.fromJson(Map<String, dynamic> json) => Data(
@@ -56,6 +59,9 @@ class Data {
         description: json["description"],
         mediaType: json["media_type"],
         mediaPath: json["media_path"],
+        medicineName: json["medicine_name"], 
+
+        
     );
 
     Map<String, dynamic> toJson() => {
@@ -65,5 +71,6 @@ class Data {
         "description": description,
         "media_type": mediaType,
         "media_path": mediaPath,
+        "medicine_name": medicineName
     };
 }

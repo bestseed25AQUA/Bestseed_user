@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/controller/filter_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/view/all_screen.dart';
 import 'package:seedsuser/app/home/view/home_appbar_widget.dart';
+import 'package:seedsuser/app/news%20&%20ads/controller/news_ads_controller.dart';
+import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
+import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen>
   TabController? _tabController;
   final HomeController _homeController = Get.put(HomeController());
   final FilterController filterController = Get.put(FilterController());
+  final newsSpecificController = Get.put(NewsSpecificController());
 
   String currentCity = "Fetching...";
   String currentState = "";
@@ -28,25 +33,50 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     _getCurrentLocation();
-
+    changeHomeData('','');
     // _homeController.getCategories();
 
     // React to category updates
-    ever(_homeController.categories, (_) {
+    ever(_homeController.categories,(_){
       _initTabController();
       if (mounted) setState(() {});
     });
   }
 
+  int currentTabIndex = 0;
   void _initTabController() {
     if (_homeController.categories.isNotEmpty) {
       _tabController?.dispose();
       _tabController = TabController(
-        length: _homeController.categories.length + 1, // +1 for "All"
+        length: _homeController.categories.length + 1, //
         vsync: this,
       );
+      _tabController?.addListener(() { 
+        currentTabIndex = (_tabController?.index ?? 1);
+          changeHomeData(_homeController.categories[currentTabIndex-1].id.toString(),'');
+      });
     }
   }
+ 
+
+final _broodStockController = Get.put(BroodStockController());
+final _newsAdsController = Get.put(NewsAdsController());
+final _seedsPriceController = Get.put(SeedsPriceController());
+  changeHomeData(String categoryId, String locationId){
+     // hatcheries api
+    
+     // price api
+     _seedsPriceController.getPricesForHome(categoryId: categoryId, locationId: locationId);
+     //brood stocks api
+     _broodStockController.getBroodStockForHome(categoryId: categoryId, locationId: locationId);
+     // medicine home api
+     _newsAdsController.fetch(categoryId: categoryId,locationId: locationId,isHome: true);
+     // hatchery updates
+    
+     
+  }
+
+ 
 
   @override
   void didChangeDependencies() {
@@ -137,9 +167,7 @@ class _HomeScreenState extends State<HomeScreen>
                   indicatorWeight: 3,
                   tabs: [
                     const Tab(text: "All"),
-                    ...categories
-                        .map((cat) => Tab(text: cat.categoryName))
-                        .toList(),
+                    ...categories.map((cat) => Tab(text: cat.categoryName)),
                   ],
                 );
               }),
@@ -159,8 +187,8 @@ class _HomeScreenState extends State<HomeScreen>
             key: ValueKey(_homeController.categories.length),
             controller: _tabController,
             children: [
-              const HomePage(), // All tab
-              ..._homeController.categories.map((cat) => HomePage()).toList(),
+              const HomePage(),
+              ..._homeController.categories.map((cat) => HomePage()),
             ],
           );
         }),

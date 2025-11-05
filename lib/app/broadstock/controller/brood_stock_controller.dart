@@ -11,7 +11,8 @@ class BroodStockController extends GetxController {
   final isLoading = false.obs;
   final categories = <Category>[].obs;
   final broodStocks = <BroodstockData>[].obs;
-  final filteredBroodStocks = <BroodstockData>[].obs; // 🔹 For search filtering
+  final homeBroodStocks = <BroodstockData>[].obs;
+  final filteredBroodStocks = <BroodstockData>[].obs; //
 
   /// Selected filters
   final selectedCategory = Rx<Category?>(null);
@@ -28,7 +29,7 @@ class BroodStockController extends GetxController {
   /// Fetch both categories & broodstock initially
   Future<void> fetchInitialData() async {
     await getCategories();
-     //default 
+    //default
     if (categories.isNotEmpty) {
       try {
         bool isFound = false;
@@ -130,6 +131,39 @@ class BroodStockController extends GetxController {
       isLoading.value = false;
     }
   }
+
+ Future<void> getBroodStockForHome({required String categoryId, required String locationId}) async {
+    try {
+      final endpoint =
+          "${NetworkConfig.baseURL}/farmer/broodstocks_list";
+
+      final response = await getRequest(
+        endPoint: endpoint,
+        headers: await buildHeader(),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+
+        if (data['status'] == true && data['data'] is List) {
+          final model = BroodstockModel.fromJson(data);
+          homeBroodStocks.assignAll(model.data);
+        } else {
+          homeBroodStocks.clear();
+          homeBroodStocks.clear();
+          CustomToast.info(data['message'] ?? "No broodstock found.");
+        }
+      } else {
+        CustomToast.error(
+          "Failed to fetch brood stock (Code: ${response.statusCode})",
+        );
+      }
+    } catch (e) {
+      CustomToast.error("Error fetching brood stock: $e");
+    } finally { 
+    }
+  }
+
 
   /// 🔹 Local filter (client-side) for broodstock search
   void filterBroodStocks(String query) {

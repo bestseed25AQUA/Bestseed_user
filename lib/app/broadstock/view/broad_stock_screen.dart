@@ -80,7 +80,9 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                 _buildHatcheryListHeader(),
                 const SizedBox(height: 16),
                 if (controller.filteredBroodStocks.isEmpty)
-                  const Center(child: Text('No brood stock available.'))
+                  Padding(
+                    padding: EdgeInsets.only(top: MediaQuery.of(context).size.height*.2),
+                    child: const Center(child: Text('No brood stock available.')))
                 else
                   ListView.builder(
                     shrinkWrap: true,

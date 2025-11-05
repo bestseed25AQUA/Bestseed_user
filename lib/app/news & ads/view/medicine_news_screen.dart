@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
-import 'package:seedsuser/app/news%20&%20ads/view/medicine_details.dart';
+import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
 
 class MedicineNewsScreen extends StatefulWidget {
   const MedicineNewsScreen({super.key});
@@ -20,7 +20,6 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
   @override
   void initState() {
     super.initState();
-
     newsSpecificController.fetch('medicine news');
   }
 
@@ -68,35 +67,35 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
       body: Column(
         children: [
           // 🔍 Search Field
-          if(false)
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8.0,
-                vertical: 4.0,
-              ),
-              decoration: BoxDecoration(
-                color: Color(0xFFEEEEEE),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: TextField(
-                controller: _searchController,
-                onChanged: _filterNews,
-                decoration: InputDecoration(
-                  hintText: 'Search medicine news...',
-                  prefixIcon: const Icon(Icons.search),
-                  // filled: true,
-                  // fillColor: Colors.grey[200],
-                  // contentPadding: const EdgeInsets.symmetric(
-                  //   horizontal: 16,
-                  //   vertical: 16,
-                  // ),
-                  border: InputBorder.none,
+          if (false)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8.0,
+                  vertical: 4.0,
+                ),
+                decoration: BoxDecoration(
+                  color: Color(0xFFEEEEEE),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: _filterNews,
+                  decoration: InputDecoration(
+                    hintText: 'Search medicine news...',
+                    prefixIcon: const Icon(Icons.search),
+                    // filled: true,
+                    // fillColor: Colors.grey[200],
+                    // contentPadding: const EdgeInsets.symmetric(
+                    //   horizontal: 16,
+                    //   vertical: 16,
+                    // ),
+                    border: InputBorder.none,
+                  ),
                 ),
               ),
             ),
-          ),
 
           // 📰 Grid of News
           Obx(() {
@@ -144,7 +143,8 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
                     onTap: () {
                       Get.to(
                         () => MedicineDetailScreen(
-                          title: data?.medicineName ?? '',
+                          id: data?.id.toString() ?? '',
+                          title: data?.medicineName.toString() ?? '',
                         ),
                       );
                     },

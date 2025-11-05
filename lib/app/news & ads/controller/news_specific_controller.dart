@@ -10,8 +10,9 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 class NewsSpecificController extends GetxController {
   var isLoading = true.obs;
   Rx<NewsSpecificModel?> newsSpecificData = Rx<NewsSpecificModel?>(null);
+  Rx<NewsSpecificModel?> newsSpecificHomeData = Rx<NewsSpecificModel?>(null);
 
-  Future<void> fetch(String type) async {
+  Future<void> fetch(String type,{bool isHome = false }) async {
     try {
       String endPoint = "${NetworkConfig.baseURL}/farmer/news?type=$type";
       if (kDebugMode){
@@ -25,7 +26,12 @@ class NewsSpecificController extends GetxController {
       
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
-        newsSpecificData.value = NewsSpecificModel.fromJson(data);
+        if(isHome){
+          newsSpecificHomeData.value = NewsSpecificModel.fromJson(data);
+        }else{
+            newsSpecificData.value = NewsSpecificModel.fromJson(data);
+        }
+        
       } else {
         CustomToast.error(
           "Failed to fetch Medicine News: ${response.statusCode}",

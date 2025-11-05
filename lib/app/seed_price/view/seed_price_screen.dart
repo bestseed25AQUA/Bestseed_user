@@ -57,7 +57,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        PriceModel? priceData = controller.priceModel.value;
+        PriceModel? priceData = controller.priceData.value;
 
         if ((priceData == null || priceData.prices.isEmpty) && !_dialogShown) {
           _dialogShown = true;
