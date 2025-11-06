@@ -298,7 +298,8 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          Center(
+          Padding(
+            padding: const EdgeInsets.only(left: 12,),
             child: Text(
               data.packingStart,
               style: GoogleFonts.roboto(
@@ -306,8 +307,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-          ),
-          const SizedBox(height: 8),
+          ), 
           Padding(
             padding: const EdgeInsets.all(14.0),
             child: Column(
@@ -321,27 +321,25 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, color: Colors.grey, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      data.location,
-                      style: GoogleFonts.roboto(color: Colors.grey),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  data.category.map((e) => e.capitalizeFirst ?? e).join(', '),
-                  style: GoogleFonts.roboto(fontWeight: FontWeight.w500),
-                ),
+                // Row(
+                //   children: [
+                //     const Icon(Icons.location_on, color: Colors.grey, size: 16),
+                //     const SizedBox(width: 4),
+                //     Text(
+                //       data.location,
+                //       style: GoogleFonts.roboto(color: Colors.grey),
+                //     ),
+                //   ],
+                // ),
+                // const SizedBox(height: 8),
+                // Text(
+                //   data.category.map((e) => e.capitalizeFirst ?? e).join(', '),
+                //   style: GoogleFonts.roboto(fontWeight: FontWeight.w500),
+                // ),
 
                 const SizedBox(height: 4),
-                Text(
-                  'Imported Date: 20/06/2025',
-                  style: GoogleFonts.roboto(color: Colors.grey),
-                ),
+               Text(
+                  'Imported Date: ${data.importedDate??''}',),
                 const SizedBox(height: 8),
                 Text(
                   'Available Quantity',

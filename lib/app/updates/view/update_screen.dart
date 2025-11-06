@@ -2,41 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_network_image.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
+import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
+import 'package:seedsuser/app/updates/model/hatchery_update_model.dart';
 import 'package:seedsuser/app/updates/view/hatchery_details_screen.dart';
 import 'package:seedsuser/app/updates/widget/updates_banner_widget.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class UpdatesScreen extends StatelessWidget {
-  final List<Map<String, dynamic>> posts = [
-    {
-      'name': 'Rama Hatchery',
-      'logo': 'assets/images/rama.png',
-      'time': 'a few hours ago',
-      'text':
-          'Rama Hatchery\'s new crop Srydqn farming #Aquaculture #Shrimp #Water #PremiumQuality #Seeds',
-      'media': [
-        'assets/images/WhatsApp Image 2025-10-04 at 1.24.17 PM.jpeg',
-        'assets/images/WhatsApp Image 2025-10-04 at 1.24.17 PM.jpeg',
-        'assets/images/rama.png',
-      ],
-    },
-    {
-      'name': 'Gayathri Hatchery',
-      'logo': 'assets/images/rama.png',
-      'time': 'new crop',
-      'text':
-          'Gayathri hatchery new crop Sry Hantline farming #Aquaculture #Shrimp #Water #PremiumQuality #Seeds',
-      'media': [
-        'assets/images/WhatsApp Image 2025-10-04 at 1.24.19 PM.jpeg',
-        'assets/images/rama.png',
-      ],
-    },
-  ];
-
+  final hatcheryUpdatesController = Get.put(HatcheryUpdatesController());
   UpdatesScreen({super.key});
 
   @override
@@ -86,14 +64,27 @@ class UpdatesScreen extends StatelessWidget {
             // CarouselCardsScreen(),
             SizedBox(height: 16),
             UpdatesBannerWidget(),
-            ListView.builder(
-              physics: NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              itemCount: posts.length,
-              itemBuilder: (context, index) {
-                return PostWidget(postData: posts[index]);
-              },
-            ),
+            Obx(() {
+              return ListView.builder(
+                physics: NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                itemCount:
+                    hatcheryUpdatesController
+                        .hatcheryData
+                        .value
+                        ?.data
+                        ?.length ??
+                    0,
+                itemBuilder: (context, index) {
+                  return PostWidget(
+                    postData: hatcheryUpdatesController
+                        .hatcheryData
+                        .value
+                        ?.data?[index],
+                  );
+                },
+              );
+            }),
           ],
         ),
       ),
@@ -102,7 +93,7 @@ class UpdatesScreen extends StatelessWidget {
 }
 
 class PostWidget extends StatefulWidget {
-  final Map<String, dynamic> postData;
+  final HatcheryData? postData;
 
   const PostWidget({super.key, required this.postData});
 
@@ -151,7 +142,9 @@ class _PostWidgetState extends State<PostWidget> {
               child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundImage: AssetImage(widget.postData['logo']),
+                    backgroundImage: AssetImage(
+                      widget.postData?.profileImage ?? "",
+                    ),
                     radius: 20,
                   ),
                   const SizedBox(width: 12),
@@ -159,14 +152,14 @@ class _PostWidgetState extends State<PostWidget> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.postData['name'],
+                        widget.postData?.hatcheryName ?? '',
                         style: GoogleFonts.roboto(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
                       Text(
-                        widget.postData['time'],
+                        widget.postData?.postedOn ?? '',
                         style: GoogleFonts.roboto(
                           color: Colors.grey,
                           fontSize: 12,
@@ -181,7 +174,7 @@ class _PostWidgetState extends State<PostWidget> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12.0),
               child: Text(
-                widget.postData['text'],
+                widget.postData?.caption ?? '',
                 style: GoogleFonts.roboto(fontSize: 14),
               ),
             ),
@@ -194,10 +187,10 @@ class _PostWidgetState extends State<PostWidget> {
                   height: 250,
                   child: PageView.builder(
                     controller: _pageController,
-                    itemCount: widget.postData['media'].length,
+                    itemCount: widget.postData?.mediaFiles?.length,
                     itemBuilder: (context, index) {
-                      return Image.asset(
-                        widget.postData['media'][index],
+                      return CustomNetworkImage(
+                        imageUrl: widget.postData?.mediaFiles?[index] ?? '',
                         fit: BoxFit.cover,
                       );
                     },
@@ -209,7 +202,7 @@ class _PostWidgetState extends State<PostWidget> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
-                      widget.postData['media'].length,
+                      widget.postData?.mediaFiles?.length ?? 0,
                       (index) => buildDot(index),
                     ),
                   ),

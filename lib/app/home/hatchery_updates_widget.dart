@@ -1,33 +1,68 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/dashboard/dashboard_controller.dart'; 
+import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
 
 class HatcheryUpdatesWidget extends StatelessWidget {
-  const HatcheryUpdatesWidget({super.key});
+  HatcheryUpdatesWidget({super.key});
 
+  final hatcheryController = Get.put(HatcheryUpdatesController());
+  final hatcheryUpdatesController = Get.put(HatcheryUpdatesController());
+  final dashboardCtrl = Get.find<DashboardController>();
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "Hatchery updates",
-          style: GoogleFonts.roboto(fontSize: 20, fontWeight: FontWeight.bold),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              "Hatchery updates",
+              style: GoogleFonts.roboto(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                hatcheryUpdatesController.fetchHatcheryUpdates();
+                dashboardCtrl.changeIndex(4);
+              },
+              child: Text(
+                "View all",
+                style: GoogleFonts.roboto(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 10),
-        SizedBox(
-          height: 204, // Set a fixed height for the horizontal scrollable list
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: 3, // Number of hatchery cards to display
-            itemBuilder: (context, index) {
-              return _buildHatcheryCard(
-                imagePath: 'assets/images/rama.png',
-                hatcheryName: "Rama Hatchery",
-              );
-            },
-          ),
-        ),
+        Obx(() {
+          return SizedBox(
+            height:
+                204, // Set a fixed height for the horizontal scrollable list
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount:
+                  hatcheryController.hatcheryData.value?.data?.length ??
+                  0, // Number of hatchery cards to display
+              itemBuilder: (context, index) {
+                final data =
+                    hatcheryController.hatcheryData.value?.data?[index];
+                return _buildHatcheryCard(
+                  imagePath: data?.profileImage ?? '',
+                  hatcheryName: data?.hatcheryName ?? '',
+                );
+              },
+            ),
+          );
+        }),
       ],
     );
   }
@@ -39,9 +74,10 @@ class HatcheryUpdatesWidget extends StatelessWidget {
     return Card(
       color: Colors.white,
       child: Padding(
-       padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
-          mainAxisSize: MainAxisSize.min, // To make the column take minimum space
+          mainAxisSize:
+              MainAxisSize.min, // To make the column take minimum space
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircleAvatar(
@@ -53,11 +89,15 @@ class HatcheryUpdatesWidget extends StatelessWidget {
               // backgroundImage: NetworkImage(imagePath),
             ),
             const SizedBox(height: 10),
-            Text(
-              hatcheryName,
-              style: GoogleFonts.roboto(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+            SizedBox(
+              width: 150,
+              child: Text(
+                hatcheryName,
+                style: GoogleFonts.roboto(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(height: 10),

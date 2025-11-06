@@ -12,9 +12,10 @@ class NewsSpecificController extends GetxController {
   Rx<NewsSpecificModel?> newsSpecificData = Rx<NewsSpecificModel?>(null);
   Rx<NewsSpecificModel?> newsSpecificHomeData = Rx<NewsSpecificModel?>(null);
 
-  Future<void> fetch(String type,{bool isHome = false }) async {
+  Future<void> fetch(String type,{bool isHome = false, String categoryId='', String locationId = '' }) async {
     try {
-      String endPoint = "${NetworkConfig.baseURL}/farmer/news?type=$type";
+      print('enter in specific');
+      String endPoint = "${NetworkConfig.baseURL}/farmer/news?type=$type&category_id=$categoryId&location_id=$locationId";
       if (kDebugMode){
         print('end point $endPoint');
       }
@@ -26,6 +27,8 @@ class NewsSpecificController extends GetxController {
       
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
+        print('specific new data');
+        print(data);
         if(isHome){
           newsSpecificHomeData.value = NewsSpecificModel.fromJson(data);
         }else{

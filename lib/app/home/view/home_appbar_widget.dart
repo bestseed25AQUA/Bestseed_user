@@ -4,7 +4,9 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/home/controller/location_controller.dart';
 import 'package:seedsuser/app/home/filter_bottom_sheet.dart';
+import 'package:seedsuser/app/home/view/home_screen.dart';
 import 'package:seedsuser/app/home/view/search_screen.dart';
 import 'package:seedsuser/app/home/view/location_selection_screen.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
@@ -58,6 +60,8 @@ class _HomeAppBarState extends State<HomeAppBar> {
 
   /// 🌤️ Fetch weather based on city name
   Future<void> fetchWeather(String cityName) async {
+    print('===========fetchWeather==========');
+    print(cityName);
     try {
       final url =
           'https://api.openweathermap.org/data/2.5/weather?q=$cityName&appid=$apiKey&units=metric';
@@ -81,6 +85,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
     }
   }
 
+  final _locationController = Get.put(LocationController());
   @override
   Widget build(BuildContext context) {
     return SliverAppBar(
@@ -104,12 +109,20 @@ class _HomeAppBarState extends State<HomeAppBar> {
                         alignment: Alignment.center,
                         children: [
                           // Weather icon (from OpenWeatherMap)
-                          Image.network(
-                            weatherIconUrl!,
-                            height: 60,
-                            width: 60,
-                            fit: BoxFit.contain,
-                            colorBlendMode: BlendMode.modulate,
+                          InkWell(
+                            onTap: () {
+                              print(_locationController.selectedLatiude.value);
+                              print(
+                                _locationController.selectedLongitude.value,
+                              );
+                            },
+                            child: Image.network(
+                              weatherIconUrl!,
+                              height: 60,
+                              width: 60,
+                              fit: BoxFit.contain,
+                              colorBlendMode: BlendMode.modulate,
+                            ),
                           ),
 
                           // Temperature text overlay
@@ -142,65 +155,71 @@ class _HomeAppBarState extends State<HomeAppBar> {
 
                     const SizedBox(width: 4),
                     // 📍 Location display
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final result = await Get.to(
-                            () => const LocationSelectionScreen(),
-                          );
-                          if (result != null) {
-                            setState(() {
-                              widget.currentCity = result['city'];
-                              widget.currentStreet = result['street'];
-                            });
-                            fetchWeather(widget.currentCity);
-                          }
-                        },
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.location_on_outlined,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    widget.currentCity,
-                                    style: GoogleFonts.roboto(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
+                    Obx(() {
+                      return Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final result = await Get.to(
+                              () => const LocationSelectionScreen(),
+                            );
+
+                            // if (result != null) {
+                            //   setState(() {
+                            //     widget.currentCity = result['city'];
+                            //     widget.currentStreet = result['street'];
+                            //   });
+
+                            // }
+                            fetchWeather(
+                              _locationController.selectedCity.value,
+                            );
+                          },
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.location_on_outlined,
+                                    color: Colors.white,
+                                    size: 18,
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              widget.currentStreet.isNotEmpty
-                                  ? widget.currentStreet
-                                  : "Fetching current area...",
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.roboto(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w400,
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      _locationController.selectedCity.value,
+                                      style: GoogleFonts.roboto(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 2),
+                              Text(
+                                // widget.currentStreet.isNotEmpty
+                                //     ? widget.currentStreet
+                                //     : "Fetching current area...",
+                                _locationController.selectedStreet.value,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.roboto(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    }),
                   ],
                 ),
               ),
-              // 🌐 Icons: Language, Notification, Profile
               Row(
                 children: [
                   InkWell(

@@ -140,6 +140,7 @@ class SeedsPriceController extends GetxController {
     }
   }
 
+
   Future<void> getPricesForHome({
     required String categoryId,
     required String locationId,
@@ -150,7 +151,8 @@ class SeedsPriceController extends GetxController {
             "${NetworkConfig.baseURL}/farmer/prices?category_id=$categoryId&location_id=$locationId",
         headers: await buildHeader(),
       );
-
+      print('++++++++++++++');
+      print(response.body.toString());
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         homePriceData.value = PriceModel.fromJson(data);

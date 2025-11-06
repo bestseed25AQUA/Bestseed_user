@@ -93,9 +93,8 @@ class BroodStockController extends GetxController {
       return;
     }
 
-    try {
+    try{
       isLoading.value = true;
-
       final endpoint =
           "${NetworkConfig.baseURL}/farmer/broodstocks_list"
           "?search=${Uri.encodeComponent(searchQuery.value)}"
@@ -114,7 +113,7 @@ class BroodStockController extends GetxController {
         if (data['status'] == true && data['data'] is List) {
           final model = BroodstockModel.fromJson(data);
           broodStocks.assignAll(model.data);
-          filteredBroodStocks.assignAll(model.data); // 🔹 Default filter = all
+          filteredBroodStocks.assignAll(model.data); //
         } else {
           broodStocks.clear();
           filteredBroodStocks.clear();
@@ -135,22 +134,25 @@ class BroodStockController extends GetxController {
  Future<void> getBroodStockForHome({required String categoryId, required String locationId}) async {
     try {
       final endpoint =
-          "${NetworkConfig.baseURL}/farmer/broodstocks_list";
+          "${NetworkConfig.baseURL}/farmer/broodstocks?category_id=$categoryId&location_id=$locationId";
+          print('==============calling getBroodStockForHome============');
 
       final response = await getRequest(
         endPoint: endpoint,
         headers: await buildHeader(),
       );
-
+      print('=========getBroodStockForHome data=========');
+      print(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-
+        print('getBroodStockForHome data');
+        print(data);
         if (data['status'] == true && data['data'] is List) {
           final model = BroodstockModel.fromJson(data);
           homeBroodStocks.assignAll(model.data);
-        } else {
-          homeBroodStocks.clear();
-          homeBroodStocks.clear();
+          print('==========length=========');
+          print(homeBroodStocks);
+        } else {  
           CustomToast.info(data['message'] ?? "No broodstock found.");
         }
       } else {
@@ -158,7 +160,10 @@ class BroodStockController extends GetxController {
           "Failed to fetch brood stock (Code: ${response.statusCode})",
         );
       }
-    } catch (e) {
+    } catch (e,s) {
+      print('=========get brood stock for home=========');
+      print(e.toString());
+      print(s.toString());
       CustomToast.error("Error fetching brood stock: $e");
     } finally { 
     }

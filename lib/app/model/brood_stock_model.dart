@@ -32,27 +32,31 @@ class BroodstockData {
   final int id;
   final String hatcheryName;
   final String supplierName;
-  final List<String> category;
+  final String categoryName;
   final String availableQuantity;
   final String availableOn;
   final String packingStart;
-  final String location;
+  final String vendorName;
+  final String vendorAddress;
   final String latitude;
   final String longitude;
   final List<String> images;
+  final String importedDate;
 
   BroodstockData({
     required this.id,
     required this.hatcheryName,
     required this.supplierName,
-    required this.category,
+    required this.categoryName,
     required this.availableQuantity,
     required this.availableOn,
     required this.packingStart,
-    required this.location,
+    required this.vendorName,
+    required this.vendorAddress,
     required this.latitude,
     required this.longitude,
     required this.images,
+    required this.importedDate,
   });
 
   factory BroodstockData.fromJson(Map<String, dynamic> json) {
@@ -60,22 +64,18 @@ class BroodstockData {
       id: json['id'] ?? 0,
       hatcheryName: json['hatchery_name'] ?? '',
       supplierName: json['supplier_name'] ?? '',
-      category:
-          (json['category'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
+      categoryName: json['category']?['category_name'] ?? '',
       availableQuantity: json['available_quantity'] ?? '',
       availableOn: json['available_on'] ?? '',
       packingStart: json['packing_start'] ?? '',
-      location: json['location'] ?? '',
-      latitude: json['latitude'] ?? '',
-      longitude: json['longitude'] ?? '',
-      images:
-          (json['images'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
+      vendorName: json['vendor']?['vendor_name'] ?? '',
+      vendorAddress: json['vendor']?['vendor_address'] ?? '',
+      latitude: json['vendor']?['latitude'] ?? '',
+      longitude: json['vendor']?['longitude'] ?? '',
+      images: (json['images'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+      importedDate: json['imported_date'] ?? '',
     );
   }
 
@@ -83,13 +83,17 @@ class BroodstockData {
     'id': id,
     'hatchery_name': hatcheryName,
     'supplier_name': supplierName,
-    'category': category,
+    'imported_date': importedDate,
+    'category': {'category_name': categoryName},
     'available_quantity': availableQuantity,
     'available_on': availableOn,
     'packing_start': packingStart,
-    'location': location,
-    'latitude': latitude,
-    'longitude': longitude,
+    'vendor': {
+      'vendor_name': vendorName,
+      'vendor_address': vendorAddress,
+      'latitude': latitude,
+      'longitude': longitude,
+    },
     'images': images,
   };
 }

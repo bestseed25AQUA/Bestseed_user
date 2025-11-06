@@ -1,19 +1,12 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:seedsuser/app/common/app_color.dart';
-import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/home/controller/location_controller.dart';
-import 'package:seedsuser/app/home/map_screen.dart';
-import 'package:seedsuser/app/home/map_search_screen.dart';
+import 'package:seedsuser/app/home/view/home_screen.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
-import 'package:seedsuser/app/utils/network_config.dart';
-import 'package:seedsuser/app/utils/network_utils.dart';
 
 class LocationSelectionScreen extends StatefulWidget {
   const LocationSelectionScreen({super.key});
@@ -24,16 +17,17 @@ class LocationSelectionScreen extends StatefulWidget {
 }
 
 class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
-  String currentCity = "Add Current Location";
-  String currentStreet = "";
+  // String currentCity = "Fetch Current Location";
+  // String currentStreet = "";
   bool isLoading = false;
 
   final _locationController = Get.put(LocationController());
   final _profileController = Get.put(ProfileController());
+
   Future<void> _addCorrentLocation() async {
     setState(() {
       isLoading = true;
-      currentCity = "Fetching location...";
+      _locationController.selectedCity.value = "Fetching location...";
     });
 
     bool serviceEnabled;
@@ -42,7 +36,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       setState(() {
-        currentCity = "Location disabled";
+        _locationController.selectedCity.value = "Location disabled";
         isLoading = false;
       });
       return;
@@ -53,7 +47,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
         setState(() {
-          currentCity = "Permission denied";
+          _locationController.selectedCity.value = "Permission denied";
           isLoading = false;
         });
         return;
@@ -62,7 +56,8 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
 
     if (permission == LocationPermission.deniedForever) {
       setState(() {
-        currentCity = "Permission permanently denied";
+        _locationController.selectedCity.value =
+            "Permission permanently denied";
         isLoading = false;
       });
       return;
@@ -84,23 +79,25 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
       final street =
           "${place.street ?? ""} ${place.locality ?? ""}, ${place.administrativeArea ?? ""}, ${place.country ?? ""}";
 
-      setState(() {
-        currentCity = city;
-        currentStreet = street;
-        isLoading = false;
-      });
+      _locationController.selectedCity.value = city;
+      _locationController.selectedStreet.value = street;
+      isLoading = false;
+      _locationController.selectedLatiude.value = position.latitude.toString();
+      _locationController.selectedLongitude.value = position.longitude.toString();
 
-      _locationController.addAllLocation(
-        latitude: position.longitude.toString(),
-        longitude: position.latitude.toString(),
-        locationName: city,
-        farmerId: _profileController.profile.value?.id.toString() ?? '',
-      );
+      // _locationController.addAllLocation(
+      //   latitude: position.longitude.toString(),
+      //   longitude: position.latitude.toString(),
+      //   locationName: city,
+      //   farmerId: _profileController.profile.value?.id.toString() ?? '',
+      // );
 
-      // Get.back(result: {'city': city, 'street': street});
+      _locationController.selectedCity.value = city;
+      _locationController.selectedStreet.value = street;
+      Get.back(result: {'city': city, 'street': street});
     } else {
       setState(() {
-        currentCity = "Unable to fetch location";
+        _locationController.selectedCity.value = "Unable to fetch location";
         isLoading = false;
       });
     }
@@ -169,7 +166,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        currentCity,
+                        'Fetch Current Location',
                         style: GoogleFonts.roboto(
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
@@ -199,7 +196,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
             //   },
             //   child: Text('Add Location'),
             // ),
-            const SizedBox(height: 24),
+            // const SizedBox(height: 24),
             Text(
               "Locations",
               style: GoogleFonts.roboto(
@@ -208,7 +205,6 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                 color: Colors.black87,
               ),
             ),
-
             const SizedBox(height: 12),
             Obx(() {
               if (_locationController.allLocations.isEmpty) {
@@ -221,77 +217,81 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                   ),
                 );
               }
-              return Expanded(
-                child: ListView.separated(
-                  itemCount: _locationController.allLocations.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    return InkWell(
-                      onTap: () {
-                        // final selectedCity =
-                        //     _locationController.recentLocations[index];
-                        // // Dummy street for demo
-                        // final selectedStreet = "Main Road";
+              return Obx(() {
+                return Expanded(
+                  child: ListView.separated(
+                    itemCount: _locationController.allLocations.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      return InkWell(
+                        onTap: () {
+                          // print(_locationController.selectedLocation);
+                          // print(_locationController.allLocations[index]);
+                          // _locationController.selectedLocation.value =
+                          //     _locationController.allLocations[index];
+                          // _locationController.selectedLocation.assignAll(
+                          //   _locationController.allLocations[index],
+                          // );
+                          _locationController.selectedLatiude.value = _locationController
+                              .allLocations[index]['latitude'];
+                          _locationController.selectedLongitude.value = _locationController
+                              .allLocations[index]['longitude'];
+                          _locationController.selectedCity.value =
+                              _locationController
+                                  .allLocations[index]['location_name'];
+                          _locationController.selectedStreet.value = " ";
 
-                        // Get.back(
-                        //   result: {
-                        //     'city': selectedCity,
-                        //     'street': selectedStreet,
-                        //   },
-                        // );
-
-                        try{
-                          print(_locationController.selectedLocation['id']);
-                        print( _locationController.allLocations[index]);
-                        }catch(e,s){
-                          print(e.toString());
-                          print(s.toString());
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            // color:
-                            //     _locationController.selectedLocation['id'].toString() ==
-                            //         _locationController.allLocations[index]['id'].toString()
-                            //     ? Colors.black
-                            //     : Colors.transparent,
+                          Get.back();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color:
+                                  _locationController.selectedLocation['id']
+                                          .toString() ==
+                                      _locationController
+                                          .allLocations[index]['id']
+                                          .toString()
+                                  ? Colors.black
+                                  : Colors.transparent,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on_outlined,
-                              color: AppColors.primary,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                _locationController.allLocations[index]['location_name'],
-                                style: GoogleFonts.roboto(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.location_on_outlined,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _locationController
+                                      .allLocations[index]['location_name'],
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-              );
+                      );
+                    },
+                  ),
+                );
+              });
             }),
           ],
         ),

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
+import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 
 class TodayPricesWidget extends StatefulWidget {
   const TodayPricesWidget({super.key});
@@ -12,13 +13,14 @@ class TodayPricesWidget extends StatefulWidget {
 }
 
 class _TodayPricesWidgetState extends State<TodayPricesWidget> {
-  String selectedValue = "Vannamei";
+  // String selectedValue = "Vannamei";
   final dashboardCtrl = Get.find<DashboardController>();
-
+  final SeedsPriceController controller = Get.put(SeedsPriceController());
   @override
   Widget build(BuildContext context) {
     return Card(
       color: Colors.white,
+
       // padding: const EdgeInsets.all(12.0),
       // decoration: BoxDecoration(
       //   color: Colors.white,
@@ -30,7 +32,6 @@ class _TodayPricesWidgetState extends State<TodayPricesWidget> {
       //     )
       //   ]
       // ),
-      
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Column(
@@ -46,38 +47,44 @@ class _TodayPricesWidgetState extends State<TodayPricesWidget> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                _buildDropdownButton(
-                  selectedValue,
-                  ["Vannamei", "Monodon", "Scampi"],
-                  (newValue) {
-                    setState(() {
-                      selectedValue = newValue!;
-                    });
-                  },
+                // _buildDropdownButton(
+                //   selectedValue,
+                //   ["Vannamei", "Monodon", "Scampi"],
+                //   (newValue) {
+                //     setState(() {
+                //       selectedValue = newValue!;
+                //     });
+                //   },
+                // ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Obx(() {
+              return _buildPriceSection(
+                title: controller.homePriceData.value?.location ?? '',
+                prices: List.generate(
+                  controller.homePriceData.value?.prices.length ?? 0,
+                  (index) => PriceItem(
+                    quantity:
+                        "${controller.homePriceData.value?.prices[index].size}C",
+                    price:
+                        "₹${controller.homePriceData.value?.prices[index].todayPrice}",
+                  ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _buildPriceSection(
-              title: "Godavari",
-              prices: [
-                PriceItem(quantity: "100C", price: "₹240"),
-                PriceItem(quantity: "90C", price: "₹210"),
-                PriceItem(quantity: "70C", price: ""),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _buildPriceSection(
-              title: "Krishna",
-              prices: [
-                PriceItem(quantity: "100C", price: "₹220"),
-                PriceItem(quantity: "90C", price: "₹230"),
-                PriceItem(
-                  quantity: "80C",
-                  price: "",
-                ), // Example of an empty price
-              ],
-            ),
+              );
+            }),
+            // const SizedBox(height: 20),
+            // _buildPriceSection(
+            //   title: "Krishna",
+            //   prices: [
+            //     PriceItem(quantity: "100C", price: "₹220"),
+            //     PriceItem(quantity: "90C", price: "₹230"),
+            //     PriceItem(
+            //       quantity: "80C",
+            //       price: "",
+            //     ), // Example of an empty price
+            //   ],
+            // ),
           ],
         ),
       ),

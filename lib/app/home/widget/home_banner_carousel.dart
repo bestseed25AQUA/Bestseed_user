@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
 import 'package:seedsuser/app/home/view/full_video_screen.dart';
@@ -17,6 +18,7 @@ class HomeBannerCarousel extends StatefulWidget {
 class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
   final HomeBannerController controller = Get.put(HomeBannerController());
   int _currentIndex = 0; // Track current banner index
+  bool _firstBannerShownLong = false;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +33,7 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
           children: [
             CarouselSlider.builder(
               itemCount: controller.banners.length,
+
               itemBuilder: (context, index, realIndex) {
                 final banner = controller.banners[index];
                 if (banner.type == "image") {
@@ -46,6 +49,9 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                         width: double.infinity,
                         height: 180,
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(color: Colors.grey.withOpacity(.3));
+                        },
                       ),
                     ),
                   );
@@ -65,9 +71,19 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                 autoPlay: true,
                 enlargeCenterPage: true,
                 viewportFraction: 0.9,
+
+                autoPlayInterval: Duration(
+                  seconds: (_currentIndex == 0 && !_firstBannerShownLong)
+                      ? 30
+                      : 3,
+                ),
+
                 onPageChanged: (index, reason) {
                   setState(() {
-                    _currentIndex = index; // update current index
+                    _currentIndex = index;
+                    if (index == 0 && !_firstBannerShownLong) {
+                      _firstBannerShownLong = true;
+                    }
                   });
                 },
               ),

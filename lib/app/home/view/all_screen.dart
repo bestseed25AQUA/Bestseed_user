@@ -10,6 +10,7 @@ import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/hatchery_suppliers_widget.dart';
 import 'package:seedsuser/app/home/hatchery_updates_widget.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_ads_controller.dart';
+import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_news_screen.dart';
 import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 import 'package:seedsuser/app/spot_hatchery/view/spot_hatchery_screen.dart';
@@ -31,7 +32,7 @@ class _HomePageState extends State<HomePage>
 
   final dashboardCtrl = Get.find<DashboardController>();
   final _broodStockController = Get.put(BroodStockController());
-  final _newsAdsController = Get.put(NewsAdsController());
+  final _newsSpecificController = Get.put(NewsSpecificController());
   final _seedsPriceController = Get.put(SeedsPriceController());
   // late Animation<Offset> _fishAnimation;
 
@@ -213,8 +214,7 @@ class _HomePageState extends State<HomePage>
                   bottomRight: Radius.circular(16),
                 ),
               ),
-              child: // Contact Us Section
-                  ContactUsPage(),
+              child: ContactUsPage(),
             ),
 
             // Hatcheries Section
@@ -288,37 +288,65 @@ class _HomePageState extends State<HomePage>
                   SizedBox(height: 16),
                   HatcherySuppliersWidget(),
                   SizedBox(height: 16),
-                  _buildSectionHeader('', () {
-                    dashboardCtrl.changeIndex(3);
+                  Obx(() {
+                    return Column(
+                      children: [
+                        if ((_newsSpecificController
+                                    .newsSpecificHomeData
+                                    .value
+                                    ?.data
+                                    ?.length ??
+                                0) !=
+                            0)
+                          _buildSectionHeader('', () {
+                            dashboardCtrl.changeIndex(3);
+                          }),
+                        if ((_newsSpecificController
+                                    .newsSpecificHomeData
+                                    .value
+                                    ?.data
+                                    ?.length ??
+                                0) !=
+                            0)
+                          SizedBox(
+                            height: 180,
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8.0,
+                              ),
+                              children: List.generate(
+                                (_newsSpecificController
+                                                .newsSpecificHomeData
+                                                .value
+                                                ?.data
+                                                ?.length ??
+                                            0) <=
+                                        2
+                                    ? (_newsSpecificController
+                                              .newsSpecificHomeData
+                                              .value
+                                              ?.data
+                                              ?.length ??
+                                          0)
+                                    : 2,
+                                (index) {
+                                  final data = _newsSpecificController
+                                      .newsSpecificHomeData
+                                      .value
+                                      ?.data?[index];
+                                  return _buildNewsCard(
+                                    data?.medicineName ?? "",
+                                    data?.curesFor ?? "",
+                                    data?.mediaPath ?? "",
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
                   }),
-                  SizedBox(
-                    height: 180,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      children: List.generate(
-                        _newsAdsController
-                                .homeNewsAdsData
-                                .value
-                                ?.data
-                                ?.medicineNews
-                                ?.length ??
-                            0,
-                        (index) {
-                          final data = _newsAdsController
-                              .homeNewsAdsData
-                              ?.value
-                              ?.data
-                              ?.medicineNews?[index];
-                          return _buildNewsCard(
-                            data?.medicineName ?? "",
-                            data?.curesFor ?? "",
-                            data?.mediaPath ?? "",
-                          );
-                        },
-                      ),
-                    ),
-                  ),
                   SizedBox(height: 16),
                   HatcheryUpdatesWidget(),
                   SizedBox(height: 80),

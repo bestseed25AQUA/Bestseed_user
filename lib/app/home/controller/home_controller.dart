@@ -1,7 +1,11 @@
 import 'dart:convert';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/model/category_model.dart';
+import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
+import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
+import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
 
@@ -16,6 +20,44 @@ class HomeController extends GetxController {
     getCategories();
   }
 
+  final _broodStockController = Get.put(BroodStockController());
+  final _newsSpecificController = Get.put(NewsSpecificController());
+  final _seedsPriceController = Get.put(SeedsPriceController());
+  final _hatcheryController = Get.put(HatcheryUpdatesController());
+
+  changeHomeData(
+    String categoryId,
+    String locationId, {
+    double? latitude,
+    double? longitude,
+  }) async {
+    print('========calling for the======');
+    print('categoryId - $categoryId, locationId $locationId');
+
+    // hatcheries api
+    // price api
+    await _seedsPriceController.getPricesForHome(
+      categoryId: categoryId,
+      locationId: locationId,
+    );
+    //brood stocks api
+    await _broodStockController.getBroodStockForHome(
+      categoryId: categoryId,
+      locationId: '20',
+    );
+    // medicine home api
+    await _newsSpecificController.fetch(
+      'medicine news',
+      categoryId: categoryId,
+      locationId: locationId,
+      isHome: true,
+    );
+    await _hatcheryController.fetchHatcheryHomeUpdate(
+      categoryId: '4',
+      locationId: '3'
+    );
+    // hatchery updates
+  }
 
   Future<void> getCategories() async {
     print('enter in get cat');
