@@ -23,36 +23,42 @@ class LocationModel {
     };
   }
 }
-
 class Location {
   final int id;
-  final String locationName;
+  final String title;
+  final String subtitle;
   final String longitude;
   final String latitude;
+  final bool isDefault;
 
   Location({
     required this.id,
-    required this.locationName,
+    required this.title,
+    required this.subtitle,
     required this.longitude,
     required this.latitude,
+    required this.isDefault,
   });
 
   factory Location.fromJson(Map<String, dynamic> json) {
     return Location(
-
       id: json['id'] ?? 0,
-      locationName: json['location_name'] ?? '',
+      title: json['title'] ?? '',
+      subtitle: json['subtitle'] ?? '',
       longitude: json['longitude'] ?? '',
       latitude: json['latitude'] ?? '',
+      isDefault: json['is_default'] ?? false,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'location_name': locationName,
+      'title': title,
+      'subtitle': subtitle,
       'longitude': longitude,
       'latitude': latitude,
+      'is_default': isDefault,
     };
   }
 }

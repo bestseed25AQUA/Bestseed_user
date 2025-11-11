@@ -2,10 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
-import 'package:seedsuser/app/farm_management/farm_home/form_details_screen.dart';
 
-class NotifyUsScreen extends StatelessWidget {
+import 'package:seedsuser/app/farm_management/farmer/controller/farm_list_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
+
+class NotifyUsScreen extends StatefulWidget {
   const NotifyUsScreen({super.key});
+
+  @override
+  State<NotifyUsScreen> createState() => _NotifyUsScreenState();
+}
+
+class _NotifyUsScreenState extends State<NotifyUsScreen> {
+  final FarmListController _farmController = Get.put(FarmListController());
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _farmController.fetchFarmList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,12 +93,19 @@ class NotifyUsScreen extends StatelessWidget {
               title: 'Fill Form',
               subtitle: 'Just share details — we’ll do it for you',
               imagePath: 'assets/images/farm_fill.png',
-              onTap: () {
-                Get.to(
-                  () => const FarmDetailsFormScreen(),
-                  transition: Transition.rightToLeft,
-                  duration: const Duration(milliseconds: 400),
-                );
+              onTap: () async { 
+
+                if (_farmController.farmList.value?.data?.isNotEmpty == true) {
+                  Get.off(
+                    () => FarmManagementScreen(),
+                  ); // Replace current screen
+                } else {
+                  Get.to(
+                    () => const InitialFarmScreen(),
+                    transition: Transition.rightToLeft,
+                    duration: const Duration(milliseconds: 400),
+                  );
+                }
               },
             ),
           ],

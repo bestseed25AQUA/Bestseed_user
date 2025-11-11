@@ -20,6 +20,8 @@ class _SplashScreenState extends State<SplashScreen> {
     _checkLoginStatus();
   }
 
+  
+
   void _checkLoginStatus() async {
     // Splash screen delay
     await Future.delayed(const Duration(seconds: 3));

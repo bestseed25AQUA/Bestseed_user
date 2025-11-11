@@ -31,11 +31,14 @@ class SeedsPriceController extends GetxController {
     // if (locations.isNotEmpty) selectedLocation.value = locations.first;
     // if (categories.isNotEmpty) selectedCategory.value = categories.first;
     /// for default location
+    print('=======hello==========');
+    print('enter the data here');
     if (locations.isNotEmpty) {
       try {
         bool isFound = false;
         for (var location in locations) {
-          if (location.locationName == "East Godawari") {
+          if (location.title == "East Godavari" ||
+              location.title == "East Godawari") {
             selectedLocation.value = location;
             isFound = true;
             break;
@@ -67,7 +70,6 @@ class SeedsPriceController extends GetxController {
         selectedCategory.value = categories.first;
       }
     }
-
     await getPrices();
   }
 
@@ -84,10 +86,10 @@ class SeedsPriceController extends GetxController {
         final List<dynamic> locList = data['locations'];
         locations.assignAll(locList.map((e) => Location.fromJson(e)).toList());
       } else {
-        CustomToast.error("Failed to fetch locations: ${response.statusCode}");
+        CustomToast.error("Failed to fetch locations ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;
     }
@@ -106,18 +108,19 @@ class SeedsPriceController extends GetxController {
         final List<dynamic> catList = data['categories'];
         categories.assignAll(catList.map((e) => Category.fromJson(e)).toList());
       } else {
-        CustomToast.error("Failed to fetch categories: ${response.statusCode}");
+        CustomToast.error("Failed to fetch categories ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;
     }
   }
 
   Future<void> getPrices() async {
-    if (selectedLocation.value == null || selectedCategory.value == null)
+    if (selectedLocation.value == null || selectedCategory.value == null) {
       return;
+    }
 
     try {
       isLoading.value = true;
@@ -131,15 +134,14 @@ class SeedsPriceController extends GetxController {
         final data = jsonDecode(response.body);
         priceData.value = PriceModel.fromJson(data);
       } else {
-        CustomToast.error("Failed to fetch prices: ${response.statusCode}");
+        CustomToast.error("Failed to fetch prices");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong");
     } finally {
       isLoading.value = false;
     }
   }
-
 
   Future<void> getPricesForHome({
     required String categoryId,
@@ -157,10 +159,10 @@ class SeedsPriceController extends GetxController {
         final data = jsonDecode(response.body);
         homePriceData.value = PriceModel.fromJson(data);
       } else {
-        CustomToast.error("Failed to fetch prices: ${response.statusCode}");
+        CustomToast.error("Failed to fetch prices ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong");
     } finally {}
   }
 

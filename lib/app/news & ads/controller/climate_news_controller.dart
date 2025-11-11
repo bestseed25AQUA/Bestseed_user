@@ -40,10 +40,10 @@ class ClimateNewsController extends GetxController{
           CustomToast.error("No Medicine News found.");
         }
       } else {
-        CustomToast.error("Failed to fetch Medicine News: ${response.statusCode}");
+        CustomToast.error("Failed to fetch Medicine News ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;
     }

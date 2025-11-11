@@ -6,11 +6,14 @@ import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/farm_management/farm_home/farm_home_screen.dart';
 import 'package:seedsuser/app/home/contact_us.dart';
+import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/hatchery_suppliers_widget.dart';
 import 'package:seedsuser/app/home/hatchery_updates_widget.dart';
+import 'package:seedsuser/app/home/widget/hatchery_widgets.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_ads_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
+import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_news_screen.dart';
 import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 import 'package:seedsuser/app/spot_hatchery/view/spot_hatchery_screen.dart';
@@ -34,6 +37,7 @@ class _HomePageState extends State<HomePage>
   final _broodStockController = Get.put(BroodStockController());
   final _newsSpecificController = Get.put(NewsSpecificController());
   final _seedsPriceController = Get.put(SeedsPriceController());
+  final _homeController = Get.put(HomeController());
   // late Animation<Offset> _fishAnimation;
 
   @override
@@ -69,35 +73,6 @@ class _HomePageState extends State<HomePage>
 
   @override
   Widget build(BuildContext context) {
-    final hatcheryList = [
-      {
-        "imagePath": "assets/images/fish_swimming.png",
-        "title": "Gayathri Hatchery Pri...",
-        "location": "Bapatla",
-        "type": "Syqua",
-        "status": "Coming Soon",
-        "statusColor": Colors.orange,
-        "availableUntil": null,
-      },
-      {
-        "imagePath": "assets/images/fish_swimming.png",
-        "title": "Seven Star",
-        "location": "Bapatla",
-        "type": "Syqua",
-        "status": "Closed",
-        "statusColor": Colors.red,
-        "availableUntil": "Next available at \n30/06/2025",
-      },
-      {
-        "imagePath": "assets/images/fish_swimming.png",
-        "title": "Seven Star",
-        "location": "Bapatla",
-        "type": "Syqua",
-        "status": "Closed",
-        "statusColor": Colors.red,
-        "availableUntil": "Next available at \n30/06/2025",
-      },
-    ];
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
@@ -111,38 +86,49 @@ class _HomePageState extends State<HomePage>
               child: Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: .0,
+                      vertical: 8,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // 👈 Left image moves left→right
-                        SlideTransition(
-                          position: _leftAnimation,
-                          child: Image.asset(
-                            'assets/images/fish_icon.png',
-                            height: 50,
+                        Expanded(
+                          child: SlideTransition(
+                            position: _leftAnimation,
+                            child: Image.asset(
+                              'assets/images/fish_icon.png',
+                              height: 50,
+                            ),
                           ),
                         ),
 
                         // Center text
-                        Expanded(
-                          child: Text(
-                            '"Grow More with the Best Seeds –\nQuality, Variety, and Trust”',
-                            style: GoogleFonts.roboto(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
+                        SizedBox(
+                          width: 240,
+                          child: Column(
+                            children: [
+                              Text(
+                                '"Grow More with the Best Seeds –\nQuality, Variety, and Trust"',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
                         ),
 
                         // 👉 Right image moves right→left
-                        SlideTransition(
-                          position: _rightAnimation,
-                          child: Image.asset(
-                            'assets/images/roya.png',
-                            height: 50,
+                        Expanded(
+                          child: SlideTransition(
+                            position: _rightAnimation,
+                            child: Image.asset(
+                              'assets/images/roya.png',
+                              height: 50,
+                            ),
                           ),
                         ),
                       ],
@@ -252,35 +238,7 @@ class _HomePageState extends State<HomePage>
 
                   const SizedBox(height: 16),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildHatcheryCard(
-                          imagePath: hatcheryList[0]["imagePath"] as String,
-                          title: hatcheryList[0]["title"] as String,
-                          location: hatcheryList[0]["location"] as String,
-                          type: hatcheryList[0]["type"] as String,
-                          status: hatcheryList[0]["status"] as String,
-                          statusColor: hatcheryList[0]["statusColor"] as Color,
-                          availableUntil:
-                              hatcheryList[0]["availableUntil"] as String?,
-                        ),
-                      ),
-                      SizedBox(width: 16),
-                      Expanded(
-                        child: _buildHatcheryCard(
-                          imagePath: hatcheryList[1]["imagePath"] as String,
-                          title: hatcheryList[1]["title"] as String,
-                          location: hatcheryList[1]["location"] as String,
-                          type: hatcheryList[1]["type"] as String,
-                          status: hatcheryList[1]["status"] as String,
-                          statusColor: hatcheryList[1]["statusColor"] as Color,
-                          availableUntil:
-                              hatcheryList[1]["availableUntil"] as String?,
-                        ),
-                      ),
-                    ],
-                  ),
+                  HatcheryWidget(),
 
                   // Hatchery Cards
                   SizedBox(height: 16),
@@ -298,7 +256,7 @@ class _HomePageState extends State<HomePage>
                                     ?.length ??
                                 0) !=
                             0)
-                          _buildSectionHeader('', () {
+                          _buildSectionHeader('Medicine News', () {
                             dashboardCtrl.changeIndex(3);
                           }),
                         if ((_newsSpecificController
@@ -339,6 +297,16 @@ class _HomePageState extends State<HomePage>
                                     data?.medicineName ?? "",
                                     data?.curesFor ?? "",
                                     data?.mediaPath ?? "",
+                                    () {
+                                      Get.to(
+                                        () => MedicineDetailScreen(
+                                          id: data?.id.toString() ?? '',
+                                          title:
+                                              data?.medicineName.toString() ??
+                                              '',
+                                        ),
+                                      );
+                                    },
                                   );
                                 },
                               ),
@@ -452,112 +420,6 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildHatcheryCard({
-    required String imagePath,
-    required String title,
-    required String location,
-    required String type,
-    required String status,
-    required Color statusColor,
-    String? availableUntil,
-  }) {
-    return InkWell(
-      onTap: () {
-        Get.to(() => HatcheryDetailScreen());
-      },
-      child: Card(
-        color: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Image on the left
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.asset(
-                      imagePath,
-                      height: 100,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  if (availableUntil != null)
-                    Positioned(
-                      left: 12,
-                      bottom: 8,
-                      child: Text(
-                        availableUntil,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.roboto(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          shadows: [
-                            Shadow(
-                              blurRadius: 4,
-                              color: Colors.black.withOpacity(0.6),
-                              offset: const Offset(1, 1),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Details on the right
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.roboto(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        color: Colors.grey,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        location,
-                        style: GoogleFonts.roboto(color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.shopping_bag,
-                        color: Colors.grey,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(type, style: GoogleFonts.roboto(color: Colors.grey)),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildSectionHeader(String title, VoidCallback ontap) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -581,17 +443,22 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildNewsCard(String title, String? subtitle, String imageUrl) {
-    return Padding(
-      padding: const EdgeInsets.all(2.0),
-      child: Card(
-        color: Colors.white,
-        // width: 150,
-        margin: const EdgeInsets.symmetric(horizontal: 8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
+  Widget _buildNewsCard(
+    String title,
+    String? subtitle,
+    String imageUrl,
+    VoidCallback ontap,
+  ) {
+    return Card(
+      color: Colors.white,
+      // width: 150,
+      // margin: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: ontap,
+            child: ClipRRect(
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(12),
                 topRight: Radius.circular(12),
@@ -614,36 +481,33 @@ class _HomePageState extends State<HomePage>
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.only(left: 5),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 5),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (subtitle != null)
                   Text(
-                    title,
-                    style: GoogleFonts.roboto(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    subtitle,
+                    style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (subtitle != null)
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.roboto(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

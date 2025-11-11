@@ -1,11 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/broadstock/view/broad_stock_screen.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
-import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
 import 'package:seedsuser/app/home/view/full_video_screen.dart';
+import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
 import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
+import 'package:seedsuser/app/tracking/vehicle_tracking_screen.dart';
 import 'package:video_player/video_player.dart';
 
 class HomeBannerCarousel extends StatefulWidget {
@@ -17,8 +19,42 @@ class HomeBannerCarousel extends StatefulWidget {
 
 class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
   final HomeBannerController controller = Get.put(HomeBannerController());
-  int _currentIndex = 0; // Track current banner index
-  bool _firstBannerShownLong = false;
+
+  // ✅ Correct Controller
+  final CarouselSliderController _carouselController =
+      CarouselSliderController();
+
+  int _currentIndex = 0;
+  bool _firstBannerDone = false;
+  Timer? _sliderTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startFirstDelay();
+  }
+
+  void _startFirstDelay() {
+    // First banner stay for 30 sec
+    _sliderTimer = Timer(const Duration(seconds: 30), () {
+      _firstBannerDone = true;
+      _startNormalAutoSlide();
+    });
+  }
+
+  void _startNormalAutoSlide() {
+    // Slide every 3 seconds
+    _sliderTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (!mounted) return;
+      _carouselController.nextPage();
+    });
+  }
+
+  @override
+  void dispose() {
+    _sliderTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,81 +68,87 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
           alignment: Alignment.bottomCenter,
           children: [
             CarouselSlider.builder(
+              carouselController: _carouselController,
               itemCount: controller.banners.length,
 
               itemBuilder: (context, index, realIndex) {
                 final banner = controller.banners[index];
+
                 if (banner.type == "image") {
                   return GestureDetector(
                     onTap: () {
-                      Get.to(() => SeedRequestsFormScreen());
-                      // Get.to(() => VehicleAvailabilityScreen());
+                      // Determine this banner's index among image-type banners
+                      final imageCountBefore = controller.banners
+                          .sublist(0, index)
+                          .where((b) => b.type == "image")
+                          .length;
+                      if (imageCountBefore == 0) {
+                        Get.to(() => VehicleAvailabilityScreen());
+                      } else if (imageCountBefore == 1) {
+                        Get.to(() => SeedRequestsFormScreen());
+                      } else if (imageCountBefore == 2) {
+                        Get.to(() => BroodStockScreen());
+                      }
                     },
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        banner.url,
-                        width: double.infinity,
-                        height: 180,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(color: Colors.grey.withOpacity(.3));
-                        },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          banner.url,
+                          width: double.infinity,
+                          height: 180,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              Container(color: Colors.grey.withOpacity(.3)),
+                        ),
                       ),
                     ),
                   );
-                } else if (banner.type == "video") {
-                  return GestureDetector(
-                    onTap: () {
-                      Get.to(() => FullScreenVideoPlayer(videoUrl: banner.url));
-                    },
-                    child: VideoPlayerBanner(url: banner.url),
-                  );
-                } else {
-                  return const SizedBox.shrink();
                 }
+
+                // Video Banner
+                return GestureDetector(
+                  onTap: () =>
+                      Get.to(() => FullScreenVideoPlayer(videoUrl: banner.url)),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: VideoPlayerBanner(url: banner.url),
+                  ),
+                );
               },
+
               options: CarouselOptions(
                 height: 160,
-                autoPlay: true,
-                enlargeCenterPage: true,
                 viewportFraction: 0.9,
-
-                autoPlayInterval: Duration(
-                  seconds: (_currentIndex == 0 && !_firstBannerShownLong)
-                      ? 30
-                      : 3,
-                ),
+                enlargeCenterPage: true,
+                autoPlay: false, // ❌ TURN OFF AUTOPLAY
 
                 onPageChanged: (index, reason) {
-                  setState(() {
-                    _currentIndex = index;
-                    if (index == 0 && !_firstBannerShownLong) {
-                      _firstBannerShownLong = true;
-                    }
-                  });
+                  setState(() => _currentIndex = index);
                 },
               ),
             ),
 
-            // Indicator Dots
             Positioned(
               bottom: 10,
-              left: 0,
-              right: 0,
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: controller.banners.asMap().entries.map((entry) {
                   return Container(
-                    width: 8.0,
-                    height: 8.0,
-                    margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: _currentIndex == entry.key
-                          ? Colors
-                                .blue // Active dot
-                          : Colors.grey, // Inactive dot
+                          ? Colors.blue
+                          : Colors.grey,
                     ),
                   );
                 }).toList(),

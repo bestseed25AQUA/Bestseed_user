@@ -12,15 +12,14 @@ class NewsBannerController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    fetchBanners();
   }
 
-  Future<void> fetchBanners() async {
+  Future<void> fetchBanners(String categoryId, String locationId) async {
     try {
       isLoading.value = true;
 
       final response = await getRequest(
-        endPoint: "${NetworkConfig.baseURL}/farmer/news",
+        endPoint: "${NetworkConfig.baseURL}/farmer/home-news?category_id=$categoryId&location_id=$locationId",
         headers: await buildHeader(),
       );
 
@@ -37,10 +36,10 @@ class NewsBannerController extends GetxController {
           CustomToast.error("No banners found.");
         }
       } else {
-        CustomToast.error("Failed to fetch banners: ${response.statusCode}");
+        CustomToast.error("Failed to fetch banners ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;
     }

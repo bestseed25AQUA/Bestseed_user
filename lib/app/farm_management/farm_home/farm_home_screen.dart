@@ -32,12 +32,14 @@ class FarmHomeScreen extends StatelessWidget {
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: <Widget>[
               // Title and Subtitle Section
               Padding(
                 padding: const EdgeInsets.fromLTRB(20.0, 20.0, 20.0, 20.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.start,
                   children: <Widget>[
                     Text(
                       'Farm Management',
@@ -69,10 +71,9 @@ class FarmHomeScreen extends StatelessWidget {
                   children: <Widget>[
                     _UserCard(
                       title: 'Farmer',
-                      // Placeholder for the image of a farmer
                       imageAsset: 'assets/images/farmer.png',
                       onTap: () {
-                        Get.to(() => const InitialFarmScreen());
+                        Get.to(() => const NotifyUsScreen());
                       },
                     ),
                     const SizedBox(height: 20),
@@ -109,53 +110,94 @@ class FarmHomeScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 15),
-                    OutlinedButton(
-                      onPressed: () {
-                        Get.to(() => const NotifyUsScreen());
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(
-                          color: AppColors.primary,
-                        ), // Border is transparent, just text/icon color
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                      ),
-
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Notify us',
-                            style: GoogleFonts.roboto(
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        OutlinedButton(
+                          onPressed: () {
+                            Get.back();
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(
                               color: AppColors.primary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                            ), // Border is transparent, just text/icon color
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
                             ),
                           ),
-                          SizedBox(width: 6),
-                          const Icon(
-                            Icons
-                                .arrow_circle_right, // Using a standard icon as an example
-                            color: AppColors.primary,
-                            size: 20,
+
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Home',
+                                style: GoogleFonts.roboto(
+                                  color: AppColors.primary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(width: 6),
+                              const Icon(
+                                Icons
+                                    .home, // Using a standard icon as an example
+                                color: AppColors.primary,
+                                size: 20,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 24),
-                    Center(
-                      child: Text(
-                        'BEST SEED..',
-                        style: GoogleFonts.roboto(
-                          color: Color(0xFFF1F1F1),
-                          fontSize: 54,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 2,
                         ),
-                      ),
+                        SizedBox(width: 10,),
+                        OutlinedButton(
+                          onPressed: () {
+                            Get.to(() => const NotifyUsScreen());
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(
+                              color: AppColors.primary,
+                            ), // Border is transparent, just text/icon color
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
+                            ),
+                          ),
+
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Notify us',
+                                style: GoogleFonts.roboto(
+                                  color: AppColors.primary,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(width: 6),
+                              const Icon(
+                                Icons
+                                    .arrow_circle_right, // Using a standard icon as an example
+                                color: AppColors.primary,
+                                size: 20,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
+                    SizedBox(height: 54),
+                    // Center(
+                    //   child: Text(
+                    //     'BEST SEED..',
+                    //     style: GoogleFonts.roboto(
+                    //       color: Color(0xFFF1F1F1),
+                    //       fontSize: 54,
+                    //       fontWeight: FontWeight.w900,
+                    //       letterSpacing: 2,
+                    //     ),
+                    //   ),
+                    // ),
                   ],
                 ),
               ),

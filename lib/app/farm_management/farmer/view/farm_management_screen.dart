@@ -1,61 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/farm_management/farm_home/form_details_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/controller/farm_list_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/controller/former_details_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_details.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/chat_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/contact_us_dialog.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_options.dart';
 
-// --- Data Model for a Farm Section ---
 class FarmSection {
   final String name;
   final String feedUsed;
   final String store;
   final int activeCount;
   final int inactiveCount;
-  final String imageUrl;
+  final List<String> imageUrl;
+  final String id;
+  final int noOfTanks;
+  final String lowFeedLimit;
 
   FarmSection({
+    required this.lowFeedLimit,
+    required this.noOfTanks,
     required this.name,
     required this.feedUsed,
     required this.store,
     required this.activeCount,
     required this.inactiveCount,
     required this.imageUrl,
+    required this.id,
   });
 }
 
-// --- Main Farm Management Screen Widget ---
 class FarmManagementScreen extends StatefulWidget {
-  FarmManagementScreen({super.key});
+  const FarmManagementScreen({super.key});
 
   @override
   State<FarmManagementScreen> createState() => _FarmManagementScreenState();
 }
 
 class _FarmManagementScreenState extends State<FarmManagementScreen> {
-  // Sample data to populate the list
-  final List<FarmSection> farmSections = [
-    FarmSection(
-      name: 'Sattamma Thalli Farm - A Section',
-      feedUsed: '2500kgs',
-      store: '500kgs',
-      activeCount: 8,
-      inactiveCount: 2,
-      // Placeholder image URL - replace with a real asset or network image
-      imageUrl: 'assets/images/farmer_fish.png',
-    ),
-    FarmSection(
-      name: 'Sattamma Thalli Farm - B Section',
-      feedUsed: '2500kgs',
-      store: '500kgs',
-      activeCount: 8,
-      inactiveCount: 2,
-      imageUrl: 'assets/images/farmer_fish.png',
-    ),
-  ];
-
+  final FarmListController controller = Get.put(FarmListController());
   bool _isChatbotOpen = false;
 
   void _toggleChatbot() {
@@ -64,108 +53,103 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
     });
   }
 
+  List<FarmSection> get farmSections {
+    final data = controller.farmList.value?.data ?? [] as List<FarmData>?;
+    return data!.map((e) {
+      return FarmSection(
+        lowFeedLimit: e.lowFeedLimit ?? '',
+        noOfTanks: e.noOfTanks ?? 0,
+        name: e.farmName ?? "Unknown Farm",
+        feedUsed: e.lowFeedLimit ?? "0 kgs",
+        store: e.store ?? "0 kgs",
+        activeCount: e.noOfTanks ?? 0,
+        inactiveCount: 2, // Static (Not in API)
+        imageUrl: e.images?.imagesList ?? [],
+        id: e.id.toString(),
+      );
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    const Color primaryBlue = Color(
-      0xFF007BFF,
-    ); // The blue color from the app bar
+    const Color primaryBlue = Color(0xFF007BFF);
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: primaryBlue,
+        automaticallyImplyLeading: true,
+        backgroundColor: AppColors.primary,
         elevation: 0,
         foregroundColor: Colors.white,
         title: Text(
           'Farm Management',
           style: GoogleFonts.roboto(color: Colors.white),
         ),
-        centerTitle: false,
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () {},
-        ),
+        // leading: const Icon(Icons.menu),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16.0),
-            height: 38,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.headset_mic_outlined,
-                color: Colors.black,
-                size: 20,
-              ), // Headset icon for Help
-              onPressed: () {
-                showContactUsDialog(context);
+          IconButton(
+            icon: const Icon(Icons.headset_mic_outlined, color: Colors.white),
+            onPressed: () => showContactUsDialog(context),
+          ),
+        ],
+      ),
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        return Stack(
+          children: [
+            ListView.builder(
+              padding: const EdgeInsets.all(16.0),
+              itemCount: farmSections.length,
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: FarmCard(farm: farmSections[index]),
+                );
               },
             ),
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          ListView.builder(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: farmSections.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16.0),
-                child: FarmCard(farm: farmSections[index]),
-              );
-            },
-          ),
-          if (_isChatbotOpen)
-            Positioned(
-              bottom: 120, // Position the chatbot card above the main FAB
-              right: 16,
-              child: const ChatbotWidget(),
-            ),
 
-          Positioned(
-            bottom: 16,
-            right: 16,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // Chatbot/Help button (This button controls the visibility)
-                FloatingActionButton(
-                  heroTag: 'chatbotFab',
-                  backgroundColor: _isChatbotOpen ? Colors.white : primaryBlue,
-                  onPressed: _toggleChatbot,
-                  child: Icon(
-                    _isChatbotOpen ? Icons.close : Icons.smart_toy_outlined,
-                    color: _isChatbotOpen ? primaryBlue : Colors.white,
+            if (_isChatbotOpen)
+              const Positioned(bottom: 120, right: 16, child: ChatbotWidget()),
+
+            Positioned(
+              bottom: 16,
+              right: 16,
+              child: Column(
+                children: [
+                  FloatingActionButton(
+                    heroTag: 'chatbotFab',
+                    backgroundColor: _isChatbotOpen
+                        ? Colors.white
+                        : primaryBlue,
+                    onPressed: _toggleChatbot,
+                    child: Icon(
+                      _isChatbotOpen ? Icons.close : Icons.smart_toy_outlined,
+                      color: _isChatbotOpen ? primaryBlue : Colors.white,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                // Main FAB (Add button)
-                FloatingActionButton(
-                  heroTag: 'addFab',
-                  backgroundColor: primaryBlue,
-                  onPressed: () {
-                    Get.to(() => FarmDetailsFormScreen());
-                  },
-                  child: const Icon(Icons.add, color: Colors.white),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  FloatingActionButton(
+                    heroTag: 'addFab',
+                    backgroundColor: primaryBlue,
+                    onPressed: () => Get.to(() => AddFarmerDetailsFormScreen()),
+                    child: const Icon(Icons.add, color: Colors.white),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      }),
     );
   }
 }
 
-// --- Farm Card Widget ---
 class FarmCard extends StatelessWidget {
   final FarmSection farm;
   const FarmCard({super.key, required this.farm});
 
-  // A small reusable chip widget for status
   Widget _buildStatusChip(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -175,11 +159,7 @@ class FarmCard extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.roboto(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
+        style: GoogleFonts.roboto(color: Colors.white, fontSize: 12),
       ),
     );
   }
@@ -187,66 +167,120 @@ class FarmCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {
-        Get.to(() => AquacultureScreen());
-      },
+      onTap: () => Get.to(() => AquacultureScreen()),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image and More Options Button
             Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.network(
-                      'https://media.smallbiztrends.com/2021/06/fish-farming-1.png',
-                      height: 150,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: GestureDetector(
+              padding: const EdgeInsets.all(16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                  children: [
+                    InkWell(
                       onTap: () {
-                        _showFarmOptions(context);
+                        print(farm.imageUrl.isNotEmpty ? farm.imageUrl[0] : '');
                       },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors
-                              .black54, // Semi-transparent background for button
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.more_vert,
-                            color: Colors.white,
-                          ),
-                          onPressed: () {
-                            _showFarmOptions(context);
-                          },
+                      child: Image.network(
+                        farm.imageUrl.isNotEmpty ? farm.imageUrl[0] : '',
+                        height: 150,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (c, e, s) => Image.asset(
+                          "assets/images/farmer_fish.png",
+                          height: 150,
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    Positioned(
+                      top: 20,
+                      right: 20,
+                      child: InkWell(
+                        onTap: () {
+                          showFarmBottomSheet(
+                            context: context,
+                            farmName: farm.name,
+                            onAddTankQty: () {
+                              Navigator.pop(context);
+                              // Navigate to tank quantity screen
+                              print("Add tank quantity clicked");
+                            },
+
+                            onPartners: () {
+                              Navigator.pop(context);
+                              print("Partners clicked");
+                            },
+
+                            onManager: () {
+                              Navigator.pop(context);
+                              print("Manager clicked");
+                            },
+
+                            onEditFarm: () {
+                              Navigator.pop(context);
+                              Get.to(
+                                () => AddFarmerDetailsFormScreen(
+                                  farmData: FarmData(
+                                    id: int.parse(farm.id),
+                                    farmName: farm.name,
+                                    farmerId: int.parse(farm.id),
+                                    images: FarmImages(
+                                      imagesList: farm.imageUrl,
+                                    ),
+                                    store: farm.store,
+                                    noOfTanks: farm.noOfTanks,
+                                    lowFeedLimit: farm.feedUsed,
+                                  ),
+                                ),
+                              );
+                            },
+
+                            onDeleteFarm: () async {
+                              Navigator.pop(context);
+                              final farmerDetailController = Get.put(
+                                FarmerDetailController(),
+                              );
+                              final farmListController =
+                                  Get.find<FarmListController>();
+
+                              if (await farmerDetailController.deleteFarm(
+                                farmId: farm.id,
+                              )) {
+                                farmListController.fetchFarmList();
+                              }
+                            },
+                          );
+                        },
+                        child: Container(
+                          height: 30,
+                          width: 30,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                offset: Offset(1, 3),
+                                color: Colors.grey.withOpacity(.3),
+                              ),
+                            ],
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.more_vert),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            // Card Content
             Padding(
-              padding: const EdgeInsets.only(left: 16.0, right: 16, bottom: 16),
+              padding: const EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Status Chips
                   Row(
                     children: [
                       _buildStatusChip(
@@ -260,68 +294,57 @@ class FarmCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-
-                  // Farm Name/Section
-                  Text(
-                    farm.name,
-                    style: GoogleFonts.roboto(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      farm.name,
+                      style: GoogleFonts.roboto(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
-
-                  // Feed and Store Metrics
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Total Feed Used
-                      Expanded(
-                        flex: 2,
-                        child: Row(
-                          // crossAxisAlignment: CrossAxisAlignment.start,
+                      RichText(
+                        text: TextSpan(
+                          style: GoogleFonts.roboto(fontSize: 14),
                           children: [
-                            Text(
-                              'Total Feed Used - ',
-                              style: GoogleFonts.roboto(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
+                            TextSpan(
+                              text: "Total Feed Used: ",
+                              style: TextStyle(color: Colors.black),
                             ),
-                            Text(
-                              farm.feedUsed,
-                              style: GoogleFonts.roboto(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
+                            TextSpan(
+                              text: farm.feedUsed+' kgs',
+                              style: GoogleFonts.roboto(fontSize: 14, color: Colors.black,fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
                       ),
-                      SizedBox(width: 16),
-                      // Store
-                      Expanded(
-                        child: Row(
-                          // crossAxisAlignment: CrossAxisAlignment.start,
+
+                       RichText(
+                        text: TextSpan(
+                          style: GoogleFonts.roboto(fontSize: 14),
                           children: [
-                            Text(
-                              'Store  ',
-                              style: GoogleFonts.roboto(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
+                            TextSpan(
+                              text: "Store ",
+                              style: TextStyle(color: Colors.black),
                             ),
-                            Text(
-                              farm.store,
-                              style: GoogleFonts.roboto(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
+                            TextSpan(
+                              text: farm.store+' kgs',
+                              style: GoogleFonts.roboto(fontSize: 14, color: Colors.black,fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
                       ),
+                      // Text(
+                      //   "Total Feed Used: ${farm.feedUsed} ",
+                      //   style: GoogleFonts.roboto(fontSize: 14),
+                      // ),
+                     
                     ],
                   ),
                 ],
@@ -336,14 +359,11 @@ class FarmCard extends StatelessWidget {
   void _showFarmOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      isScrollControlled:
-          true, // Allows the sheet to be full-height if content is tall
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (BuildContext context) {
-        return const FarmOptionsBottomSheet();
-      },
+      builder: (_) => const FarmOptionsBottomSheet(),
     );
   }
 }
@@ -543,4 +563,113 @@ class VoiceAssistanceModal extends StatelessWidget {
       ),
     );
   }
+}
+
+void showFarmBottomSheet({
+  required BuildContext context,
+  required String farmName,
+  required VoidCallback onAddTankQty,
+  required VoidCallback onPartners,
+  required VoidCallback onManager,
+  required VoidCallback onEditFarm,
+  required VoidCallback onDeleteFarm,
+}) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(22),
+            topRight: Radius.circular(22),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            /// Header Title and Close Button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  farmName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const Icon(Icons.close, size: 24),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            _sheetItem(
+              icon: Icons.layers,
+              title: "Add today's tanks quantity",
+              onTap: onAddTankQty,
+            ),
+
+            _sheetItem(icon: Icons.group, title: "Partners", onTap: onPartners),
+
+            _sheetItem(icon: Icons.person, title: "Manager", onTap: onManager),
+
+            _sheetItem(
+              icon: Icons.edit,
+              title: "Edit farm Details",
+              onTap: onEditFarm,
+            ),
+
+            _sheetItem(
+              icon: Icons.delete,
+              title: "Delete farm",
+              iconColor: Colors.red,
+              textColor: Colors.red,
+              onTap: onDeleteFarm,
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+/// Single tile widget inside sheet
+Widget _sheetItem({
+  required IconData icon,
+  required String title,
+  required VoidCallback onTap,
+  Color? iconColor,
+  Color? textColor,
+}) {
+  return InkWell(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      child: Row(
+        children: [
+          Icon(icon, color: iconColor ?? Colors.black, size: 22),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                color: textColor ?? Colors.black,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const Icon(Icons.arrow_forward_ios, size: 16),
+        ],
+      ),
+    ),
+  );
 }

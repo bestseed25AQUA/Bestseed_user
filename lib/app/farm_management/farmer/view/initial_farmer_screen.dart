@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/farm_details_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/contact_us_dialog.dart';
 
 class InitialFarmScreen extends StatelessWidget {
@@ -92,7 +92,7 @@ class InitialFarmScreen extends StatelessWidget {
               height: 50,
               child: CustomButton(
                 onPressed: () {
-                  Get.to(() => FarmerDetailsFormScreen());
+                  Get.to(() => AddFarmerDetailsFormScreen());
                 },
                 text: 'Add Farm Details',
               ),

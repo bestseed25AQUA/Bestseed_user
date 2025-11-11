@@ -431,10 +431,10 @@ class _HatcheryDetailState extends State<HatcheryDetail> {
         // );
       }
     } catch (e) {
-      debugPrint("Error making phone call: $e");
+      debugPrint("Error making phone call  ");
       // Optional: Show error to user
       // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(content: Text('Error making phone call: $e')),
+      //   SnackBar(content: Text('Error making phone call  ')),
       // );
     }
   }

@@ -34,10 +34,10 @@ class ProfileController extends GetxController {
         final data = jsonDecode(response.body);
         profile.value = ProfileModel.fromJson(data);
       } else {
-        CustomToast.error("Failed to fetch profile: ${response.statusCode}");
+        CustomToast.error("Failed to fetch profile ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;
     }
@@ -85,10 +85,10 @@ class ProfileController extends GetxController {
         Get.back();
         await getProfile(); // refresh profile
       } else {
-        CustomToast.error("Update failed: ${response.statusCode} $respStr");
+        CustomToast.error("Update failed  $respStr");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isUpdating.value = false;
     }

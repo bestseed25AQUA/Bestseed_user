@@ -41,10 +41,10 @@ class OtpVerifyController extends GetxController {
           CustomToast.error(data["message"] ?? "Unable to resend OTP");
         }
       } else {
-        CustomToast.error("Server error: ${response.statusCode}");
+        CustomToast.error("Server error ");
       }
     } catch (e) {
-      debugPrint("Resend OTP Error: $e");
+      debugPrint("Resend OTP Error  ");
       CustomToast.error(e.toString());
     } finally {
       isResending.value = false;
@@ -83,10 +83,10 @@ class OtpVerifyController extends GetxController {
 
         Get.offAll(() => DashboardScreen());
       } else {
-        CustomToast.error("Server error: ${response.statusCode}");
+        CustomToast.error("Server error ");
       }
     } catch (e) {
-      debugPrint("Verify OTP Error: $e");
+      debugPrint("Verify OTP Error  ");
       CustomToast.error(e.toString());
     } finally {
       isLoading.value = false;

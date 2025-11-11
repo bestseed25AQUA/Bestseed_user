@@ -76,11 +76,11 @@ class BroodStockController extends GetxController {
         }
       } else {
         CustomToast.error(
-          "Failed to fetch categories (Code: ${response.statusCode})",
+          "Failed to fetch categories (Code )",
         );
       }
     } catch (e) {
-      CustomToast.error("Error fetching categories: $e");
+      CustomToast.error("Error fetching categories  ");
     } finally {
       isLoading.value = false;
     }
@@ -121,11 +121,11 @@ class BroodStockController extends GetxController {
         }
       } else {
         CustomToast.error(
-          "Failed to fetch brood stock (Code: ${response.statusCode})",
+          "Failed to fetch brood stock (Code )",
         );
       }
     } catch (e) {
-      CustomToast.error("Error fetching brood stock: $e");
+      CustomToast.error("Error fetching brood stock  ");
     } finally {
       isLoading.value = false;
     }
@@ -157,14 +157,14 @@ class BroodStockController extends GetxController {
         }
       } else {
         CustomToast.error(
-          "Failed to fetch brood stock (Code: ${response.statusCode})",
+          "Failed to fetch brood stock (Code )",
         );
       }
     } catch (e,s) {
       print('=========get brood stock for home=========');
       print(e.toString());
       print(s.toString());
-      CustomToast.error("Error fetching brood stock: $e");
+      CustomToast.error("Error fetching brood stock  ");
     } finally { 
     }
   }

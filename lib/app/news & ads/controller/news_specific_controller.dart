@@ -37,11 +37,11 @@ class NewsSpecificController extends GetxController {
         
       } else {
         CustomToast.error(
-          "Failed to fetch Medicine News: ${response.statusCode}",
+          "Failed to fetch Medicine News ",
         );
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;
     }

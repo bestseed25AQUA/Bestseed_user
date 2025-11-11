@@ -4,12 +4,17 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/home/controller/home_controller.dart';
+import 'package:seedsuser/app/home/controller/location_controller.dart';
 import 'package:seedsuser/app/home/view/full_video_screen.dart';
 import 'package:seedsuser/app/home/widget/home_banner_carousel.dart'
     hide VideoPlayerBanner;
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_ads_controller.dart';
+import 'package:seedsuser/app/news%20&%20ads/controller/news_banner_controller.dart';
+import 'package:seedsuser/app/news%20&%20ads/view/climate_news_detail_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/climate_news_screen.dart';
+import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_news_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/trending_updates_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/widget/news_banner_widget.dart';
@@ -29,11 +34,19 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
   late VideoPlayerController _controller;
   bool videoStarted = false;
   final newsAdsController = Get.put(NewsAdsController());
+  final newsBannerController = Get.put(NewsBannerController());
+  final locationController = Get.put(LocationController());
+  final homeController = Get.put(HomeController());
+
   int _currentIndex = 0;
   @override
   void initState() {
     super.initState();
     // Initialize controller in initState
+    // newsBannerController.fetchBanners(
+    //   homeController.selectedCategoryId.value,
+    //   locationController.selectedLocationId.value,
+    // );
     _controller =
         VideoPlayerController.asset('assets/images/video_20250921_103157.mp4')
           ..initialize().then((_) {
@@ -50,7 +63,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
       await rootBundle.load('assets/images/video_20250921_103157.mp4');
       debugPrint("Asset exists and loaded");
     } catch (e) {
-      debugPrint("Asset not found: $e");
+      debugPrint("Asset not found  ");
     }
   }
 
@@ -106,8 +119,8 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
             // }),
             // _buildTrendingSection(),
             const SizedBox(height: 16),
-            NewsBannerWidget(),
 
+            // NewsBannerWidget(),
             Obx(() {
               if (newsAdsController.newsAdsData.value?.data == null) {
                 return Align(
@@ -122,7 +135,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
               }
               return Column(
                 children: [
-                  _buildSectionHeader('Trendinig Update', () {
+                  _buildSectionHeader('Trending Update', () {
                     Get.to(TrendingUpdatesScreen());
                   }),
                   Stack(
@@ -280,6 +293,14 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                             data?.medicineName ?? "",
                             data?.curesFor ?? "",
                             data?.mediaPath ?? "",
+                            () {
+                              Get.to(
+                                () => MedicineDetailScreen(
+                                  id: data?.id.toString() ?? '',
+                                  title: data?.medicineName.toString() ?? '',
+                                ),
+                              );
+                            },
                           );
                         },
                       ),
@@ -312,6 +333,15 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                             data?.title ?? "",
                             null,
                             data?.mediaPath ?? "",
+                            () {
+                              Get.to(
+                                () => ClimateDetailScreen(
+                                  id: data?.id.toString() ?? '',
+                                  title: data?.title ?? '',
+                                  // title: data?.n.toString() ?? '',
+                                ),
+                              );
+                            },
                           );
                         },
                       ),
@@ -465,30 +495,39 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
   //   return '$minutes:$seconds';
   // }
 
-  Widget _buildNewsCard(String title, String? subtitle, String imageUrl) {
+  Widget _buildNewsCard(
+    String title,
+    String? subtitle,
+    String imageUrl,
+    VoidCallback ontap,
+  ) {
     return Container(
       width: 150,
       margin: const EdgeInsets.symmetric(horizontal: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
+          InkWell(
             borderRadius: BorderRadius.circular(12),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.white.withOpacity(.7),
-                border: Border.all(width: .1, color: Colors.grey),
-                boxShadow: [BoxShadow(color: Colors.grey)],
-              ),
-              child: Image.network(
-                imageUrl,
-                height: 120,
-                width: 150,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return SizedBox(height: 120, width: 150);
-                },
+            onTap: ontap,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white.withOpacity(.7),
+                  border: Border.all(width: .1, color: Colors.grey),
+                  boxShadow: [BoxShadow(color: Colors.grey)],
+                ),
+                child: Image.network(
+                  imageUrl,
+                  height: 120,
+                  width: 150,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return SizedBox(height: 120, width: 150);
+                  },
+                ),
               ),
             ),
           ),

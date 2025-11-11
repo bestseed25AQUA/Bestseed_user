@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_dropdown.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/model/category_model.dart';
 import 'package:seedsuser/app/model/location_model.dart';
@@ -9,12 +10,12 @@ import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 import 'package:seedsuser/app/seed_price/widget/seed_price_banner_widget.dart';
+import 'package:seedsuser/app/seed_price/widget/seed_wanted_banner_widget.dart';
 import 'package:seedsuser/app/wanted/view/wanted_screen.dart';
 import 'package:seedsuser/app/model/price_model.dart';
 
 class SeedPricesScreen extends StatefulWidget {
   const SeedPricesScreen({super.key});
-
   @override
   State<SeedPricesScreen> createState() => _SeedPricesScreenState();
 }
@@ -83,7 +84,11 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.info_outline, color: Colors.orange, size: 48),
+                        Icon(
+                          Icons.info_outline,
+                          color: Colors.orange,
+                          size: 48,
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           'No Prices Found',
@@ -154,15 +159,16 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                       children: [
                         Expanded(
                           child: Obx(() {
-                            if (controller.locations.isEmpty) {
+                            if (controller.locations.isEmpty)
                               return const SizedBox();
-                            }
-                            return _buildDropdown<Location>(
+
+                            return CustomDropdown<Location>(
                               selectedValue: controller.selectedLocation.value,
                               items: controller.locations,
-                              itemLabel: (loc) => loc.locationName,
+                              itemLabel: (loc) => loc.title,
+                              hintText: "Select Location",
                               onChanged: (loc) {
-                                controller.selectedLocation.value = loc!;
+                                controller.selectedLocation.value = loc;
                                 _dialogShown = false;
                                 controller.getPrices();
                               },
@@ -172,15 +178,16 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: Obx(() {
-                            if (controller.categories.isEmpty) {
+                            if (controller.categories.isEmpty)
                               return const SizedBox();
-                            }
-                            return _buildDropdown<Category>(
+
+                            return CustomDropdown<Category>(
                               selectedValue: controller.selectedCategory.value,
                               items: controller.categories,
                               itemLabel: (cat) => cat.categoryName,
+                              hintText: "Select Category",
                               onChanged: (cat) {
-                                controller.selectedCategory.value = cat!;
+                                controller.selectedCategory.value = cat;
                                 _dialogShown = false;
                                 controller.getPrices();
                               },
@@ -192,7 +199,6 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
 
                     const SizedBox(height: 20),
 
-                    // --- Price List Header ---
                     Container(
                       padding: const EdgeInsets.symmetric(
                         vertical: 12,
@@ -225,8 +231,6 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
-                    // --- Prices ---
                     if (priceData == null || priceData.prices.isEmpty)
                       const Center(child: Text("No prices available.")),
 
@@ -272,27 +276,19 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                         );
                       }),
 
-                    const SizedBox(height: 20),
-                    if (priceData != null)
-                      Text(
-                        priceData.description,
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.roboto(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-
+                    // const SizedBox(height: 20),
+                    // if (priceData != null)
+                    //   Text(
+                    //     priceData.description,
+                    //     textAlign: TextAlign.center,
+                    //     style: GoogleFonts.roboto(
+                    //       fontSize: 16,
+                    //       fontWeight: FontWeight.w500,
+                    //       color: Colors.grey[800],
+                    //     ),
+                    //   ),
                     const SizedBox(height: 30),
-                    // Wanted Crop Buyers Section
-                    InkWell(
-                      onTap: () => Get.to(() => WantedCropBuyersScreen()),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.asset('assets/images/us.png'),
-                      ),
-                    ),
+                    WantedBannerWidget(),
                     const SizedBox(height: 40),
                   ],
                 ),

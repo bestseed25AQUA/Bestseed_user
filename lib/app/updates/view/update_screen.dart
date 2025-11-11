@@ -13,9 +13,22 @@ import 'package:seedsuser/app/updates/widget/updates_banner_widget.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class UpdatesScreen extends StatelessWidget {
-  final hatcheryUpdatesController = Get.put(HatcheryUpdatesController());
+class UpdatesScreen extends StatefulWidget {
   UpdatesScreen({super.key});
+
+  @override
+  State<UpdatesScreen> createState() => _UpdatesScreenState();
+}
+
+class _UpdatesScreenState extends State<UpdatesScreen> {
+  final hatcheryUpdatesController = Get.put(HatcheryUpdatesController());
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    hatcheryUpdatesController.fetchHatcheryUpdates();
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,6 +78,13 @@ class UpdatesScreen extends StatelessWidget {
             SizedBox(height: 16),
             UpdatesBannerWidget(),
             Obx(() {
+              if( hatcheryUpdatesController
+                        .isLoading.value){
+                          return Padding(
+                            padding:   EdgeInsets.only(top: MediaQuery.of(context).size.height*.3),
+                            child: CircularProgressIndicator(),
+                          );
+                        }
               return ListView.builder(
                 physics: NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
@@ -81,6 +101,18 @@ class UpdatesScreen extends StatelessWidget {
                         .hatcheryData
                         .value
                         ?.data?[index],
+                    ontap: () {
+                      hatcheryUpdatesController.fetchHatcherySpecificUpdates(
+                        hatcheryUpdatesController
+                                .hatcheryData
+                                .value
+                                ?.data?[index]
+                                .id
+                                .toString() ??
+                            '',
+                      );
+                      Get.to(() => HatcheryDetailsScreen());
+                    },
                   );
                 },
               );
@@ -95,7 +127,8 @@ class UpdatesScreen extends StatelessWidget {
 class PostWidget extends StatefulWidget {
   final HatcheryData? postData;
 
-  const PostWidget({super.key, required this.postData});
+  final VoidCallback? ontap;
+  const PostWidget({super.key, required this.postData, this.ontap});
 
   @override
   _PostWidgetState createState() => _PostWidgetState();
@@ -103,6 +136,7 @@ class PostWidget extends StatefulWidget {
 
 class _PostWidgetState extends State<PostWidget> {
   final PageController _pageController = PageController();
+
   int _currentPage = 0;
 
   @override
@@ -127,9 +161,7 @@ class _PostWidgetState extends State<PostWidget> {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {
-        Get.to(() => HatcheryDetailsScreen());
-      },
+      onTap: widget.ontap,
       child: Card(
         margin: const EdgeInsets.symmetric(vertical: 8.0),
         elevation: 0.0,
@@ -217,14 +249,48 @@ class _PostWidgetState extends State<PostWidget> {
                 children: [
                   Row(
                     children: [
-                      Image.asset('assets/images/call.png', height: 38),
+                      // CALL BUTTON
                       InkWell(
                         onTap: () async {
-                          final whatsappUrl =
-                              "https://wa.me/${'+918977778784'.replaceAll('+', '')}";
+                          final phone =
+                              widget.postData?.callUrl ??
+                              "0000000000"; // Replace key if needed
+                          final Uri callUri = Uri(scheme: 'tel', path: phone);
+
+                          if (await canLaunchUrl(callUri)) {
+                            await launchUrl(
+                              callUri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Cannot make call")),
+                            );
+                          }
+                        },
+                        child: Image.asset(
+                          'assets/images/call.png',
+                          height: 38,
+                        ),
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      // WHATSAPP BUTTON
+                      InkWell(
+                        onTap: () async {
+                          final phone =
+                              widget.postData?.whatsappUrl ??
+                              ""; // Should be number only
+                          final whatsappUrl = "https://wa.me/$phone";
+
                           final Uri uri = Uri.parse(whatsappUrl);
+
                           if (await canLaunchUrl(uri)) {
-                            await launchUrl(uri);
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -238,17 +304,39 @@ class _PostWidgetState extends State<PostWidget> {
                           height: 32,
                         ),
                       ),
+
+                      const SizedBox(width: 12),
+
+                      // FACEBOOK BUTTON
                       IconButton(
                         icon: const Icon(Icons.facebook),
-                        onPressed: () {},
-                        color: Colors.blue.shade800,
+                        color: Colors.blue,
+                        onPressed: () async {
+                          final fbPage =
+                              widget.postData?.facebookUrl ??
+                              ""; // Example: https://facebook.com/xyz
+                          final Uri uri = Uri.parse(fbPage);
+
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Cannot open Facebook"),
+                              ),
+                            );
+                          }
+                        },
                       ),
                     ],
                   ),
                   TextButton.icon(
                     onPressed: () {
                       Share.share(
-                        'Check out this delivery tracking app: https://example.com',
+                        widget.postData?.shareLink ?? '',
                         subject: 'Vehicle Tracking Info',
                       );
                     },

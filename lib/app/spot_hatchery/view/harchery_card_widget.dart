@@ -4,14 +4,16 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/booking_hatchery_widget.dart';
 import 'package:seedsuser/app/home/hatchery_details.dart';
+import 'package:seedsuser/app/model/location_model.dart';
 import 'package:seedsuser/app/model/spot_hatchery_model.dart';
+import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 class HarcheryCardWidget extends StatefulWidget {
   const HarcheryCardWidget({super.key, required this.spotHatchery});
 
-  final SpotHatchery spotHatchery; // ✅ Correct type
+  final SpotHatchery spotHatchery;
 
   @override
   State<HarcheryCardWidget> createState() => _HarcheryCardWidgetState();
@@ -28,6 +30,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
     super.dispose();
   }
 
+  final SeedsPriceController controller = Get.put(SeedsPriceController());
   @override
   Widget build(BuildContext context) {
     final hatchery = widget.spotHatchery;
@@ -61,8 +64,8 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
           border: Border.all(color: Colors.grey.shade200),
           boxShadow: [
             BoxShadow(
+              // ignore: deprecated_member_use
               color: Colors.black.withOpacity(0.2),
-
               blurRadius: 16,
               spreadRadius: 3,
               offset: const Offset(0, 6),
@@ -73,110 +76,126 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ✅ Image or Video Section
-            if (hatchery.images.isNotEmpty)
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12.0),
-                  topRight: Radius.circular(12.0),
-                ),
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12.0),
+                topRight: Radius.circular(12.0),
+              ),
+              child: InkWell(
+                onTap: () {
+                  print('image url');
+                  print((hatchery.images.isNotEmpty) ? hatchery.images.first : '');
+                },
                 child: Image.network(
-                  hatchery.images.first,
+                  (hatchery.images.isNotEmpty) ? hatchery.images.first : '',
                   width: double.infinity,
                   height: 160,
                   fit: BoxFit.cover,
+                  // loadingBuilder: (context, child, loadingProgress) => Container(
+                  //   color: Colors.grey[300],
+                  //   height: 160,
+                  //   width: MediaQuery.of(context).size.width * .9,
+                  //   child: Center(
+                  //     child: SizedBox(
+                  //       height: 30,
+                  //       width: 30,
+                  //       child: CircularProgressIndicator(strokeWidth: 3),
+                  //     ),
+                  //   ),
+                  // ),
                   errorBuilder: (context, _, __) => Container(
-                    color: Colors.grey[300],
+                    color: Colors.grey.withOpacity(.2),
                     height: 160,
-                    child: const Icon(Icons.broken_image, size: 50),
-                  ),
-                ),
-              )
-            else
-              GestureDetector(
-                onTap: () async {
-                  setState(() => videoStarted = true);
-                  _controller = VideoPlayerController.asset(
-                    'assets/videos/sample.mp4',
-                  );
-
-                  await _controller!.initialize();
-                  _controller!.setLooping(false);
-                  _controller!.play();
-
-                  _controller!.addListener(() {
-                    if (_controller!.value.position >=
-                        _controller!.value.duration) {
-                      setState(() => videoStarted = false);
-                    } else {
-                      setState(() {});
-                    }
-                  });
-                  setState(() {});
-                },
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12.0),
-                    topRight: Radius.circular(12.0),
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 200,
-                    child: _controller?.value.isInitialized ?? false
-                        ? Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              AspectRatio(
-                                aspectRatio: _controller!.value.aspectRatio,
-                                child: VideoPlayer(_controller!),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _controller!.value.isPlaying
-                                        ? _controller!.pause()
-                                        : _controller!.play();
-                                  });
-                                },
-                                child: Icon(
-                                  _controller!.value.isPlaying
-                                      ? Icons.pause_circle_filled
-                                      : Icons.play_circle_fill,
-                                  color: Colors.white,
-                                  size: 60,
-                                ),
-                              ),
-                              Positioned(
-                                bottom: 8,
-                                right: 8,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    '${_formatDuration(_controller!.value.position)} / ${_formatDuration(_controller!.value.duration)}',
-                                    style: GoogleFonts.roboto(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          )
-                        : const Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.primary,
-                            ),
-                          ),
+                    width: MediaQuery.of(context).size.width * .9,
                   ),
                 ),
               ),
+            ),
+            // else
+            // GestureDetector(
+            //   onTap: () async {
+            //     setState(() => videoStarted = true);
+            //     _controller = VideoPlayerController.asset(
+            //       'assets/videos/sample.mp4',
+            //     );
+
+            //     await _controller!.initialize();
+            //     _controller!.setLooping(false);
+            //     _controller!.play();
+
+            //     _controller!.addListener(() {
+            //       if (_controller!.value.position >=
+            //           _controller!.value.duration) {
+            //         setState(() => videoStarted = false);
+            //       } else {
+            //         setState(() {});
+            //       }
+            //     });
+            //     setState(() {});
+            //   },
+            //   child: ClipRRect(
+            //     borderRadius: const BorderRadius.only(
+            //       topLeft: Radius.circular(12.0),
+            //       topRight: Radius.circular(12.0),
+            //     ),
+            //     child: SizedBox(
+            //       width: double.infinity,
+            //       height: 200,
+            //       child: _controller?.value.isInitialized ?? false
+            //           ? Stack(
+            //               alignment: Alignment.center,
+            //               children: [
+            //                 AspectRatio(
+            //                   aspectRatio: _controller!.value.aspectRatio,
+            //                   child: VideoPlayer(_controller!),
+            //                 ),
+            //                 GestureDetector(
+            //                   onTap: () {
+            //                     setState(() {
+            //                       _controller!.value.isPlaying
+            //                           ? _controller!.pause()
+            //                           : _controller!.play();
+            //                     });
+            //                   },
+            //                   child: Icon(
+            //                     _controller!.value.isPlaying
+            //                         ? Icons.pause_circle_filled
+            //                         : Icons.play_circle_fill,
+            //                     color: Colors.white,
+            //                     size: 60,
+            //                   ),
+            //                 ),
+            //                 Positioned(
+            //                   bottom: 8,
+            //                   right: 8,
+            //                   child: Container(
+            //                     padding: const EdgeInsets.symmetric(
+            //                       horizontal: 6,
+            //                       vertical: 2,
+            //                     ),
+            //                     decoration: BoxDecoration(
+            //                       color: Colors.black54,
+            //                       borderRadius: BorderRadius.circular(4),
+            //                     ),
+            //                     child: Text(
+            //                       '${_formatDuration(_controller!.value.position)} / ${_formatDuration(_controller!.value.duration)}',
+            //                       style: GoogleFonts.roboto(
+            //                         color: Colors.white,
+            //                         fontSize: 12,
+            //                       ),
+            //                     ),
+            //                   ),
+            //                 ),
+            //               ],
+            //             )
+            //           : const Center(
+            //               child: CircularProgressIndicator(
+            //                 color: AppColors.primary,
+            //               ),
+            //             ),
+            //     ),
+            //   ),
+            // ),
 
             // ✅ Details Section
             Padding(
@@ -201,35 +220,36 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                         ),
                       ),
                       SizedBox(width: 16),
-                      Expanded(
-                        flex: 3,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            borderRadius: BorderRadius.circular(30.0),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.check_circle,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          borderRadius: BorderRadius.circular(30.0),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.check_circle,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 6),
+                            SizedBox(
+                              width: MediaQuery.of(context).size.width * .34,
+                              child: Text(
                                 "Available on ${hatchery.availableOn}",
                                 style: GoogleFonts.roboto(
                                   color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
                                 ),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -237,7 +257,6 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
 
                   const SizedBox(height: 8),
 
-                  // Category
                   Text(
                     hatchery.categoryName,
                     style: GoogleFonts.roboto(
@@ -248,12 +267,26 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
 
                   const SizedBox(height: 6),
 
-                  // Location
-                  _buildInfoRow(Icons.location_on, hatchery.location),
+                  // // Location
+                  // if (hatchery.locationName?.isNotEmpty ?? false)
+                  Builder(
+                    builder: (context) {
+                      Location? location;
+                      try {
+                        location = controller.locations.firstWhere(
+                          (e) =>
+                              e.id.toString() == hatchery.locationId.toString(),
+                        );
+                      } catch (e) {}
 
+                      return _buildInfoRow(
+                        Icons.location_on,
+                        location != null ? location.title : '',
+                      );
+                    },
+                  ),
+                  // if (hatchery.locationName?.isNotEmpty ?? false)
                   const SizedBox(height: 20),
-
-                  // ✅ Buttons Row
                   Row(
                     children: [
                       _actionButton(
@@ -298,7 +331,21 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
     );
   }
 
-  // ✅ Button Builder
+  Widget _buildInfoRow(IconData icon, String label) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.primary),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            label,
+            style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[600]),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _actionButton({
     required String label,
     required String icon,
@@ -337,29 +384,6 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
           ),
         ),
       ),
-    );
-  }
-
-  // ✅ Helper to format video time
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return '$minutes:$seconds';
-  }
-
-  Widget _buildInfoRow(IconData icon, String label) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: AppColors.primary),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            label,
-            style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[600]),
-          ),
-        ),
-      ],
     );
   }
 

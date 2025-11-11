@@ -33,9 +33,12 @@ class SpotHatcheryModel {
 class SpotHatchery {
   final int hatcheryId;
   final String hatcheryName;
+  final int categoryId;
+  final int locationId; // ✅ changed to int
   final String categoryName;
-  final String location;
-  final String availableOn;
+  final String? locationName; // ✅ nullable
+  final bool isSpot; // ✅ added
+  final String? availableOn;
   final List<String> images;
   final String? callUrl;
   final String? whatsappUrl;
@@ -43,9 +46,12 @@ class SpotHatchery {
   SpotHatchery({
     required this.hatcheryId,
     required this.hatcheryName,
+    required this.categoryId,
+    required this.locationId,
     required this.categoryName,
-    required this.location,
-    required this.availableOn,
+    required this.locationName,
+    required this.isSpot,
+    this.availableOn,
     required this.images,
     this.callUrl,
     this.whatsappUrl,
@@ -54,9 +60,12 @@ class SpotHatchery {
   factory SpotHatchery.fromJson(Map<String, dynamic> json) => SpotHatchery(
     hatcheryId: json["hatchery_id"] ?? 0,
     hatcheryName: json["hatchery_name"] ?? "",
+    categoryId: json["category_id"] ?? 0,
+    locationId: json["location_id"] ?? 0,
     categoryName: json["category_name"] ?? "",
-    location: json["location"] ?? "",
-    availableOn: json["available_on"] ?? "",
+    locationName: json["location_name"], // ✅ nullable
+    isSpot: json["is_spot"] ?? false, // ✅ added
+    availableOn: json["available_on"],
     images: json["images"] == null
         ? []
         : List<String>.from(json["images"].map((x) => x)),
@@ -67,8 +76,11 @@ class SpotHatchery {
   Map<String, dynamic> toJson() => {
     "hatchery_id": hatcheryId,
     "hatchery_name": hatcheryName,
+    "category_id": categoryId,
+    "location_id": locationId,
     "category_name": categoryName,
-    "location": location,
+    "location_name": locationName,
+    "is_spot": isSpot,
     "available_on": availableOn,
     "images": List<dynamic>.from(images.map((x) => x)),
     "call_url": callUrl,

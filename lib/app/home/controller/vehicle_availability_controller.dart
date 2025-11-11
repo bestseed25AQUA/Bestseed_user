@@ -36,10 +36,10 @@ class VehicleController extends GetxController {
         vehicles.value = vehicleData.vehicles;
         filteredVehicles.value = vehicleData.vehicles;
       } else {
-        CustomToast.error("Failed to fetch vehicles: ${response.statusCode}");
+        CustomToast.error("Failed to fetch vehicles ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;
     }
@@ -122,10 +122,10 @@ class VehicleController extends GetxController {
           result["message"] ?? "Vehicle booked successfully!",
         );
       } else {
-        CustomToast.error("Booking failed: ${response.statusCode}");
+        CustomToast.error("Booking failed ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isBooking.value = false;
     }

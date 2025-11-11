@@ -57,11 +57,10 @@ class SpotHatcheryScreen extends StatelessWidget {
                   SizedBox(height: 8),
                 ],
               );
-            }
-
+            } 
             final hatchery = controller.banners[index - 1];
             return Padding(
-              padding: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.only(bottom: 6, top: 20),
               child: HarcheryCardWidget(spotHatchery: hatchery),
             );
           },

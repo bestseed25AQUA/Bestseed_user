@@ -80,10 +80,10 @@ class SeedRequestController extends GetxController {
 
         CustomToast.success(result["message"] ?? "Request sent successfully!");
       } else {
-        CustomToast.error("Booking failed: ${response.statusCode}");
+        CustomToast.error("Booking failed ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isBooking.value = false;
     }

@@ -37,10 +37,10 @@ class MyBookingController extends GetxController {
           CustomToast.error("No Bookings found.");
         }
       } else {
-        CustomToast.error("Failed to fetch Bookings: ${response.statusCode}");
+        CustomToast.error("Failed to fetch Bookings ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;
     }

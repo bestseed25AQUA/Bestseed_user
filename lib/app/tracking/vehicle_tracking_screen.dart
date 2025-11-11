@@ -175,47 +175,61 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
         const SizedBox(height: 20),
 
         // Location and Availability Details
-        Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
+         Column(
+           crossAxisAlignment: CrossAxisAlignment.start,
+           mainAxisAlignment: MainAxisAlignment.start,
+         
+           children: [
+             // _buildInfoRow(Icons.location_on, "Unit - 2", 'Godavari'),
+             // const SizedBox(height: 12),
+             _buildInfoRow(
+               Icons.calendar_today,
+               "Available Date",
+               "27 Sep 2024",
+             ),
+           ],
+         ),
+        // Row(
+        //   mainAxisAlignment: MainAxisAlignment.start,
+        //   crossAxisAlignment: CrossAxisAlignment.start,
 
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // _buildInfoRow(Icons.location_on, "Unit - 1", 'Kakinada'),
-                  // const SizedBox(height: 12),
-                  _buildInfoRow(
-                    Icons.water_drop_outlined,
-                    "Broodstock",
-                    "1200 Pieces",
-                  ),
-                  const SizedBox(height: 12),
-                  _buildInfoRow(Icons.timer, "Price", "₹0.36"),
-                ],
-              ),
-            ),
+        //   children: [
+        //     Expanded(
+        //       child: Column(
+        //         crossAxisAlignment: CrossAxisAlignment.start,
+        //         children: [
+        //           // _buildInfoRow(Icons.location_on, "Unit - 1", 'Kakinada'),
+        //           // const SizedBox(height: 12),
+        //           _buildInfoRow(
+        //             Icons.water_drop_outlined,
+        //             "Broodstock",
+        //             "1200 Pieces",
+        //           ),
+        //           const SizedBox(height: 12),
+        //           _buildInfoRow(Icons.timer, "Price", "₹0.36"),
+        //         ],
+        //       ),
+        //     ),
 
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.start,
+        //     const SizedBox(width: 12),
+        //     Expanded(
+        //       child: Column(
+        //         crossAxisAlignment: CrossAxisAlignment.start,
+        //         mainAxisAlignment: MainAxisAlignment.start,
 
-                children: [
-                  // _buildInfoRow(Icons.location_on, "Unit - 2", 'Godavari'),
-                  // const SizedBox(height: 12),
-                  _buildInfoRow(
-                    Icons.calendar_today,
-                    "Available Date",
-                    "27 Sep 2024",
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+        //         children: [
+        //           // _buildInfoRow(Icons.location_on, "Unit - 2", 'Godavari'),
+        //           // const SizedBox(height: 12),
+        //           _buildInfoRow(
+        //             Icons.calendar_today,
+        //             "Available Date",
+        //             "27 Sep 2024",
+        //           ),
+        //         ],
+        //       ),
+        //     ),
+        //   ],
+        // ),
       ],
     );
   }

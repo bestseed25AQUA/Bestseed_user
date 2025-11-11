@@ -40,11 +40,11 @@ class LogoutController extends GetxController {
         Get.offAll(() => const LoginWithMobileScreen());
       } else {
         CustomToast.error(
-          "Logout failed: ${response.statusCode} ${response.reasonPhrase}",
+          "Logout failed  ${response.reasonPhrase}",
         );
       }
     } catch (e) {
-      debugPrint("Logout Error: $e");
+      debugPrint("Logout Error  ");
       CustomToast.error("Something went wrong");
     } finally {
       isLoading.value = false;

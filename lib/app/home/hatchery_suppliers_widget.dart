@@ -7,8 +7,8 @@ import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/model/brood_stock_model.dart';
 
 class HatcherySuppliersWidget extends StatelessWidget {
-  const HatcherySuppliersWidget({super.key});
-
+   HatcherySuppliersWidget({super.key});
+final DashboardController dashboardController = DashboardController();
   @override
   Widget build(BuildContext context) {
     final dashboardCtrl = Get.find<DashboardController>();
@@ -24,7 +24,7 @@ class HatcherySuppliersWidget extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    "Hatchery & Suppliers",
+                    "Hatchery / Broodstock",
                     style: GoogleFonts.roboto(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -32,6 +32,7 @@ class HatcherySuppliersWidget extends StatelessWidget {
                   ),
                   TextButton(
                     onPressed: () {
+                      print('taped');
                       dashboardCtrl.changeIndex(2);
                     },
                     child: Text(
@@ -45,12 +46,31 @@ class HatcherySuppliersWidget extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
+               (broodStockController.homeBroodStocks.length ?? 0) == 0
+                  ? Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          'No hatchery / broodstock found',
+                          style: TextStyle(fontSize:13),
+                        ),
+                      ),
+                  )
+                  :
               Column(
-                children: List.generate(
+                children: 
+                 List.generate(
                   broodStockController.homeBroodStocks.length,
                   (index) {
                     final data = broodStockController.homeBroodStocks[index];
-                    return _buildHatcheryCard(data);
+                    return InkWell(
+                      onTap: () {
+                        print('working');
+                        dashboardCtrl.changeIndex(2);
+                      },
+                      child: _buildHatcheryCard(data),
+                    );
                   },
                 ),
               ),
@@ -78,14 +98,14 @@ class HatcherySuppliersWidget extends StatelessWidget {
                   top: Radius.circular(15),
                 ),
                 child: Image.network(
-                  data.images.isNotEmpty ? data.images[0] : '',
+                  data.image,
                   height: 160,
                   width: double.infinity,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) => Container(
                     height: 160,
                     color: Colors.grey[300],
-                    child: const Center(child: Icon(Icons.broken_image)),
+                    // child: const Center(child: Icon(Icons.broken_image)),
                   ),
                 ),
               ),
@@ -98,13 +118,13 @@ class HatcherySuppliersWidget extends StatelessWidget {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.7),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     data.availableOn,
                     style: GoogleFonts.roboto(
-                      color: Colors.white,
+                      color: Colors.black,
                       fontSize: 12,
                     ),
                   ),
@@ -112,9 +132,9 @@ class HatcherySuppliersWidget extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 20),
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.only(left: 8),
             child: Text(
               data.packingStart,
               style: GoogleFonts.roboto(
@@ -125,18 +145,21 @@ class HatcherySuppliersWidget extends StatelessWidget {
           ),
           // const SizedBox(height: 8),
           Padding(
-            padding: const EdgeInsets.all(14.0),
+            padding: const EdgeInsets.all(8.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  data.hatcheryName,
-                  style: GoogleFonts.roboto(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                if (data.hatcheryName.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, bottom: 4),
+                    child: Text(
+                      data.hatcheryName,
+                      style: GoogleFonts.roboto(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
                 // Row(
                 //   children: [
                 //     const Icon(Icons.location_on, color: Colors.grey, size: 16),
@@ -152,9 +175,9 @@ class HatcherySuppliersWidget extends StatelessWidget {
                 //   data.category.map((e) => e.capitalizeFirst ?? e).join(', '),
                 //   style: GoogleFonts.roboto(fontWeight: FontWeight.w500),
                 // ),
-                const SizedBox(height: 4),
+                // const SizedBox(height: 4),
                 Text(
-                  'Imported Date: ${data.importedDate??''}',
+                  'Imported Date: ${data.importedDate ?? ''}',
                   style: GoogleFonts.roboto(color: Colors.grey),
                 ),
                 const SizedBox(height: 8),

@@ -24,7 +24,7 @@ class _TrendingUpdatesScreenState extends State<TrendingUpdatesScreen> {
   @override
   void initState() {
     super.initState();
-    newsSpecificController.fetch('trending updates');
+    newsSpecificController.fetch('trending update');
     // Initialize controller in initState
     // _controller =
     //     VideoPlayerController.asset('assets/images/video_20250921_103157.mp4')
@@ -42,7 +42,7 @@ class _TrendingUpdatesScreenState extends State<TrendingUpdatesScreen> {
       await rootBundle.load('assets/images/video_20250921_103157.mp4');
       debugPrint("Asset exists and loaded");
     } catch (e) {
-      debugPrint("Asset not found: $e");
+      debugPrint("Asset not found  ");
     }
   }
 
@@ -119,31 +119,73 @@ class _TrendingUpdatesScreenState extends State<TrendingUpdatesScreen> {
                         .value
                         ?.data?[index];
                     if (data?.mediaType == "image") {
-                      return GestureDetector(
-                        onTap: () {},
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
-                            data?.mediaPath ?? "",
-                            width: double.infinity,
-                            height: 180,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return SizedBox();
-                            },
-                          ),
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 5,bottom: 5),
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6, bottom: 6),
+                              child: GestureDetector(
+                                onTap: () {},
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    data?.mediaPath ?? "",
+                                    width: double.infinity,
+                                    height: 180,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return SizedBox();
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                data?.title ?? '',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       );
                     } else if (data?.mediaType == "video") {
-                      return GestureDetector(
-                        onTap: () {
-                          Get.to(
-                            () => FullScreenVideoPlayer(
-                              videoUrl: data?.mediaPath ?? '',
+                      return  Padding(
+                        padding: const EdgeInsets.only(top: 5,bottom: 5),
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6, bottom: 6),
+                              child: GestureDetector(
+                                onTap: () {
+                                  Get.to(
+                                    () => FullScreenVideoPlayer(
+                                      videoUrl: data?.mediaPath ?? '',
+                                    ),
+                                  );
+                                },
+                                child: VideoPlayerBanner(
+                                  url: data?.mediaPath ?? '',
+                                ),
+                              ),
                             ),
-                          );
-                        },
-                        child: VideoPlayerBanner(url: data?.mediaPath ?? ''),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                data?.title ?? '',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       );
                     } else {
                       return const SizedBox.shrink();

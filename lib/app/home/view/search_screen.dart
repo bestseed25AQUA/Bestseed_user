@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/controller/filter_controller.dart';
+import 'package:seedsuser/app/home/controller/home_controller.dart';
+import 'package:seedsuser/app/home/controller/location_controller.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class SearchScreen extends StatefulWidget {
@@ -14,6 +16,7 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
 
   // Voice
   late stt.SpeechToText _speech;
@@ -26,6 +29,9 @@ class _SearchScreenState extends State<SearchScreen> {
   // Multiple selection sets
   final RxSet<int> selectedCategoryIds = <int>{}.obs;
   final RxSet<int> selectedLocationIds = <int>{}.obs;
+  final RxSet<int> selectedBrandIds = <int>{}.obs;
+  final HomeController _homeController = Get.put(HomeController());
+  final LocationController _locationController = Get.put(LocationController());
 
   @override
   void initState() {
@@ -65,6 +71,13 @@ class _SearchScreenState extends State<SearchScreen> {
                       elevation: 6,
                       borderRadius: BorderRadius.circular(12),
                       child: TextField(
+                        focusNode: _focusNode,
+                        onTapOutside: (event) {
+                          _focusNode.unfocus();
+                        },
+                        onChanged: (value) {
+                          setState(() {});
+                        },
                         controller: _searchController,
                         decoration: InputDecoration(
                           filled: true,
@@ -93,8 +106,8 @@ class _SearchScreenState extends State<SearchScreen> {
                             ],
                           ),
                           contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
+                            // horizontal: 16,
+                            // vertical: 8,
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -114,16 +127,40 @@ class _SearchScreenState extends State<SearchScreen> {
                 title: "Category",
                 items: _filterController.categories
                     .map((e) => e.categoryName)
+                    .toList()
+                    .where(
+                      (item) =>
+                          item.toLowerCase().contains(_searchController.text),
+                    )
                     .toList(),
                 ids: _filterController.categories.map((e) => e.id).toList(),
                 selectedIds: selectedCategoryIds,
               ),
-
+              //  BRAND SECTION ADDED HERE
+              _buildDynamicSection(
+                title: "Brand",
+                items: _homeController.brands
+                    .map((e) => e.brandName)
+                    .toList()
+                    .where(
+                      (item) => item.toLowerCase().contains(
+                        _searchController.text.toLowerCase(),
+                      ),
+                    )
+                    .toList(),
+                ids: _homeController.brands.map((e) => e.id).toList(),
+                selectedIds: selectedBrandIds,
+              ),
               // Dynamic Location Section
               _buildDynamicSection(
                 title: "Location",
                 items: _filterController.locations
-                    .map((e) => e.locationName)
+                    .map((e) => e.title)
+                    .toList()
+                    .where(
+                      (item) =>
+                          item.toLowerCase().contains(_searchController.text),
+                    )
                     .toList(),
                 ids: _filterController.locations.map((e) => e.id).toList(),
                 selectedIds: selectedLocationIds,
@@ -205,18 +242,24 @@ class _SearchScreenState extends State<SearchScreen> {
 
     final selectedLocs = _filterController.locations
         .where((l) => selectedLocationIds.contains(l.id))
-        .map((l) => l.locationName)
+        .map((l) => l.title)
+        .toList();
+
+    final selectedBrands = _homeController.brands
+        .where((b) => selectedBrandIds.contains(b.id))
+        .map((b) => b.brandName)
         .toList();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          "Applied Filters:\nCategories: ${selectedCats.join(', ')}\nLocations: ${selectedLocs.join(', ')}",
+          "Applied Filters:\nCategories: ${selectedCats.join(', ')}\nBrands: ${selectedBrands.join(', ')}\nLocations: ${selectedLocs.join(', ')}",
         ),
       ),
     );
 
     print("Selected Category IDs: $selectedCategoryIds");
+    print("Selected Brand IDs: $selectedBrandIds");
     print("Selected Location IDs: $selectedLocationIds");
   }
 

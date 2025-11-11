@@ -41,10 +41,10 @@ class AuthController extends GetxController {
         isOtpSent.value = true;
         CustomToast.success("OTP sent successfully!");
       } else {
-        CustomToast.error("Server error: ${response.statusCode}");
+        CustomToast.error("Server error ");
       }
     } catch (e, s) {
-      debugPrint("Send OTP Error: $e");
+      debugPrint("Send OTP Error  ");
       debugPrint("Send OTP Error: $s");
       Get.snackbar("Error", e.toString());
     } finally {

@@ -39,10 +39,10 @@ class NewsAdsController extends GetxController {
           newsAdsData.value = AllNewsModel.fromJson(data);
         }
       } else {
-        CustomToast.error("Failed to fetch: ${response.statusCode}");
+        CustomToast.error("Failed to fetch ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;
     }

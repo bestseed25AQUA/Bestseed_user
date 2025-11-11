@@ -71,7 +71,7 @@ class _ContactUsPageState extends State<ContactUsPage> {
   //       print("Could not open WhatsApp.");
   //     }
   //   } catch (e) {
-  //     print("Error launching WhatsApp: $e");
+  //     print("Error launching WhatsApp  ");
   //   } finally {
   //     // Add a small delay before resuming to ensure the external app has opened
   //     await Future.delayed(const Duration(seconds: 1));
@@ -90,7 +90,7 @@ class _ContactUsPageState extends State<ContactUsPage> {
   //       print("Could not launch phone call.");
   //     }
   //   } catch (e) {
-  //     print("Error launching phone call: $e");
+  //     print("Error launching phone call  ");
   //   } finally {
   //     // Add a small delay before resuming to ensure the external app has opened
   //     await Future.delayed(const Duration(seconds: 1));

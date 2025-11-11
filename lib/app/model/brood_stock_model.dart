@@ -40,8 +40,9 @@ class BroodstockData {
   final String vendorAddress;
   final String latitude;
   final String longitude;
-  final List<String> images;
+  final String image;
   final String importedDate;
+  final List<String> images;
 
   BroodstockData({
     required this.id,
@@ -55,8 +56,9 @@ class BroodstockData {
     required this.vendorAddress,
     required this.latitude,
     required this.longitude,
-    required this.images,
+    required this.image,
     required this.importedDate,
+    required this.images,
   });
 
   factory BroodstockData.fromJson(Map<String, dynamic> json) {
@@ -72,10 +74,14 @@ class BroodstockData {
       vendorAddress: json['vendor']?['vendor_address'] ?? '',
       latitude: json['vendor']?['latitude'] ?? '',
       longitude: json['vendor']?['longitude'] ?? '',
-      images: (json['images'] as List<dynamic>? ?? [])
-          .map((e) => e.toString())
-          .toList(),
+      image: json['image'] ?? '',
       importedDate: json['imported_date'] ?? '',
+      images: List.generate(
+        (json['images'] != null && json['images'].runtimeType == List)
+            ? json['images'].length
+            : 0,
+        (index) => json['images'][index].toString(),
+      ),
     );
   }
 
@@ -94,6 +100,6 @@ class BroodstockData {
       'latitude': latitude,
       'longitude': longitude,
     },
-    'images': images,
+    'images': image,
   };
 }

@@ -33,10 +33,10 @@ class SingleNewDetailController extends GetxController {
         final data = json.decode(response.body);
         singleDetailData.value = SingleNewsDetailModel.fromJson(data);
       } else {
-        CustomToast.error("Failed to fetch: ${response.statusCode}");
+        CustomToast.error("Failed to fetch ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;
     }

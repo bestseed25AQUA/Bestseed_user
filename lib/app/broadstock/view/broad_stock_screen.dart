@@ -3,8 +3,10 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_dropdown.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/model/brood_stock_model.dart';
+import 'package:seedsuser/app/model/category_model.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
 
@@ -81,8 +83,13 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                 const SizedBox(height: 16),
                 if (controller.filteredBroodStocks.isEmpty)
                   Padding(
-                    padding: EdgeInsets.only(top: MediaQuery.of(context).size.height*.2),
-                    child: const Center(child: Text('No brood stock available.')))
+                    padding: EdgeInsets.only(
+                      top: MediaQuery.of(context).size.height * .2,
+                    ),
+                    child: const Center(
+                      child: Text('No brood stock available.'),
+                    ),
+                  )
                 else
                   ListView.builder(
                     shrinkWrap: true,
@@ -165,47 +172,47 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
   Widget _buildFilterSection() {
     return Row(
       children: [
+        // ✅ Category Dropdown
         Expanded(
           child: Obx(
             () => controller.categories.isEmpty
                 ? const Center(child: CircularProgressIndicator())
-                : _buildDropdownButton(
-                    controller.selectedCategory.value?.categoryName ??
-                        "Select Category",
-                    controller.categories.map((e) => e.categoryName).toList(),
-                    (newValue) {
-                      final cat = controller.categories.firstWhere(
-                        (e) => e.categoryName == newValue,
-                      );
+                : CustomDropdown<Category>(
+                    selectedValue: controller.selectedCategory.value,
+                    items: controller.categories,
+                    itemLabel: (cat) => cat.categoryName,
+                    hintText: "Select Category",
+                    onChanged: (cat) {
                       controller.onCategoryChanged(cat);
                     },
                   ),
           ),
         ),
+
         const SizedBox(width: 16),
+
+        // ✅ Month Year Dropdown
         Expanded(
-          child: Obx(() {
-            return _buildDropdownButton(
-              selectedMonthYear.value,
-              getPastMonths(12),
-              (newValue) {
-                if (newValue != null) {
-                  selectedMonthYear.value = newValue;
+          child: Obx(
+            () => CustomDropdown<String>(
+              selectedValue: selectedMonthYear.value,
+              items: getPastMonths(12),
+              itemLabel: (month) => month,
+              hintText: "Select Month/Year",
+              onChanged: (monthYear) {
+                selectedMonthYear.value = monthYear;
 
-                  // 🔹 Extract month & year from string (e.g. "Oct 2025")
-                  final parts = newValue.split(' ');
-                  if (parts.length == 2) {
-                    final monthName = parts[0];
-                    final year = parts[1];
-                    final month = monthName.toLowerCase();
-
-                    // 🔹 Call controller function to refresh data
-                    controller.onMonthYearChanged(month, year);
-                  }
+                // 🔹 Extract month & year
+                final parts = monthYear.split(' ');
+                if (parts.length == 2) {
+                  controller.onMonthYearChanged(
+                    parts[0].toLowerCase(),
+                    parts[1],
+                  );
                 }
               },
-            );
-          }),
+            ),
+          ),
         ),
       ],
     );
@@ -250,6 +257,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
   Widget _buildHatcheryCard(BroodstockData data) {
     return Card(
       elevation: 3,
+      color: Colors.white,
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Column(
@@ -263,7 +271,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                   top: Radius.circular(15),
                 ),
                 child: Image.network(
-                  data.images.isNotEmpty ? data.images[0] : '',
+                  data.images.isNotEmpty ?? false ? data.images[0] : '',
                   height: 160,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -283,13 +291,13 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.7),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     data.availableOn,
                     style: GoogleFonts.roboto(
-                      color: Colors.white,
+                      color: Colors.black,
                       fontSize: 12,
                     ),
                   ),
@@ -299,7 +307,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
           ),
           const SizedBox(height: 10),
           Padding(
-            padding: const EdgeInsets.only(left: 12,),
+            padding: const EdgeInsets.only(left: 12),
             child: Text(
               data.packingStart,
               style: GoogleFonts.roboto(
@@ -307,7 +315,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-          ), 
+          ),
           Padding(
             padding: const EdgeInsets.all(14.0),
             child: Column(
@@ -321,6 +329,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
+
                 // Row(
                 //   children: [
                 //     const Icon(Icons.location_on, color: Colors.grey, size: 16),
@@ -336,10 +345,8 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                 //   data.category.map((e) => e.capitalizeFirst ?? e).join(', '),
                 //   style: GoogleFonts.roboto(fontWeight: FontWeight.w500),
                 // ),
-
                 const SizedBox(height: 4),
-               Text(
-                  'Imported Date: ${data.importedDate??''}',),
+                Text('Imported Date: ${data.importedDate ?? ''}'),
                 const SizedBox(height: 8),
                 Text(
                   'Available Quantity',

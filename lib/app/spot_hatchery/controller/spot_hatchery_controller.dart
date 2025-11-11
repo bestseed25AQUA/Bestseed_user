@@ -18,7 +18,6 @@ class SpotHatcheryController extends GetxController {
   Future<void> fetchSpotHatcheries() async {
     try {
       isLoading.value = true;
-
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/spot-hatcheries",
         headers: await buildHeader(),
@@ -37,10 +36,10 @@ class SpotHatcheryController extends GetxController {
           CustomToast.error("No banners found.");
         }
       } else {
-        CustomToast.error("Failed to fetch banners: ${response.statusCode}");
+        CustomToast.error("Failed to fetch banners ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong");
     } finally {
       isLoading.value = false;
     }

@@ -45,10 +45,10 @@ class FilterController extends GetxController {
         final List<dynamic> locList = data['locations'];
         locations.assignAll(locList.map((e) => Location.fromJson(e)).toList());
       } else {
-        CustomToast.error("Failed to fetch locations: ${response.statusCode}");
+        CustomToast.error("Failed to fetch locations ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;
     }
@@ -67,10 +67,10 @@ class FilterController extends GetxController {
         final List<dynamic> catList = data['categories'];
         categories.assignAll(catList.map((e) => Category.fromJson(e)).toList());
       } else {
-        CustomToast.error("Failed to fetch categories: ${response.statusCode}");
+        CustomToast.error("Failed to fetch categories ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;
     }
@@ -92,10 +92,10 @@ class FilterController extends GetxController {
         final data = jsonDecode(response.body);
         priceModel.value = PriceModel.fromJson(data);
       } else {
-        CustomToast.error("Failed to fetch prices: ${response.statusCode}");
+        CustomToast.error("Failed to fetch prices ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;
     }

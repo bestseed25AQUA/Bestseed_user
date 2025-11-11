@@ -39,7 +39,7 @@ class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer> {
         }
       });
     } catch (e) {
-      debugPrint("Video load error: $e");
+      debugPrint("Video load error  ");
       setState(() {
         _hasError = true;
         _isLoading = false;

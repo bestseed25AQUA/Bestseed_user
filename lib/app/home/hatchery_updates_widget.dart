@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
-import 'package:seedsuser/app/dashboard/dashboard_controller.dart'; 
+import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
 
 class HatcheryUpdatesWidget extends StatelessWidget {
@@ -44,24 +44,42 @@ class HatcheryUpdatesWidget extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Obx(() {
-          return SizedBox(
-            height:
-                204, // Set a fixed height for the horizontal scrollable list
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount:
-                  hatcheryController.hatcheryData.value?.data?.length ??
-                  0, // Number of hatchery cards to display
-              itemBuilder: (context, index) {
-                final data =
-                    hatcheryController.hatcheryData.value?.data?[index];
-                return _buildHatcheryCard(
-                  imagePath: data?.profileImage ?? '',
-                  hatcheryName: data?.hatcheryName ?? '',
+          return (hatcheryController.hatcheryHomeData.value?.data.length ??
+                      0) ==
+                  0
+              ? Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      'No hathcery updates found',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                )
+              : SizedBox(
+                  height: 204,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount:
+                        hatcheryController
+                            .hatcheryHomeData
+                            .value
+                            ?.data
+                            .length ??
+                        0,
+                    itemBuilder: (context, index) {
+                      final data = hatcheryController
+                          .hatcheryHomeData
+                          .value
+                          ?.data[index];
+                      return _buildHatcheryCard(
+                        imagePath: data?.profileImage ?? '',
+                        hatcheryName: data?.hatcheryName ?? '',
+                      );
+                    },
+                  ),
                 );
-              },
-            ),
-          );
         }),
       ],
     );

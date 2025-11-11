@@ -133,29 +133,33 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
   @override
   Widget build(BuildContext context) {
     return _controller.value.isInitialized
-        ? Stack(
-            children: [
-              SizedBox(
-                height: 160,
-                width: double.infinity,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: AspectRatio(
-                    aspectRatio: _controller.value.aspectRatio,
-                    child: VideoPlayer(_controller),
+        ? SizedBox(
+        height: 160,
+        width: double.infinity,
+          child: Stack(
+              children: [
+                SizedBox(
+                  height: 160,
+                  width: double.infinity,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: AspectRatio(
+                      aspectRatio: _controller.value.aspectRatio,
+                      child: VideoPlayer(_controller),
+                    ),
                   ),
                 ),
-              ),
-
-              Center(
-                child: Icon(
-                  Icons.play_circle_fill,
-                  color: Colors.white,
-                  size: 70,
+          
+                Center(
+                  child: Icon(
+                    Icons.play_circle_fill,
+                    color: Colors.white,
+                    size: 70,
+                  ),
                 ),
-              ),
-            ],
-          )
+              ],
+            ),
+        )
         : Container(
             height: 160,
             decoration: BoxDecoration(

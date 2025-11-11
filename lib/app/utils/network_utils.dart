@@ -95,7 +95,9 @@ Future<http.Response> getRequest({
         );
 
     debugPrint('getRequest params: $params');
-    debugPrint('getRequest URL: $endPoint');
+    debugPrint('headers : $headers');
+    debugPrint('getRequest URL  ndPoint');
+    debugPrint('getRequest status code ');
     debugPrint('getRequest body ${response.body}');
     return response;
   } catch (e) {
@@ -115,7 +117,7 @@ Future<String> getImage({required String endPoint, String? params}) async {
         );
 
     debugPrint('getRequest params: $params');
-    debugPrint('getRequest URL: $endPoint');
+    debugPrint('getRequest URL  ndPoint');
     debugPrint('getRequest body ${response.body}');
     return jsonDecode(response.body);
   } catch (e) {
@@ -209,6 +211,54 @@ Future<Response> uploadFile({
   print(picBody);
 
   return response;
+}
+
+Future<http.StreamedResponse> multipartPostRequest({
+  required String endPoint,
+  Map<String, String>? fields,
+  Map<String, String>? headers,
+  List<String>? imagePaths, // file paths
+  String imageFieldKey = "farm_image[]", // key for image array
+}) async {
+  try {
+    debugPrint('multipartPostRequest URL  ndPoint');
+    debugPrint('Fields: $fields');
+    debugPrint('Images: $imagePaths');
+
+    var request = http.MultipartRequest("POST", Uri.parse(endPoint));
+    print('after request');
+ 
+    if (fields != null) {
+      request.fields.addAll(fields);
+    }
+ 
+    if (headers != null) {
+      request.headers.addAll(headers);
+    }
+    print('after header');
+ 
+    if (imagePaths != null && imagePaths.isNotEmpty) {
+      for (String path in imagePaths) {
+        request.files.add(
+          await http.MultipartFile.fromPath(imageFieldKey, path),
+        );
+      }
+    }
+    print('after imagepath');
+ 
+    var streamedResponse = await request.send().timeout(
+      const Duration(seconds: 30),
+      onTimeout: () =>
+          throw TimeoutException("Request Timeout, please try again."),
+    );
+
+    return streamedResponse;
+  } catch (e, s) {
+    debugPrint("-----multipartPostRequest Error------");
+    debugPrint("$e");
+    debugPrint("$s");
+    rethrow;
+  }
 }
 
 Future<http.Response> deleteRequest({

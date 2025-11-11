@@ -2,26 +2,24 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+// ignore: depend_on_referenced_packages
 import 'package:http/http.dart' as http;
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/controller/location_controller.dart';
 import 'package:seedsuser/app/home/filter_bottom_sheet.dart';
-import 'package:seedsuser/app/home/view/home_screen.dart';
 import 'package:seedsuser/app/home/view/search_screen.dart';
 import 'package:seedsuser/app/home/view/location_selection_screen.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
+import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
 
 // ignore: must_be_immutable
-class HomeAppBar extends StatefulWidget {
-  String currentCity;
-  String currentStreet;
+class HomeAppBar extends StatefulWidget { 
 
   HomeAppBar({
-    super.key,
-    required this.currentCity,
-    required this.currentStreet,
+    super.key, 
   });
 
   @override
@@ -29,34 +27,34 @@ class HomeAppBar extends StatefulWidget {
 }
 
 class _HomeAppBarState extends State<HomeAppBar> {
-  String? temperature; // 🌡️ Holds temperature value
-  String? weatherIconUrl; // ☁️ Holds weather icon
-
-  // 🔑 Replace with your OpenWeatherMap API key
+  String? temperature;
+  String? weatherIconUrl;
   final String apiKey = "795e8d7e804a07ee8a5b617e45bac8e4";
+
+  final _locationController = Get.find<LocationController>();
+  final _homeController = Get.find<HomeController>();
+  final _profileController = Get.find<ProfileController>();
 
   @override
   void initState() {
     super.initState();
 
-    // Run after first frame (ensures widget.currentCity is ready)
+    // Listen for location changes
+    ever(_locationController.selectedCity, (city) {
+      if (city.isNotEmpty) {
+        fetchWeather(city);
+      }
+    });
+
+    // Fetch weather for current city if available
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.currentCity.isNotEmpty) {
-        fetchWeather(widget.currentCity);
-      } else {
-        print("City name empty — waiting for location selection");
+      if (_locationController.selectedCity.value.isNotEmpty) {
+        fetchWeather(_locationController.selectedCity.value);
       }
     });
   }
 
-  @override
-  void didUpdateWidget(covariant HomeAppBar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.currentCity != widget.currentCity &&
-        widget.currentCity.isNotEmpty) {
-      fetchWeather(widget.currentCity);
-    }
-  }
+  // Remove didUpdateWidget since we're not using widget parameters anymore
 
   /// 🌤️ Fetch weather based on city name
   Future<void> fetchWeather(String cityName) async {
@@ -65,7 +63,6 @@ class _HomeAppBarState extends State<HomeAppBar> {
     try {
       final url =
           'https://api.openweathermap.org/data/2.5/weather?q=$cityName&appid=$apiKey&units=metric';
-
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
@@ -81,11 +78,10 @@ class _HomeAppBarState extends State<HomeAppBar> {
         print("Weather fetch failed: ${response.body}");
       }
     } catch (e) {
-      print("Weather fetch error: $e");
+      print("Weather fetch error  ");
     }
   }
 
-  final _locationController = Get.put(LocationController());
   @override
   Widget build(BuildContext context) {
     return SliverAppBar(
@@ -111,6 +107,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                           // Weather icon (from OpenWeatherMap)
                           InkWell(
                             onTap: () {
+                              print(_locationController.selectedLocationId);
                               print(_locationController.selectedLatiude.value);
                               print(
                                 _locationController.selectedLongitude.value,
@@ -147,32 +144,57 @@ class _HomeAppBarState extends State<HomeAppBar> {
                         ],
                       )
                     else
-                      Image.asset(
-                        'assets/images/wheather.png',
-                        height: 40,
-                        width: 47,
+                      InkWell(
+                        onTap: () {
+                          print('=================');
+                          print(
+                            'location id = ${_locationController.selectedLocationId}',
+                          );
+                          print(
+                            'category id = ${_homeController.selectedCategoryId.value}',
+                          );
+                          print(
+                            'farmer id = ${_profileController.profile.value?.id.toString() ?? ''}',
+                          );
+                        },
+                        child: Image.asset(
+                          'assets/images/wheather.png',
+                          height: 40,
+                          width: 47,
+                        ),
                       ),
 
                     const SizedBox(width: 4),
-                    // 📍 Location display
                     Obx(() {
+                      String? raw = _locationController.selectedCity.value;
+
+                      // Default fallback when null or empty
+                      if (raw == null || raw.trim().isEmpty) {
+                        raw = "Select Location";
+                      }
+
+                      // Safe split without crash
+                      List<String> parts = raw
+                          .split(",")
+                          .map((e) => e.trim())
+                          .where((e) => e.isNotEmpty)
+                          .toList();
+                      String line1 = parts.isNotEmpty ? parts[0] : raw;
+                      String line2 = parts.length > 1 ? parts[1] : "";
+
                       return Expanded(
                         child: InkWell(
                           onTap: () async {
-                            final result = await Get.to(
-                              () => const LocationSelectionScreen(),
-                            );
+                            await Get.to(() => const LocationSelectionScreen());
 
-                            // if (result != null) {
-                            //   setState(() {
-                            //     widget.currentCity = result['city'];
-                            //     widget.currentStreet = result['street'];
-                            //   });
-
-                            // }
-                            fetchWeather(
-                              _locationController.selectedCity.value,
-                            );
+                            //  Safe API call
+                            if (_locationController.selectedCity.value
+                                .trim()
+                                .isNotEmpty) {
+                              fetchWeather(
+                                _locationController.selectedCity.value,
+                              );
+                            }
                           },
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,35 +204,42 @@ class _HomeAppBarState extends State<HomeAppBar> {
                                   const Icon(
                                     Icons.location_on_outlined,
                                     color: Colors.white,
-                                    size: 18,
+                                    size: 15,
                                   ),
                                   const SizedBox(width: 4),
+
+                                  //  Two line safe text
                                   Expanded(
-                                    child: Text(
-                                      _locationController.selectedCity.value,
-                                      style: GoogleFonts.roboto(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          line1,
+                                          style: GoogleFonts.roboto(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+
+                                        if (line2.isNotEmpty)
+                                          Text(
+                                            line2,
+                                            style: GoogleFonts.roboto(
+                                              color: Colors.white70,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                      ],
                                     ),
                                   ),
                                 ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                // widget.currentStreet.isNotEmpty
-                                //     ? widget.currentStreet
-                                //     : "Fetching current area...",
-                                _locationController.selectedStreet.value,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.roboto(
-                                  color: Colors.white.withOpacity(0.9),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w400,
-                                ),
                               ),
                             ],
                           ),

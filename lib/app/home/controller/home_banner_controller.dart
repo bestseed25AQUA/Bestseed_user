@@ -32,10 +32,10 @@ class HomeBannerController extends GetxController {
           banners.assignAll(model.banners);
         }
       } else {
-        CustomToast.error("Failed to fetch profile: ${response.statusCode}");
+        CustomToast.error("Failed to fetch profile ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong: $e");
+      CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;
     }
