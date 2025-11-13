@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
+import 'package:seedsuser/app/model/location_model.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
 
 class LocationController extends GetxController {
+
   var allLocationLoading = false.obs;
 
   /// Store all locations list
@@ -37,7 +40,6 @@ class LocationController extends GetxController {
 
         if (data["status"] == true && data["data"] != null) {
           allLocations.assignAll(List<Map<String, dynamic>>.from(data['data']));
-
           // if (allLocations.isNotEmpty) {
           //   selectedLocation.assignAll(allLocations.first);
           //   selectedCity.value = selectedLocation["location_name"] ?? "";
@@ -101,7 +103,7 @@ class LocationController extends GetxController {
       final body = <String, dynamic>{
         // backend may accept latitude/longitude but location_name is required
         "location_name": locationName,
-        "full_address": fullAddress
+        "full_address": fullAddress,
       };
 
       if (latitude != null) body["latitude"] = latitude;
@@ -180,11 +182,11 @@ class LocationController extends GetxController {
 
   /// ✅ Set Default Location
   Future<void> setDefaultLocation(String locationId) async {
-    String url = "${NetworkConfig.baseURL}/farmer/locations/set-default/$locationId"; 
+    String url =
+        "${NetworkConfig.baseURL}/farmer/locations/set-default/$locationId";
     try {
       final response = await postRequest(
-        endPoint:
-          url  ,
+        endPoint: url,
         headers: await buildHeader(),
       );
 
@@ -226,12 +228,18 @@ class LocationController extends GetxController {
         selectedFullAddress.value = (data["subtitle"]?.toString() ?? "");
         selectedLocationId.value = data["id"]?.toString() ?? '';
       } else {
-         CustomToast.error("Failed to fetch default location");
+        selectedLocation.assignAll({});
+        selectedLatiude.value = "";
+        selectedLongitude.value = "";
+        selectedCity.value = "Madhapur, Hydrabad";
+        selectedFullAddress.value = "Madhapur, Hydrabad, Telangana";
+        selectedLocationId.value = '';
+        //  CustomToast.error("Failed to fetch default location");
       }
     } on FormatException catch (e) {
-        CustomToast.error("Failed to fetch default location");
+      CustomToast.error("Failed to fetch default location");
     } on Exception catch (e) {
-       CustomToast.error("Failed to fetch default location");
+      CustomToast.error("Failed to fetch default location");
     } catch (e) {
       CustomToast.error("Failed to fetch default location");
     }

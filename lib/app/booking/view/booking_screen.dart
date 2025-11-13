@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/controller/my_booking_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/model/my_booking_model.dart';
+import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 
 class MyBookingScreen extends StatefulWidget {
   const MyBookingScreen({super.key});
@@ -14,7 +15,14 @@ class MyBookingScreen extends StatefulWidget {
 
 class _MyBookingScreenState extends State<MyBookingScreen> {
   final MyBookingController controller = Get.put(MyBookingController());
+  final ProfileController profileController = Get.put(ProfileController());
   String selected = "Filter";
+
+  @override
+  void initState() {
+    super.initState();
+    controller.fetchBookings();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -97,8 +105,8 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
     );
   }
 
-  // 🔹 Each booking card
-  Widget _buildBookingCard(BuildContext context, Booking booking) {
+  // 🔹 Booking Card UI
+  Widget _buildBookingCard(BuildContext context, BookingData booking) {
     return Container(
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.only(bottom: 12),
@@ -117,7 +125,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildImageSection(booking),
+          _buildImageSection(), // No image in API, using placeholder
           const SizedBox(height: 12),
           _buildInfoSection(booking),
         ],
@@ -125,55 +133,26 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
     );
   }
 
-  // 🔹 Image or placeholder
-  Widget _buildImageSection(Booking booking) {
+  // 🔹 Always placeholder (API has no image field)
+  Widget _buildImageSection() {
     return SizedBox(
       height: 150,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: booking.mediaUrl != null && booking.mediaUrl!.isNotEmpty
-            ? Image.network(
-                booking.mediaUrl!,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => _placeholder(),
-              )
-            : _placeholder(),
+        child: Container(color: Colors.grey[300]),
       ),
     );
   }
 
-  Widget _placeholder() {
-    return Container(
-      color: Colors.grey[300],
-      child: Center(
-        child: Text(
-          'No Image',
-          style: GoogleFonts.roboto(color: Colors.black54),
-        ),
-      ),
-    );
-  }
-
-  // 🔹 Info layout
-  Widget _buildInfoSection(Booking booking) {
+  // 🔹 Info Section
+  Widget _buildInfoSection(BookingData booking) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          booking.hatcheryName,
+          booking.hatcheryName ?? "",
           style: GoogleFonts.roboto(fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 4),
-        if (booking.categories != null && booking.categories!.isNotEmpty)
-          Text(
-            booking.categories!,
-            style: GoogleFonts.roboto(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
-            ),
-          ),
         const SizedBox(height: 12),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,44 +161,63 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // _buildInfoRow(Icons.person, "Customer", booking.customerName),
-                  // const SizedBox(height: 12),
-                  // _buildInfoRow(Icons.phone, "Mobile", booking.customerMobile),
-                  // const SizedBox(height: 12),
+                  _buildInfoRow(
+                    Icons.person,
+                    "Customer",
+                    booking.customerName ?? "",
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoRow(
+                    Icons.phone,
+                    "Mobile",
+                    booking.customerMobile ?? "",
+                  ),
+                  const SizedBox(height: 12),
                   _buildInfoRow(
                     Icons.water_drop_outlined,
                     "Quantity",
                     "${booking.noOfPieces} pcs",
                   ),
-
                   const SizedBox(height: 12),
                   _buildInfoRow(
-                    Icons.location_on,
-                    "Delivery",
-                    booking.deliveryLocation,
+                    Icons.calendar_today,
+                    "Packing Date",
+                    formatDateDMY(booking.packingDate),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            // Expanded(
-            //   child: Column(
-            //     crossAxisAlignment: CrossAxisAlignment.start,
-            //     children: [
-            //       // _buildInfoRow(
-            //       //   Icons.calendar_today,
-            //       //   "Packing Date",
-            //       //   booking.packingDate,
-            //       // ),
-            //       // const SizedBox(height: 12),
-            //       _buildInfoRow(
-            //         Icons.location_on,
-            //         "Delivery",
-            //         booking.deliveryLocation,
-            //       ),
-            //     ],
-            //   ),
-            // ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildInfoRow(
+                    Icons.location_city,
+                    "Unit",
+                    booking.unit ?? "",
+                  ),
+                  const SizedBox(height: 12),
+                  // _buildInfoRow(
+                  //   Icons.location_pin,
+                  //   "Hatchery Location",
+                  //   booking.hatcheryLocation ?? "",
+                  // ),
+                  // const SizedBox(height: 12),
+                  _buildInfoRow(
+                    Icons.pin_drop,
+                    "Dropping Location",
+                    booking.droppingLocation ?? "",
+                  ),
+                  // const SizedBox(height: 12),
+                  // _buildInfoRow(
+                  //   Icons.access_time,
+                  //   "Created At",
+                  //   booking.createdAt ?? "",
+                  // ),
+                ],
+              ),
+            ),
           ],
         ),
       ],
@@ -234,7 +232,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            value,
+            value.isNotEmpty ? value : "",
             style: GoogleFonts.roboto(
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -243,5 +241,14 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
         ),
       ],
     );
+  }
+}
+
+String formatDateDMY(String dateString) {
+  try {
+    DateTime date = DateTime.parse(dateString);
+    return "${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}";
+  } catch (e) {
+    return ""; // return empty if error
   }
 }

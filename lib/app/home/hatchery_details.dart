@@ -355,7 +355,25 @@ class _HatcheryDetailState extends State<HatcheryDetail> {
                       Expanded(
                         child: InkWell(
                           onTap: () {
-                            showBookingBottomSheet(context);
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (BuildContext context) {
+                                return Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(20.0),
+                                    ),
+                                  ),
+                                  child: const BookingBottomSheet(
+                                    hatcheryId: '',
+                                    hatcheryName: '',
+                                  ),
+                                );
+                              },
+                            );
                           },
                           child: Container(
                             padding: EdgeInsets.symmetric(

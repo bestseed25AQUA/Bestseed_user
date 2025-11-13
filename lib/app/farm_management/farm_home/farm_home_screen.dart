@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/farm_management/farm_home/notify_us_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
-import 'package:seedsuser/app/farm_management/manager/manager_screen.dart';
+import 'package:seedsuser/app/farm_management/manager/view/manager_screen.dart';
 
 class FarmHomeScreen extends StatelessWidget {
   const FarmHomeScreen({super.key});
@@ -80,7 +80,7 @@ class FarmHomeScreen extends StatelessWidget {
                     _UserCard(
                       title: 'Manager',
                       onTap: () {
-                        Get.to(() => const ManagerScreen());
+                        Get.to(() =>   ManagerScreen());
                       },
 
                       imageAsset: 'assets/images/manager.png',

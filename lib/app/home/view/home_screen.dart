@@ -38,12 +38,11 @@ class _HomeScreenState extends State<HomeScreen>
     }
     _homeController.selectedCategoryId.value = '';
     _homeController.getHatcheries();
-     _homeController.getPricesForHome( 
-    );
+    _homeController.getPricesForHome();
     // _getCurrentLocation();
     /////
     // _homeController.getCategories();
-     
+
     // React to category updates
     ever(_homeController.categories, (_) {
       _initTabController();
@@ -57,7 +56,8 @@ class _HomeScreenState extends State<HomeScreen>
       profileController.profile.value?.id.toString() ?? '',
     );
     _homeController.changeHomeData(
-      '',_locationController.selectedLocationId.value,
+      '',
+      _locationController.selectedLocationId.value,
     );
   }
 

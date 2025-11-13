@@ -36,7 +36,7 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
 
   void _startFirstDelay() {
     // First banner stay for 30 sec
-    _sliderTimer = Timer(const Duration(seconds: 30), () {
+    _sliderTimer = Timer(const Duration(seconds: 50), () {
       _firstBannerDone = true;
       _startNormalAutoSlide();
     });

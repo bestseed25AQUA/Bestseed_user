@@ -1,87 +1,79 @@
 class MyBookingModel {
   final bool status;
   final String message;
-  final List<Booking> bookings;
+  final BookingData? data;
 
   MyBookingModel({
     required this.status,
     required this.message,
-    required this.bookings,
+    this.data,
   });
 
   factory MyBookingModel.fromJson(Map<String, dynamic> json) {
     return MyBookingModel(
       status: json['status'] ?? false,
       message: json['message'] ?? '',
-      bookings:
-          (json['bookings'] as List<dynamic>?)
-              ?.map((e) => Booking.fromJson(e))
-              .toList() ??
-          [],
+      data: json['data'] != null ? BookingData.fromJson(json['data']) : null,
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'status': status,
-    'message': message,
-    'bookings': bookings.map((e) => e.toJson()).toList(),
-  };
+        'status': status,
+        'message': message,
+        'data': data?.toJson(),
+      };
 }
 
-class Booking {
+class BookingData {
   final int bookingId;
   final String hatcheryName;
-  final String? categories;
   final String customerName;
   final String customerMobile;
+  final String unit;
   final int noOfPieces;
-  final String? droppingLocation;
+  final String droppingLocation;
   final String packingDate;
-  final String deliveryLocation;
-  final String mediaType;
-  final String? mediaUrl;
+  final String hatcheryLocation;
+  final String createdAt;
 
-  Booking({
+  BookingData({
     required this.bookingId,
     required this.hatcheryName,
-    this.categories,
     required this.customerName,
     required this.customerMobile,
+    required this.unit,
     required this.noOfPieces,
-    this.droppingLocation,
+    required this.droppingLocation,
     required this.packingDate,
-    required this.deliveryLocation,
-    required this.mediaType,
-    this.mediaUrl,
+    required this.hatcheryLocation,
+    required this.createdAt,
   });
 
-  factory Booking.fromJson(Map<String, dynamic> json) {
-    return Booking(
+  factory BookingData.fromJson(Map<String, dynamic> json) {
+    return BookingData(
       bookingId: json['booking_id'] ?? 0,
       hatcheryName: json['hatchery_name'] ?? '',
-      categories: json['categories'],
       customerName: json['customer_name'] ?? '',
       customerMobile: json['customer_mobile'] ?? '',
+      unit: json['unit'] ?? '',
       noOfPieces: json['no_of_pieces'] ?? 0,
-      droppingLocation: json['dropping_location'],
+      droppingLocation: json['dropping_location'] ?? '',
       packingDate: json['packing_date'] ?? '',
-      deliveryLocation: json['delivery_location'] ?? '',
-      mediaType: json['media_type'] ?? '',
-      mediaUrl: json['media_url'],
+      hatcheryLocation: json['hatchery_location'] ?? '',
+      createdAt: json['created_at'] ?? '',
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'booking_id': bookingId,
-    'hatchery_name': hatcheryName,
-    'categories': categories,
-    'customer_name': customerName,
-    'customer_mobile': customerMobile,
-    'no_of_pieces': noOfPieces,
-    'dropping_location': droppingLocation,
-    'packing_date': packingDate,
-    'delivery_location': deliveryLocation,
-    'media_type': mediaType,
-    'media_url': mediaUrl,
-  };
+        'booking_id': bookingId,
+        'hatchery_name': hatcheryName,
+        'customer_name': customerName,
+        'customer_mobile': customerMobile,
+        'unit': unit,
+        'no_of_pieces': noOfPieces,
+        'dropping_location': droppingLocation,
+        'packing_date': packingDate,
+        'hatchery_location': hatcheryLocation,
+        'created_at': createdAt,
+      };
 }

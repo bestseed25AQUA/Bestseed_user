@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
-import 'package:seedsuser/app/home/controller/filter_controller.dart';
-import 'package:seedsuser/app/home/controller/home_controller.dart';
-import 'package:seedsuser/app/home/controller/location_controller.dart';
+import 'package:seedsuser/app/home/view/hatchery_filter_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+
+// ⭐ NEW CONTROLLER ⭐
+import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -23,15 +24,17 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _isListening = false;
   String _voiceText = "";
 
-  // Controller
-  final FilterController _filterController = Get.find<FilterController>();
+  // ⭐ Replace old controllers with this controller
+  final FilterHatcheryController filterHatcheryController = Get.put(
+    FilterHatcheryController(),
+  );
 
-  // Multiple selection sets
-  final RxSet<int> selectedCategoryIds = <int>{}.obs;
-  final RxSet<int> selectedLocationIds = <int>{}.obs;
-  final RxSet<int> selectedBrandIds = <int>{}.obs;
-  final HomeController _homeController = Get.put(HomeController());
-  final LocationController _locationController = Get.put(LocationController());
+  // Multiple selection sets (UI purpose only)
+
+  // Show all toggles for each section (Category / Brand / Location)
+  final RxBool _showAllCategory = false.obs;
+  final RxBool _showAllBrand = false.obs;
+  final RxBool _showAllLocation = false.obs;
 
   @override
   void initState() {
@@ -40,227 +43,18 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Search"),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
-      body: Obx(() {
-        if (_filterController.isLoading.value &&
-            (_filterController.categories.isEmpty ||
-                _filterController.locations.isEmpty)) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Search bar
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(height: 60, color: AppColors.primary),
-                  Positioned(
-                    bottom: -28,
-                    left: 16,
-                    right: 16,
-                    child: Material(
-                      elevation: 6,
-                      borderRadius: BorderRadius.circular(12),
-                      child: TextField(
-                        focusNode: _focusNode,
-                        onTapOutside: (event) {
-                          _focusNode.unfocus();
-                        },
-                        onChanged: (value) {
-                          setState(() {});
-                        },
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          hintText: "Search...",
-                          prefixIcon: const Icon(Icons.search),
-                          suffixIcon: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_searchController.text.isNotEmpty)
-                                IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    setState(() => _searchController.clear());
-                                  },
-                                ),
-                              IconButton(
-                                icon: Icon(
-                                  _isListening ? Icons.mic_none : Icons.mic,
-                                  color: _isListening
-                                      ? Colors.red
-                                      : Colors.grey,
-                                ),
-                                onPressed: _toggleVoiceInput,
-                              ),
-                            ],
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            // horizontal: 16,
-                            // vertical: 8,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 40),
-
-              // Dynamic Category Section
-              _buildDynamicSection(
-                title: "Category",
-                items: _filterController.categories
-                    .map((e) => e.categoryName)
-                    .toList()
-                    .where(
-                      (item) =>
-                          item.toLowerCase().contains(_searchController.text),
-                    )
-                    .toList(),
-                ids: _filterController.categories.map((e) => e.id).toList(),
-                selectedIds: selectedCategoryIds,
-              ),
-              //  BRAND SECTION ADDED HERE
-              _buildDynamicSection(
-                title: "Brand",
-                items: _homeController.brands
-                    .map((e) => e.brandName)
-                    .toList()
-                    .where(
-                      (item) => item.toLowerCase().contains(
-                        _searchController.text.toLowerCase(),
-                      ),
-                    )
-                    .toList(),
-                ids: _homeController.brands.map((e) => e.id).toList(),
-                selectedIds: selectedBrandIds,
-              ),
-              // Dynamic Location Section
-              _buildDynamicSection(
-                title: "Location",
-                items: _filterController.locations
-                    .map((e) => e.title)
-                    .toList()
-                    .where(
-                      (item) =>
-                          item.toLowerCase().contains(_searchController.text),
-                    )
-                    .toList(),
-                ids: _filterController.locations.map((e) => e.id).toList(),
-                selectedIds: selectedLocationIds,
-              ),
-
-              const SizedBox(height: 80),
-            ],
-          ),
-        );
-      }),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _applyFilters,
-        label: const Text("Apply Filters"),
-        icon: const Icon(Icons.check),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      backgroundColor: Colors.white,
-    );
+  void dispose() {
+    _searchController.dispose();
+    _focusNode.dispose();
+    super.dispose();
   }
 
-  /// 🔹 Build section for categories/locations dynamically
-  Widget _buildDynamicSection({
-    required String title,
-    required List<String> items,
-    required List<int> ids,
-    required RxSet<int> selectedIds,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Obx(() {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: GoogleFonts.roboto(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: List.generate(items.length, (index) {
-                final id = ids[index];
-                final name = items[index];
-                final isSelected = selectedIds.contains(id);
-
-                return FilterChip(
-                  label: Text(name),
-                  selected: isSelected,
-                  onSelected: (bool selected) {
-                    if (selected) {
-                      selectedIds.add(id);
-                    } else {
-                      selectedIds.remove(id);
-                    }
-                  },
-                  selectedColor: Colors.blue.shade100,
-                  checkmarkColor: Colors.blue,
-                );
-              }),
-            ),
-          ],
-        );
-      }),
-    );
-  }
+  // ⭐ PART 3 — APPLY FILTERS + VOICE + CLOSE CLASS
 
   /// 🔹 Handle Apply Filters Action
   void _applyFilters() {
-    final selectedCats = _filterController.categories
-        .where((c) => selectedCategoryIds.contains(c.id))
-        .map((c) => c.categoryName)
-        .toList();
-
-    final selectedLocs = _filterController.locations
-        .where((l) => selectedLocationIds.contains(l.id))
-        .map((l) => l.title)
-        .toList();
-
-    final selectedBrands = _homeController.brands
-        .where((b) => selectedBrandIds.contains(b.id))
-        .map((b) => b.brandName)
-        .toList();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          "Applied Filters:\nCategories: ${selectedCats.join(', ')}\nBrands: ${selectedBrands.join(', ')}\nLocations: ${selectedLocs.join(', ')}",
-        ),
-      ),
-    );
-
-    print("Selected Category IDs: $selectedCategoryIds");
-    print("Selected Brand IDs: $selectedBrandIds");
-    print("Selected Location IDs: $selectedLocationIds");
+    filterHatcheryController.applyFilter();
+    Get.to(() => HatcheryFilterScreen());
   }
 
   /// 🔹 Voice Input Logic
@@ -289,5 +83,295 @@ class _SearchScreenState extends State<SearchScreen> {
       setState(() => _isListening = false);
       _speech.stop();
     }
+  }
+
+  List<String> filterList(List<String> list, String query) {
+    if (query.trim().isEmpty) return list;
+
+    return list
+        .where(
+          (item) => item.toLowerCase().contains(query.trim().toLowerCase()),
+        )
+        .toList();
+  }
+
+  List<Map<String, String>> filterItemsWithIds(
+    List<String> names,
+    List<String> ids,
+    String query,
+  ) {
+    List<Map<String, String>> combined = [];
+
+    for (int i = 0; i < names.length; i++) {
+      combined.add({"name": names[i], "id": ids[i]});
+    }
+
+    if (query.trim().isEmpty) return combined;
+
+    return combined
+        .where(
+          (e) => e["name"]!.toLowerCase().contains(query.trim().toLowerCase()),
+        )
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final categoryList = filterItemsWithIds(
+      filterHatcheryController.categories.map((e) => e.categoryName).toList(),
+      filterHatcheryController.categories.map((e) => e.id.toString()).toList(),
+      _searchController.text,
+    );
+
+    final brandList = filterItemsWithIds(
+      filterHatcheryController.brands.map((e) => e.brandName).toList(),
+      filterHatcheryController.brands.map((e) => e.id.toString()).toList(),
+      _searchController.text,
+    );
+
+    final locationList = filterItemsWithIds(
+      filterHatcheryController.locations
+          .map((e) => extractLastValue(e.locationName))
+          .toList(),
+      filterHatcheryController.locations.map((e) => e.id.toString()).toList(),
+      _searchController.text,
+    );
+    return WillPopScope(
+      onWillPop: () async {
+        filterHatcheryController.resetFilters();
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: const Text("Search"),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+        ),
+        body: Obx(() {
+          if (filterHatcheryController.isLoading.value &&
+              (filterHatcheryController.categories.isEmpty ||
+                  filterHatcheryController.locations.isEmpty ||
+                  filterHatcheryController.brands.isEmpty)) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Search bar
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(height: 60, color: AppColors.primary),
+                    Positioned(
+                      bottom: -28,
+                      left: 16,
+                      right: 16,
+                      child: Material(
+                        elevation: 6,
+                        borderRadius: BorderRadius.circular(12),
+                        child: TextField(
+                          focusNode: _focusNode,
+                          onTapOutside: (event) {
+                            _focusNode.unfocus();
+                          },
+                          onChanged: (value) {
+                            setState(() {});
+                          },
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white,
+                            hintText: "Search...",
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_searchController.text.isNotEmpty)
+                                  IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      setState(() => _searchController.clear());
+                                    },
+                                  ),
+                                IconButton(
+                                  icon: Icon(
+                                    _isListening ? Icons.mic_none : Icons.mic,
+                                    color: _isListening
+                                        ? Colors.red
+                                        : Colors.grey,
+                                  ),
+                                  onPressed: _toggleVoiceInput,
+                                ),
+                              ],
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 40),
+
+                // ⭐ CATEGORY SECTION
+                _buildDynamicSection(
+                  title: "Category",
+                  items: categoryList.map((e) => e["name"]!).toList(),
+                  ids: categoryList.map((e) => e["id"]!).toList(),
+                  selectedIds: filterHatcheryController.selectedCategoryIds,
+                  sectionKey: 'category',
+                ),
+
+                // // ⭐ BRAND SECTION
+                _buildDynamicSection(
+                  title: "Brand",
+                  items: brandList.map((e) => e["name"]!).toList(),
+                  ids: brandList.map((e) => e["id"]!).toList(),
+                  selectedIds: filterHatcheryController.selectedBrandIds,
+                  sectionKey: 'brand',
+                ),
+
+                // // ⭐ LOCATION SECTION
+                _buildDynamicSection(
+                  title: "Location",
+                  items: locationList.map((e) => e["name"]!).toList(),
+                  ids: locationList.map((e) => e["id"]!).toList(),
+                  selectedIds: filterHatcheryController.selectedLocationIds,
+                  sectionKey: 'location',
+                ),
+
+                const SizedBox(height: 80),
+              ],
+            ),
+          );
+        }),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _applyFilters,
+          label: const Text("Apply Filters"),
+          icon: const Icon(Icons.check),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      ),
+    );
+  }
+
+  // ⭐ PART 2 of 3 — UPDATED DYNAMIC SECTION
+  Widget _buildDynamicSection({
+    required String title,
+    required List<String> items,
+    required List<String> ids,
+    required RxSet<String> selectedIds,
+    required String sectionKey,
+  }) {
+    RxBool showAllFlag;
+
+    if (sectionKey == 'category') {
+      showAllFlag = _showAllCategory;
+    } else if (sectionKey == 'brand') {
+      showAllFlag = _showAllBrand;
+    } else {
+      showAllFlag = _showAllLocation;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Obx(() {
+        // FIX: display only filtered list, not based on original
+        int total = items.length;
+        int displayCount = showAllFlag.value ? total : (total > 4 ? 4 : total);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title + View All
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.roboto(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                if (total > 4)
+                  TextButton(
+                    onPressed: () {
+                      showAllFlag.value = !showAllFlag.value;
+                    },
+                    child: Text(
+                      showAllFlag.value ? "View less" : "View all",
+                      style: GoogleFonts.roboto(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: List.generate(displayCount, (index) {
+                final id = ids[index];
+                final name = items[index]; 
+
+                return FilterChip(
+                  label: Text(name),
+                  color: WidgetStateProperty.all(Colors.white) ,
+                  selected: selectedIds.contains(id),
+                  onSelected: (bool selected) {
+                    // Only controller handles state changes
+                    if (sectionKey == 'category') {
+                      filterHatcheryController.toggleCategory(id);
+                    } else if (sectionKey == 'brand') {
+                      filterHatcheryController.toggleBrand(id);
+                    } else {
+                      filterHatcheryController.toggleLocation(id);
+                    }
+                  },
+                  selectedColor: Colors.blue.shade100,
+                  checkmarkColor: Colors.blue,
+                );
+              }),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+}
+
+String extractLastValue(String input) {
+  try {
+    if (input.trim().isEmpty) return "";
+
+    // Split by comma
+    List<String> parts = input.split(",");
+
+    // Trim and remove all empty values
+    parts = parts.map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+
+    // If nothing left, return empty
+    if (parts.isEmpty) return "";
+
+    // Return last cleaned part → ALWAYS CORRECT
+    return parts.last;
+  } catch (e) {
+    print("❌ extractLastValue Error: $e");
+    return "";
   }
 }

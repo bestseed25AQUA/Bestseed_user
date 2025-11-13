@@ -7,7 +7,7 @@ class FarmerDetailController extends GetxController {
   RxBool isLoading = false.obs;
 
   /// ------------ ADD NEW FARM ---------------- ///
-  Future<void> uploadFarmData({
+  Future<bool> uploadFarmData({
     required String farmName,
     required String stockingDate,
     required String store,
@@ -34,18 +34,20 @@ class FarmerDetailController extends GetxController {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         CustomToast.success("Farm added successfully ✔");
+        return true;
       } else {
         CustomToast.error("Failed to add farm ❌");
       }
     } catch (e) {
       CustomToast.error("Error  ");
-    } finally {
-      isLoading(false);
     }
+    isLoading(false);
+    // ignore: control_flow_in_finally
+    return false;
   }
 
   /// ------------- UPDATE FARM DETAILS ----------------- ///
-  Future<void> updateFarmData({
+  Future<bool> updateFarmData({
     required int farmId,
     required String farmName,
     required String stockingDate,
@@ -63,8 +65,8 @@ class FarmerDetailController extends GetxController {
           "farm_name": farmName,
           "stocking_date": stockingDate,
           "store": store,
-          // "low_feed_limit": lowFeedLimit,
-          "no_of_tanks": tanks
+          "low_feed_limit": lowFeedLimit,
+          "no_of_tanks": tanks,
         },
         headers: await buildHeader(),
         imagePaths: imagePaths,
@@ -73,31 +75,33 @@ class FarmerDetailController extends GetxController {
       print('status code = ${response.statusCode.toString()}');
 
       if (response.statusCode == 200) {
-        CustomToast.success("Farm updated successfully ✔");
+        CustomToast.success("Farm updated successfully ");
+        return true;
       } else {
-        CustomToast.error("Failed to update farm ❌");
+        CustomToast.error("Failed to update farm");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong ❌");
-    } finally {
-      isLoading(false);
+      CustomToast.error("Something went wrong");
     }
+    isLoading(false);
+    // ignore: control_flow_in_finally
+    return false;
   }
 
   /// -------------  DELETE FARM ----------------- ///
   Future<bool> deleteFarm({required String farmId}) async {
     try {
       isLoading(true);
-      String url  =  "${NetworkConfig.baseURL}/farmer/farm/delete/$farmId"; 
+      String url = "${NetworkConfig.baseURL}/farmer/farm/delete/$farmId";
       print(url);
 
       var response = await getRequest(
         endPoint: url,
         headers: await buildHeader(),
       );
-       print('============response==============');
+      print('============response==============');
 
-       print(response.body);
+      print(response.body);
       if (response.statusCode == 200) {
         CustomToast.success("Farm deleted successfully ✔");
         return true;

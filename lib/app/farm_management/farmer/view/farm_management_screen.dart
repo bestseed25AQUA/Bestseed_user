@@ -5,9 +5,12 @@ import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/farm_management/farm_home/form_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_list_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/former_details_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_details.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/feed_update_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/tank_feed_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/chat_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/contact_us_dialog.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_options.dart';
@@ -18,9 +21,10 @@ class FarmSection {
   final String store;
   final int activeCount;
   final int inactiveCount;
-  final List<String> imageUrl;
+  final List<String> imageUrls;
   final String id;
   final int noOfTanks;
+  final String stockingDate;
   final String lowFeedLimit;
 
   FarmSection({
@@ -31,7 +35,8 @@ class FarmSection {
     required this.store,
     required this.activeCount,
     required this.inactiveCount,
-    required this.imageUrl,
+    required this.imageUrls,
+    required this.stockingDate,
     required this.id,
   });
 }
@@ -45,6 +50,7 @@ class FarmManagementScreen extends StatefulWidget {
 
 class _FarmManagementScreenState extends State<FarmManagementScreen> {
   final FarmListController controller = Get.put(FarmListController());
+  final tankController = Get.put(TankController());
   bool _isChatbotOpen = false;
 
   void _toggleChatbot() {
@@ -64,8 +70,9 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
         store: e.store ?? "0 kgs",
         activeCount: e.noOfTanks ?? 0,
         inactiveCount: 2, // Static (Not in API)
-        imageUrl: e.images?.imagesList ?? [],
+        imageUrls: e.images?.imagesList ?? [],
         id: e.id.toString(),
+        stockingDate: e.stockingDate.toString(),
       );
     }).toList();
   }
@@ -73,8 +80,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
   @override
   Widget build(BuildContext context) {
     const Color primaryBlue = Color(0xFF007BFF);
-
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         automaticallyImplyLeading: true,
         backgroundColor: AppColors.primary,
@@ -100,12 +107,20 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
         return Stack(
           children: [
             ListView.builder(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.only(
+                top: 10,
+                right: 10,
+                bottom: 5,
+                left: 5,
+              ),
               itemCount: farmSections.length,
               itemBuilder: (context, index) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
-                  child: FarmCard(farm: farmSections[index]),
+                  child: FarmCard(
+                    farm: farmSections[index],
+                    tankController: tankController,
+                  ),
                 );
               },
             ),
@@ -148,7 +163,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
 
 class FarmCard extends StatelessWidget {
   final FarmSection farm;
-  const FarmCard({super.key, required this.farm});
+  const FarmCard({super.key, required this.farm, required this.tankController});
+  final TankController tankController;
 
   Widget _buildStatusChip(String label, Color color) {
     return Container(
@@ -183,10 +199,12 @@ class FarmCard extends StatelessWidget {
                   children: [
                     InkWell(
                       onTap: () {
-                        print(farm.imageUrl.isNotEmpty ? farm.imageUrl[0] : '');
+                        print(
+                          farm.imageUrls.isNotEmpty ? farm.imageUrls[0] : '',
+                        );
                       },
                       child: Image.network(
-                        farm.imageUrl.isNotEmpty ? farm.imageUrl[0] : '',
+                        farm.imageUrls.isNotEmpty ? farm.imageUrls[0] : '',
                         height: 150,
                         width: double.infinity,
                         fit: BoxFit.cover,
@@ -207,8 +225,8 @@ class FarmCard extends StatelessWidget {
                             farmName: farm.name,
                             onAddTankQty: () {
                               Navigator.pop(context);
-                              // Navigate to tank quantity screen
-                              print("Add tank quantity clicked");
+                              tankController.getTankList(farm.id);
+                              Get.to(FeedUpdateScreen(farmId: farm.id));
                             },
 
                             onPartners: () {
@@ -230,8 +248,9 @@ class FarmCard extends StatelessWidget {
                                     farmName: farm.name,
                                     farmerId: int.parse(farm.id),
                                     images: FarmImages(
-                                      imagesList: farm.imageUrl,
+                                      imagesList: farm.imageUrls,
                                     ),
+                                    stockingDate: farm.stockingDate,
                                     store: farm.store,
                                     noOfTanks: farm.noOfTanks,
                                     lowFeedLimit: farm.feedUsed,
@@ -318,14 +337,18 @@ class FarmCard extends StatelessWidget {
                               style: TextStyle(color: Colors.black),
                             ),
                             TextSpan(
-                              text: farm.feedUsed+' kgs',
-                              style: GoogleFonts.roboto(fontSize: 14, color: Colors.black,fontWeight: FontWeight.bold),
+                              text: farm.feedUsed + ' kgs',
+                              style: GoogleFonts.roboto(
+                                fontSize: 14,
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
                       ),
 
-                       RichText(
+                      RichText(
                         text: TextSpan(
                           style: GoogleFonts.roboto(fontSize: 14),
                           children: [
@@ -334,17 +357,21 @@ class FarmCard extends StatelessWidget {
                               style: TextStyle(color: Colors.black),
                             ),
                             TextSpan(
-                              text: farm.store+' kgs',
-                              style: GoogleFonts.roboto(fontSize: 14, color: Colors.black,fontWeight: FontWeight.bold),
+                              text: farm.store + ' kgs',
+                              style: GoogleFonts.roboto(
+                                fontSize: 14,
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
                       ),
+
                       // Text(
                       //   "Total Feed Used: ${farm.feedUsed} ",
                       //   style: GoogleFonts.roboto(fontSize: 14),
                       // ),
-                     
                     ],
                   ),
                 ],
@@ -353,17 +380,6 @@ class FarmCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-
-  void _showFarmOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => const FarmOptionsBottomSheet(),
     );
   }
 }
@@ -632,7 +648,15 @@ void showFarmBottomSheet({
               title: "Delete farm",
               iconColor: Colors.red,
               textColor: Colors.red,
-              onTap: onDeleteFarm,
+              onTap: () {
+                showDialog(
+                  context: context,
+                  barrierDismissible: false, // User must tap a button to close
+                  builder: (BuildContext context) {
+                    return CustomConfirmationDialog(ontapYes: onDeleteFarm);
+                  },
+                );
+              },
             ),
           ],
         ),
@@ -672,4 +696,120 @@ Widget _sheetItem({
       ),
     ),
   );
+}
+
+// --- Custom Confirmation Dialog Widget ---
+class CustomConfirmationDialog extends StatelessWidget {
+  const CustomConfirmationDialog({super.key, required this.ontapYes});
+  final VoidCallback ontapYes;
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      // The shape defines the rounded corners for the entire dialog box
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+      // Use a custom child widget to build the content
+      child: Padding(
+        padding: const EdgeInsets.only(top: 32.0, bottom: 16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // Keep the dialog size minimal
+          children: <Widget>[
+            // 1. Large Red Icon (The central "X")
+            Container(
+              width: 80,
+              height: 80,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE53935), // A strong red color
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.close, // Or Icons.clear, which looks like a cross
+                color: Colors.white,
+                size: 60,
+              ),
+            ),
+            const SizedBox(height: 30),
+
+            // 2. Confirmation Text
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24.0),
+              child: Text(
+                'Are you sure you want to delete this Farm',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.roboto(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+
+            // 3. Action Buttons (Yes/No)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: <Widget>[
+                  // No Button
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(false); // Pop with 'false'
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'No',
+                        style: GoogleFonts.roboto(
+                          fontSize: 16,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Yes Button (The image style suggests it's a solid/primary color button)
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(true);
+                        ontapYes();
+                        // Pop with 'true'
+                        // Execute delete logic here
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(
+                          0xFFE3F2FD,
+                        ), // A very light blue
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        side: const BorderSide(
+                          color: Color(0xFF64B5F6),
+                        ), // Medium blue border
+                      ),
+                      child: Text(
+                        'Yes',
+                        style: GoogleFonts.roboto(
+                          fontSize: 16,
+                          color: Color(0xFF1976D2),
+                        ), // Darker blue text
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

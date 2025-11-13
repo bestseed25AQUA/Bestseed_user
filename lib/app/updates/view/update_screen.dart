@@ -78,13 +78,14 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
             SizedBox(height: 16),
             UpdatesBannerWidget(),
             Obx(() {
-              if( hatcheryUpdatesController
-                        .isLoading.value){
-                          return Padding(
-                            padding:   EdgeInsets.only(top: MediaQuery.of(context).size.height*.3),
-                            child: CircularProgressIndicator(),
-                          );
-                        }
+              if (hatcheryUpdatesController.isLoading.value) {
+                return Padding(
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).size.height * .3,
+                  ),
+                  child: CircularProgressIndicator(),
+                );
+              }
               return ListView.builder(
                 physics: NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
@@ -163,6 +164,7 @@ class _PostWidgetState extends State<PostWidget> {
     return InkWell(
       onTap: widget.ontap,
       child: Card(
+        color: Colors.white,
         margin: const EdgeInsets.symmetric(vertical: 8.0),
         elevation: 0.0,
         child: Column(
@@ -174,6 +176,7 @@ class _PostWidgetState extends State<PostWidget> {
               child: Row(
                 children: [
                   CircleAvatar(
+                    backgroundColor: Colors.black.withOpacity(.1),
                     backgroundImage: AssetImage(
                       widget.postData?.profileImage ?? "",
                     ),
@@ -183,13 +186,21 @@ class _PostWidgetState extends State<PostWidget> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.postData?.hatcheryName ?? '',
-                        style: GoogleFonts.roboto(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
+                      (widget.postData?.hatcheryName?.isEmpty ?? true)
+                          ? Container(
+                              height: 15,
+                              width: 100,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(.1),
+                              ),
+                            )
+                          : Text(
+                              widget.postData?.hatcheryName ?? '',
+                              style: GoogleFonts.roboto(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
                       Text(
                         widget.postData?.postedOn ?? '',
                         style: GoogleFonts.roboto(
@@ -215,8 +226,11 @@ class _PostWidgetState extends State<PostWidget> {
             Stack(
               alignment: Alignment.bottomCenter,
               children: [
-                SizedBox(
+                Container(
                   height: 250,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(.1),
+                  ),
                   child: PageView.builder(
                     controller: _pageController,
                     itemCount: widget.postData?.mediaFiles?.length,

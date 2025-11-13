@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/model/brand_model.dart';
 import 'package:seedsuser/app/home/model/hatcheries_model.dart';
 import 'package:seedsuser/app/model/category_model.dart';
@@ -17,6 +18,10 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 class HomeController extends GetxController {
   var isLoading = false.obs;
   var categories = <Category>[].obs;
+
+  final FilterHatcheryController filterHatcheryController = Get.put(
+    FilterHatcheryController(),
+  );
 
   @override
   void onInit() {
@@ -72,6 +77,7 @@ class HomeController extends GetxController {
         final data = jsonDecode(response.body);
         final List<dynamic> catList = data['categories'];
         categories.assignAll(catList.map((e) => Category.fromJson(e)).toList());
+        // ⭐ Pass data to search filter controller 
       } else {
         CustomToast.error("Failed to fetch categories ");
       }

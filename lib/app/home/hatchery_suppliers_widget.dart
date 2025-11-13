@@ -3,90 +3,97 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/model/brood_stock_model.dart';
+import 'package:shimmer/shimmer.dart';
 
 class HatcherySuppliersWidget extends StatelessWidget {
-   HatcherySuppliersWidget({super.key});
-final DashboardController dashboardController = DashboardController();
+  HatcherySuppliersWidget({super.key});
+  final DashboardController dashboardController = DashboardController();
   @override
   Widget build(BuildContext context) {
     final dashboardCtrl = Get.find<DashboardController>();
     final broodStockController = Get.put(BroodStockController());
     return Obx(() {
-      return Card(
-        color: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Hatchery / Broodstock",
+      return Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Hatchery / Broodstock",
+                  style: GoogleFonts.roboto(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    print('taped');
+                    dashboardCtrl.changeIndex(2);
+                  },
+                  child: Text(
+                    "View all",
                     style: GoogleFonts.roboto(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {
-                      print('taped');
-                      dashboardCtrl.changeIndex(2);
-                    },
-                    child: Text(
-                      "View all",
-                      style: GoogleFonts.roboto(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-               (broodStockController.homeBroodStocks.length ?? 0) == 0
-                  ? Align(
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            (broodStockController.homeBroodStocks.length ?? 0) == 0
+                ? Align(
                     alignment: Alignment.centerLeft,
                     child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Text(
-                          'No hatchery / broodstock found',
-                          style: TextStyle(fontSize:13),
-                        ),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        'No hatchery / broodstock found',
+                        style: TextStyle(fontSize: 13),
                       ),
+                    ),
                   )
-                  :
-              Column(
-                children: 
-                 List.generate(
-                  broodStockController.homeBroodStocks.length,
-                  (index) {
-                    final data = broodStockController.homeBroodStocks[index];
-                    return InkWell(
-                      onTap: () {
-                        print('working');
-                        dashboardCtrl.changeIndex(2);
+                : Column(
+                    children: List.generate(
+                      broodStockController.homeBroodStocks.length,
+                      (index) {
+                        final data =
+                            broodStockController.homeBroodStocks[index];
+                        return InkWell(
+                          onTap: () {
+                            print('working');
+                            dashboardCtrl.changeIndex(2);
+                          },
+                          child: _buildHatcheryCard(data),
+                        );
                       },
-                      child: _buildHatcheryCard(data),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+                    ),
+                  ),
+          ],
         ),
       );
     });
   }
 
   Widget _buildHatcheryCard(BroodstockData data) {
-    return Card(
-      color: Colors.white,
-      elevation: 3,
+    return Container(
+      padding: EdgeInsets.only(top: 18, bottom: 18, left: 16, right: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 22,
+            spreadRadius: 0,
+            color: Color(0xff000000).withOpacity(.12),
+          ),
+        ],
+      ),
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -102,11 +109,13 @@ final DashboardController dashboardController = DashboardController();
                   height: 160,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 160,
-                    color: Colors.grey[300],
-                    // child: const Center(child: Icon(Icons.broken_image)),
-                  ),
+                  errorBuilder: (context, error, stackTrace) {
+                    return SizedBox(
+                      height: 160,
+                      width: double.infinity,
+                      child: CustomShimmer(),
+                    );
+                  },
                 ),
               ),
               Positioned(

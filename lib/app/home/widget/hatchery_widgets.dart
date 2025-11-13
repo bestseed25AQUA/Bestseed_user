@@ -1,257 +1,316 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
-import 'package:seedsuser/app/home/harchery_details_screen.dart'; 
+import 'package:seedsuser/app/home/harchery_details_screen.dart';
 
-class HatcheryWidget extends StatefulWidget {
-  const HatcheryWidget({super.key});
+class HatcheryWidget extends StatelessWidget {
+  final VoidCallback onViewAllTap;
 
-  @override
-  State<HatcheryWidget> createState() => _HatcheryWidgetState();
-}
+  HatcheryWidget({super.key, required this.onViewAllTap});
 
-class _HatcheryWidgetState extends State<HatcheryWidget> {
   final HomeController _homeController = Get.find<HomeController>();
-  final ScrollController _scrollController = ScrollController();
-
-  var canScrollLeft = false.obs;
-  var canScrollRight = true.obs;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollController.addListener(_scrollListener);
-    });
-
-    // Call API if needed
-    _homeController.getHatcheries();
-  }
-
-  void _scrollListener() {
-    canScrollLeft.value = _scrollController.offset > 0;
-    canScrollRight.value =
-        _scrollController.offset < _scrollController.position.maxScrollExtent;
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_scrollListener);
-    _scrollController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = (screenWidth / 2); // Responsive width
+    final cardHeight = cardWidth * 1.35; // auto height
+
     return Obx(() {
       if (_homeController.isLoading.value) {
         return const Center(child: CircularProgressIndicator());
       }
 
       if (_homeController.hatcheries.isEmpty) {
-        return const SizedBox(); // empty UI
+        return const SizedBox();
       }
 
-      return Stack(
-        alignment: Alignment.center,
+      final list = _homeController.hatcheries.length > 6
+          ? _homeController.hatcheries.sublist(0, 6)
+          : _homeController.hatcheries;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            height: 220,
-            child: ListView.builder(
-              controller: _scrollController,
-              scrollDirection: Axis.horizontal,
-              itemCount: _homeController.hatcheries.length,
-              padding: const EdgeInsets.symmetric(horizontal: 0),
-              itemBuilder: (context, index) {
-                final h = _homeController.hatcheries[index];
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: SizedBox(
-                    width: MediaQuery.of(context).size.width * 0.45,
-                    child: _buildHatcheryCard(
-                      imagePath: h.imagePath,
-                      title: h.title,
-                      location: h.location,
-                      type: h.type,
-                      status: h.status,
-                      statusColor: h.status.toLowerCase() == "coming soon"
-                          ? Colors.orange
-                          : Colors.green,
-                      availableUntil: h.availableUntil,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          // LEFT BUTTON
-          Obx(() => canScrollLeft.value
-              ? Positioned(
-                  left: 0,
-                  child: GestureDetector(
-                    onTap: () {
-                      _scrollController.animateTo(
-                        _scrollController.offset - 200,
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.ease,
-                      );
-                    },
-                    child: _roundArrow(Icons.arrow_back_ios),
-                  ),
-                )
-              : const SizedBox()),
-
-          // RIGHT BUTTON
-          Obx(() => canScrollRight.value
-              ? Positioned(
-                  right: 0,
-                  child: GestureDetector(
-                    onTap: () {
-                      _scrollController.animateTo(
-                        _scrollController.offset + 200,
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.ease,
-                      );
-                    },
-                    child: _roundArrow(Icons.arrow_forward_ios),
-                  ),
-                )
-              : const SizedBox()),
-        ],
-      );
-    });
-  }
-
-  // Reusable arrow UI
-  Widget _roundArrow(IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
-      ),
-      child: Icon(icon, size: 18),
-    );
-  }
-}
-
-
-  Widget _buildHatcheryCard({
-    required String imagePath,
-    required String title,
-    required String location,
-    required String type,
-    required String status,
-    required Color statusColor,
-    String? availableUntil,
-  }) {
-    return Padding(
-      padding: EdgeInsets.only(top: 2,bottom: 2),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          Get.to(() => HatcheryDetailScreen());
-        },
-        child: Card(
-          margin: EdgeInsets.only(),
-          color: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Image on the left
-                Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8.0),
-                      child: Image.asset(
-                        imagePath,
-                        height: 100,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey.withOpacity(.1),
-                             height: 100,
-                          );
-                        },
-                      ),
+                SizedBox(width: 10),
+                TextButton(
+                  onPressed: onViewAllTap,
+                  child: Text(
+                    "View all",
+                    style: GoogleFonts.roboto(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
                     ),
-                    if (availableUntil != null)
-                      Positioned(
-                        left: 12,
-                        bottom: 8,
-                        child: Text(
-                          availableUntil,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.roboto(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            shadows: [
-                              Shadow(
-                                blurRadius: 4,
-                                color: Colors.black.withOpacity(0.6),
-                                offset: const Offset(1, 1),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // Details on the right
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.roboto(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.location_on,
-                          color: Colors.grey,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          location,
-                          style: GoogleFonts.roboto(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.shopping_bag,
-                          color: Colors.grey,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(type, style: GoogleFonts.roboto(color: Colors.grey)),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
+
+          Column(
+            children: List.generate((list.length / 2).ceil(), (rowIndex) {
+              final i1 = rowIndex * 2;
+              final i2 = i1 + 1;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    // LEFT CARD
+                    Expanded(
+                      child: HatcheryCard(
+                        width: cardWidth,
+                        height: cardHeight,
+                        imagePath: list[i1].imagePath,
+                        title: list[i1].title,
+                        location: list[i1].location,
+                        type: list[i1].type,
+                        status: list[i1].status,
+                        statusColor: list[i1].status.toLowerCase() == "open"
+                            ? const Color(0xff25A652)
+                            : list[i1].status.toLowerCase() == "coming soon"
+                            ? const Color(0xff007DFE)
+                            : const Color(0xffE31B1B),
+                        availableUntil: list[i1].availableUntil,
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    // RIGHT CARD (only if exists)
+                    Expanded(
+                      child: i2 < list.length
+                          ? HatcheryCard(
+                              width: cardWidth,
+                              height: cardHeight,
+                              imagePath: list[i2].imagePath,
+                              title: list[i2].title,
+                              location: list[i2].location,
+                              type: list[i2].type,
+                              status: list[i2].status,
+                              statusColor:
+                                  list[i2].status.toLowerCase() == "open"
+                                  ? const Color(0xff25A652)
+                                  : list[i2].status.toLowerCase() ==
+                                        "coming soon"
+                                  ? const Color(0xff007DFE)
+                                  : const Color(0xffE31B1B),
+                              availableUntil: list[i2].availableUntil,
+                            )
+                          : const SizedBox(), // If odd number of items
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+class HatcheryCard extends StatelessWidget {
+  final double width;
+  final double height;
+  final String imagePath;
+  final String title;
+  final String location;
+  final String type;
+  final String status;
+  final Color statusColor;
+  final String? availableUntil;
+
+  const HatcheryCard({
+    super.key,
+    required this.width,
+    required this.height,
+    required this.imagePath,
+    required this.title,
+    required this.location,
+    required this.type,
+    required this.status,
+    required this.statusColor,
+    this.availableUntil,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // Responsive image height based on screen size
+    final imgHeight = (height * 0.45).clamp(90.0, screenHeight * 0.22);
+
+    // Text font dynamic scaling
+    double scaleText(double size) {
+      return size * (screenWidth / 390); // 390 = base width (iPhone 12)
+    }
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => Get.to(() => HatcheryDetailScreen()),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xff000000).withOpacity(.16),
+              blurRadius: 22,
+              spreadRadius: 0,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+
+        // ⭐ FULL RESPONSIVE PADDING
+        padding: EdgeInsets.all(screenWidth * 0.025),
+
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(
+                    imagePath,
+                    width: double.infinity,
+                    height: imgHeight,
+                    fit: BoxFit.cover,
+                    errorBuilder: (c, e, s) =>
+                        Container(height: imgHeight, child: CustomShimmer()),
+                  ),
+                ),
+
+                // STATUS BADGE
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: Container(
+                    height: screenHeight * 0.027,
+                    decoration: BoxDecoration(
+                      color: statusColor,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenWidth * 0.015,
+                      ),
+                      child: Center(
+                        child: Text(
+                          status.length <= 15
+                              ? status
+                              : status.substring(0, 15),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.roboto(
+                            fontSize: scaleText(13),
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            SizedBox(height: screenHeight * 0.012),
+
+            // Title
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.roboto(
+                fontSize: scaleText(15),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+
+            SizedBox(height: screenHeight * 0.006),
+
+            // Location Row
+            Row(
+              children: [
+                Image.asset(
+                  'assets/images/location_icon.png',
+                  height: scaleText(16),
+                  width: scaleText(16),
+                  color: const Color(0xff525050),
+                  errorBuilder: (context, error, stackTrace) {
+                    return Icon(
+                      Icons.location_on,
+                      size: scaleText(14),
+                      color: Colors.grey,
+                    );
+                  },
+                ),
+                SizedBox(width: screenWidth * 0.015),
+
+                Expanded(
+                  child: Text(
+                    location,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.roboto(
+                      fontSize: scaleText(12),
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            SizedBox(height: screenHeight * 0.006),
+
+            // Type Row
+            Row(
+              children: [
+                Image.asset(
+                  'assets/images/category_icon.png',
+                  height: scaleText(16),
+                  width: scaleText(16),
+                  color: const Color(0xff525050),
+                  errorBuilder: (context, error, stackTrace) {
+                    return Icon(
+                      Icons.shopping_bag,
+                      size: scaleText(14),
+                      color: Colors.grey,
+                    );
+                  },
+                ),
+                SizedBox(width: screenWidth * 0.015),
+
+                Expanded(
+                  child: Text(
+                    type,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.roboto(
+                      fontSize: scaleText(12),
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
+}

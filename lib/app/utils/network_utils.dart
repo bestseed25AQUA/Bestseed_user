@@ -96,9 +96,11 @@ Future<http.Response> getRequest({
 
     debugPrint('getRequest params: $params');
     debugPrint('headers : $headers');
-    debugPrint('getRequest URL  ndPoint');
-    debugPrint('getRequest status code ');
-    debugPrint('getRequest body ${response.body}');
+    debugPrint('getRequest URL: $endPoint');
+    debugPrint('getRequest status code ${response.statusCode}');
+    try{
+      // debugPrint('getRequest body ${response.body.toString().substring(0,100)}');
+    }catch(e){}
     return response;
   } catch (e) {
     print(e);

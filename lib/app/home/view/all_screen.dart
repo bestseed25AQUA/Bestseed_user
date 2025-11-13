@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/farm_management/farm_home/farm_home_screen.dart';
 import 'package:seedsuser/app/home/contact_us.dart';
@@ -140,7 +141,6 @@ class _HomePageState extends State<HomePage>
                 ],
               ),
             ),
-
             // Menu Items Section
             Container(
               color: AppColors.primary,
@@ -166,7 +166,6 @@ class _HomePageState extends State<HomePage>
                     ),
                   ),
                   SizedBox(width: 8),
-
                   Expanded(
                     child: _buildMenuItem(
                       'Spot Hatcheries',
@@ -209,39 +208,58 @@ class _HomePageState extends State<HomePage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // SlideTransition(
-                      //   position: _fishAnimation,
-                      //   child: Image.asset("assets/images/fish.png", height: 50),
-                      // ),
-                      Text(
-                        'Hatcheries',
-                        style: GoogleFonts.roboto(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0076BE),
+                      Image.asset(
+                        "assets/images/seeds.png",
+                        width: MediaQuery.of(context).size.width * .17,
+                      ),
+                      SizedBox(
+                        width: MediaQuery.of(context).size.width * .5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // SlideTransition(
+                            //   position: _fishAnimation,
+                            //   child: Image.asset("assets/images/fish.png", height: 50),
+                            // ),
+                            Text(
+                              'Hatcheries',
+                              style: GoogleFonts.roboto(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0076BE),
+                              ),
+                            ),
+                            SizedBox(height: 10),
+                            Image.asset(
+                              "assets/images/redline.png",
+                              width: MediaQuery.of(context).size.width * .3,
+                            ),
+                            Text(
+                              'Find nearby hatcheries for fish or shrimp seeds.',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.roboto(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                              maxLines: 2,
+                            ),
+                          ],
                         ),
                       ),
-                      Image.asset("assets/images/redline.png", width: 121),
-                      // Text(
-                      //   'Find nearby hatcheries for fish \nor shrimp seeds.',
-                      //   textAlign: TextAlign.center,
-                      //   style: GoogleFonts.roboto(
-                      //     fontSize: 16,
-                      //     color: Colors.grey,
-                      //   ),
-                      // ),
+
+                      Image.asset(
+                        "assets/images/fish.png",
+                        width: MediaQuery.of(context).size.width * .17,
+                      ),
                     ],
                   ),
 
                   const SizedBox(height: 16),
 
-                  HatcheryWidget(),
-
-                  // Hatchery Cards
-                  SizedBox(height: 16),
+                  HatcheryWidget(onViewAllTap: () {}),
                   TodayPricesWidget(),
                   SizedBox(height: 16),
                   HatcherySuppliersWidget(),
@@ -267,7 +285,8 @@ class _HomePageState extends State<HomePage>
                                 0) !=
                             0)
                           SizedBox(
-                            height: 180,
+                            height:
+                                MediaQuery.of(context).size.width * .38 + 50,
                             child: ListView(
                               scrollDirection: Axis.horizontal,
                               padding: const EdgeInsets.symmetric(
@@ -389,7 +408,15 @@ class _HomePageState extends State<HomePage>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: Colors.white,
-          boxShadow: [BoxShadow(color: Colors.grey)],
+          border: Border.all(color: Colors.black, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(.5), // soft shadow
+              blurRadius: 12, // smooth blur
+              spreadRadius: 2, // light spread
+              offset: const Offset(0, 6), // shadow below the card
+            ),
+          ],
         ),
         child: Column(
           children: [
@@ -405,9 +432,10 @@ class _HomePageState extends State<HomePage>
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.roboto(
-                      fontSize: 12,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
+
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -449,21 +477,18 @@ class _HomePageState extends State<HomePage>
     String imageUrl,
     VoidCallback ontap,
   ) {
-    return Card(
-      color: Colors.white,
-      // width: 150,
-      // margin: const EdgeInsets.symmetric(horizontal: 8.0),
+    return Padding(
+      padding: EdgeInsetsGeometry.only(right: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InkWell(
             onTap: ontap,
             child: ClipRRect(
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
+              borderRadius: BorderRadius.circular(14.85),
               child: Container(
+                height: MediaQuery.of(context).size.width * .38,
+                width: MediaQuery.of(context).size.width * .38,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   color: Colors.white.withOpacity(.7),
@@ -476,7 +501,7 @@ class _HomePageState extends State<HomePage>
                   width: 150,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
-                    return SizedBox(height: 120, width: 150);
+                    return SizedBox(height: 120, width: 150,child: CustomShimmer(),);
                   },
                 ),
               ),
@@ -500,7 +525,10 @@ class _HomePageState extends State<HomePage>
                 if (subtitle != null)
                   Text(
                     subtitle,
-                    style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
+                    style: GoogleFonts.roboto(
+                      fontSize: 12,
+                      color: Color(0xff7D7272),
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

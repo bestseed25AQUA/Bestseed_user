@@ -16,8 +16,19 @@ class TodayPricesWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: Colors.white,
+    return Container(
+      padding: EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 22,
+            spreadRadius: 0,
+            color: Color(0xff00000029).withOpacity(.16),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Column(
@@ -62,7 +73,7 @@ class TodayPricesWidget extends StatelessWidget {
                             fontWeight: FontWeight.w400,
                           ),
                         ),
-                        Icon(Icons.arrow_drop_down)
+                        Icon(Icons.arrow_drop_down),
                       ],
                     ),
                   ),

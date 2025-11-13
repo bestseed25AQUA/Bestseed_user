@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
 
@@ -58,8 +59,9 @@ class HatcheryUpdatesWidget extends StatelessWidget {
                   ),
                 )
               : SizedBox(
-                  height: 204,
+                  height: 224,
                   child: ListView.builder(
+                    padding: EdgeInsets.all(10),
                     scrollDirection: Axis.horizontal,
                     itemCount:
                         hatcheryController
@@ -89,56 +91,77 @@ class HatcheryUpdatesWidget extends StatelessWidget {
     required String imagePath,
     required String hatcheryName,
   }) {
-    return Card(
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize:
-              MainAxisSize.min, // To make the column take minimum space
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircleAvatar(
-              radius: 36,
-              backgroundImage: AssetImage(
+    print(imagePath);
+    return Container(
+      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.all(8.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0xff000000).withOpacity(.16),
+            blurRadius: 2,
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min, // To make the column take minimum space
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          InkWell(
+            onTap: () {
+              print(imagePath);
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadiusGeometry.circular(100),
+              child: Image.network(
                 imagePath,
-              ), // Use AssetImage for local assets
-              // If using network image:
-              // backgroundImage: NetworkImage(imagePath),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: 150,
-              child: Text(
-                hatcheryName,
-                style: GoogleFonts.roboto(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-                overflow: TextOverflow.ellipsis,
+                width: 72,
+                height: 72,
+                errorBuilder: (context, error, stackTrace) {
+                  return SizedBox(
+                    width: 72,
+                    height: 72,
+                    child: CustomShimmer(),
+                  );
+                },
               ),
             ),
-            const SizedBox(height: 10),
-            OutlinedButton(
-              onPressed: () {
-                // Handle "View Profile" action
-              },
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.primary),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30.0),
-                ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: 150,
+            child: Text(
+              hatcheryName,
+              style: GoogleFonts.roboto(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
               ),
-              child: Text(
-                "View Profile",
-                style: GoogleFonts.roboto(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w800,
-                ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: () {
+              // Handle "View Profile" action
+            },
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30.0),
               ),
             ),
-          ],
-        ),
+            child: Text(
+              "View Profile",
+              style: GoogleFonts.roboto(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

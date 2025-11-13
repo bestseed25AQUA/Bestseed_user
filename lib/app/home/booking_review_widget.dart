@@ -1,15 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/booking/controller/my_booking_controller.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
 
 class BookingReviewContent extends StatelessWidget {
-  const BookingReviewContent({super.key});
+  final String name,
+      phone,
+      unit,
+      pieces,
+      location,
+      date,
+      hatcheryId,
+      hatcheryName,
+      locationId;
+  const BookingReviewContent({
+    super.key,
+    required this.name,
+    required this.phone,
+    required this.unit,
+    required this.pieces,
+    required this.location,
+    required this.date,
+    required this.hatcheryId,
+    required this.hatcheryName,
+    required this.locationId,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final controller = Get.put(MyBookingController());
+
     return SingleChildScrollView(
-      // 👈 FIX
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -27,6 +49,8 @@ class BookingReviewContent extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
+
+          // UI CARD
           Container(
             padding: const EdgeInsets.all(16.0),
             decoration: BoxDecoration(
@@ -53,7 +77,7 @@ class BookingReviewContent extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      'Seven Start Hatchery',
+                      hatcheryName,
                       style: GoogleFonts.roboto(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -62,39 +86,58 @@ class BookingReviewContent extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 20),
-                _buildInfoRow('Name', 'Sumanth'),
+
+                _buildInfoRow('Name', name),
                 const Divider(),
-                _buildInfoRow('Phone Number', '917843765465'),
+                _buildInfoRow('Phone Number', phone),
                 const Divider(),
-                _buildInfoRow('Unit', 'Vizag'),
+                _buildInfoRow('Unit', unit),
                 const Divider(),
-                _buildInfoRow('No.of Pieces', '800 Pieces'),
+                _buildInfoRow('No.of Pieces', "$pieces Pieces"),
                 const Divider(),
-                _buildInfoRow(
-                  'Pickup location',
-                  '9.159, Vizag, Andhra Pradesh',
-                ),
+                _buildInfoRow('Dropping location', location),
                 const Divider(),
-                _buildInfoRow('Preferred Date', '28/09/2025'),
+                _buildInfoRow('Preferred Date', date),
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          CustomButton(
-            onPressed: () {
-              Get.back();
-              _showAlertDialog(context);
-            },
 
-            text: 'Proceed',
+          const SizedBox(height: 20),
+
+          // PROCEED BUTTON
+          Obx(
+            () => CustomButton(
+              onPressed: controller.isCreateLoading.value
+                  ? () {}
+                  : () async {
+                      bool isBookingSuccess = await controller
+                          .createHatcheryBooking(
+                            hatcheryId: hatcheryId,
+                            hatcheryName: hatcheryName,
+                            customerName: name,
+                            customerMobile: phone,
+                            unit: unit,
+                            noOfPieces: pieces,
+                            droppingLocation: location,
+                            packingDate: date,
+                            locationId: '3', // locationId,
+                          );
+
+                      if (isBookingSuccess) {
+                        Get.back();
+                        _showSuccess(context);
+                      }
+                    },
+              text: controller.isCreateLoading.value ? "Loading..." : "Proceed",
+            ),
           ),
         ],
       ),
     );
   }
 
-  // Function to show the alert dialog
-  void _showAlertDialog(BuildContext context) {
+  // ✅ SUCCESS DIALOG (Your Original Design)
+  void _showSuccess(BuildContext context) {
     showDialog<void>(
       context: context,
       barrierDismissible: true,
@@ -109,7 +152,7 @@ class BookingReviewContent extends StatelessWidget {
                 height: 109,
                 width: 109,
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
                 'Your \nrequest was sent',
                 textAlign: TextAlign.center,
@@ -119,8 +162,8 @@ class BookingReviewContent extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              SizedBox(height: 16),
-              Text(
+              const SizedBox(height: 16),
+              const Text(
                 'We will notify your booking status \nwithin 24 Hours',
                 textAlign: TextAlign.center,
               ),
@@ -131,6 +174,7 @@ class BookingReviewContent extends StatelessWidget {
     );
   }
 
+  // ✅ Info Row UI (Same as your design)
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -142,7 +186,6 @@ class BookingReviewContent extends StatelessWidget {
             style: GoogleFonts.roboto(color: Colors.grey[600], fontSize: 16),
           ),
           Flexible(
-            // 👈 prevent text overflow
             child: Text(
               value,
               maxLines: 3,

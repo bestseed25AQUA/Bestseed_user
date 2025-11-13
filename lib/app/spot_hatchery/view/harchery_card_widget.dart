@@ -84,7 +84,9 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
               child: InkWell(
                 onTap: () {
                   print('image url');
-                  print((hatchery.images.isNotEmpty) ? hatchery.images.first : '');
+                  print(
+                    (hatchery.images.isNotEmpty) ? hatchery.images.first : '',
+                  );
                 },
                 child: Image.network(
                   (hatchery.images.isNotEmpty) ? hatchery.images.first : '',
@@ -318,7 +320,27 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                           topRight: Radius.circular(16),
                           bottomRight: Radius.circular(16),
                         ),
-                        onTap: () => showBookingBottomSheet(context),
+                        onTap: () { 
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (BuildContext context) {
+                              return Container(
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(20.0),
+                                  ),
+                                ),
+                                child: BookingBottomSheet(
+                                  hatcheryId: hatchery.hatcheryId.toString(),
+                                  hatcheryName: hatchery.hatcheryName,
+                                ),
+                              );
+                            },
+                          );
+                        },
                       ),
                     ],
                   ),

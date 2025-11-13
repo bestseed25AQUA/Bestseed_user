@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
+import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/home/booking_review_widget.dart';
 
-// Booking Form Bottom Sheet
 class BookingBottomSheet extends StatefulWidget {
-  const BookingBottomSheet({super.key});
+  const BookingBottomSheet({
+    super.key,
+    required this.hatcheryId,
+    required this.hatcheryName,
+  });
+  final String hatcheryId;
+  final String hatcheryName;
 
   @override
   State<BookingBottomSheet> createState() => _BookingBottomSheetState();
 }
 
 class _BookingBottomSheetState extends State<BookingBottomSheet> {
-  // Controllers for text fields
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _piecesController = TextEditingController();
@@ -21,11 +26,8 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
   String? _selectedUnit;
   String? _selectedPickupLocation;
 
-  final List<String> _units = ["Unit 1", "Unit 2"]; // Example units
-  final List<String> _locations = [
-    "Location A",
-    "Location B",
-  ]; // Example locations
+  final List<String> _units = ["Unit 1", "Unit 2"];
+  final List<String> _locations = ["Location A", "Location B"];
 
   @override
   void dispose() {
@@ -62,9 +64,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: () {
-                    Navigator.pop(context); // Close the bottom sheet
-                  },
+                  onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
@@ -87,10 +87,8 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               hint: "Select Unit",
               value: _selectedUnit,
               items: _units,
-              onChanged: (String? newValue) {
-                setState(() {
-                  _selectedUnit = newValue;
-                });
+              onChanged: (v) {
+                setState(() => _selectedUnit = v);
               },
             ),
             _buildTextField(
@@ -100,17 +98,21 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               icon: Icons.format_list_numbered,
               keyboardType: TextInputType.number,
             ),
-            _buildDropdownField(
-              label: "Pickup location",
-              hint: "Select your pickup location",
-              value: _selectedPickupLocation,
-              items: _locations,
-              onChanged: (String? newValue) {
-                setState(() {
-                  _selectedPickupLocation = newValue;
-                });
-              },
+            _buildTextField(
+              controller: _nameController,
+              label: "Vehicle availability",
+              hint: "",
+              icon: Icons.format_list_numbered,
             ),
+            // _buildDropdownField(
+            //   label: "Dropping location",
+            //   hint: "Select your pickup location",
+            //   value: _selectedPickupLocation,
+            //   items: _locations,
+            //   onChanged: (v) {
+            //     setState(() => _selectedPickupLocation = v);
+            //   },
+            // ),
             _buildDateField(
               controller: _dateController,
               label: "Preferred date",
@@ -122,10 +124,54 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               height: 50,
               child: CustomButton(
                 onPressed: () {
-                  Navigator.pop(context);
-                  _showBookingBottomSheet(context);
-                },
+                  print('validation here');
 
+                  if (_nameController.text.trim().isEmpty) {
+                    _showError("Please enter name");
+                    return;
+                  }
+
+                  if (_phoneController.text.trim().isEmpty) {
+                    _showError("Please enter phone number");
+                    return;
+                  }
+
+                  if (_phoneController.text.trim().length != 10) {
+                    _showError("Enter valid 10 digit phone number");
+                    return;
+                  }
+
+                  if (_selectedUnit == null || _selectedUnit!.isEmpty) {
+                    _showError("Please select unit");
+                    return;
+                  }
+
+                  if (_piecesController.text.trim().isEmpty) {
+                    _showError("Please enter number of pieces");
+                    return;
+                  }
+
+                  if (int.tryParse(_piecesController.text.trim()) == null ||
+                      int.parse(_piecesController.text.trim()) <= 0) {
+                    _showError("Enter valid number of pieces");
+                    return;
+                  }
+
+                  if (_selectedPickupLocation == null ||
+                      _selectedPickupLocation!.isEmpty) {
+                    _showError("Please select pickup location");
+                    return;
+                  }
+
+                  if (_dateController.text.trim().isEmpty) {
+                    _showError("Please select date");
+                    return;
+                  }
+
+                  // ✅ If all valid, continue
+                  Navigator.pop(context);
+                  _showBookingReviewSheet(context);
+                },
                 text: "Confirm Booking",
               ),
             ),
@@ -135,7 +181,11 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     );
   }
 
-  void _showBookingBottomSheet(BuildContext context) {
+  void _showError(String message) {
+    CustomToast.show(message: message);
+  }
+
+  void _showBookingReviewSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -153,7 +203,6 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               ),
               child: Column(
                 children: [
-                  // Draggable handle
                   Container(
                     margin: const EdgeInsets.only(top: 10, bottom: 5),
                     height: 5,
@@ -163,23 +212,27 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-
-                  // 👇 Close button
                   Align(
                     alignment: Alignment.topRight,
                     child: IconButton(
                       icon: const Icon(Icons.close),
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
+                      onPressed: () => Navigator.pop(context),
                     ),
                   ),
-
-                  // Content
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
-                      child: const BookingReviewContent(),
+                      child: BookingReviewContent(
+                        name: _nameController.text,
+                        phone: _phoneController.text,
+                        unit: _selectedUnit ?? "",
+                        pieces: _piecesController.text,
+                        location: _selectedPickupLocation ?? "",
+                        date: _dateController.text,
+                        hatcheryId: widget.hatcheryId,
+                        hatcheryName: widget.hatcheryName,
+                        locationId: '',
+                      ),
                     ),
                   ),
                 ],
@@ -264,9 +317,11 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               decoration: const InputDecoration(border: InputBorder.none),
               hint: Text(hint),
               value: value,
-              items: items.map((String item) {
-                return DropdownMenuItem<String>(value: item, child: Text(item));
-              }).toList(),
+              items: items
+                  .map(
+                    (item) => DropdownMenuItem(value: item, child: Text(item)),
+                  )
+                  .toList(),
               onChanged: onChanged,
             ),
           ),
@@ -295,20 +350,17 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
           const SizedBox(height: 8),
           TextField(
             controller: controller,
-            readOnly: true, // Prevents manual text input
+            readOnly: true,
             onTap: () async {
-              // Show date picker
-              DateTime? pickedDate = await showDatePicker(
+              DateTime? picked = await showDatePicker(
                 context: context,
                 initialDate: DateTime.now(),
                 firstDate: DateTime.now(),
                 lastDate: DateTime(2101),
               );
-              if (pickedDate != null) {
-                // Format the date and set it to the text field
+              if (picked != null)
                 controller.text =
-                    "${pickedDate.day}/${pickedDate.month}/${pickedDate.year}";
-              }
+                    "${picked.day}/${picked.month}/${picked.year}";
             },
             decoration: InputDecoration(
               hintText: hint,
@@ -329,23 +381,4 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
       ),
     );
   }
-}
-
-// Example of how to show the bottom sheet
-void showBookingBottomSheet(BuildContext context) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true, // Allows the bottom sheet to take full height
-    backgroundColor: Colors
-        .transparent, // Makes the background transparent to show the rounded corners
-    builder: (BuildContext context) {
-      return Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
-        ),
-        child: const BookingBottomSheet(),
-      );
-    },
-  );
 }
