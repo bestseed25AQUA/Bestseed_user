@@ -1,5 +1,4 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
     <!-- Declare package & intent visibility so UrlLauncher can resolve external apps on Android 11+ -->
     <queries>
         <!-- WhatsApp (regular and Business) -->
@@ -29,9 +28,7 @@
     <uses-permission android:name="android.permission.SEND_SMS"/>
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
-
-
-
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
     <application
         android:label="Best Seeds"

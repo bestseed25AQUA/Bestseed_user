@@ -4,7 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/farm_management/farm_home/form_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_list_controller.dart';
-import 'package:seedsuser/app/farm_management/farmer/controller/former_details_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/controller/former_details_controller.dart'
+    hide FarmListController;
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_details.dart';
@@ -14,32 +15,6 @@ import 'package:seedsuser/app/farm_management/farmer/view/tank_feed_screen.dart'
 import 'package:seedsuser/app/farm_management/farmer/widget/chat_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/contact_us_dialog.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_options.dart';
-
-class FarmSection {
-  final String name;
-  final String feedUsed;
-  final String store;
-  final int activeCount;
-  final int inactiveCount;
-  final List<String> imageUrls;
-  final String id;
-  final int noOfTanks;
-  final String stockingDate;
-  final String lowFeedLimit;
-
-  FarmSection({
-    required this.lowFeedLimit,
-    required this.noOfTanks,
-    required this.name,
-    required this.feedUsed,
-    required this.store,
-    required this.activeCount,
-    required this.inactiveCount,
-    required this.imageUrls,
-    required this.stockingDate,
-    required this.id,
-  });
-}
 
 class FarmManagementScreen extends StatefulWidget {
   const FarmManagementScreen({super.key});
@@ -68,8 +43,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
         name: e.farmName ?? "Unknown Farm",
         feedUsed: e.lowFeedLimit ?? "0 kgs",
         store: e.store ?? "0 kgs",
-        activeCount: e.noOfTanks ?? 0,
-        inactiveCount: 2, // Static (Not in API)
+        activeCount: e.activeCount.toString(),
+        inactiveCount: e.inactiveCount.toString(), // Static (Not in API)
         imageUrls: e.images?.imagesList ?? [],
         id: e.id.toString(),
         stockingDate: e.stockingDate.toString(),
@@ -117,9 +92,16 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
               itemBuilder: (context, index) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
-                  child: FarmCard(
-                    farm: farmSections[index],
-                    tankController: tankController,
+                  child: InkWell(
+                    onTap: () {
+                      Get.to(
+                        FarmTankListScreen(farmId: farmSections[index].id),
+                      );
+                    },
+                    child: FarmCard(
+                      farm: farmSections[index],
+                      tankController: tankController,
+                    ),
                   ),
                 );
               },
@@ -127,7 +109,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
 
             if (_isChatbotOpen)
               const Positioned(bottom: 120, right: 16, child: ChatbotWidget()),
-
             Positioned(
               bottom: 16,
               right: 16,
@@ -182,203 +163,193 @@ class FarmCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => Get.to(() => AquacultureScreen()),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Stack(
-                  children: [
-                    InkWell(
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                children: [
+                  Image.network(
+                    farm.imageUrls.isNotEmpty ? farm.imageUrls[0] : '',
+                    height: 150,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (c, e, s) => Image.asset(
+                      "assets/images/farmer_fish.png",
+                      height: 150,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: InkWell(
                       onTap: () {
-                        print(
-                          farm.imageUrls.isNotEmpty ? farm.imageUrls[0] : '',
+                        showFarmBottomSheet(
+                          context: context,
+                          farmName: farm.name,
+                          onAddTankQty: () {
+                            Navigator.pop(context);
+                            tankController.getTankList(farm.id);
+                            Get.to(FeedUpdateScreen(farmId: farm.id));
+                          },
+
+                          onPartners: () {
+                            Navigator.pop(context);
+                            print("Partners clicked");
+                          },
+
+                          onManager: () {
+                            Navigator.pop(context);
+                            print("Manager clicked");
+                          },
+
+                          onEditFarm: () {
+                            Navigator.pop(context);
+                            Get.to(
+                              () => AddFarmerDetailsFormScreen(
+                                farmData: FarmData(
+                                  id: int.parse(farm.id),
+                                  farmName: farm.name,
+                                  farmerId: int.parse(farm.id),
+                                  images: FarmImages(
+                                    imagesList: farm.imageUrls,
+                                  ),
+                                  stockingDate: farm.stockingDate,
+                                  store: farm.store,
+                                  noOfTanks: farm.noOfTanks,
+                                  lowFeedLimit: farm.feedUsed,
+                                ),
+                              ),
+                            );
+                          },
+
+                          onDeleteFarm: () async {
+                            Navigator.pop(context);
+                            final farmerDetailController = Get.put(
+                              FarmListController(),
+                            );
+                            final farmListController =
+                                Get.find<FarmListController>();
+
+                            if (await farmerDetailController.deleteFarm(
+                              farmId: farm.id,
+                            )) {
+                              farmListController.fetchFarmList();
+                            }
+                          },
                         );
                       },
-                      child: Image.network(
-                        farm.imageUrls.isNotEmpty ? farm.imageUrls[0] : '',
-                        height: 150,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (c, e, s) => Image.asset(
-                          "assets/images/farmer_fish.png",
-                          height: 150,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 20,
-                      right: 20,
-                      child: InkWell(
-                        onTap: () {
-                          showFarmBottomSheet(
-                            context: context,
-                            farmName: farm.name,
-                            onAddTankQty: () {
-                              Navigator.pop(context);
-                              tankController.getTankList(farm.id);
-                              Get.to(FeedUpdateScreen(farmId: farm.id));
-                            },
-
-                            onPartners: () {
-                              Navigator.pop(context);
-                              print("Partners clicked");
-                            },
-
-                            onManager: () {
-                              Navigator.pop(context);
-                              print("Manager clicked");
-                            },
-
-                            onEditFarm: () {
-                              Navigator.pop(context);
-                              Get.to(
-                                () => AddFarmerDetailsFormScreen(
-                                  farmData: FarmData(
-                                    id: int.parse(farm.id),
-                                    farmName: farm.name,
-                                    farmerId: int.parse(farm.id),
-                                    images: FarmImages(
-                                      imagesList: farm.imageUrls,
-                                    ),
-                                    stockingDate: farm.stockingDate,
-                                    store: farm.store,
-                                    noOfTanks: farm.noOfTanks,
-                                    lowFeedLimit: farm.feedUsed,
-                                  ),
-                                ),
-                              );
-                            },
-
-                            onDeleteFarm: () async {
-                              Navigator.pop(context);
-                              final farmerDetailController = Get.put(
-                                FarmerDetailController(),
-                              );
-                              final farmListController =
-                                  Get.find<FarmListController>();
-
-                              if (await farmerDetailController.deleteFarm(
-                                farmId: farm.id,
-                              )) {
-                                farmListController.fetchFarmList();
-                              }
-                            },
-                          );
-                        },
-                        child: Container(
-                          height: 30,
-                          width: 30,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                offset: Offset(1, 3),
-                                color: Colors.grey.withOpacity(.3),
-                              ),
-                            ],
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(Icons.more_vert),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      _buildStatusChip(
-                        'Active - ${farm.activeCount}',
-                        Colors.green,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildStatusChip(
-                        'Inactive - ${farm.inactiveCount}',
-                        Colors.red,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      farm.name,
-                      style: GoogleFonts.roboto(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      RichText(
-                        text: TextSpan(
-                          style: GoogleFonts.roboto(fontSize: 14),
-                          children: [
-                            TextSpan(
-                              text: "Total Feed Used: ",
-                              style: TextStyle(color: Colors.black),
-                            ),
-                            TextSpan(
-                              text: farm.feedUsed + ' kgs',
-                              style: GoogleFonts.roboto(
-                                fontSize: 14,
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                              ),
+                      child: Container(
+                        height: 30,
+                        width: 30,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              offset: Offset(1, 3),
+                              color: Colors.grey.withOpacity(.3),
                             ),
                           ],
+                          shape: BoxShape.circle,
                         ),
+                        child: Icon(Icons.more_vert),
                       ),
-
-                      RichText(
-                        text: TextSpan(
-                          style: GoogleFonts.roboto(fontSize: 14),
-                          children: [
-                            TextSpan(
-                              text: "Store ",
-                              style: TextStyle(color: Colors.black),
-                            ),
-                            TextSpan(
-                              text: farm.store + ' kgs',
-                              style: GoogleFonts.roboto(
-                                fontSize: 14,
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Text(
-                      //   "Total Feed Used: ${farm.feedUsed} ",
-                      //   style: GoogleFonts.roboto(fontSize: 14),
-                      // ),
-                    ],
+                    ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    _buildStatusChip(
+                      'Active - ${farm.activeCount}',
+                      Colors.green,
+                    ),
+                    const SizedBox(width: 8),
+                    _buildStatusChip(
+                      'Inactive - ${farm.inactiveCount}',
+                      Colors.red,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    farm.name,
+                    style: GoogleFonts.roboto(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    RichText(
+                      text: TextSpan(
+                        style: GoogleFonts.roboto(fontSize: 14),
+                        children: [
+                          TextSpan(
+                            text: "Total Feed Used: ",
+                            style: TextStyle(color: Colors.black),
+                          ),
+                          TextSpan(
+                            text: farm.feedUsed + ' kgs',
+                            style: GoogleFonts.roboto(
+                              fontSize: 14,
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    RichText(
+                      text: TextSpan(
+                        style: GoogleFonts.roboto(fontSize: 14),
+                        children: [
+                          TextSpan(
+                            text: "Store ",
+                            style: TextStyle(color: Colors.black),
+                          ),
+                          TextSpan(
+                            text: farm.store + ' kgs',
+                            style: GoogleFonts.roboto(
+                              fontSize: 14,
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Text(
+                    //   "Total Feed Used: ${farm.feedUsed} ",
+                    //   style: GoogleFonts.roboto(fontSize: 14),
+                    // ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -812,4 +783,30 @@ class CustomConfirmationDialog extends StatelessWidget {
       ),
     );
   }
+}
+
+class FarmSection {
+  final String name;
+  final String feedUsed;
+  final String store;
+  final String activeCount;
+  final String inactiveCount;
+  final List<String> imageUrls;
+  final String id;
+  final int noOfTanks;
+  final String stockingDate;
+  final String lowFeedLimit;
+
+  FarmSection({
+    required this.lowFeedLimit,
+    required this.noOfTanks,
+    required this.name,
+    required this.feedUsed,
+    required this.store,
+    required this.activeCount,
+    required this.inactiveCount,
+    required this.imageUrls,
+    required this.stockingDate,
+    required this.id,
+  });
 }

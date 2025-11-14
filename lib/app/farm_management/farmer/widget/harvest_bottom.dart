@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 
 // --- Harvest Bottom Sheet Widget ---
 class HarvestBottomSheet extends StatelessWidget {
-  const HarvestBottomSheet({super.key});
+  final TankModel tank;
+  final int statusToUpdate;
+  final VoidCallback onSubmit;
 
+  HarvestBottomSheet({
+    super.key,
+    required this.tank,
+    required this.statusToUpdate,
+    required this.onSubmit,
+  });
   @override
   Widget build(BuildContext context) {
     // We wrap the content in a Padding and a Container to control the height
@@ -71,11 +80,13 @@ class HarvestBottomSheet extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               // Days Display (Read-only/Fixed Value)
-              const ReadOnlyInput(text: '04'),
+              ReadOnlyInput(text: '${tank.totalFeedUsed ?? "0"} kgs'),
+
               const SizedBox(height: 24),
 
               // Count Label and Input
-              const OptionalInputLabel(text: 'Count'),
+              ReadOnlyInput(text: '${tank.meals ?? 0}'),
+
               const SizedBox(height: 8),
               const EditableInput(hint: 'Enter count'),
               const SizedBox(height: 24),
@@ -91,9 +102,8 @@ class HarvestBottomSheet extends StatelessWidget {
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Action for Inactive/Submit Button
-                  },
+                  onPressed: onSubmit,
+
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFE53935), // Bright Red
                     shape: RoundedRectangleBorder(

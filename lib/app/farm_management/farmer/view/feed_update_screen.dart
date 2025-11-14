@@ -63,7 +63,7 @@ class FeedUpdateScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24.0),
-                      
+
                   // ✅ Dynamic Tank List UI
                   ListView.builder(
                     itemCount: tanks.length,
@@ -71,28 +71,51 @@ class FeedUpdateScreen extends StatelessWidget {
                     physics: const NeverScrollableScrollPhysics(),
                     itemBuilder: (context, index) {
                       final tank = tanks[index];
-                      
+
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 16),
                         child: FeedUpdateCard(
                           mealsDropDownList: mealsDropDownList,
                           tankName: tank.tankName ?? "",
-                          dayInfo:
-                              "16 Day",
+                          dayInfo: "16 Day",
                           initialMeals: tank.meals?.toString() ?? "0",
-                          initialQuantity: tank.feedQuantity ?? "0",
-                          showEditButton: tank.status == 1,
-                          showAddButton: tank.status == 0,
-                          onTapEdit: () {
-                            if (!tankController.isAddingTodayTankQuntity.value) {
-                              tankController.addTodayTankQuntity(farmId: farmId);
-                            }
-                          },
-                          onTapAdd: () {
-                            if (!tankController.isAddingTodayTankQuntity.value) {
-                              tankController.addTodayTankQuntity(farmId: farmId);
-                            }
-                          },
+                          initialFeedQuantity: tank.feedQuantity ?? "0",
+                          showEditButton: false,
+                          showAddButton: true,
+                          onTapEdit:
+                              ({
+                                required String meals,
+                                required String feedQty,
+                              }) {
+                                if (!tankController
+                                    .isAddingTodayTankQuntity
+                                    .value) {
+                                  tankController.addTodayTankQuntity(
+                                    farmId: farmId,
+                                    feedQty: feedQty,
+                                    mealQty: meals,
+                                    tankId: tank.id.toString(),
+                                    mealId: '',
+                                    feedId: ''
+                                  );
+                                }
+                              },
+                          onTapAdd:
+                              ({
+                                required String meals,
+                                required String feedQty,
+                              }) {
+                                if (!tankController
+                                    .isAddingTodayTankQuntity
+                                    .value) {
+                                  tankController.addTodayTankQuntity(
+                                    farmId: farmId,
+                                    feedQty: feedQty,
+                                    mealQty: meals,
+                                    tankId: tank.id.toString(),
+                                  );
+                                }
+                              },
                         ),
                       );
                     },
@@ -101,16 +124,14 @@ class FeedUpdateScreen extends StatelessWidget {
               ),
             ),
             if (tankController.isAddingTodayTankQuntity.value)
-            Positioned(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(.3)
+              Positioned(
+                child: Container(
+                  decoration: BoxDecoration(color: Colors.grey.withOpacity(.3)),
+                  height: MediaQuery.of(context).size.height,
+                  width: MediaQuery.of(context).size.width,
+                  child: Center(child: CircularProgressIndicator()),
                 ),
-                height: MediaQuery.of(context).size.height,
-                width: MediaQuery.of(context).size.width,
-                child: Center(child: CircularProgressIndicator()),
               ),
-            ),
           ],
         );
       }),
@@ -118,32 +139,40 @@ class FeedUpdateScreen extends StatelessWidget {
   }
 }
 
+// ignore: must_be_immutable
 class FeedUpdateCard extends StatelessWidget {
   final String tankName;
   final String dayInfo;
   final String initialMeals;
-  final String initialQuantity;
+  final String initialFeedQuantity;
   final bool showEditButton;
   final bool showAddButton;
   final List<String> mealsDropDownList;
-  final VoidCallback onTapEdit;
-  final VoidCallback onTapAdd;
+  final Function({required String meals, required String feedQty}) onTapEdit;
+  final Function({required String meals, required String feedQty}) onTapAdd;
 
-  const FeedUpdateCard({
+  FeedUpdateCard({
     super.key,
     required this.tankName,
     required this.dayInfo,
     required this.initialMeals,
-    required this.initialQuantity,
+    required this.initialFeedQuantity,
     this.showEditButton = false,
     this.showAddButton = false,
     required this.mealsDropDownList,
     required this.onTapEdit,
     required this.onTapAdd,
   });
-
+  String feedQtyText = '';
+  String mealText = '';
   @override
   Widget build(BuildContext context) {
+    if (feedQtyText.isEmpty) {
+      feedQtyText = initialFeedQuantity;
+    }
+    if (mealText.isEmpty) {
+      mealText = initialMeals;
+    }
     return Card(
       color: Colors.white,
       // decoration: BoxDecoration(
@@ -173,60 +202,34 @@ class FeedUpdateCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16.0),
-
-            // Meals Section
             Text(
               'Meals',
               style: GoogleFonts.roboto(fontSize: 14, color: Colors.black54),
             ),
             const SizedBox(height: 4.0),
-            // Container(
-            //   padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            //   decoration: BoxDecoration(
-            //     border: Border.all(color: Colors.grey.shade300),
-            //     borderRadius: BorderRadius.circular(4.0),
-            //   ),
-            //   child: DropdownButtonHideUnderline(
-            //     child: DropdownButton<String>(
-            //       value: mealsDropDownList.contains(initialMeals)
-            //           ? initialMeals
-            //           : null,
-            //       isExpanded: true,
-            //       icon: const Icon(Icons.keyboard_arrow_down),
-            //       items: mealsDropDownList.map<DropdownMenuItem<String>>((
-            //         String value,
-            //       ) {
-            //         return DropdownMenuItem<String>(
-            //           value: value,
-            //           child: Text(value),
-            //         );
-            //       }).toList(),
-            //       onChanged: (String? newValue) {
-            //         // Handle meal selection change
-            //       },
-            //     ),
-            //   ),
-            // ),
-             TextFormField(
-               initialValue: initialMeals,
-               keyboardType: TextInputType.number,
-               decoration: InputDecoration(
-                 border: const OutlineInputBorder(),
-                 contentPadding: const EdgeInsets.symmetric(
-                   vertical: 10.0,
-                   horizontal: 10.0,
-                 ),
-                 isDense: true,
-                 enabledBorder: OutlineInputBorder(
-                   borderSide: BorderSide(color: Colors.grey.shade300),
-                   borderRadius: BorderRadius.circular(4.0),
-                 ),
-                 focusedBorder: const OutlineInputBorder(
-                   borderSide: BorderSide(color: AppColors.primary),
-                   borderRadius: BorderRadius.all(Radius.circular(4.0)),
-                 ),
-               ),
-             ),
+            TextFormField(
+              initialValue: initialMeals,
+              keyboardType: TextInputType.number,
+              onChanged: (value) {
+                mealText = value;
+              },
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 10.0,
+                  horizontal: 10.0,
+                ),
+                isDense: true,
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(4.0),
+                ),
+                focusedBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary),
+                  borderRadius: BorderRadius.all(Radius.circular(4.0)),
+                ),
+              ),
+            ),
             const SizedBox(height: 16.0),
 
             // Feed Quantity Section
@@ -240,7 +243,10 @@ class FeedUpdateCard extends StatelessWidget {
                 // Quantity Input Field
                 Expanded(
                   child: TextFormField(
-                    initialValue: initialQuantity,
+                    onChanged: (value) {
+                      feedQtyText = value;
+                    },
+                    initialValue: initialFeedQuantity,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       border: const OutlineInputBorder(),
@@ -300,7 +306,9 @@ class FeedUpdateCard extends StatelessWidget {
               children: [
                 if (showEditButton)
                   OutlinedButton(
-                    onPressed:onTapEdit,
+                    onPressed: () {
+                      onTapEdit(feedQty: feedQtyText, meals: mealText);
+                    },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.primary),
@@ -316,7 +324,9 @@ class FeedUpdateCard extends StatelessWidget {
                   ),
                 if (showAddButton)
                   ElevatedButton(
-                    onPressed: onTapAdd,
+                    onPressed: () {
+                      onTapAdd(feedQty: feedQtyText, meals: mealText);
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,

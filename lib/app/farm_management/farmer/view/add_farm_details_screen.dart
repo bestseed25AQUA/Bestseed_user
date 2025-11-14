@@ -10,7 +10,7 @@ import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_list_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/controller/former_details_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/controller/former_details_controller.dart' hide FarmListController;
 
 class AddFarmerDetailsFormScreen extends StatefulWidget {
   const AddFarmerDetailsFormScreen({super.key, this.farmData});
@@ -23,7 +23,7 @@ class AddFarmerDetailsFormScreen extends StatefulWidget {
 
 class _AddFarmerDetailsFormScreenState
     extends State<AddFarmerDetailsFormScreen> {
-  final FarmerDetailController controller = Get.put(FarmerDetailController());
+  final FarmListController controller = Get.put(FarmListController());
 
   final TextEditingController farmName = TextEditingController();
   final TextEditingController stockingDate = TextEditingController();
@@ -289,7 +289,7 @@ class _AddFarmerDetailsFormScreenState
                         backgroundColor: AppColors.primary,
                         minimumSize: const Size(double.infinity, 50),
                       ),
-                      child: controller.isLoading.value
+                      child: controller.isOverlay.value
                           ? const CircularProgressIndicator(color: Colors.white)
                           : Text(
                               isEdit ? "Update" : "Save",

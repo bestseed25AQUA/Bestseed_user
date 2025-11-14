@@ -3,8 +3,10 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
+import 'package:seedsuser/app/home/controller/hatchery_category_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/harchery_details_screen.dart';
+import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 
 class HatcheryWidget extends StatelessWidget {
   final VoidCallback onViewAllTap;
@@ -36,7 +38,7 @@ class HatcheryWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+            padding: const EdgeInsets.only(bottom: 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -54,7 +56,6 @@ class HatcheryWidget extends StatelessWidget {
               ],
             ),
           ),
-
           Column(
             children: List.generate((list.length / 2).ceil(), (rowIndex) {
               final i1 = rowIndex * 2;
@@ -73,6 +74,7 @@ class HatcheryWidget extends StatelessWidget {
                         title: list[i1].title,
                         location: list[i1].location,
                         type: list[i1].type,
+                        id: list[i1].id.toString(),
                         status: list[i1].status,
                         statusColor: list[i1].status.toLowerCase() == "open"
                             ? const Color(0xff25A652)
@@ -90,7 +92,7 @@ class HatcheryWidget extends StatelessWidget {
                       child: i2 < list.length
                           ? HatcheryCard(
                               width: cardWidth,
-                              height: cardHeight,
+                              height: cardHeight, id: list[i1].id.toString(),
                               imagePath: list[i2].imagePath,
                               title: list[i2].title,
                               location: list[i2].location,
@@ -128,6 +130,7 @@ class HatcheryCard extends StatelessWidget {
   final String status;
   final Color statusColor;
   final String? availableUntil;
+  final String? id;
 
   const HatcheryCard({
     super.key,
@@ -140,6 +143,7 @@ class HatcheryCard extends StatelessWidget {
     required this.status,
     required this.statusColor,
     this.availableUntil,
+    this.id,
   });
 
   @override
@@ -157,7 +161,10 @@ class HatcheryCard extends StatelessWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
-      onTap: () => Get.to(() => HatcheryDetailScreen()),
+      // onTap: () => Get.to(() => HatcheryDetailScreen()),
+      onTap: () {
+        Get.to(HatcheryCateogryScreen(hatcheryId: id.toString()));
+      },
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,

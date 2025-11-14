@@ -36,7 +36,7 @@ class SpotHatcheryScreen extends StatelessWidget {
           );
         }
 
-        if (controller.banners.isEmpty) {
+        if (controller.spotHatchery.isEmpty) {
           return Center(
             child: Text(
               "No hatcheries found.",
@@ -47,7 +47,7 @@ class SpotHatcheryScreen extends StatelessWidget {
 
         return ListView.builder(
           padding: const EdgeInsets.only(bottom: 2),
-          itemCount: controller.banners.length + 1, // +1 for promo banner
+          itemCount: controller.spotHatchery.length + 1, // +1 for promo banner
           itemBuilder: (context, index) {
             if (index == 0) {
               return Column(
@@ -58,7 +58,7 @@ class SpotHatcheryScreen extends StatelessWidget {
                 ],
               );
             } 
-            final hatchery = controller.banners[index - 1];
+            final hatchery = controller.spotHatchery[index - 1];
             return Padding(
               padding: const EdgeInsets.only(bottom: 6, top: 20),
               child: HarcheryCardWidget(spotHatchery: hatchery),

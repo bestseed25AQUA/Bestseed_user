@@ -256,10 +256,9 @@ class _HomePageState extends State<HomePage>
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 16),
-
                   HatcheryWidget(onViewAllTap: () {}),
+                  SizedBox(height: 20),
                   TodayPricesWidget(),
                   SizedBox(height: 16),
                   HatcherySuppliersWidget(),
@@ -501,7 +500,11 @@ class _HomePageState extends State<HomePage>
                   width: 150,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
-                    return SizedBox(height: 120, width: 150,child: CustomShimmer(),);
+                    return SizedBox(
+                      height: 120,
+                      width: 150,
+                      child: CustomShimmer(),
+                    );
                   },
                 ),
               ),

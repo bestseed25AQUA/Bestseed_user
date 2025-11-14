@@ -292,7 +292,8 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                       currentPosition?.longitude == null) {
                     currentPosition = await getCurrentLocation();
                   }
-                  await Get.to(
+                  if(currentPosition?.latitude != null && currentPosition?.longitude != null) {
+                    await Get.to(
                     () => GoogleMapSearchPlacesScreen(
                       latitude: currentPosition!.latitude,
                       longitude: currentPosition!.longitude,
@@ -368,6 +369,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                       },
                     ),
                   );
+                  }
                 },
                 child: Container(
                   decoration: BoxDecoration(

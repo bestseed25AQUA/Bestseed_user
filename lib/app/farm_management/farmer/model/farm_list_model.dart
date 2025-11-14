@@ -17,7 +17,7 @@ class FarmListModel {
       });
     }
   }
-} 
+}
 
 class FarmData {
   int? id;
@@ -28,6 +28,8 @@ class FarmData {
   String? store;
   String? lowFeedLimit;
   FarmImages? images;
+  dynamic activeCount;
+  dynamic inactiveCount;
 
   FarmData({
     this.id,
@@ -48,7 +50,11 @@ class FarmData {
     noOfTanks = json['no_of_tanks'];
     store = json['store'];
     lowFeedLimit = json['low_feed_limit'];
-    images = json['images'] != null ? FarmImages.fromJson(json['images']) : null;
+    activeCount = json['active_count'];
+    inactiveCount = json['inactive_count'];
+    images = json['images'] != null
+        ? FarmImages.fromJson(json['images'])
+        : null;
   }
 
   Map<String, dynamic> toJson() {
@@ -59,6 +65,8 @@ class FarmData {
       "stocking_date": stockingDate,
       "no_of_tanks": noOfTanks,
       "store": store,
+      "active_count": activeCount,
+      "inactive_count": inactiveCount,
       "low_feed_limit": lowFeedLimit,
       "images": images?.toJson(),
     };
@@ -111,4 +119,3 @@ class FarmImages {
     };
   }
 }
-

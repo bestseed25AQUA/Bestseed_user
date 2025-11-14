@@ -7,7 +7,7 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 
 class SpotHatcheryController extends GetxController {
   var isLoading = true.obs;
-  var banners = <SpotHatchery>[].obs;
+  var spotHatchery = <SpotHatchery>[].obs;
 
   @override
   void onInit() {
@@ -28,11 +28,11 @@ class SpotHatcheryController extends GetxController {
 
         if (data['status'] == true && data['spot_hatcheries'] != null) {
           final List<dynamic> bannerList = data['spot_hatcheries'];
-          banners.assignAll(
+          spotHatchery.assignAll(
             bannerList.map((e) => SpotHatchery.fromJson(e)).toList(),
           );
         } else {
-          banners.clear();
+          spotHatchery.clear();
           CustomToast.error("No banners found.");
         }
       } else {
