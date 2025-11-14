@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/booking_hatchery_widget.dart';
-import 'package:seedsuser/app/home/hatchery_details.dart';
+import 'package:seedsuser/app/home/hatchery_category_detail_screen.dart';
 import 'package:seedsuser/app/model/location_model.dart';
 import 'package:seedsuser/app/model/spot_hatchery_model.dart';
 import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
@@ -52,7 +52,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
         });
       },
       onTap: () {
-        Get.to(() => HatcheryDetail(videoUrl: 'assets/videos/sample.mp4'));
+        // Get.to(() => HatcheryDetail(videoUrl: 'assets/videos/sample.mp4'));
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),

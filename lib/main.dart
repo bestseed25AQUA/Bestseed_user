@@ -20,8 +20,7 @@ void main() async {
   HttpOverrides.global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
   await GetStorage.init();
-
-  // Initialize GetX LanguageController
+  
   Get.put(LanguageController());
 
   runApp(const MyApp());

@@ -46,7 +46,8 @@ class HatcherySuppliersWidget extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            (broodStockController.homeBroodStocks.length ?? 0) == 0
+            // ignore: prefer_is_empty
+            (broodStockController.homeBroodStocks.length) == 0
                 ? Align(
                     alignment: Alignment.centerLeft,
                     child: Padding(
@@ -59,7 +60,7 @@ class HatcherySuppliersWidget extends StatelessWidget {
                   )
                 : Column(
                     children: List.generate(
-                      broodStockController.homeBroodStocks.length,
+                     ( broodStockController.homeBroodStocks.length <= 5 ) ? broodStockController.homeBroodStocks.length:5,
                       (index) {
                         final data =
                             broodStockController.homeBroodStocks[index];

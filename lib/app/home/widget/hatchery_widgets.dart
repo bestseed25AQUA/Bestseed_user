@@ -92,7 +92,8 @@ class HatcheryWidget extends StatelessWidget {
                       child: i2 < list.length
                           ? HatcheryCard(
                               width: cardWidth,
-                              height: cardHeight, id: list[i1].id.toString(),
+                              height: cardHeight,
+                              id: list[i1].id.toString(),
                               imagePath: list[i2].imagePath,
                               title: list[i2].title,
                               location: list[i2].location,
@@ -283,7 +284,7 @@ class HatcheryCard extends StatelessWidget {
             ),
 
             SizedBox(height: screenHeight * 0.006),
-
+       
             // Type Row
             Row(
               children: [

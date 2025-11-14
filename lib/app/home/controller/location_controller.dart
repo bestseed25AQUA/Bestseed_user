@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
-import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
-import 'package:seedsuser/app/model/location_model.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';

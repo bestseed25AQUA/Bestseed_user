@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/home/model/filter_apply_data_model.dart';
+import 'package:seedsuser/app/home/model/hatchery_category_detail_model.dart';
 import 'package:seedsuser/app/home/model/hatchery_category_model.dart';
 import 'package:seedsuser/app/model/home_banner_model.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
@@ -11,8 +12,7 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 class HatcheryCategoryController extends GetxController {
   RxBool isLoading = false.obs;
 
-  RxList<HatcheryCategoryData> hatcheryCateogoryData =
-      <HatcheryCategoryData>[].obs;
+  Rx<HatcheryCategoryData> hatcheryCateogoryData = HatcheryCategoryData().obs;
 
 
   Future<void> fetchHetcheryCategory(String id) async {
@@ -26,9 +26,7 @@ class HatcheryCategoryController extends GetxController {
       if (response.statusCode == 200) {
         try {
           final dataResponse = jsonDecode(response.body);
-          hatcheryCateogoryData.assign(
-            HatcheryCategoryData.fromJson(dataResponse['data']),
-          );
+          hatcheryCateogoryData.value =  HatcheryCategoryData.fromJson(dataResponse['data']);
         } catch (e) {
           print(e.toString());
         }
@@ -37,6 +35,34 @@ class HatcheryCategoryController extends GetxController {
       CustomToast.error("Something went wrong fetching hatcgery data");
     } finally {
       isLoading.value = false;
+    }
+  }
+
+
+  
+  Rx<HatcherCategoryDetailModel> hatcheryCategoryDetailData = HatcherCategoryDetailModel().obs;
+  RxBool detailLoading = false.obs;
+
+  Future<void> getHatcheryCategoryDetail(String hatcheryId, String categoryId) async {
+    try {
+      detailLoading.value = true;
+      final response = await getRequest(
+        endPoint: '${NetworkConfig.baseURL}/farmer/hatchery/$hatcheryId/category/$categoryId/detail',
+        headers: await buildHeader(),
+      );
+
+      if (response.statusCode == 200) {
+        try{
+          final dataResponse = jsonDecode(response.body);
+          hatcheryCategoryDetailData.value =  HatcherCategoryDetailModel.fromJson(dataResponse);
+        } catch (e) {
+          print(e.toString());
+        }
+      }
+    } catch (e){
+      CustomToast.error("Something went wrong fetching hatcgery data");
+    } finally {
+      detailLoading.value = false;
     }
   }
 

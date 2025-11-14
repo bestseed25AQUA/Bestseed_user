@@ -64,12 +64,20 @@ class HatcheryUpdatesWidget extends StatelessWidget {
                     padding: EdgeInsets.all(10),
                     scrollDirection: Axis.horizontal,
                     itemCount:
-                        hatcheryController
-                            .hatcheryHomeData
-                            .value
-                            ?.data
-                            .length ??
-                        0,
+                        (hatcheryController
+                                    .hatcheryHomeData
+                                    .value
+                                    ?.data
+                                    .length ??
+                                0) <=
+                            4
+                        ? (hatcheryController
+                                  .hatcheryHomeData
+                                  .value
+                                  ?.data
+                                  .length ??
+                              0)
+                        : 4,
                     itemBuilder: (context, index) {
                       final data = hatcheryController
                           .hatcheryHomeData
