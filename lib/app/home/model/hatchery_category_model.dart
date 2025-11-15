@@ -1,217 +1,223 @@
-// To parse this JSON data, do
-//
-//     final hatcherCategoryModel = hatcherCategoryModelFromJson(jsonString);
-
 import 'dart:convert';
 
-HatcherCategoryModel hatcherCategoryModelFromJson(String str) => HatcherCategoryModel.fromJson(json.decode(str));
-
-String hatcherCategoryModelToJson(HatcherCategoryModel data) => json.encode(data.toJson());
-
-class HatcherCategoryModel {
-    bool? status;
-    String? message;
-    HatcheryCategoryData? data;
-
-    HatcherCategoryModel({
-        this.status,
-        this.message,
-        this.data,
-    });
-
-    factory HatcherCategoryModel.fromJson(Map<String, dynamic> json) => HatcherCategoryModel(
-        status: json["status"],
-        message: json["message"],
-        data: json["data"] == null ? null : HatcheryCategoryData.fromJson(json["data"]),
-    );
-
-    Map<String, dynamic> toJson() => {
-        "status": status,
-        "message": message,
-        "data": data?.toJson(),
-    };
+HatcheryDetailsResponse hatcheryDetailsResponseFromJson(String str) {
+  return HatcheryDetailsResponse.fromJson(json.decode(str));
 }
 
-class HatcheryCategoryData {
-    int? id;
-    String? hatcheryName;
-    List<String>? images;
-    String? status;
-    DateTime? availableOn;
-    int? isSpot;
-    Category? category;
-    Category? location;
-    List<Unit>? units;
-    List<Broodstock>? broodstock;
-    List<Price>? prices;
-    String? callUrl;
-    String? whatsappUrl;
-    List<SimilarHatchery>? similarHatcheries;
+class HatcheryDetailsResponse {
+  final bool status;
+  final String message;
+  final List<HatcheryData> data;
+  final List<SimilarHatchery> similarHatcheries;
+  HatcheryDetailsResponse({
+    required this.status,
+    required this.message,
+    required this.data,
+    required this.similarHatcheries,
+  });
 
-    HatcheryCategoryData({
-        this.id,
-        this.hatcheryName,
-        this.images,
-        this.status,
-        this.availableOn,
-        this.isSpot,
-        this.category,
-        this.location,
-        this.units,
-        this.broodstock,
-        this.prices,
-        this.callUrl,
-        this.whatsappUrl,
-        this.similarHatcheries,
-    });
+  factory HatcheryDetailsResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json["data"];
 
-    factory HatcheryCategoryData.fromJson(Map<String, dynamic> json) => HatcheryCategoryData(
-        id: json["id"],
-        hatcheryName: json["hatchery_name"],
-        images: json["images"] == null ? [] : List<String>.from(json["images"]!.map((x) => x)),
-        status: json["status"],
-        availableOn: json["available_on"] == null ? null : DateTime.parse(json["available_on"]),
-        isSpot: json["is_spot"],
-        category: json["category"] == null ? null : Category.fromJson(json["category"]),
-        location: json["location"] == null ? null : Category.fromJson(json["location"]),
-        units: json["units"] == null ? [] : List<Unit>.from(json["units"]!.map((x) => Unit.fromJson(x))),
-        broodstock: json["broodstock"] == null ? [] : List<Broodstock>.from(json["broodstock"]!.map((x) => Broodstock.fromJson(x))),
-        prices: json["prices"] == null ? [] : List<Price>.from(json["prices"]!.map((x) => Price.fromJson(x))),
-        callUrl: json["call_url"],
-        whatsappUrl: json["whatsapp_url"],
-        similarHatcheries: json["similar_hatcheries"] == null ? [] : List<SimilarHatchery>.from(json["similar_hatcheries"]!.map((x) => SimilarHatchery.fromJson(x))),
+    return HatcheryDetailsResponse(
+      status: json["status"] == true,
+      message: json["message"]?.toString() ?? "",
+      data: rawData == null
+          ? []
+          : rawData is List
+          ? rawData.map((e) => HatcheryData.fromJson(e)).toList()
+          : [HatcheryData.fromJson(rawData)], // wrap single object
+      similarHatcheries: json["similar_hatcheries"] is List
+          ? (json["similar_hatcheries"] as List)
+                .map((e) => SimilarHatchery.fromJson(e))
+                .toList()
+          : [],
     );
-
-    Map<String, dynamic> toJson() => {
-        "id": id,
-        "hatchery_name": hatcheryName,
-        "images": images == null ? [] : List<dynamic>.from(images!.map((x) => x)),
-        "status": status,
-        "available_on": "${availableOn!.year.toString().padLeft(4, '0')}-${availableOn!.month.toString().padLeft(2, '0')}-${availableOn!.day.toString().padLeft(2, '0')}",
-        "is_spot": isSpot,
-        "category": category?.toJson(),
-        "location": location?.toJson(),
-        "units": units == null ? [] : List<dynamic>.from(units!.map((x) => x.toJson())),
-        "broodstock": broodstock == null ? [] : List<dynamic>.from(broodstock!.map((x) => x.toJson())),
-        "prices": prices == null ? [] : List<dynamic>.from(prices!.map((x) => x.toJson())),
-        "call_url": callUrl,
-        "whatsapp_url": whatsappUrl,
-        "similar_hatcheries": similarHatcheries == null ? [] : List<dynamic>.from(similarHatcheries!.map((x) => x.toJson())),
-    };
+  }
 }
 
-class Broodstock {
-    int? count;
+class HatcheryData {
+  final int id;
+  final String hatcheryName;
+  final List<String> images;
+  final String status;
+  final String? availableOn;
+  final int isSpot;
 
-    Broodstock({
-        this.count,
-    });
+  final HatcheryCategory? category;
+  final HatcheryItem categories;
 
-    factory Broodstock.fromJson(Map<String, dynamic> json) => Broodstock(
-        count: json["count"],
+  final HatcheryLocation? location;
+  final List<UnitModel> units;
+
+  final int broodstock;
+  final String price;
+  final String callUrl;
+  final String whatsappUrl;
+
+  HatcheryData({
+    required this.id,
+    required this.hatcheryName,
+    required this.images,
+    required this.status,
+    required this.availableOn,
+    required this.isSpot,
+    required this.category,
+    required this.categories,
+    required this.location,
+    required this.units,
+    required this.broodstock,
+    required this.price,
+    required this.callUrl,
+    required this.whatsappUrl,
+  });
+
+  factory HatcheryData.fromJson(Map<String, dynamic> json) {
+    return HatcheryData(
+      id: json["id"] is int ? json["id"] : int.tryParse("${json["id"]}") ?? 0,
+      hatcheryName: json["hatchery_name"]?.toString() ?? "",
+      images: json["images"] is List
+          ? List<String>.from(json["images"].map((e) => e?.toString() ?? ""))
+          : [],
+
+      status: json["status"]?.toString() ?? "unknown",
+      availableOn: json["available_on"]?.toString(),
+
+      isSpot: json["is_spot"] is int
+          ? json["is_spot"]
+          : int.tryParse("${json["is_spot"]}") ?? 0,
+
+      category: json["category"] != null
+          ? HatcheryCategory.fromJson(json["category"])
+          : null,
+
+      categories: HatcheryItem.fromJson(json['category']),
+
+      location: json["location"] != null
+          ? HatcheryLocation.fromJson(json["location"])
+          : null,
+
+      units: json["units"] is List
+          ? (json["units"] as List).map((e) => UnitModel.fromJson(e)).toList()
+          : [],
+
+      broodstock: json["broodstock"] is int
+          ? json["broodstock"]
+          : int.tryParse("${json["broodstock"]}") ?? 0,
+
+      price: json["price"]?.toString() ?? "0",
+
+      callUrl: json["call_url"]?.toString() ?? "",
+      whatsappUrl: json["whatsapp_url"]?.toString() ?? "",
     );
-
-    Map<String, dynamic> toJson() => {
-        "count": count,
-    };
+  }
 }
 
-class Category {
-    int? id;
-    String? name;
+class HatcheryCategory {
+  final int id;
+  final String name;
+  final String description;
+  final List<String> gallery;
+  final String report;
 
-    Category({
-        this.id,
-        this.name,
-    });
+  HatcheryCategory({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.gallery,
+    required this.report,
+  });
 
-    factory Category.fromJson(Map<String, dynamic> json) => Category(
-        id: json["id"],
-        name: json["name"],
+  factory HatcheryCategory.fromJson(Map<String, dynamic> json) {
+    return HatcheryCategory(
+      id: json["id"] is int ? json["id"] : int.tryParse("${json["id"]}") ?? 0,
+      name: json["name"]?.toString() ?? "",
+      description: json["description"]?.toString() ?? "",
+      gallery: json["gallery"] is List
+          ? List<String>.from(json["gallery"].map((e) => e?.toString() ?? ""))
+          : [],
+      report: json["report"]?.toString() ?? "",
     );
-
-    Map<String, dynamic> toJson() => {
-        "id": id,
-        "name": name,
-    };
+  }
 }
 
-class Price {
-    String? price;
+class HatcheryItem {
+  final int id;
+  final String name;
 
-    Price({
-        this.price,
-    });
+  HatcheryItem({required this.id, required this.name});
 
-    factory Price.fromJson(Map<String, dynamic> json) => Price(
-        price: json["price"],
+  factory HatcheryItem.fromJson(Map<String, dynamic> json) {
+    return HatcheryItem(
+      id: json["id"] is int ? json["id"] : int.tryParse("${json["id"]}") ?? 0,
+      name: json['name'] ?? '',
     );
+  }
+}
 
-    Map<String, dynamic> toJson() => {
-        "price": price,
-    };
+class HatcheryLocation {
+  final int id;
+  final String name;
+
+  HatcheryLocation({required this.id, required this.name});
+
+  factory HatcheryLocation.fromJson(Map<String, dynamic> json) {
+    return HatcheryLocation(
+      id: json["id"] is int ? json["id"] : int.tryParse("${json["id"]}") ?? 0,
+      name: json["name"]?.toString() ?? "",
+    );
+  }
+}
+
+class UnitModel {
+  final int id;
+  final String branchName;
+
+  UnitModel({required this.id, required this.branchName});
+
+  factory UnitModel.fromJson(Map<String, dynamic> json) {
+    return UnitModel(
+      id: json["id"] is int ? json["id"] : int.tryParse("${json["id"]}") ?? 0,
+      branchName: json["branch_name"]?.toString() ?? "",
+    );
+  }
 }
 
 class SimilarHatchery {
-    int? id;
-    String? hatcheryName;
-    int? categoryId;
-    int? locationId;
-    String? status;
-    DateTime? availableOn;
-    String? image;
-    int? isSpot;
+  final int id;
+  final String hatcheryName;
+  final int categoryId;
+  final String? location;
+  final String status;
+  final String? availableOn;
+  final String? image;
+  final int isSpot;
 
-    SimilarHatchery({
-        this.id,
-        this.hatcheryName,
-        this.categoryId,
-        this.locationId,
-        this.status,
-        this.availableOn,
-        this.image,
-        this.isSpot,
-    });
+  SimilarHatchery({
+    required this.id,
+    required this.hatcheryName,
+    required this.categoryId,
+    required this.location,
+    required this.status,
+    required this.availableOn,
+    required this.image,
+    required this.isSpot,
+  });
 
-    factory SimilarHatchery.fromJson(Map<String, dynamic> json) => SimilarHatchery(
-        id: json["id"],
-        hatcheryName: json["hatchery_name"],
-        categoryId: json["category_id"],
-        locationId: json["location_id"],
-        status: json["status"],
-        availableOn: json["available_on"] == null ? null : DateTime.parse(json["available_on"]),
-        image: json["image"],
-        isSpot: json["is_spot"],
+  factory SimilarHatchery.fromJson(Map<String, dynamic> json) {
+    return SimilarHatchery(
+      id: json["id"] is int ? json["id"] : int.tryParse("${json["id"]}") ?? 0,
+      hatcheryName: json["hatchery_name"]?.toString() ?? "",
+      categoryId: json["category_id"] is int
+          ? json["category_id"]
+          : int.tryParse("${json["category_id"]}") ?? 0,
+      location: json["location"]?.toString(),
+      status: json["status"]?.toString() ?? "",
+      availableOn: json["available_on"]?.toString(),
+      image: json["image"]?.toString(),
+      isSpot: json["is_spot"] is int
+          ? json["is_spot"]
+          : int.tryParse("${json["is_spot"]}") ?? 0,
     );
-
-    Map<String, dynamic> toJson() => {
-        "id": id,
-        "hatchery_name": hatcheryName,
-        "category_id": categoryId,
-        "location_id": locationId,
-        "status": status,
-        "available_on": "${availableOn!.year.toString().padLeft(4, '0')}-${availableOn!.month.toString().padLeft(2, '0')}-${availableOn!.day.toString().padLeft(2, '0')}",
-        "image": image,
-        "is_spot": isSpot,
-    };
-}
-
-class Unit {
-    int? id;
-    String? branchName;
-
-    Unit({
-        this.id,
-        this.branchName,
-    });
-
-    factory Unit.fromJson(Map<String, dynamic> json) => Unit(
-        id: json["id"],
-        branchName: json["branch_name"],
-    );
-
-    Map<String, dynamic> toJson() => {
-        "id": id,
-        "branch_name": branchName,
-    };
+  }
 }

@@ -320,7 +320,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                           topRight: Radius.circular(16),
                           bottomRight: Radius.circular(16),
                         ),
-                        onTap: () { 
+                        onTap: () {
                           showModalBottomSheet(
                             context: context,
                             isScrollControlled: true,
@@ -334,6 +334,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                                   ),
                                 ),
                                 child: BookingBottomSheet(
+                                  isSpotHatchery: true,
                                   hatcheryId: hatchery.hatcheryId.toString(),
                                   hatcheryName: hatchery.hatcheryName,
                                 ),

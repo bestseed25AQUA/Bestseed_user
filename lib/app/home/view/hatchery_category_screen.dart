@@ -30,11 +30,10 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
   );
 
   final HomeController _homeController = Get.find<HomeController>();
-  final LocationController _locationController = Get.find<LocationController>();
   @override
   void initState() {
     hatcheryCategoryController.fetchBanners(widget.hatcheryId);
-    hatcheryCategoryController.fetchHetcheryCategory(widget.hatcheryId);
+    hatcheryCategoryController.fetchHetcheryCategory('50');
     super.initState();
   }
 
@@ -46,29 +45,6 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
         // orElse: () => Category(id: -1, categoryName: ''),
       );
       return cat.id == -1 ? '' : cat.categoryName;
-    } catch (_) {
-      return '';
-    }
-  }
-
-  // Resolve location name from LocationController.allLocations (list of maps).
-  String resolvedLocationName(SimilarHatchery hatchery) {
-    try {
-      // compare by id (both sides to string to be safe)
-      final locMap = _locationController.allLocations.firstWhere((m) {
-        final mapId = (m['id'] ?? m['location_id'] ?? m['locationId'])
-            ?.toString();
-        return mapId != null &&
-            mapId == (hatchery.locationId?.toString() ?? '');
-      }, orElse: () => <String, dynamic>{});
-      if (locMap.isEmpty) return '';
-      // try common keys: location_name, title, full_address, name
-      return (locMap['location_name'] ??
-              locMap['title'] ??
-              locMap['full_address'] ??
-              locMap['name'] ??
-              '')
-          .toString();
     } catch (_) {
       return '';
     }
@@ -111,34 +87,95 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                   }
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 6, top: 20),
-                    child: InkWell(
-                      onTap: () {
-                        Get.to(
-                          () => HatcheryDetail(
-                            videoUrl: 'assets/videos/sample.mp4',
-                            hatcheryId: '50',
-                            categoryId: '1',
-                            // hatcheryId: widget.hatcheryId,
-                            // categoryId: hatcheryCategoryController
-                            // .hatcheryCateogoryData
-                            // .value.id.toString(),
-                          ),
-                        );
-                      },
-                      child: HarcheryCardWidget(
-                        hatcheryCategory: hatcheryCategoryController
+                    child: Column(
+                      children: List.generate(
+                        hatcheryCategoryController
                             .hatcheryCateogoryData
-                            .value,
+                            .value
+                            .data
+                            .length,
+                        (index) {
+                          final item = hatcheryCategoryController
+                              .hatcheryCateogoryData
+                              .value
+                              .data[index];
+
+                          return InkWell(
+                            onTap: () {
+                              print(widget.hatcheryId);
+                              print(
+                                hatcheryCategoryController
+                                        .hatcheryCategoryDetailData
+                                        .value
+                                        .data
+                                        ?.category
+                                        ?.id
+                                        ?.toString() ??
+                                    '',
+                              );
+                              // return;
+                              Get.to(
+                                () => HatcheryCategoryDetailScreen(
+                                  videoUrl: 'assets/videos/sample.mp4',
+                                  hatcheryId: widget.hatcheryId,
+                                  categoryId:
+                                      hatcheryCategoryController
+                                          .hatcheryCateogoryData
+                                          .value
+                                          .data[index]
+                                          .categories
+                                          .id
+                                          .toString() ??
+                                      '',
+                                  // hatcheryId: widget.hatcheryId,
+                                  // categoryId: hatcheryCategoryController
+                                  // .hatcheryCateogoryData
+                                  // .value.id.toString(),
+                                ),
+                              );
+                            },
+
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 5,bottom: 5),
+                              child: HarcheryCardWidget(
+                                hatcheryName: item.hatcheryName,
+                                categoryName: item.category?.name ?? "",
+                                imageUrl: (item.images.isEmpty)
+                                    ? ""
+                                    : item.images.first,
+                              
+                                /// units safe parsing
+                                unit1Location: item.units.isNotEmpty
+                                    ? item.units[0].branchName
+                                    : "",
+                                unit2Location: item.units.length > 1
+                                    ? item.units[1].branchName
+                                    : "",
+                              
+                                /// broodstock safe
+                                broodstockCount: item.broodstock.toString(),
+                              
+                                price: item.price,
+                                availableDate: item.availableOn,
+                                callUrl: item.callUrl,
+                                whatsappUrl: item.whatsappUrl,
+                                hatcheryId: item.id.toString(),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   );
                 }),
                 SizedBox(height: 20),
-                if (hatcheryCategoryController
+                // ignore: prefer_is_empty
+                if ((hatcheryCategoryController
                         .hatcheryCateogoryData
                         .value
-                        .similarHatcheries !=
-                    null)
+                        .similarHatcheries
+                        .length) !=
+                    0)
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Padding(
@@ -152,6 +189,7 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                       ),
                     ),
                   ),
+
                 //  Text(( hatcheryCategoryController
                 //                 .hatcheryCateogoryData
                 //                 .value
@@ -159,12 +197,10 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                 //                 ?.length ??
                 //             0).toString()),
                 Obx(() {
-                  final similarList =
-                      hatcheryCategoryController
-                          .hatcheryCateogoryData
-                          .value
-                          .similarHatcheries ??
-                      [];
+                  final similarList = hatcheryCategoryController
+                      .hatcheryCateogoryData
+                      .value
+                      .similarHatcheries;
 
                   if (similarList.isEmpty) return SizedBox();
 
@@ -174,9 +210,32 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                       children: List.generate(similarList.length, (index) {
                         final hatchery = similarList[index];
 
-                        // ⭐ PRE−COMPUTE HERE (Safe)
-                        final categoryName = resolvedCategoryName(hatchery);
-                        final locationName = resolvedLocationName(hatchery);
+                        // ⭐ PRE-COMPUTE SAFE VALUES
+                        final String categoryName = resolvedCategoryName(
+                          hatchery,
+                        ); // your helper function
+                        final String locationName =
+                            hatchery.location ?? ''; // your helper function
+
+                        // ⭐ IMAGE SAFE
+                        final String image = hatchery.image ?? "";
+
+                        // ⭐ DATE SAFE
+                        final String? availableDate =
+                            hatchery.availableOn != null &&
+                                hatchery.availableOn!.trim().isNotEmpty
+                            ? hatchery.availableOn
+                            : null;
+
+                        // ⭐ STATUS COLOR SAFE
+                        final String statusLower = hatchery.status
+                            .toLowerCase();
+
+                        final Color statusColor = statusLower == "open"
+                            ? const Color(0xff25A652)
+                            : statusLower == "coming soon"
+                            ? const Color(0xff007DFE)
+                            : const Color(0xffE31B1B);
 
                         return Padding(
                           padding: const EdgeInsets.symmetric(
@@ -186,25 +245,21 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                           child: SizedBox(
                             height: 230,
                             width: 160,
+
                             child: HatcheryCard(
                               width: 160,
                               height: 295,
-                              id: hatchery.id?.toString() ?? "",
-                              imagePath: hatchery.image ?? "",
-                              title: hatchery.hatcheryName ?? "",
+
+                              /// ⭐ No nullable — model is safe
+                              id: hatchery.id.toString(),
+                              imagePath: image,
+
+                              title: hatchery.hatcheryName,
                               location: locationName,
                               type: categoryName,
-                              status: hatchery.status ?? "",
-                              statusColor:
-                                  (hatchery.status?.toLowerCase() == "open")
-                                  ? const Color(0xff25A652)
-                                  : (hatchery.status?.toLowerCase() ==
-                                        "coming soon")
-                                  ? const Color(0xff007DFE)
-                                  : const Color(0xffE31B1B),
-                              availableUntil: hatchery.availableOn != null
-                                  ? formatDate(hatchery.availableOn!)
-                                  : null,
+                              status: hatchery.status,
+                              statusColor: statusColor,
+                              availableUntil: availableDate,
                             ),
                           ),
                         );
@@ -222,9 +277,33 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
 }
 
 class HarcheryCardWidget extends StatefulWidget {
-  const HarcheryCardWidget({super.key, required this.hatcheryCategory});
+  final String hatcheryName;
+  final String categoryName;
+  final String unit1Location;
+  final String unit2Location;
+  final String imageUrl;
 
-  final HatcheryCategoryData hatcheryCategory;
+  final String? availableDate;
+  final String broodstockCount;
+  final String price;
+  final String? callUrl;
+  final String? whatsappUrl;
+  final String hatcheryId;
+
+  const HarcheryCardWidget({
+    super.key,
+    required this.hatcheryName,
+    required this.categoryName,
+    required this.unit1Location,
+    required this.unit2Location,
+    required this.imageUrl,
+    required this.broodstockCount,
+    required this.price,
+    required this.hatcheryId,
+    this.availableDate,
+    this.callUrl,
+    this.whatsappUrl,
+  });
 
   @override
   State<HarcheryCardWidget> createState() => _HarcheryCardWidgetState();
@@ -244,8 +323,6 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
   // final SeedsPriceController controller = Get.put(SeedsPriceController());
   @override
   Widget build(BuildContext context) {
-    final hatchery = widget.hatcheryCategory;
-
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       curve: Curves.easeInOut,
@@ -256,7 +333,6 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            // ignore: deprecated_member_use
             color: Colors.black.withOpacity(0.2),
             blurRadius: 16,
             spreadRadius: 3,
@@ -268,166 +344,142 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // IMAGE
           ClipRRect(
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(12.0),
               topRight: Radius.circular(12.0),
             ),
             child: Image.network(
-              (hatchery.images?.isEmpty ?? false) ? hatchery.toString() : '',
+              widget.imageUrl,
               width: double.infinity,
               height: 160,
               fit: BoxFit.cover,
               errorBuilder: (context, _, __) => Container(
                 color: Colors.grey.withOpacity(.2),
                 height: 160,
-                width: MediaQuery.of(context).size.width * .9,
+                width: double.infinity,
               ),
             ),
           ),
+
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Row
+                // NAME + (removed badge same as original)
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-
                   children: [
                     Expanded(
-                      flex: 2,
                       child: Text(
-                        hatchery.hatcheryName ?? '',
+                        widget.hatcheryName,
                         style: GoogleFonts.roboto(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
-                    SizedBox(width: 16),
-                    // Container(
-                    //   decoration: BoxDecoration(
-                    //     color: Colors.green,
-                    //     borderRadius: BorderRadius.circular(30.0),
-                    //   ),
-                    //   padding: const EdgeInsets.symmetric(
-                    //     horizontal: 12,
-                    //     vertical: 8,
-                    //   ),
-                    //   child: Row(
-                    //     children: [
-                    //       const Icon(
-                    //         Icons.check_circle,
-                    //         color: Colors.white,
-                    //         size: 18,
-                    //       ),
-                    //       const SizedBox(width: 6),
-                    //       SizedBox(
-                    //         width: MediaQuery.of(context).size.width * .34,
-                    //         child: Text(
-                    //           "Available on ${hatchery.availableOn}",
-                    //           style: GoogleFonts.roboto(
-                    //             color: Colors.white,
-                    //             fontSize: 12,
-                    //             fontWeight: FontWeight.w500,
-                    //           ),
-                    //           overflow: TextOverflow.ellipsis,
-                    //         ),
-                    //       ),
-                    //     ],
-                    //   ),
-                    // ),
                   ],
                 ),
 
                 const SizedBox(height: 8),
 
+                // CATEGORY NAME
                 Text(
-                  hatchery.category?.name ?? '',
+                  widget.categoryName,
                   style: GoogleFonts.roboto(
                     fontSize: 16,
                     color: Colors.grey[700],
                   ),
                 ),
 
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
 
-                // // Location
+                // LOCATION ROWS
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(
                       width: MediaQuery.of(context).size.width * .4,
                       child: _buildInfoRow(
                         Icons.location_on,
-                        'Unit-1',
-                        hatchery.location?.name ?? "",
+                        "Unit-1",
+                        widget.unit1Location,
                       ),
                     ),
                     SizedBox(
                       width: MediaQuery.of(context).size.width * .4,
                       child: _buildInfoRow(
                         Icons.location_on,
-                        'Unit-2',
-                        hatchery.location?.name ?? "",
+                        "Unit-2",
+                        widget.unit2Location,
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 10),
+
+                const SizedBox(height: 12),
+
+                // BROODSTOCK + DATE
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _buildInfoRow(
                       Icons.water_drop_outlined,
-                      "${hatchery.broodstock?.length ?? ""} Pieces",
+                      "${widget.broodstockCount} Pieces",
                       "Broodstock",
                     ),
-                    if (hatchery.availableOn != null)
+
+                    if (widget.availableDate != null)
                       _buildInfoRow(
                         Icons.calendar_today,
                         "Available Date",
-                        formatDate(hatchery.availableOn ?? DateTime.now()),
+                        widget.availableDate!,
                       ),
                   ],
                 ),
-                SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
 
-                  children: [_buildInfoRow(Icons.timer, "Price", "₹ ")],
+                const SizedBox(height: 12),
+
+                // PRICE
+                Row(
+                  children: [
+                    _buildInfoRow(Icons.timer, "Price", "₹ ${widget.price}"),
+                  ],
                 ),
+
                 const SizedBox(height: 20),
+
+                // ACTION BUTTONS
                 Row(
                   children: [
                     _actionButton(
                       label: "Call Now",
-                      icon: 'assets/images/phone.png',
+                      icon: "assets/images/phone.png",
                       color: AppColors.primary,
-                      onTap: () => _makePhoneCall(hatchery.callUrl),
+                      onTap: () => _makePhoneCall(widget.callUrl),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(16),
                         bottomLeft: Radius.circular(16),
                       ),
                     ),
                     const SizedBox(width: 4),
+
                     _actionButton(
                       label: "WhatsApp",
-                      icon: 'assets/images/whatsApp.png',
+                      icon: "assets/images/whatsApp.png",
                       color: Colors.white,
                       textColor: Colors.green,
                       borderColor: Colors.green,
                       onTap: () =>
-                          _launchUrl(hatchery.whatsappUrl ?? '', context),
+                          _launchUrl(widget.whatsappUrl ?? '', context),
                     ),
+
                     const SizedBox(width: 4),
+
                     _actionButton(
                       label: "Book Now",
-                      icon: 'assets/images/Lightning.png',
+                      icon: "assets/images/Lightning.png",
                       color: AppColors.primary,
                       borderRadius: const BorderRadius.only(
                         topRight: Radius.circular(16),
@@ -447,8 +499,8 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                                 ),
                               ),
                               child: BookingBottomSheet(
-                                hatcheryId: hatchery.id.toString(),
-                                hatcheryName: hatchery.hatcheryName ?? '',
+                                hatcheryId: widget.hatcheryId,
+                                hatcheryName: widget.hatcheryName,
                               ),
                             );
                           },
@@ -629,7 +681,7 @@ class _HatcheryGridCard extends StatelessWidget {
                   Container(height: 120, color: Colors.grey.withOpacity(.2)),
             ),
           ),
-    
+
           Padding(
             padding: const EdgeInsets.all(10),
             child: Column(
@@ -646,7 +698,7 @@ class _HatcheryGridCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-    
+
                 // CATEGORY NAME
                 Text(
                   '',
@@ -657,17 +709,13 @@ class _HatcheryGridCard extends StatelessWidget {
                     color: Colors.grey[600],
                   ),
                 ),
-    
+
                 const SizedBox(height: 6),
-    
+
                 // LOCATION
                 Row(
                   children: [
-                    Icon(
-                      Icons.location_on,
-                      size: 16,
-                      color: AppColors.primary,
-                    ),
+                    Icon(Icons.location_on, size: 16, color: AppColors.primary),
                     const SizedBox(width: 3),
                     Expanded(
                       child: Text(
@@ -682,9 +730,9 @@ class _HatcheryGridCard extends StatelessWidget {
                     ),
                   ],
                 ),
-    
+
                 const SizedBox(height: 8),
-    
+
                 // BROODSTOCK COUNT
                 Row(
                   children: [
@@ -704,21 +752,17 @@ class _HatcheryGridCard extends StatelessWidget {
                     ),
                   ],
                 ),
-    
+
                 const SizedBox(height: 8),
-    
+
                 // AVAILABLE DATE
                 if (hatchery.availableOn != null)
                   Row(
                     children: [
-                      Icon(
-                        Icons.calendar_today,
-                        size: 14,
-                        color: Colors.blue,
-                      ),
+                      Icon(Icons.calendar_today, size: 14, color: Colors.blue),
                       const SizedBox(width: 4),
                       Text(
-                        formatDate(hatchery.availableOn!),
+                        hatchery.availableOn ?? '',
                         style: GoogleFonts.roboto(
                           fontSize: 12,
                           color: Colors.black87,
@@ -726,9 +770,7 @@ class _HatcheryGridCard extends StatelessWidget {
                       ),
                     ],
                   ),
-    
                 const SizedBox(height: 8),
-    
                 // PRICE
                 Text(
                   // "₹${hatchery.prices?.first.price ?? ''}",

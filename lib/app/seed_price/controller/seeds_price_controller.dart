@@ -83,8 +83,16 @@ class SeedsPriceController extends GetxController {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        final List<dynamic> locList = data['locations'];
+        print('=======================');
+        print(data.toString());
+        try{
+          final List<dynamic> locList = data['locations'];
         locations.assignAll(locList.map((e) => Location.fromJson(e)).toList());
+        }catch(e){
+          print(e.toString());
+        }
+        print('===========length===========');
+        print(locations.length);
       } else {
         CustomToast.error("Failed to fetch locations ");
       }

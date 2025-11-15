@@ -13,6 +13,7 @@ Future<Map<String, String>> buildHeader() async {
   print("User Token : $token");
 
   return {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'};
+  // return {'Content-Type': 'application/json', 'Authorization': 'Bearer 104|PyXNxN93hNYpAakEV2dNq0NJgSl7bFiebgi9ryYP724797d1'};
 }
 
 Map<String, String> buildImageHeader() {
@@ -40,7 +41,8 @@ Future<http.Response> postRequest({
           const Duration(seconds: NetworkConfig.timeoutDuration),
           onTimeout: (() => throw TimeoutException(AppConstNames.networkError)),
         );
-
+    
+    debugPrint("response status code :${response.statusCode}");
     debugPrint("response body :${response.body}");
     return response;
   } catch (e, s) {

@@ -159,9 +159,9 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                       children: [
                         Expanded(
                           child: Obx(() {
-                            if (controller.locations.isEmpty)
+                            if (controller.locations.isEmpty) {
                               return const SizedBox();
-
+                            }
                             return CustomDropdown<Location>(
                               selectedValue: controller.selectedLocation.value,
                               items: controller.locations,
@@ -289,7 +289,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                     //   ),
                     const SizedBox(height: 30),
                     WantedBannerWidget(),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 100),
                   ],
                 ),
               ),
@@ -297,46 +297,6 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
           ),
         );
       }),
-    );
-  }
-
-  // --- Dropdown Builder ---
-  Widget _buildDropdown<T>({
-    required T? selectedValue,
-    required List<T> items,
-    required String Function(T) itemLabel,
-    required Function(T?) onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
-          value: selectedValue,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.blueGrey),
-          items: items
-              .map(
-                (item) => DropdownMenuItem<T>(
-                  value: item,
-                  child: Text(itemLabel(item)),
-                ),
-              )
-              .toList(),
-          onChanged: onChanged,
-        ),
-      ),
     );
   }
 }

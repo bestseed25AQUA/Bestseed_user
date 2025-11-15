@@ -22,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen>
   final HomeController _homeController = Get.put(HomeController());
   final FilterController filterController = Get.put(FilterController());
   final ProfileController profileController = Get.put(ProfileController());
+
   final newsSpecificController = Get.put(NewsSpecificController());
 
   @override

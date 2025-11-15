@@ -14,6 +14,7 @@ class BookingReviewContent extends StatelessWidget {
       hatcheryId,
       hatcheryName,
       locationId;
+  final bool isSpotHatchery;
   const BookingReviewContent({
     super.key,
     required this.name,
@@ -25,6 +26,7 @@ class BookingReviewContent extends StatelessWidget {
     required this.hatcheryId,
     required this.hatcheryName,
     required this.locationId,
+    required this.isSpotHatchery,
   });
 
   @override
@@ -112,6 +114,7 @@ class BookingReviewContent extends StatelessWidget {
                   : () async {
                       bool isBookingSuccess = await controller
                           .createHatcheryBooking(
+                            isSpotHatchery: isSpotHatchery,
                             hatcheryId: hatcheryId,
                             hatcheryName: hatcheryName,
                             customerName: name,

@@ -4,14 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/farm_management/farm_home/form_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_list_controller.dart';
-import 'package:seedsuser/app/farm_management/farmer/controller/former_details_controller.dart'
-    hide FarmListController;
+// import 'package:seedsuser/app/farm_management/farmer/controller/former_details_controller.dart'  hide FarmListController;
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/farm_details.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/farm_detail_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/feed_update_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/tank_feed_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/chat_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/contact_us_dialog.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_options.dart';

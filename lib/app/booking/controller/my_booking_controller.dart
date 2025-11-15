@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/model/my_booking_model.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
@@ -80,35 +81,33 @@ class MyBookingController extends GetxController {
     required String droppingLocation,
     required String packingDate,
     required String locationId,
+    required bool isSpotHatchery,
   }) async {
     try {
-      print({
+      Map<String, String> body = {
         "hatchery_id": hatcheryId.toString(),
         "hatchery_name": hatcheryName,
         "customer_name": customerName,
         "customer_mobile": customerMobile,
         "unit": unit,
         "no_of_pieces": noOfPieces.toString(),
-        "dropping_location": droppingLocation,
-        "packing_date": packingDate,
+        "dropping_location": 'dropping location',
+        "packing_date": normalizeDate(packingDate),
         "location_id": locationId.toString(),
-      });
+      };
+
+      print('second map');
+      print(body);
+      print('===============++++++++++=================');
+      print(body.toString());
+      // return false;
       isCreateLoading.value = true;
 
       final response = await postRequest(
-        endPoint: "${NetworkConfig.baseURL}/farmer/book-spot-hatchery",
+        endPoint:
+            "${NetworkConfig.baseURL}/farmer/${isSpotHatchery ? 'book-spot-hatchery' : 'book-hatchery'}",
         headers: await buildHeader(),
-        body: {
-          "hatchery_id": hatcheryId.toString(),
-          "hatchery_name": hatcheryName,
-          "customer_name": customerName,
-          "customer_mobile": customerMobile,
-          "unit": unit,
-          "no_of_pieces": noOfPieces.toString(),
-          "dropping_location": droppingLocation,
-          "packing_date": packingDate,
-          // "location_id": locationId.toString(),
-        },
+        body: body,
       );
 
       final data = json.decode(response.body);
@@ -131,5 +130,39 @@ class MyBookingController extends GetxController {
       isCreateLoading.value = false;
     }
     return false;
+  }
+}
+String normalizeDate(String input) {
+  try {
+    input = input.trim();
+
+    // Replace all separators with a single dash.
+    input = input.replaceAll("/", "-").replaceAll(".", "-");
+
+    // If already in yyyy-MM-dd format, return directly
+    final isoMatch = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+    if (isoMatch.hasMatch(input)) {
+      return input;
+    }
+
+    // For dd-MM-yyyy format → convert to yyyy-MM-dd
+    final dmyMatch = RegExp(r'^(\d{2})-(\d{2})-(\d{4})$');
+    final dmy = dmyMatch.firstMatch(input);
+    if (dmy != null) {
+      final day = dmy.group(1);
+      final month = dmy.group(2);
+      final year = dmy.group(3);
+      return "$year-$month-$day";
+    }
+
+    // For MM-dd-yyyy or other formats, try auto parse
+    final autoParsed = DateTime.tryParse(input);
+    if (autoParsed != null) {
+      return DateFormat("yyyy-MM-dd").format(autoParsed);
+    }
+
+    return "";
+  } catch (e) {
+    return "";
   }
 }

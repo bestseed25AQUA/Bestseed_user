@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/booking_hatchery_widget.dart';
@@ -8,14 +7,13 @@ import 'package:seedsuser/app/home/controller/hatchery_category_controller.dart'
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:flutter/material.dart';
 
-class HatcheryDetail extends StatefulWidget {
+class HatcheryCategoryDetailScreen extends StatefulWidget {
   final String videoUrl;
   final String hatcheryId;
   final String categoryId;
 
-  const HatcheryDetail({
+  const HatcheryCategoryDetailScreen({
     super.key,
     required this.videoUrl,
     required this.hatcheryId,
@@ -23,10 +21,12 @@ class HatcheryDetail extends StatefulWidget {
   });
 
   @override
-  State<HatcheryDetail> createState() => _HatcheryDetailState();
+  State<HatcheryCategoryDetailScreen> createState() =>
+      _HatcheryCategoryDetailScreenState();
 }
 
-class _HatcheryDetailState extends State<HatcheryDetail> {
+class _HatcheryCategoryDetailScreenState
+    extends State<HatcheryCategoryDetailScreen> {
   late VideoPlayerController _controller;
   bool videoStarted = false;
 
@@ -37,8 +37,10 @@ class _HatcheryDetailState extends State<HatcheryDetail> {
     super.initState();
 
     hatcheryCategoryController.getHatcheryCategoryDetail(
-      widget.hatcheryId,
-      widget.categoryId,
+      // widget.hatcheryId,
+      // widget.categoryId,
+      '50',
+      '1',
     );
 
     _controller = VideoPlayerController.asset(widget.videoUrl)
@@ -92,21 +94,22 @@ class _HatcheryDetailState extends State<HatcheryDetail> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 8),
-
-              // ⭐ Gallery / Video
-              // HatcheryGalleryCarousel(images: detail.images ?? []),
               HatcheryGalleryCarousel(
-                images: [
-                  "https://aliceblue-wallaby-326294.hostingersite.com/uploads/hatcheries/1763032370_freshwater-crayfish-4494383_1280.jpg",
-                ],
+                images:
+                    hatcheryCategoryController
+                        .hatcheryCategoryDetailData
+                        .value
+                        .data
+                        ?.images ??
+                    [
+                      // "https://aliceblue-wallaby-326294.hostingersite.com/uploads/hatcheries/1763032370_freshwater-crayfish-4494383_1280.jpg",
+                    ],
               ),
-
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ⭐ NAME
                     Text(
                       detail.hatcheryName ?? "",
                       style: GoogleFonts.roboto(
@@ -116,72 +119,72 @@ class _HatcheryDetailState extends State<HatcheryDetail> {
                     ),
 
                     const SizedBox(height: 10),
-
-                    // ⭐ Description from category
                     Text(
                       detail.category?.description ?? "",
                       style: GoogleFonts.roboto(fontSize: 15, height: 1.4),
                     ),
 
                     const SizedBox(height: 20),
-
-                    // ⭐ LEFT Column
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildInfoRow(
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            SizedBox(
+                              width: MediaQuery.of(context).size.width * .4,
+                              child: _buildInfoRow(
                                 Icons.location_on,
-                                "Location",
-                                detail.location?.name ?? "",
+                                "Unit-1",
+                                ((detail.units?.length ?? 0) >= 1)
+                                    ? (detail.units?.first.branchName ?? '')
+                                    : '',
                               ),
+                            ),
 
-                              const SizedBox(height: 12),
-
-                              _buildInfoRow(
-                                Icons.water_drop_outlined,
-                                "Broodstock",
-                                "${detail.broodstock?.length ?? 0} Pieces",
+                            SizedBox(
+                              width: MediaQuery.of(context).size.width * .4,
+                              child: _buildInfoRow(
+                                Icons.location_on,
+                                "Unit-2",
+                                ((detail.units?.length ?? 0) >= 2)
+                                    ? (detail.units?[1].branchName ?? '')
+                                    : '',
                               ),
-
-                              const SizedBox(height: 12),
-
-                              _buildInfoRow(
-                                Icons.timer,
-                                "Price",
-                                "₹${detail.prices?.first.price ?? ""}",
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
 
-                        const SizedBox(width: 12),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildInfoRow(
+                              Icons.water_drop_outlined,
+                              "Broodstock",
+                              "${detail.broodstock.toString()} Pieces",
+                            ),
 
-                        // ⭐ RIGHT Column
-                        // Expanded(
-                        //   child: Column(
-                        //     crossAxisAlignment: CrossAxisAlignment.start,
-                        //     children: [
-                        //       _buildInfoRow(
-                        //         Icons.location_on,
-                        //         "Unit",
-                        //         detail.units?.first.branchName ?? "",
-                        //       ),
+                            _buildInfoRow(
+                              Icons.date_range,
+                              "Available Date ",
+                              detail.availableOn != null
+                                  ? formatDate(detail.availableOn!)
+                                  : '',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
 
-                        //       const SizedBox(height: 12),
-
-                        //       // _buildInfoRow(
-                        //       //   Icons.calendar_today,
-                        //       //   "Available Date",
-                        //       //   formatDate(detail.availableOn),
-                        //       // ),
-                        //     ],
-                        //   ),
-                        // ),
+                        _buildInfoRow(
+                          Icons.money,
+                          "Price",
+                          "₹${detail.price ?? ''}",
+                        ),
                       ],
                     ),
+
+                    const SizedBox(width: 12),
 
                     const SizedBox(height: 30),
 
@@ -285,7 +288,36 @@ class _HatcheryDetailState extends State<HatcheryDetail> {
         );
       }),
     );
+    
   }
+  
+Widget _buildInfoRow(IconData icon, String label, String value) {
+  return Row(
+    children: [
+      Icon(icon, size: 18, color: AppColors.primary),
+      const SizedBox(width: 8),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[600]),
+          ),
+          SizedBox(
+            width: MediaQuery.of(context).size.width*.3,
+            child: Text(
+              value,
+              style: GoogleFonts.roboto(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+}
 
   Widget _actionButton({
     required String label,
@@ -401,30 +433,6 @@ Future<void> _makePhoneCall(String phoneNumber) async {
   }
 }
 
-Widget _buildInfoRow(IconData icon, String label, String value) {
-  return Row(
-    children: [
-      Icon(icon, size: 18, color: AppColors.primary),
-      const SizedBox(width: 8),
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[600]),
-          ),
-          Text(
-            value,
-            style: GoogleFonts.roboto(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    ],
-  );
-}
 
 Widget _buildGalleryImage({required String imageUrl}) {
   return ClipRRect(

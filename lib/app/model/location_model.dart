@@ -42,11 +42,11 @@ class Location {
 
   factory Location.fromJson(Map<String, dynamic> json) {
     return Location(
-      id: json['id'] ?? 0,
+      id: json['id'].toString(),
       title: json['title'] ?? '',
       subtitle: json['subtitle'] ?? '',
-      longitude: json['longitude'] ?? '',
-      latitude: json['latitude'] ?? '',
+      longitude: json['longitude']?.toString() ?? '',
+      latitude: json['latitude']?.toString() ?? '',
       isDefault: json['is_default'] ?? false,
     );
   }

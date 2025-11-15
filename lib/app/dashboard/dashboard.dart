@@ -326,6 +326,7 @@ import 'dart:developer';
 import 'package:animated_notch_bottom_bar/animated_notch_bottom_bar/animated_notch_bottom_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -444,140 +445,161 @@ class _DashboardScreenState extends State<DashboardScreen> {
       Icons.location_on_outlined,
     ];
 
-    return WillPopScope(
-      onWillPop: () async {
-        if (controller.currentIndex.value != 0) {
-          controller.changeIndex(0);
-          // _notchController.jumpTo(0);
-          // _pageController.jumpToPage(0);
-        } else {
-          final result = await showDialog<bool>(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.exit_to_app, size: 50, color: AppColors.primary),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Exit App',
-                      style: GoogleFonts.roboto(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Are you sure you want to close the app?',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.roboto(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: AppColors.primary,
+        statusBarIconBrightness: true
+            ? Brightness.light
+            : Brightness.dark,
+      ),
+      child: SafeArea(
+        child: WillPopScope(
+          onWillPop: () async {
+            if (controller.currentIndex.value != 0) {
+              controller.changeIndex(0);
+              // _notchController.jumpTo(0);
+              // _pageController.jumpToPage(0);
+            } else {
+              final result = await showDialog<bool>(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => Dialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey[300],
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: () => Navigator.pop(context, false),
-                            child: Text(
-                              "No",
-                              style: GoogleFonts.roboto(color: Colors.black),
-                            ),
+                        Icon(
+                          Icons.exit_to_app,
+                          size: 50,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Exit App',
+                          style: GoogleFonts.roboto(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Are you sure you want to close the app?',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.roboto(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.grey[300],
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: () => Navigator.pop(context, false),
+                                child: Text(
+                                  "No",
+                                  style: GoogleFonts.roboto(
+                                    color: Colors.black,
+                                  ),
+                                ),
                               ),
                             ),
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text("Yes"),
-                          ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text("Yes"),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
+              );
+              return result ?? false;
+            }
+            return false;
+          },
+          child: Scaffold(
+            body: Builder(
+              builder: (context) {
+                return PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: pages,
+                );
+              },
+            ),
+            extendBody: true,
+            bottomNavigationBar: SafeArea(
+              child: Builder(
+                builder: (context) {
+                  return Stack(
+                    children: [
+                      Positioned(
+                        bottom: 0,
+                        child: SizedBox(
+                          child: Container(
+                            color: Colors.white,
+                            width: 500,
+                            height: 83,
+                          ),
+                        ),
+                      ),
+                      AnimatedNotchBottomBar(
+                        notchBottomBarController: _notchController,
+                        color: AppColors.primary,
+                        showLabel: true,
+                        notchColor: AppColors.primary,
+                        bottomBarWidth: 500,
+                        bottomBarHeight: 70,
+                        kBottomRadius: 20,
+                        itemLabelStyle: GoogleFonts.roboto(
+                          fontSize: 11,
+                          color: Colors.white,
+                        ),
+                        durationInMilliSeconds: 300,
+                        bottomBarItems: List.generate(
+                          icons.length,
+                          (index) => BottomBarItem(
+                            inActiveItem: Icon(
+                              icons[index],
+                              color: Colors.white70,
+                            ),
+                            activeItem: Icon(icons[index], color: Colors.white),
+                            itemLabel: labels[index],
+                          ),
+                        ),
+                        onTap: (index) {
+                          log("Tab changed to $index");
+                          controller.changeIndex(index);
+                        },
+                        kIconSize: 20,
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
-          );
-          return result ?? false;
-        }
-        return false;
-      },
-      child: Scaffold(
-        body: Builder(
-          builder: (context) {
-            return PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: pages,
-            );
-          },
-        ),
-        extendBody: true,
-        bottomNavigationBar: SafeArea(
-          child: Builder(
-            builder: (context) {
-              return Stack(
-                children: [
-                  Positioned(
-                    bottom: 0,
-                    child: SizedBox(
-                      child: Container(
-                        color: Colors.white,
-                        width: 500, height:83),
-                    ),
-                  ),
-                  AnimatedNotchBottomBar(
-                    notchBottomBarController: _notchController,
-                    color: AppColors.primary,
-                    showLabel: true,
-                    notchColor: AppColors.primary,
-                    bottomBarWidth: 500,
-                    bottomBarHeight: 70,
-                    kBottomRadius: 20,
-                    itemLabelStyle: GoogleFonts.roboto(
-                      fontSize: 11,
-                      color: Colors.white,
-                    ),
-                    durationInMilliSeconds: 300,
-                    bottomBarItems: List.generate(
-                      icons.length,
-                      (index) => BottomBarItem(
-                        inActiveItem: Icon(icons[index], color: Colors.white70),
-                        activeItem: Icon(icons[index], color: Colors.white),
-                        itemLabel: labels[index],
-                      ),
-                    ),
-                    onTap: (index) {
-                      log("Tab changed to $index");
-                      controller.changeIndex(index);
-                    },
-                    kIconSize: 20,
-                  ),
-                ],
-              );
-            },
           ),
         ),
       ),

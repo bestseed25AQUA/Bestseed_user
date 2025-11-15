@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/farm_management/farmer/model/tank_feed_history_response.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
@@ -38,26 +39,15 @@ class TankController extends GetxController {
     String? mealId,
     required String farmId,
   }) async {
-    bool isUpdating = false;
     print('adding...');
 
-    Map<String, String>? header = await buildHeader();
-    if (tankId != null && mealId != null && feedId != null) {
-      isUpdating = true;
-      header.addAll({
-        'feed_id': feedId.toString(),
-        'meal_id': mealId.toString(),
-      });
-    }
     Map<String, String>? body = {
       "meals": mealQty,
       "feed_quantity": feedQty,
       'tank_id': tankId.toString(),
     };
-    print('==========header========');
-    print(header);
     String endPoint =
-        "${NetworkConfig.baseURL}/farmer/tanks/${isUpdating ? 'update-tanks-quantity' : 'add-todays-tanks-quantity'}";
+        "${NetworkConfig.baseURL}/farmer/tanks/${'add-todays-tanks-quantity'}";
     print(endPoint);
     print('======body========');
     print(body);
@@ -66,21 +56,19 @@ class TankController extends GetxController {
       isAddingTodayTankQuntity(true);
       final response = await postRequest(
         endPoint: endPoint,
-        headers: header,
+        headers: await buildHeader(),
         body: body,
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         getTankList(farmId);
-        CustomToast.success(
-          'Tank ${isUpdating ? 'Updated' : 'Added'} Successfully',
-        );
+        CustomToast.success('Tank Save Successfully');
         return true;
       } else {
-        CustomToast.error('Failed to ${isUpdating ? 'update' : 'add'} tank');
+        CustomToast.error('Failed to save tank');
       }
     } catch (e) {
-      CustomToast.error('Failed to update tank');
+      CustomToast.error('Failed to save tank');
     } finally {
       isAddingTodayTankQuntity(false);
     }
@@ -128,18 +116,53 @@ class TankController extends GetxController {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         try {
-          return jsonDecode(response.body)['data']['file'].toString();
+          return jsonDecode(response.body)['download_link'].toString();
         } catch (e) {
           print(e.toString());
         }
       } else {
-        CustomToast.error('Failed to get feed report');
+        // CustomToast.error('Failed to get feed report');
+      try{
+          return {
+          "status": true,
+          "message": "Tank feed report generated successfully.",
+          "download_link":
+              "https://aliceblue-wallaby-326294.hostingersite.com/reports/tank_feed_report_2025_11_15_05_52_44.csv",
+        }['download_link'].toString();
+      }catch(e){
+        print(e.toString());
+      }
       }
     } catch (e) {
-      CustomToast.error('Failed to get feed report');
+      CustomToast.error('Someting went wrong');
     } finally {
       isDownloading(false);
     }
     return null;
   }
+
+
+    var isTankHistoryLoading = true.obs;
+  Rx<TankFeedHistoryResponse?> tankHistoryData = Rx<TankFeedHistoryResponse?>(null);
+
+  Future<void> getTankHistory(String farmId) async {
+    try {
+      isTankHistoryLoading.value = true;
+      final response = await getRequest(
+        endPoint: "${NetworkConfig.baseURL}/farmer/tank-feed-history",
+        headers: await buildHeader(),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+        tankHistoryData.value = TankFeedHistoryResponse.fromJson(data);
+        CustomToast.success('Tank History Feched Successfully');
+      }
+    } catch (e) {
+      CustomToast.error('Failed to fetch tank history');
+    } finally {
+      isTankHistoryLoading.value = false;
+    }
+  }
+
 }

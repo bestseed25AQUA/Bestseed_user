@@ -8,10 +8,11 @@ class BookingBottomSheet extends StatefulWidget {
   const BookingBottomSheet({
     super.key,
     required this.hatcheryId,
-    required this.hatcheryName,
+    required this.hatcheryName,  this.isSpotHatchery,
   });
   final String hatcheryId;
   final String hatcheryName;
+  final bool? isSpotHatchery;
 
   @override
   State<BookingBottomSheet> createState() => _BookingBottomSheetState();
@@ -157,11 +158,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     return;
                   }
 
-                  if (_selectedPickupLocation == null ||
-                      _selectedPickupLocation!.isEmpty) {
-                    _showError("Please select pickup location");
-                    return;
-                  }
+                
 
                   if (_dateController.text.trim().isEmpty) {
                     _showError("Please select date");
@@ -170,7 +167,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
 
                   // ✅ If all valid, continue
                   Navigator.pop(context);
-                  _showBookingReviewSheet(context);
+                  _showBookingReviewSheet(context,widget.isSpotHatchery??false);
                 },
                 text: "Confirm Booking",
               ),
@@ -185,7 +182,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     CustomToast.show(message: message);
   }
 
-  void _showBookingReviewSheet(BuildContext context) {
+  void _showBookingReviewSheet(BuildContext context,bool isSpotHatchery) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -223,6 +220,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     child: SingleChildScrollView(
                       controller: scrollController,
                       child: BookingReviewContent(
+                        isSpotHatchery: isSpotHatchery,
                         name: _nameController.text,
                         phone: _phoneController.text,
                         unit: _selectedUnit ?? "",

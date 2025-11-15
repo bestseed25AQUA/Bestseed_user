@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 
 // Data model for a single meal entry
 class MealEntry {
@@ -28,37 +30,15 @@ class DailyFeedRecord {
 }
 
 class TankFeedScreen extends StatefulWidget {
-  const TankFeedScreen({super.key});
-
+  const TankFeedScreen({super.key, required this.tankId});
+  final String tankId;
   @override
   State<TankFeedScreen> createState() => _TankFeedScreenState();
 }
 
 class _TankFeedScreenState extends State<TankFeedScreen> {
+  TankController _tankController = Get.put(TankController());
   // Mock data
-  final List<DailyFeedRecord> _records = [
-    DailyFeedRecord(
-      date: '09 /08/2025',
-      isExpandable: false,
-      isExpanded: true,
-      entries: [],
-    ),
-    DailyFeedRecord(
-      date: '08 /08/2025',
-      isExpanded: true,
-      hasLink: true,
-      entries: [MealEntry('02', '400 Kgs'), MealEntry('01', '400 Kgs')],
-    ),
-    DailyFeedRecord(
-      date: '07 /08/2025',
-      isExpanded: false,
-      entries: [
-        MealEntry('02', '400 Kgs'),
-        MealEntry('01', '400 Kgs'),
-        MealEntry('03', '400 Kgs'),
-      ],
-    ),
-  ];
 
   // Controllers for text fields per card
   final Map<int, TextEditingController> _mealControllers = {};
@@ -75,25 +55,24 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
     super.dispose();
   }
 
-  void _toggleExpansion(int index) {
-    if (_records[index].isExpandable) {
-      setState(() {
-        _records[index].isExpanded = !_records[index].isExpanded;
-      });
-    }
-  }
-
   void _addEntry(int index) {
     final meal = _mealControllers[index]?.text ?? '';
     final quantity = _quantityControllers[index]?.text ?? '';
 
     if (meal.isNotEmpty && quantity.isNotEmpty) {
       setState(() {
-        _records[index].entries.add(MealEntry(meal, quantity));
+        // _records[index].entries.add(MealEntry(meal, quantity));
         _mealControllers[index]?.clear();
         _quantityControllers[index]?.clear();
       });
     }
+  }
+
+  @override
+  void initState() {
+    _tankController.getTankHistory(widget.tankId);
+    // TODO: implement initState
+    super.initState();
   }
 
   @override
@@ -130,31 +109,22 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
                 ),
               ),
             ),
-            ..._records.asMap().entries.map((entry) {
-              int index = entry.key;
-              DailyFeedRecord record = entry.value;
 
-              // Initialize controllers if not exist
-              _mealControllers.putIfAbsent(
-                index,
-                () => TextEditingController(),
-              );
-              _quantityControllers.putIfAbsent(
-                index,
-                () => TextEditingController(),
-              );
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16.0),
-                child: DailyFeedCard(
-                  record: record,
-                  mealController: _mealControllers[index]!,
-                  quantityController: _quantityControllers[index]!,
-                  onTapHeader: () => _toggleExpansion(index),
-                  onAdd: () => _addEntry(index),
-                ),
-              );
-            }).toList(),
+            ...List.generate(
+              _tankController.tankHistoryData.value?.data.length ?? 0,
+              (index) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: DailyFeedCard(
+                    record: DailyFeedRecord(date: '', entries: []),
+                    mealController: _mealControllers[index]!,
+                    quantityController: _quantityControllers[index]!,
+                    onTapHeader: () {},
+                    onAdd: () => _addEntry(index),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),

@@ -81,7 +81,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
       print("Weather fetch error  ");
     }
   }
-
+  final ProfileController profileController = Get.put(ProfileController());
   @override
   Widget build(BuildContext context) {
     return SliverAppBar(
@@ -112,6 +112,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                               print(
                                 _locationController.selectedLongitude.value,
                               );
+                              _locationController.fetchDefaultLocation( profileController.profile.value?.id.toString() ?? '',);
                             },
                             child: Image.network(
                               weatherIconUrl!,

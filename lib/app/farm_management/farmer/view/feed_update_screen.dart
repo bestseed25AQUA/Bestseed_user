@@ -14,8 +14,6 @@ class FeedUpdateScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Call API when page opens
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -45,6 +43,7 @@ class FeedUpdateScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  SizedBox(height: 20,),
                   Center(
                     child: Text(
                       "Today's feed Update",
@@ -52,36 +51,36 @@ class FeedUpdateScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4.0),
-                  Center(
+                    Center(
                     child: Text(
-                      "16/09/2025",
+                      "${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}",
                       style: GoogleFonts.roboto(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey,
                       ),
                     ),
-                  ),
+                    ),
                   const SizedBox(height: 24.0),
 
-                  // ✅ Dynamic Tank List UI
                   ListView.builder(
                     itemCount: tanks.length,
                     shrinkWrap: true,
+                    padding: EdgeInsets.only(left: 10,right: 10),
                     physics: const NeverScrollableScrollPhysics(),
                     itemBuilder: (context, index) {
                       final tank = tanks[index];
-
+                      final bool isShowEditButton = tank.feed !=null;
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 16),
                         child: FeedUpdateCard(
                           mealsDropDownList: mealsDropDownList,
                           tankName: tank.tankName ?? "",
-                          dayInfo: "16 Day",
-                          initialMeals: tank.meals?.toString() ?? "0",
-                          initialFeedQuantity: tank.feedQuantity ?? "0",
-                          showEditButton: false,
-                          showAddButton: true,
+                          dayInfo: "${tank.day??0} Day",
+                          initialMeals: tank.feed?.meals?.toString() ?? "0",
+                          initialFeedQuantity: tank.feed?.feedQuantity ?? "0.00",
+                          showEditButton: isShowEditButton,
+                          showAddButton: !isShowEditButton,
                           onTapEdit:
                               ({
                                 required String meals,

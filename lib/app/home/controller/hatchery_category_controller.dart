@@ -12,8 +12,11 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 class HatcheryCategoryController extends GetxController {
   RxBool isLoading = false.obs;
 
-  Rx<HatcheryCategoryData> hatcheryCateogoryData = HatcheryCategoryData().obs;
-
+  Rx<HatcheryDetailsResponse> hatcheryCateogoryData = HatcheryDetailsResponse(
+    status: false,
+    message: '',
+    data: [],similarHatcheries: []
+  ).obs;
 
   Future<void> fetchHetcheryCategory(String id) async {
     try {
@@ -26,7 +29,7 @@ class HatcheryCategoryController extends GetxController {
       if (response.statusCode == 200) {
         try {
           final dataResponse = jsonDecode(response.body);
-          hatcheryCateogoryData.value =  HatcheryCategoryData.fromJson(dataResponse['data']);
+          hatcheryCateogoryData.value = HatcheryDetailsResponse.fromJson(dataResponse);
         } catch (e) {
           print(e.toString());
         }
@@ -38,28 +41,32 @@ class HatcheryCategoryController extends GetxController {
     }
   }
 
-
-  
-  Rx<HatcherCategoryDetailModel> hatcheryCategoryDetailData = HatcherCategoryDetailModel().obs;
+  Rx<HatcherCategoryDetailModel> hatcheryCategoryDetailData =
+      HatcherCategoryDetailModel().obs;
   RxBool detailLoading = false.obs;
 
-  Future<void> getHatcheryCategoryDetail(String hatcheryId, String categoryId) async {
+  Future<void> getHatcheryCategoryDetail(
+    String hatcheryId,
+    String categoryId,
+  ) async {
     try {
       detailLoading.value = true;
       final response = await getRequest(
-        endPoint: '${NetworkConfig.baseURL}/farmer/hatchery/$hatcheryId/category/$categoryId/detail',
+        endPoint:
+            '${NetworkConfig.baseURL}/farmer/hatchery/$hatcheryId/category/$categoryId/detail',
         headers: await buildHeader(),
       );
 
       if (response.statusCode == 200) {
-        try{
+        try {
           final dataResponse = jsonDecode(response.body);
-          hatcheryCategoryDetailData.value =  HatcherCategoryDetailModel.fromJson(dataResponse);
+          hatcheryCategoryDetailData.value =
+              HatcherCategoryDetailModel.fromJson(dataResponse);
         } catch (e) {
           print(e.toString());
         }
       }
-    } catch (e){
+    } catch (e) {
       CustomToast.error("Something went wrong fetching hatcgery data");
     } finally {
       detailLoading.value = false;
@@ -79,18 +86,33 @@ class HatcheryCategoryController extends GetxController {
       );
       print('++++++++banners data here++++++++++++');
       print(response.body);
+      final List<dynamic> bannerList = [];
+      banners.assignAll(bannerList.map((e) => BannerItem.fromJson(e)).toList());
       if (response.statusCode == 200 || response.statusCode == 201) {
-      
         final data = json.decode(response.body);
 
-
-        if (data['status'] == true && data['banners'] != null) {
-          final List<dynamic> bannerList = data['banners'];
-          banners.assignAll(
-            bannerList.map((e) => BannerItem.fromJson(e)).toList(),
-          );
+        if (data['status'] == true) {
+          try {
+            final List<dynamic> bannerList = data['banners'].isNotEmpty
+                ? data['banners']
+                : [
+                  {
+                    "id": 45,
+                    "hatchery_id": "50",
+                    "screen": "hatcherybanner",
+                    "type": "image",
+                    "url":
+                        "https://aliceblue-wallaby-326294.hostingersite.com/uploads/banners/banner_1762411814.jpg",
+                  }
+                ];
+            //   final List<dynamic> bannerList = ["https://aliceblue-wallaby-326294.hostingersite.com/uploads/banners/banner_1762411814.jpg"];
+            banners.assignAll(
+              bannerList.map((e) => BannerItem.fromJson(e)).toList(),
+            );
+          } catch (e) {
+            print(e.toString());
+          }
         } else {
-          banners.clear();
           CustomToast.error("No banners found.");
         }
       } else {

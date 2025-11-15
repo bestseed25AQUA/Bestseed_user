@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:seedsuser/app/home/controller/hatchery_category_controller.dart';
-import 'package:seedsuser/app/home/model/hatchery_category_model.dart';
 import 'package:seedsuser/app/home/view/full_video_screen.dart';
-import 'package:seedsuser/app/spot_hatchery/controller/spot_hatchery_banner_controller.dart';
 import 'package:video_player/video_player.dart';
 
 class HatcheryCategoryBannerWidget extends StatefulWidget {
@@ -15,10 +13,10 @@ class HatcheryCategoryBannerWidget extends StatefulWidget {
       _SpotHatcheryBannerWidgetState();
 }
 
-class _SpotHatcheryBannerWidgetState extends State<HatcheryCategoryBannerWidget> {
-  final HatcheryCategoryController controller = Get.put(
-    HatcheryCategoryController(),
-  );
+class _SpotHatcheryBannerWidgetState
+    extends State<HatcheryCategoryBannerWidget> {
+  final HatcheryCategoryController controller =
+      Get.find<HatcheryCategoryController>();
   int _currentIndex = 0; // Track current banner index
 
   @override
@@ -26,7 +24,6 @@ class _SpotHatcheryBannerWidgetState extends State<HatcheryCategoryBannerWidget>
     return Obx(() {
       if (controller.isLoading.value) {
         return SizedBox();
-        return const Center(child: CircularProgressIndicator());
       } else if (controller.banners.isEmpty) {
         return const Center(child: Text("No banners available"));
       } else {

@@ -28,8 +28,9 @@ class LocationController extends GetxController {
 
     try {
       final response = await getRequest(
+        ///${profileController.profile.value?.id}
         endPoint:
-            "${NetworkConfig.baseURL}/farmer/locations/history/${profileController.profile.value?.id}",
+            "${NetworkConfig.baseURL}/farmer/locations/history",
         headers: await buildHeader(),
       );
 
@@ -202,7 +203,7 @@ class LocationController extends GetxController {
   Future<void> fetchDefaultLocation(String userId) async {
     try {
       final response = await getRequest(
-        endPoint: "${NetworkConfig.baseURL}/farmer/locations/default/$userId",
+        endPoint: "${NetworkConfig.baseURL}/farmer/locations/default",
         headers: await buildHeader(),
       );
       print('===========fetch default locaiton=============');

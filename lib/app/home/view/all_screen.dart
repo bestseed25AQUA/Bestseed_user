@@ -7,10 +7,12 @@ import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/farm_management/farm_home/farm_home_screen.dart';
 import 'package:seedsuser/app/home/contact_us.dart';
+import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/hatchery_suppliers_widget.dart';
 import 'package:seedsuser/app/home/hatchery_updates_widget.dart';
+import 'package:seedsuser/app/home/view/hatchery_filter_screen.dart';
 import 'package:seedsuser/app/home/widget/hatchery_widgets.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_ads_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
@@ -71,6 +73,10 @@ class _HomePageState extends State<HomePage>
     _controller.dispose();
     super.dispose();
   }
+
+  final FilterHatcheryController filterHatcheryController = Get.put(
+    FilterHatcheryController(),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -257,7 +263,12 @@ class _HomePageState extends State<HomePage>
                     ],
                   ),
                   const SizedBox(height: 16),
-                  HatcheryWidget(onViewAllTap: () {}),
+                  HatcheryWidget(
+                    onViewAllTap: () {
+                      filterHatcheryController.applyFilter();
+                      Get.to(() => HatcheryFilterScreen());
+                    },
+                  ),
                   SizedBox(height: 20),
                   TodayPricesWidget(),
                   SizedBox(height: 16),

@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/auth/view/splash_screen.dart';
+import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/language/controller/language_controller.dart';
 import 'package:seedsuser/l10n/app_localizations.dart';
 import 'package:get_storage/get_storage.dart';
@@ -16,13 +18,19 @@ class MyHttpOverrides extends HttpOverrides {
   }
 }
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   HttpOverrides.global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
   await GetStorage.init();
-  
-  Get.put(LanguageController());
 
+  Get.put(LanguageController());
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ),
+  );
   runApp(const MyApp());
 }
 
@@ -33,46 +41,49 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<LanguageController>(
       builder: (languageController) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final mediaQueryData = MediaQuery.of(context);
-            return MediaQuery(
-              data: mediaQueryData.copyWith(textScaleFactor: 1.0),
-              child: GetMaterialApp(
-                debugShowCheckedModeBanner: false,
-                title: 'Seeds User',
-                locale: languageController.currentLocale.value,
-                fallbackLocale: const Locale('en', 'US'),
-                localizationsDelegates: [
-                  AppLocalizations.delegate,
-                  GlobalMaterialLocalizations.delegate,
-                  GlobalWidgetsLocalizations.delegate,
-                  GlobalCupertinoLocalizations.delegate,
-                ],
-                supportedLocales: const [
-                  Locale('en', 'US'),
-                  Locale('te', 'IN'),
-                  Locale('hi', 'IN'),
-                  Locale('ta', 'IN'),
-                  Locale('kn', 'IN'),
-                  Locale('ml', 'IN'),
-                  Locale('mr', 'IN'),
-                  Locale('gu', 'IN'),
-                  Locale('pa', 'IN'),
-                  Locale('bn', 'IN'),
-                  Locale('or', 'IN'),
-                  Locale('ur', 'IN'),
-                ],
-                theme: ThemeData(
-                  colorScheme: ColorScheme.fromSeed(
-                    seedColor: Colors.deepPurple,
+        return SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints){
+              final mediaQueryData = MediaQuery.of(context);
+              return MediaQuery(
+                data: mediaQueryData.copyWith(textScaler: TextScaler.linear(1.0)),
+                child: GetMaterialApp(
+                  navigatorKey: navigatorKey,
+                  debugShowCheckedModeBanner: false,
+                  title: 'Seeds User',
+                  locale: languageController.currentLocale.value,
+                  fallbackLocale: const Locale('en', 'US'),
+                  localizationsDelegates: [
+                    AppLocalizations.delegate,
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                    GlobalCupertinoLocalizations.delegate,
+                  ],
+                  supportedLocales: const [
+                    Locale('en', 'US'),
+                    Locale('te', 'IN'),
+                    Locale('hi', 'IN'),
+                    Locale('ta', 'IN'),
+                    Locale('kn', 'IN'),
+                    Locale('ml', 'IN'),
+                    Locale('mr', 'IN'),
+                    Locale('gu', 'IN'),
+                    Locale('pa', 'IN'),
+                    Locale('bn', 'IN'),
+                    Locale('or', 'IN'),
+                    Locale('ur', 'IN'),
+                  ],
+                  theme: ThemeData(
+                    colorScheme: ColorScheme.fromSeed(
+                      seedColor: Colors.deepPurple,
+                    ),
+                    useMaterial3: true,
                   ),
-                  useMaterial3: true,
+                  home: const SplashScreen(),
                 ),
-                home: const SplashScreen(),
-              ),
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );

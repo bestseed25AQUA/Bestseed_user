@@ -5,8 +5,9 @@ import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/tank_feed_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/harvest_bottom.dart';
+import 'package:seedsuser/main.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'dart:io';
@@ -33,27 +34,6 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // A list of the tank status data. Note that Tank 1, 2, 3, 6 are ON (true)
-    // and Tank 5, 4, 7, 8 are OFF (false) to match the image.
-    final List<Map<String, dynamic>> tankData = [
-      {'name': 'Tank 1', 'status': true, 'kg': 250, 'day': 20},
-      {'name': 'Tank 2', 'status': true, 'kg': 250, 'day': 20},
-      {'name': 'Tank 3', 'status': true, 'kg': 250, 'day': 20},
-      {'name': 'Tank 6', 'status': true, 'kg': 250, 'day': 20},
-      {'name': 'Tank 5', 'status': false, 'kg': 250, 'day': 20},
-      {'name': 'Tank 4', 'status': false, 'kg': 250, 'day': 20},
-      {'name': 'Tank 7', 'status': false, 'kg': 250, 'day': 20},
-      {'name': 'Tank 8', 'status': false, 'kg': 250, 'day': 20},
-    ];
-
-    // Split the list into pairs for the grid layout
-    final List<List<Map<String, dynamic>>> tankPairs = [];
-    for (int i = 0; i < tankData.length; i += 2) {
-      tankPairs.add(
-        tankData.sublist(i, i + 2 > tankData.length ? tankData.length : i + 2),
-      );
-    }
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: PreferredSize(
@@ -281,7 +261,7 @@ class TankStatusCard extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        // Get.to(() => TankFeedScreen(tankId: tank.id.toString()));
+        Get.to(() => TankFeedScreen(tankId: tank.id.toString()));
       },
       child: Container(
         padding: const EdgeInsets.all(12.0),
@@ -339,7 +319,9 @@ class TankStatusCard extends StatelessWidget {
                         farmId: farmId,
                       );
                     } else {
-                      showModalBottomSheet(
+                      bool isUpdated = false;
+
+                      await showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
                         backgroundColor: Colors.transparent,
@@ -347,32 +329,36 @@ class TankStatusCard extends StatelessWidget {
                           tank: tank,
                           statusToUpdate: value ? 1 : 0,
                           onSubmit: () async {
-                            bool isUpdated = await controller.updateTankStatus(
+                            isUpdated = await controller.updateTankStatus(
                               status: 0,
                               tankId: tank.id.toString(),
                               farmId: farmId,
                             );
-                            // showReportPopup(context);
                             Get.back();
-                            if (isUpdated) {
-                              String? report = await controller.getReport(
-                                tankId: tank.id.toString(),
-                              );
-                              showReportPopup(
-                                context,
-                                () async {
-                                  downloadReport(report ?? '');
-                                  // Navigator.pop(context);
-                                },
-                                () {
-                                  shareReport(report ?? '');
-                                  // Navigator.pop(context);
-                                },
-                              );
-                            }
                           },
                         ),
                       );
+
+                      await Future.delayed(Duration(seconds: 2));
+
+                      if (isUpdated) {
+                        String? report = await controller.getReport(
+                          tankId: tank.id.toString(),
+                        );
+
+                        // ✅ Use global safe context (never disposed)
+                        final safeContext = navigatorKey.currentContext!;
+
+                        showReportPopup(
+                          safeContext,
+                          () async {
+                            downloadReport(report ?? '');
+                          },
+                          () {
+                            shareReport(report ?? '');
+                          },
+                        );
+                      }
                     }
                   },
                 ),

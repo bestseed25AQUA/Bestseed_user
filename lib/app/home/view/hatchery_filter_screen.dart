@@ -11,7 +11,7 @@ import 'package:seedsuser/app/home/widget/hatchery_widgets.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class HatcheryFilterScreen extends StatefulWidget {
-  HatcheryFilterScreen({super.key});
+  const HatcheryFilterScreen({super.key});
 
   @override
   State<HatcheryFilterScreen> createState() => _HatcheryFilterScreenState();
