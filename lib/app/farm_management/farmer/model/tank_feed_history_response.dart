@@ -1,31 +1,20 @@
-import 'dart:convert';
-
-TankFeedHistoryResponse tankFeedHistoryResponseFromJson(String str) {
-  return TankFeedHistoryResponse.fromJson(json.decode(str));
-}
-
 class TankFeedHistoryResponse {
   final bool status;
   final String message;
-  final List<TankFeedHistory> data;
+  final List<TankDate> dates;
 
   TankFeedHistoryResponse({
     required this.status,
     required this.message,
-    required this.data,
+    required this.dates,
   });
+}
 
-  factory TankFeedHistoryResponse.fromJson(Map<String, dynamic> json) {
-    final rawData = json["data"];
+class TankDate {
+  final String date;
+  final List<TankFeedHistory> tankDateHistory;
 
-    return TankFeedHistoryResponse(
-      status: json["status"] == true,
-      message: json["message"]?.toString() ?? "",
-      data: rawData is List
-          ? rawData.map((e) => TankFeedHistory.fromJson(e)).toList()
-          : [],
-    );
-  }
+  TankDate({required this.date, required this.tankDateHistory});
 }
 
 class TankFeedHistory {

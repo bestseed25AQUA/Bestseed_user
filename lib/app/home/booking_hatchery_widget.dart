@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
@@ -21,6 +22,8 @@ class BookingBottomSheet extends StatefulWidget {
 class _BookingBottomSheetState extends State<BookingBottomSheet> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _unitController = TextEditingController();
+  final TextEditingController _dropLocController = TextEditingController();
   final TextEditingController _piecesController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
 
@@ -36,6 +39,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     _phoneController.dispose();
     _piecesController.dispose();
     _dateController.dispose();
+    _unitController.dispose();
     super.dispose();
   }
 
@@ -83,14 +87,21 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               icon: Icons.phone_android,
               keyboardType: TextInputType.phone,
             ),
-            _buildDropdownField(
+            // _buildDropdownField(
+            //   label: "Unit",
+            //   hint: "Select Unit",
+            //   value: _selectedUnit,
+            //   items: _units,
+            //   onChanged: (v) {
+            //     setState(() => _selectedUnit = v);
+            //   },
+            // ),
+             _buildTextField(
+              controller: _unitController,
               label: "Unit",
-              hint: "Select Unit",
-              value: _selectedUnit,
-              items: _units,
-              onChanged: (v) {
-                setState(() => _selectedUnit = v);
-              },
+              hint: "Enter Unit",
+              icon: Icons.format_list_numbered,
+              keyboardType: TextInputType.name,
             ),
             _buildTextField(
               controller: _piecesController,
@@ -100,10 +111,10 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               keyboardType: TextInputType.number,
             ),
             _buildTextField(
-              controller: _nameController,
-              label: "Vehicle availability",
-              hint: "",
-              icon: Icons.format_list_numbered,
+              controller: _dropLocController,
+              label: "Dropping location",
+              hint: "Enter your Dropping location",
+              icon: Icons.location_on
             ),
             // _buildDropdownField(
             //   label: "Dropping location",
@@ -125,7 +136,9 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               height: 50,
               child: CustomButton(
                 onPressed: () {
-                  print('validation here');
+                  if (kDebugMode) {
+                    print('validation here');
+                  }
 
                   if (_nameController.text.trim().isEmpty) {
                     _showError("Please enter name");
@@ -142,7 +155,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     return;
                   }
 
-                  if (_selectedUnit == null || _selectedUnit!.isEmpty) {
+                  if (_unitController.text.trim().isNotEmpty) {
                     _showError("Please select unit");
                     return;
                   }
@@ -157,14 +170,10 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     _showError("Enter valid number of pieces");
                     return;
                   }
-
-                
-
                   if (_dateController.text.trim().isEmpty) {
                     _showError("Please select date");
                     return;
                   }
-
                   // ✅ If all valid, continue
                   Navigator.pop(context);
                   _showBookingReviewSheet(context,widget.isSpotHatchery??false);
@@ -223,9 +232,9 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                         isSpotHatchery: isSpotHatchery,
                         name: _nameController.text,
                         phone: _phoneController.text,
-                        unit: _selectedUnit ?? "",
+                        unit: _unitController.text,
                         pieces: _piecesController.text,
-                        location: _selectedPickupLocation ?? "",
+                        location: _dropLocController.text,
                         date: _dateController.text,
                         hatcheryId: widget.hatcheryId,
                         hatcheryName: widget.hatcheryName,

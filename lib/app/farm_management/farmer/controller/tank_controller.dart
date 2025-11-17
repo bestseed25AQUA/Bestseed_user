@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:get/get.dart';
+import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_feed_history_response.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
@@ -34,10 +35,11 @@ class TankController extends GetxController {
   Future<bool> addTodayTankQuntity({
     required String feedQty,
     required String mealQty,
-    required String tankId,
+    required String tankId, 
+    String ? date,
     String? feedId,
     String? mealId,
-    required String farmId,
+     String? farmId,
   }) async {
     print('adding...');
 
@@ -45,11 +47,13 @@ class TankController extends GetxController {
       "meals": mealQty,
       "feed_quantity": feedQty,
       'tank_id': tankId.toString(),
+      if(date!=null)
+      "feed_date" : date
     };
     String endPoint =
-        "${NetworkConfig.baseURL}/farmer/tanks/${'add-todays-tanks-quantity'}";
+        "${NetworkConfig.baseURL}/farmer/tanks/add-todays-tanks-quantity";
     print(endPoint);
-    print('======body========');
+    print('=i===');
     print(body);
     //  return false;
     try {
@@ -61,7 +65,10 @@ class TankController extends GetxController {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        getTankList(farmId);
+        if (farmId != null) {
+          getTankList(farmId);
+        }
+
         CustomToast.success('Tank Save Successfully');
         return true;
       } else {
@@ -122,16 +129,16 @@ class TankController extends GetxController {
         }
       } else {
         // CustomToast.error('Failed to get feed report');
-      try{
+        try {
           return {
-          "status": true,
-          "message": "Tank feed report generated successfully.",
-          "download_link":
-              "https://aliceblue-wallaby-326294.hostingersite.com/reports/tank_feed_report_2025_11_15_05_52_44.csv",
-        }['download_link'].toString();
-      }catch(e){
-        print(e.toString());
-      }
+            "status": true,
+            "message": "Tank feed report generated successfully.",
+            "download_link":
+                "https://aliceblue-wallaby-326294.hostingersite.com/reports/tank_feed_report_2025_11_15_05_52_44.csv",
+          }['download_link'].toString();
+        } catch (e) {
+          print(e.toString());
+        }
       }
     } catch (e) {
       CustomToast.error('Someting went wrong');
@@ -141,22 +148,52 @@ class TankController extends GetxController {
     return null;
   }
 
+  var isTankHistoryLoading = true.obs;
+  Rx<TankFeedHistoryResponse?> tankHistoryData = Rx<TankFeedHistoryResponse?>(
+    null,
+  );
 
-    var isTankHistoryLoading = true.obs;
-  Rx<TankFeedHistoryResponse?> tankHistoryData = Rx<TankFeedHistoryResponse?>(null);
-
-  Future<void> getTankHistory(String farmId) async {
+  Future<void> getTankHistory(String tankId) async {
     try {
       isTankHistoryLoading.value = true;
-      final response = await getRequest(
+      final response = await postRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/tank-feed-history",
         headers: await buildHeader(),
+        body: {'tank_id': tankId},
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(response.body);
-        tankHistoryData.value = TankFeedHistoryResponse.fromJson(data);
-        CustomToast.success('Tank History Feched Successfully');
+        final dataResponse = json.decode(response.body);
+
+        // Step 1: Read data list
+        List<dynamic> dataList = dataResponse["data"] ?? [];
+
+        // Step 2: Convert each item to TankFeedHistory
+        List<TankFeedHistory> historyList = dataList
+            .map((item) => TankFeedHistory.fromJson(item))
+            .toList();
+
+        // Step 3: Group by feed_date
+        Map<String, List<TankFeedHistory>> groupedByDate = {};
+
+        for (var item in historyList) {
+          if (!groupedByDate.containsKey(item.feedDate)) {
+            groupedByDate[item.feedDate] = [];
+          }
+          groupedByDate[item.feedDate]!.add(item);
+        }
+
+        // Step 4: Convert map to List<TankDate>
+        List<TankDate> tankDates = groupedByDate.entries.map((e) {
+          return TankDate(date: e.key, tankDateHistory: e.value);
+        }).toList();
+
+        // Step 5: Assign into Rx variable
+        tankHistoryData.value = TankFeedHistoryResponse(
+          status: dataResponse["status"] ?? false,
+          message: dataResponse["message"] ?? "",
+          dates: tankDates,
+        );
       }
     } catch (e) {
       CustomToast.error('Failed to fetch tank history');
@@ -164,5 +201,4 @@ class TankController extends GetxController {
       isTankHistoryLoading.value = false;
     }
   }
-
 }

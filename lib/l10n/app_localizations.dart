@@ -277,7 +277,7 @@ abstract class AppLocalizations {
   /// No description provided for @news_ads.
   ///
   /// In en, this message translates to:
-  /// **'News & Ads'**
+  /// **'News'**
   String get news_ads;
 
   /// No description provided for @updates.

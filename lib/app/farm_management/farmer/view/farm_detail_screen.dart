@@ -17,7 +17,12 @@ import 'package:permission_handler/permission_handler.dart';
 
 class FarmTankListScreen extends StatefulWidget {
   final String farmId;
-  const FarmTankListScreen({super.key, required this.farmId});
+  final String farmName;
+  const FarmTankListScreen({
+    super.key,
+    required this.farmId,
+    required this.farmName,
+  });
 
   @override
   State<FarmTankListScreen> createState() => _FarmTankListScreenState();
@@ -90,6 +95,7 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
                           children: [
                             Expanded(
                               child: TankStatusCard(
+                                farmName: widget.farmName,
                                 tank: pair[0],
                                 controller: tankController,
                                 farmId: widget.farmId,
@@ -101,6 +107,7 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
                             Expanded(
                               child: pair.length > 1
                                   ? TankStatusCard(
+                                      farmName: widget.farmName,
                                       tank: pair[1],
                                       controller: tankController,
                                       farmId: widget.farmId,
@@ -247,12 +254,14 @@ class TankStatusCard extends StatelessWidget {
   final TankModel tank;
   final TankController controller;
   final String farmId;
+  final String farmName;
 
   const TankStatusCard({
     super.key,
     required this.tank,
     required this.controller,
     required this.farmId,
+    required this.farmName,
   });
 
   @override
@@ -261,7 +270,13 @@ class TankStatusCard extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        Get.to(() => TankFeedScreen(tankId: tank.id.toString()));
+        Get.to(
+          () => TankFeedScreen(
+            tankId: tank.id.toString(),
+            tankName: tank.tankName ?? '',
+            farmName: farmName,
+          ),
+        );
       },
       child: Container(
         padding: const EdgeInsets.all(12.0),

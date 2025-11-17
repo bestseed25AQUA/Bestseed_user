@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
-import 'package:seedsuser/app/farm_management/manager/controller/manage_controller.dart';
+import 'package:seedsuser/app/farm_management/manager/controller/manager_controller.dart';
 import 'package:seedsuser/app/farm_management/manager/model/manager_list_model.dart';
 
 class AddManagerDetailsForm extends StatefulWidget {
   final Function(Manager manager) onSave;
+  final Manager? manager; 
 
-  const AddManagerDetailsForm({super.key, required this.onSave});
-
+  const AddManagerDetailsForm({super.key, required this.onSave, this.manager});
   @override
   State<AddManagerDetailsForm> createState() => _AddManagerDetailsFormState();
 }
@@ -23,6 +22,21 @@ class _AddManagerDetailsFormState extends State<AddManagerDetailsForm> {
   bool _canView = true;
   bool _canDelete = false;
   bool _canCreate = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.manager != null) {
+      _nameController.text = widget.manager!.name;
+      _phoneController.text = widget.manager!.phone;
+
+      _canEdit = widget.manager!.editAccess;
+      _canView = widget.manager!.viewAccess;
+      _canDelete = widget.manager!.deleteAccess;
+      _canCreate = false; // API me nahi tha but you can extend
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,37 +113,40 @@ class _AddManagerDetailsFormState extends State<AddManagerDetailsForm> {
             ),
             const SizedBox(height: 30),
 
-            SizedBox(
-              width: double.infinity,
-              child: CustomButton(
-                text: "Save",
-                onPressed: () async {
-                  final controller = Get.put(ManagerController());
-
-                  bool success = await controller.createManager(
-                    personName: _nameController.text.trim(),
-                    phoneNumber: _phoneController.text.trim(),
-                    canEdit: _canEdit,
-                    canView: _canView,
-                    canDelete: _canDelete,
-                    canCreate: _canCreate,
-                  );
-
-                  if (success) {
-                    widget.onSave(
-                      Manager(
-                        name: _nameController.text.trim(),
-                        phoneNumber: _phoneController.text.trim(),
-                        canEdit: _canEdit,
-                        canView: _canView,
-                        canDelete: _canDelete,
-                        canCreate: _canCreate,
-                      ),
+            Builder(
+              builder: (context) {
+                final controller = Get.put(ManagerController());
+                return SizedBox(
+                  width: double.infinity,
+                  child: Obx(() {
+                    return CustomButton(
+                      text: "Save",
+                      isLoading: controller.isCreateLoading.value,
+                      onPressed: controller.isCreateLoading.value
+                          ? () {}
+                          : () async {
+                              final controller = Get.find<ManagerController>();
+                              bool isSuccess = await controller.createManager(
+                                personName: _nameController.text.trim(),
+                                phoneNumber: _phoneController.text.trim(),
+                                canEdit: _canEdit,
+                                canView: _canView,
+                                canDelete: _canDelete,
+                                canCreate: _canCreate,
+                                // id: widget.manager?.id.toString(),
+                              );
+                              print('======success====== $isSuccess');
+                              if (isSuccess) {
+                                controller.fetchManagers();
+                                // ignore: use_build_context_synchronously
+                                Navigator.pop(context);
+                              }
+                              // ignore: use_build_context_synchronously
+                            },
                     );
-                    Navigator.pop(context);
-                  }
-                },
-              ),
+                  }),
+                );
+              },
             ),
             const SizedBox(height: 10),
           ],

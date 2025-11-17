@@ -1,20 +1,20 @@
-class ManagerResponse {
+class PartnerResponse {
   final bool status;
   final String message;
-  final List<Manager> data;
+  final List<Partner> data;
 
-  ManagerResponse({
+  PartnerResponse({
     required this.status,
     required this.message,
     required this.data,
   });
 
-  factory ManagerResponse.fromJson(Map<String, dynamic> json) {
-    return ManagerResponse(
+  factory PartnerResponse.fromJson(Map<String, dynamic> json) {
+    return PartnerResponse(
       status: json['status'] ?? false,
       message: json['message'] ?? '',
       data: json['data'] != null
-          ? List<Manager>.from(json['data'].map((x) => Manager.fromJson(x)))
+          ? List<Partner>.from(json['data'].map((x) => Partner.fromJson(x)))
           : [],
     );
   }
@@ -28,7 +28,7 @@ class ManagerResponse {
   }
 }
 
-class Manager {
+class Partner {
   final int id;
   final bool isPartner;
   final String name;
@@ -37,11 +37,11 @@ class Manager {
   final bool viewAccess;
   final bool editAccess;
   final bool deleteAccess;
-  final bool createAccess;
+  final bool createAccess;  // ⭐ NEW (optional support)
   final String createdAt;
   final String updatedAt;
 
-  Manager({
+  Partner({
     required this.id,
     required this.isPartner,
     required this.name,
@@ -55,7 +55,7 @@ class Manager {
     required this.updatedAt,
   });
 
-  factory Manager.fromJson(Map<String, dynamic> json) {
+  factory Partner.fromJson(Map<String, dynamic> json) {
     bool toBool(dynamic value) {
       if (value is bool) return value;
       if (value is int) return value == 1;
@@ -63,7 +63,7 @@ class Manager {
       return false;
     }
 
-    return Manager(
+    return Partner(
       id: json['id'] ?? 0,
       isPartner: toBool(json['is_partner']),
       name: json['name'] ?? '',
@@ -72,8 +72,12 @@ class Manager {
       viewAccess: toBool(json['view_access']),
       editAccess: toBool(json['edit_access']),
       deleteAccess: toBool(json['delete_access']),
+
+      // ⭐ Future proof: handle missing create_access safely
+      createAccess: toBool(json['create_access']),
+
       createdAt: json['created_at'] ?? "",
-      updatedAt: json['updated_at'] ?? "", createAccess: toBool(json['create_access']),
+      updatedAt: json['updated_at'] ?? "",
     );
   }
 
@@ -87,7 +91,7 @@ class Manager {
       "view_access": viewAccess ? 1 : 0,
       "edit_access": editAccess ? 1 : 0,
       "delete_access": deleteAccess ? 1 : 0,
-      "create_access": createAccess ? 1 : 0,
+      "create_access": createAccess ? 1 : 0,  // ⭐ send to API
       "created_at": createdAt,
       "updated_at": updatedAt,
     };

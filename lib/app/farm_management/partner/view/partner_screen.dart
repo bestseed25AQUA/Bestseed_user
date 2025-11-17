@@ -2,28 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
-import 'package:seedsuser/app/common/custom_button.dart';
-import 'package:seedsuser/app/farm_management/manager/controller/manager_controller.dart';
-import 'package:seedsuser/app/farm_management/manager/model/manager_list_model.dart';
-import 'package:seedsuser/app/farm_management/manager/view/add_manager_screen.dart';
+import 'package:seedsuser/app/farm_management/partner/controller/partener_controller.dart';
+import 'package:seedsuser/app/farm_management/partner/model/partner_list_model.dart';
+import 'package:seedsuser/app/farm_management/partner/view/add_partner_screen.dart';
 
-class ManagerScreen extends StatefulWidget {
-  const ManagerScreen({super.key});
+class PartnerScreen extends StatefulWidget {
+  const PartnerScreen({super.key});
 
   @override
-  State<ManagerScreen> createState() => _ManagerScreenState();
+  State<PartnerScreen> createState() => _PartnerScreenState();
 }
 
-class _ManagerScreenState extends State<ManagerScreen> {
-  final ManagerController controller = Get.put(ManagerController());
+class _PartnerScreenState extends State<PartnerScreen> {
+  final PartnerController controller = Get.put(PartnerController());
 
   @override
   void initState() {
     super.initState();
-    controller.fetchManagers(); // Load data on screen open
+    controller.fetchPartners();
   }
 
-  void _showEditManager(BuildContext context, Manager manager) {
+  void _showEditPartner(BuildContext context, Partner partner) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -33,11 +32,9 @@ class _ManagerScreenState extends State<ManagerScreen> {
           bottom: MediaQuery.of(context).viewInsets.bottom,
           top: 20,
         ),
-        child: AddManagerDetailsForm(
-          manager: manager, // 👈 PASSED FOR PREFILL
-          onSave: (m) {
-            controller.fetchManagers();
-          },
+        child: AddPartnerDetailsForm(
+          partner: partner,
+          onSave: (_) => controller.fetchPartners(),
         ),
       ),
     );
@@ -54,10 +51,10 @@ class _ManagerScreenState extends State<ManagerScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Manager', style: GoogleFonts.roboto(color: Colors.white)),
+        title: Text('Partners', style: GoogleFonts.roboto(color: Colors.white)),
         actions: [
           InkWell(
-            onTap: () => _showAddManagerDetails(context),
+            onTap: () => _showAddPartnerDetails(context),
             child: Container(
               margin: const EdgeInsets.only(right: 8.0),
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -69,7 +66,7 @@ class _ManagerScreenState extends State<ManagerScreen> {
                 children: [
                   const Icon(Icons.add, color: AppColors.primary, size: 20),
                   Text(
-                    'Add Manager',
+                    'Add Partner',
                     style: GoogleFonts.roboto(
                       color: AppColors.primary,
                       fontWeight: FontWeight.bold,
@@ -85,6 +82,7 @@ class _ManagerScreenState extends State<ManagerScreen> {
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
         }
+
         return Stack(
           children: [
             SingleChildScrollView(
@@ -93,26 +91,27 @@ class _ManagerScreenState extends State<ManagerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Manager Access with Phone Number',
+                    'Partner Access with Phone Number',
                     style: GoogleFonts.roboto(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 16),
-                  ...controller.managerList.map(
-                    (manager) => ManagerCard(
-                      manager: manager,
-                      onEdit: () => _showEditManager(context, manager),
-                      onRemoveAccess: (accessType) async {
-                        bool isRemove = await controller.removeAccess(
-                          id: manager.id.toString(),
-                          accessType: accessType,
+
+                  ...controller.partnerList.map(
+                    (partner) => PartnerCard(
+                      partner: partner,
+                      onEdit: () => _showEditPartner(context, partner),
+
+                      onRemoveAccess: (type) async {
+                        bool success = await controller.removePartnerAccess(
+                          id: partner.id.toString(),
+                          accessType: type,
                         );
-                        if (isRemove) {
-                          controller.fetchManagers();
-                        }
+                        if (success) controller.fetchPartners();
                       },
+
                       onDelete: () async {
                         bool confirm = await showDialog(
                           context: context,
@@ -120,7 +119,7 @@ class _ManagerScreenState extends State<ManagerScreen> {
                             return AlertDialog(
                               title: Text("Confirm Delete"),
                               content: Text(
-                                "Are you sure you want to delete this manager?",
+                                "Are you sure you want to delete this partner?",
                               ),
                               actions: [
                                 TextButton(
@@ -144,13 +143,10 @@ class _ManagerScreenState extends State<ManagerScreen> {
                         );
 
                         if (confirm == true) {
-                          bool isDeleted = await controller.deleteManager(
-                            id: manager.id.toString(),
+                          bool deleted = await controller.deletePartner(
+                            id: partner.id.toString(),
                           );
-
-                          if (isDeleted) {
-                            controller.fetchManagers();
-                          }
+                          if (deleted) controller.fetchPartners();
                         }
                       },
                     ),
@@ -158,14 +154,12 @@ class _ManagerScreenState extends State<ManagerScreen> {
                 ],
               ),
             ),
+
             if (controller.isAccessUpdating.value ||
                 controller.isCreateLoading.value ||
                 controller.isDeleting.value)
               Container(
-                // ignore: deprecated_member_use
-                color: Colors.black.withOpacity(
-                  0.4,
-                ), // Dark transparent overlay
+                color: Colors.black.withOpacity(0.4),
                 child: const Center(
                   child: CircularProgressIndicator(color: Colors.white),
                 ),
@@ -176,7 +170,7 @@ class _ManagerScreenState extends State<ManagerScreen> {
     );
   }
 
-  void _showAddManagerDetails(BuildContext context) {
+  void _showAddPartnerDetails(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -186,21 +180,21 @@ class _ManagerScreenState extends State<ManagerScreen> {
           bottom: MediaQuery.of(context).viewInsets.bottom,
           top: 20,
         ),
-        child: AddManagerDetailsForm(onSave: (manager) {}),
+        child: AddPartnerDetailsForm(onSave: (_) => controller.fetchPartners()),
       ),
     );
   }
 }
 
-// ===================== CARD UI (unchanged) =====================
-class ManagerCard extends StatelessWidget {
-  final Manager manager;
+class PartnerCard extends StatelessWidget {
+  final Partner partner;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final Function(String accessType)? onRemoveAccess;
-  const ManagerCard({
+
+  const PartnerCard({
     super.key,
-    required this.manager,
+    required this.partner,
     this.onEdit,
     this.onDelete,
     this.onRemoveAccess,
@@ -209,37 +203,41 @@ class ManagerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<Widget> accessButtons = [];
-    if (manager.editAccess) {
+
+    if (partner.editAccess)
       accessButtons.add(
         _chip("Edit access", () {
-          if (onRemoveAccess != null) onRemoveAccess!("edit_access");
+          onRemoveAccess?.call("edit_access");
         }),
       );
-    }
 
-    if (manager.viewAccess) {
+    if (partner.viewAccess)
       accessButtons.add(
         _chip("View access", () {
-          if (onRemoveAccess != null) onRemoveAccess!("view_access");
+          onRemoveAccess?.call("view_access");
         }),
       );
-    }
 
-    if (manager.deleteAccess) {
+    if (partner.readAccess)
       accessButtons.add(
-        _chip("Delete access", () {
-          if (onRemoveAccess != null) onRemoveAccess!("delete_access");
+        _chip("Read access", () {
+          onRemoveAccess?.call("read_access");
         }),
       );
-    }
-    if (manager.createAccess) {
+
+    if (partner.createAccess)
       accessButtons.add(
         _chip("Create access", () {
-          if (onRemoveAccess != null) onRemoveAccess!("create_access");
+          onRemoveAccess?.call("create_access");
         }),
       );
-    }
-    // if (manager.c) accessButtons.add(_chip("Create access"));
+
+    if (partner.deleteAccess)
+      accessButtons.add(
+        _chip("Delete access", () {
+          onRemoveAccess?.call("delete_access");
+        }),
+      );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -266,7 +264,7 @@ class ManagerCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      manager.name,
+                      partner.name,
                       style: GoogleFonts.roboto(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -274,7 +272,7 @@ class ManagerCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      manager.phone,
+                      partner.phone,
                       style: GoogleFonts.roboto(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -286,10 +284,10 @@ class ManagerCard extends StatelessWidget {
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: Colors.grey),
                 onSelected: (value) {
-                  if (value == 'edit' && onEdit != null) onEdit!();
-                  if (value == 'delete' && onDelete != null) onDelete!();
+                  if (value == 'edit') onEdit?.call();
+                  if (value == 'delete') onDelete?.call();
                 },
-                itemBuilder: (context) => const [
+                itemBuilder: (_) => const [
                   PopupMenuItem(value: 'edit', child: Text('Edit')),
                   PopupMenuItem(value: 'delete', child: Text('Delete')),
                 ],
@@ -328,5 +326,3 @@ class ManagerCard extends StatelessWidget {
     );
   }
 }
-
-// ===================== BOTTOM SHEET (unchanged, only Save integrated) =====================

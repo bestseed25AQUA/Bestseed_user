@@ -14,6 +14,8 @@ import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.da
 import 'package:seedsuser/app/farm_management/farmer/widget/chat_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/contact_us_dialog.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_options.dart';
+import 'package:seedsuser/app/farm_management/manager/view/manager_screen.dart';
+import 'package:seedsuser/app/farm_management/partner/view/partner_screen.dart';
 
 class FarmManagementScreen extends StatefulWidget {
   const FarmManagementScreen({super.key});
@@ -94,7 +96,10 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
                   child: InkWell(
                     onTap: () {
                       Get.to(
-                        FarmTankListScreen(farmId: farmSections[index].id),
+                        FarmTankListScreen(
+                          farmId: farmSections[index].id,
+                          farmName: farmSections[index].name,
+                        ),
                       );
                     },
                     child: FarmCard(
@@ -202,12 +207,13 @@ class FarmCard extends StatelessWidget {
 
                           onPartners: () {
                             Navigator.pop(context);
+                            Get.to(PartnerScreen());
                             print("Partners clicked");
                           },
 
                           onManager: () {
                             Navigator.pop(context);
-                            print("Manager clicked");
+                            Get.to(ManagerScreen());
                           },
 
                           onEditFarm: () {

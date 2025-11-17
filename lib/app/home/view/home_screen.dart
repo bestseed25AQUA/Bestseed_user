@@ -130,17 +130,15 @@ class _HomeScreenState extends State<HomeScreen>
           if (_homeController.isLoading.value) {
             return const Center(child: CircularProgressIndicator());
           }
-
           if (_tabController == null) {
             return const Center(child: Text("Loading categories..."));
           }
-
           return TabBarView(
             key: ValueKey(cats.length),
             controller: _tabController,
             children: [
               RefreshIndicator(
-                onRefresh: () async {
+                onRefresh:()async{
                   await _homeController.changeHomeData(
                     _homeController.selectedCategoryId.value,
                     _locationController.selectedLocationId.value,

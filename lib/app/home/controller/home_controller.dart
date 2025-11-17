@@ -41,7 +41,10 @@ class HomeController extends GetxController {
     print('categoryId - $categoryId, locationId $locationId');
 
     // hatcheries api
+    await getHatcheries();
     // price api
+    getPricesForHome();
+
     //brood stocks api
     await _broodStockController.getBroodStockForHome(
       categoryId: categoryId,
@@ -77,7 +80,7 @@ class HomeController extends GetxController {
         final data = jsonDecode(response.body);
         final List<dynamic> catList = data['categories'];
         categories.assignAll(catList.map((e) => Category.fromJson(e)).toList());
-        // ⭐ Pass data to search filter controller 
+        // ⭐ Pass data to search filter controller
       } else {
         CustomToast.error("Failed to fetch categories ");
       }

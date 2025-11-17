@@ -103,17 +103,18 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                           height: 180,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) =>
+                              // ignore: deprecated_member_use
                               Container(color: Colors.grey.withOpacity(.3)),
                         ),
                       ),
                     ),
                   );
                 }
-
                 // Video Banner
                 return GestureDetector(
-                  onTap: () =>
-                      Get.to(() => FullScreenVideoPlayer(videoUrl: banner.url)),
+                  onTap:(){
+                    Get.to(() => FullScreenVideoPlayer(videoUrl: banner.url));
+                  },
                   child: Container(
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.grey),
