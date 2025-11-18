@@ -6,6 +6,7 @@ import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
+import 'package:seedsuser/app/updates/view/hatchery_details_screen.dart';
 
 class HatcheryUpdatesWidget extends StatelessWidget {
   HatcheryUpdatesWidget({super.key});
@@ -86,6 +87,12 @@ class HatcheryUpdatesWidget extends StatelessWidget {
                       return _buildHatcheryCard(
                         imagePath: data?.profileImage ?? '',
                         hatcheryName: data?.hatcheryName ?? '',
+                        viewProfileTap: () {
+                          hatcheryUpdatesController.fetchHatcheryUpdatesSingle(
+                            id: data?.hatcheryId ?? '',
+                          );
+                          Get.to(HatcheryDetailsScreen());
+                        },
                       );
                     },
                   ),
@@ -98,6 +105,7 @@ class HatcheryUpdatesWidget extends StatelessWidget {
   Widget _buildHatcheryCard({
     required String imagePath,
     required String hatcheryName,
+    required VoidCallback viewProfileTap,
   }) {
     print(imagePath);
     return Container(
@@ -118,24 +126,15 @@ class HatcheryUpdatesWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min, // To make the column take minimum space
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          InkWell(
-            onTap: () {
-              print(imagePath);
-            },
-            child: ClipRRect(
-              borderRadius: BorderRadiusGeometry.circular(100),
-              child: Image.network(
-                imagePath,
-                width: 72,
-                height: 72,
-                errorBuilder: (context, error, stackTrace) {
-                  return SizedBox(
-                    width: 72,
-                    height: 72,
-                    child: CustomShimmer(),
-                  );
-                },
-              ),
+          ClipRRect(
+            borderRadius: BorderRadiusGeometry.circular(100),
+            child: Image.network(
+              imagePath,
+              width: 72,
+              height: 72,
+              errorBuilder: (context, error, stackTrace) {
+                return SizedBox(width: 72, height: 72, child: CustomShimmer());
+              },
             ),
           ),
           const SizedBox(height: 10),
@@ -152,9 +151,7 @@ class HatcheryUpdatesWidget extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           OutlinedButton(
-            onPressed: () {
-              // Handle "View Profile" action
-            },
+            onPressed: viewProfileTap,
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: AppColors.primary),
               shape: RoundedRectangleBorder(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_loading_box.dart';
 import 'package:seedsuser/app/home/controller/filter_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/controller/location_controller.dart';
@@ -54,13 +55,13 @@ class _HomeScreenState extends State<HomeScreen>
 
   int currentTabIndex = 0;
   void _initTabController() {
-    if (_homeController.categories.isNotEmpty){
+    if (_homeController.categories.isNotEmpty) {
       _tabController?.dispose();
       _tabController = TabController(
         length: 4 + 1, //
         vsync: this,
       );
-      _tabController?.addListener((){
+      _tabController?.addListener(() {
         currentTabIndex = (_tabController?.index ?? 0);
         _homeController.selectedCategoryId.value = currentTabIndex == 0
             ? ''
@@ -72,6 +73,7 @@ class _HomeScreenState extends State<HomeScreen>
       });
     }
   }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -84,6 +86,15 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     _tabController?.dispose();
     super.dispose();
+  }
+
+  List<Widget> buildLoadingTabs() {
+    return List.generate(4, (index) {
+      return Tab(
+        iconMargin: EdgeInsets.zero,
+        child: ShimmerLoadingBox(width: 80, height: 20),
+      );
+    });
   }
 
   final _locationController = Get.put(LocationController());
@@ -99,10 +110,23 @@ class _HomeScreenState extends State<HomeScreen>
               Obx(() {
                 final categories = _homeController.categories;
 
-                if (categories.isEmpty || _tabController == null) {
-                  return const DefaultTabController(
-                    length: 1,
-                    child: TabBar(isScrollable: true, tabs: [Tab(text: "All")]),
+                if (categories.isEmpty ||
+                    _tabController == null ||
+                    (categories.isEmpty)) {
+                  return DefaultTabController(
+                    length: 4,
+                    
+                    child: TabBar(
+                      tabAlignment: TabAlignment.start,
+                      isScrollable: true,
+                      padding: EdgeInsets.zero,
+                      labelPadding: EdgeInsets.symmetric(
+                        horizontal: 5,vertical: 0
+                      ), 
+                      tabs: buildLoadingTabs(), 
+                      overlayColor: WidgetStateProperty.all(Colors.white),
+                      dividerColor: Colors.black,
+                    ),
                   );
                 }
                 return TabBar(
@@ -114,12 +138,17 @@ class _HomeScreenState extends State<HomeScreen>
                   indicatorColor: Colors.white,
                   indicatorSize: TabBarIndicatorSize.label,
                   indicatorWeight: 3,
-                  tabs: [
-                    const Tab(text: "All"),
-                    ...categories
-                        .take(4)
-                        .map((cat) => Tab(text: cat.categoryName)),
-                  ],
+                  tabs:
+                      (categories.isEmpty ||
+                          _tabController == null ||
+                          (categories.isEmpty))
+                      ? []
+                      : [
+                          const Tab(text: "All"),
+                          ...categories
+                              .take(4)
+                              .map((cat) => Tab(text: cat.categoryName)),
+                        ],
                 );
               }),
             ),
@@ -131,14 +160,28 @@ class _HomeScreenState extends State<HomeScreen>
             return const Center(child: CircularProgressIndicator());
           }
           if (_tabController == null) {
-            return const Center(child: Text("Loading categories..."));
+            return const Center(
+              child: SizedBox(
+                height: 30,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _Dot(),
+                    SizedBox(width: 6),
+                    _Dot(),
+                    SizedBox(width: 6),
+                    _Dot(),
+                  ],
+                ),
+              ),
+            );
           }
           return TabBarView(
             key: ValueKey(cats.length),
             controller: _tabController,
             children: [
               RefreshIndicator(
-                onRefresh:()async{
+                onRefresh: () async {
                   await _homeController.changeHomeData(
                     _homeController.selectedCategoryId.value,
                     _locationController.selectedLocationId.value,
@@ -194,4 +237,39 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => true;
+}
+
+class _Dot extends StatefulWidget {
+  const _Dot();
+
+  @override
+  State<_Dot> createState() => _DotState();
+}
+
+class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: Tween(begin: 0.5, end: 1.0).animate(_controller),
+      child: Container(
+        height: 10,
+        width: 10,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.blue,
+        ),
+      ),
+    );
+  }
 }

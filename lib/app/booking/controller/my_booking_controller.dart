@@ -45,12 +45,10 @@ class MyBookingController extends GetxController {
   Future<void> fetchBookings() async {
     try {
       isLoading.value = true;
-
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/my-bookings",
         headers: await buildHeader(),
       );
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
 
@@ -132,6 +130,7 @@ class MyBookingController extends GetxController {
     return false;
   }
 }
+
 String normalizeDate(String input) {
   try {
     input = input.trim();

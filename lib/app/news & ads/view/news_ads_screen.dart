@@ -16,6 +16,7 @@ import 'package:seedsuser/app/news%20&%20ads/view/climate_news_detail_screen.dar
 import 'package:seedsuser/app/news%20&%20ads/view/climate_news_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_news_screen.dart';
+import 'package:seedsuser/app/news%20&%20ads/view/trending_updates_details_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/trending_updates_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/widget/news_banner_widget.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
@@ -129,7 +130,11 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                     padding: EdgeInsets.only(
                       top: MediaQuery.of(context).size.height * .3,
                     ),
-                    child: CircularProgressIndicator(),
+                    child: InkWell(
+                      onTap: () {
+                        Get.to(TrendingUpdatesDetailsScreen(id: '', title: '',));
+                      },
+                      child: CircularProgressIndicator()),
                   ),
                 );
               }

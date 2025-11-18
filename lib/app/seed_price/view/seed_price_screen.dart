@@ -178,8 +178,9 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: Obx(() {
-                            if (controller.categories.isEmpty)
+                            if (controller.categories.isEmpty) {
                               return const SizedBox();
+                            }
 
                             return CustomDropdown<Category>(
                               selectedValue: controller.selectedCategory.value,
@@ -287,8 +288,15 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                     //       color: Colors.grey[800],
                     //     ),
                     //   ),
+                    // InkWell(
+                    //   onTap: () { 
+                    //   Get.to(WantedCropBuyersScreen());
+                    //  },
+                    //   child: Text('wanted')),
                     const SizedBox(height: 30),
-                    WantedBannerWidget(),
+                    WantedBannerWidget(ontapImage: () {
+                      Get.to(WantedCropBuyersScreen());
+                     },),
                     const SizedBox(height: 100),
                   ],
                 ),

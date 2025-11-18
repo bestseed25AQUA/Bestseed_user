@@ -7,7 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
-import 'package:seedsuser/app/farm_management/farmer/controller/farm_list_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
 // import 'package:seedsuser/app/farm_management/farmer/controller/former_details_controller.dart' hide FarmListController;

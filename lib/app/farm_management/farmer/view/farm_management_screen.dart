@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/farm_management/farm_home/form_details_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/controller/farm_list_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
 // import 'package:seedsuser/app/farm_management/farmer/controller/former_details_controller.dart'  hide FarmListController;
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart';
@@ -314,7 +314,7 @@ class FarmCard extends StatelessWidget {
                             style: TextStyle(color: Colors.black),
                           ),
                           TextSpan(
-                            text: farm.feedUsed + ' kgs',
+                            text: '${farm.feedUsed} kgs',
                             style: GoogleFonts.roboto(
                               fontSize: 14,
                               color: Colors.black,

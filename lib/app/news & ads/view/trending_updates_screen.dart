@@ -118,78 +118,89 @@ class _TrendingUpdatesScreenState extends State<TrendingUpdatesScreen> {
                         .newsSpecificData
                         .value
                         ?.data?[index];
-                    if (data?.mediaType == "image") {
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 5,bottom: 5),
-                        child: Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 6, bottom: 6),
-                              child: GestureDetector(
-                                onTap: () {},
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(
-                                    data?.mediaPath ?? "",
-                                    width: double.infinity,
-                                    height: 180,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return SizedBox();
-                                    },
+                    return Builder(
+                      builder: (context) {
+                        if (data?.mediaType == "image") {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 5, bottom: 5),
+                            child: Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: 6,
+                                    bottom: 6,
+                                  ),
+                                  child: GestureDetector(
+                                    onTap: () {},
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.network(
+                                        data?.mediaPath ?? "",
+                                        width: double.infinity,
+                                        height: 180,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                              return SizedBox();
+                                            },
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                data?.title ?? '',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    } else if (data?.mediaType == "video") {
-                      return  Padding(
-                        padding: const EdgeInsets.only(top: 5,bottom: 5),
-                        child: Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 6, bottom: 6),
-                              child: GestureDetector(
-                                onTap: () {
-                                  Get.to(
-                                    () => FullScreenVideoPlayer(
-                                      videoUrl: data?.mediaPath ?? '',
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    data?.title ?? '',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                  );
-                                },
-                                child: VideoPlayerBanner(
-                                  url: data?.mediaPath ?? '',
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                data?.title ?? '',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
+                          );
+                        } else if (data?.mediaType == "video") {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 5, bottom: 5),
+                            child: Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: 6,
+                                    bottom: 6,
+                                  ),
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      Get.to(
+                                        () => FullScreenVideoPlayer(
+                                          videoUrl: data?.mediaPath ?? '',
+                                        ),
+                                      );
+                                    },
+                                    child: VideoPlayerBanner(
+                                      url: data?.mediaPath ?? '',
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    data?.title ?? '',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      );
-                    } else {
-                      return const SizedBox.shrink();
-                    }
+                          );
+                        } else {
+                          return const SizedBox.shrink();
+                        }
+                      },
+                    );
                   },
                 ),
               );
@@ -199,125 +210,124 @@ class _TrendingUpdatesScreenState extends State<TrendingUpdatesScreen> {
       ),
     );
   }
-
-  Widget _buildTrendingSection() {
-    return InkWell(
-      onTap: () {
-        Get.to(
-          () => const TrendingUpdatesDetailsScreen(
-            title: 'Fish Farming and Aquaculture',
-            videoUrl: 'assets/images/video_20250921_103157.mp4',
-          ),
-        );
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onTap: () async {
-              setState(() => videoStarted = true);
-              _controller = VideoPlayerController.asset(
-                'assets/images/video_20250921_103157.mp4',
-              );
-              setState(() {}); // show loading indicator
-              await _controller.initialize();
-              _controller.setLooping(false);
-              _controller.play();
-
-              // Listener to update UI and detect end
-              _controller.addListener(() {
-                if (_controller.value.position >= _controller.value.duration) {
-                  setState(() {
-                    videoStarted = false; // video ended
-                  });
-                } else {
-                  setState(() {}); // update position/time
-                }
-              });
-
-              setState(() {}); // refresh UI after initialization
-            },
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 200,
-                child: _controller.value.isInitialized
-                    ? Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // Video Player
-                          SizedBox(
-                            width: double.infinity,
-                            child: AspectRatio(
-                              aspectRatio: _controller.value.aspectRatio,
-                              child: VideoPlayer(_controller),
-                            ),
-                          ),
-                          // Play/Pause Button
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _controller.value.isPlaying
-                                    ? _controller.pause()
-                                    : _controller.play();
-                              });
-                            },
-                            child: Icon(
-                              _controller.value.isPlaying
-                                  ? Icons.pause_circle_filled
-                                  : Icons.play_circle_fill,
-                              color: Colors.white,
-                              size: 60,
-                            ),
-                          ),
-                          // Video Progress / Time
-                          Positioned(
-                            bottom: 8,
-                            right: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                '${_formatDuration(_controller.value.position)} / ${_formatDuration(_controller.value.duration)}',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    : const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
-                        ),
-                      ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Fish Farming and Aquaculture',
-            style: GoogleFonts.roboto(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Helper to format duration as mm:ss
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return '$minutes:$seconds';
-  }
 }
+//   Widget _buildTrendingSection() {
+//     return InkWell(
+//       onTap: () {
+//         Get.to(
+//           () =>   TrendingUpdatesDetailsScreen(
+//             title: 'Fish Farming and Aquaculture',
+//           ),
+//         );
+//       },
+//       child: Column(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           GestureDetector(
+//             onTap: () async {
+//               setState(() => videoStarted = true);
+//               _controller = VideoPlayerController.asset(
+//                 'assets/images/video_20250921_103157.mp4',
+//               );
+//               setState(() {}); // show loading indicator
+//               await _controller.initialize();
+//               _controller.setLooping(false);
+//               _controller.play();
+
+//               // Listener to update UI and detect end
+//               _controller.addListener(() {
+//                 if (_controller.value.position >= _controller.value.duration) {
+//                   setState(() {
+//                     videoStarted = false; // video ended
+//                   });
+//                 } else {
+//                   setState(() {}); // update position/time
+//                 }
+//               });
+
+//               setState(() {}); // refresh UI after initialization
+//             },
+//             child: ClipRRect(
+//               borderRadius: BorderRadius.circular(16),
+//               child: SizedBox(
+//                 width: double.infinity,
+//                 height: 200,
+//                 child: _controller.value.isInitialized
+//                     ? Stack(
+//                         alignment: Alignment.center,
+//                         children: [
+//                           // Video Player
+//                           SizedBox(
+//                             width: double.infinity,
+//                             child: AspectRatio(
+//                               aspectRatio: _controller.value.aspectRatio,
+//                               child: VideoPlayer(_controller),
+//                             ),
+//                           ),
+//                           // Play/Pause Button
+//                           GestureDetector(
+//                             onTap: () {
+//                               setState(() {
+//                                 _controller.value.isPlaying
+//                                     ? _controller.pause()
+//                                     : _controller.play();
+//                               });
+//                             },
+//                             child: Icon(
+//                               _controller.value.isPlaying
+//                                   ? Icons.pause_circle_filled
+//                                   : Icons.play_circle_fill,
+//                               color: Colors.white,
+//                               size: 60,
+//                             ),
+//                           ),
+//                           // Video Progress / Time
+//                           Positioned(
+//                             bottom: 8,
+//                             right: 8,
+//                             child: Container(
+//                               padding: const EdgeInsets.symmetric(
+//                                 horizontal: 6,
+//                                 vertical: 2,
+//                               ),
+//                               decoration: BoxDecoration(
+//                                 color: Colors.black54,
+//                                 borderRadius: BorderRadius.circular(4),
+//                               ),
+//                               child: Text(
+//                                 '${_formatDuration(_controller.value.position)} / ${_formatDuration(_controller.value.duration)}',
+//                                 style: const TextStyle(color: Colors.white),
+//                               ),
+//                             ),
+//                           ),
+//                         ],
+//                       )
+//                     : const Center(
+//                         child: CircularProgressIndicator(
+//                           color: AppColors.primary,
+//                         ),
+//                       ),
+//               ),
+//             ),
+//           ),
+//           const SizedBox(height: 12),
+//           Text(
+//             'Fish Farming and Aquaculture',
+//             style: GoogleFonts.roboto(
+//               fontSize: 18,
+//               fontWeight: FontWeight.bold,
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   // Helper to format duration as mm:ss
+//   String _formatDuration(Duration duration) {
+//     String twoDigits(int n) => n.toString().padLeft(2, '0');
+//     final minutes = twoDigits(duration.inMinutes.remainder(60));
+//     final seconds = twoDigits(duration.inSeconds.remainder(60));
+//     return '$minutes:$seconds';
+//   }
+// }

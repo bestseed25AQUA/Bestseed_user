@@ -164,7 +164,17 @@ class HatcheryCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       // onTap: () => Get.to(() => HatcheryDetailScreen()),
       onTap: () {
+        print('ontap ok');
         Get.to(HatcheryCateogryScreen(hatcheryId: id.toString()));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                HatcheryCateogryScreen(hatcheryId: id.toString()),
+          ),
+        );
+
+        print('ontap on');
       },
       child: Container(
         decoration: BoxDecoration(
@@ -284,7 +294,7 @@ class HatcheryCard extends StatelessWidget {
             ),
 
             SizedBox(height: screenHeight * 0.006),
-       
+
             // Type Row
             Row(
               children: [

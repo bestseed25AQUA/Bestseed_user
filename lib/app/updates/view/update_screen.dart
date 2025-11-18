@@ -3,13 +3,13 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
+import 'package:seedsuser/app/common/media_carousel_widget.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
 import 'package:seedsuser/app/updates/model/hatchery_update_model.dart';
 import 'package:seedsuser/app/updates/view/hatchery_details_screen.dart';
-import 'package:seedsuser/app/updates/widget/updates_banner_widget.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -25,16 +25,20 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
 
   @override
   void initState() {
-    // TODO: implement initState
-    hatcheryUpdatesController.fetchHatcheryUpdates();
     super.initState();
+    initunc();
+  }
+
+  initunc() async {
+    await hatcheryUpdatesController.fetchBanners();
+    await hatcheryUpdatesController.fetchHatcheryUpdates();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.blue[800],
+        backgroundColor: AppColors.primary,
         automaticallyImplyLeading: false,
         title: Text(
           'Updates',
@@ -67,16 +71,28 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
           SizedBox(width: 16),
         ],
       ),
+      backgroundColor: Colors.white,
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Padding(
-            //   padding: const EdgeInsets.all(16.0),
-            //   child: Image.asset('assets/images/us.png'),
-            // ),
-            // CarouselCardsScreen(),
+            // SizedBox(height: 16),
+            Obx(() {
+              return Container(
+                decoration: BoxDecoration(color: Colors.grey.withOpacity(.3)),
+                child: MediaCarouselWidget(
+                  mediaUrls: List.generate(
+                    hatcheryUpdatesController.banners.length,
+                    (index) => hatcheryUpdatesController.banners[index].url,
+                  ),
+
+                  mediaTypes: List.generate(
+                    hatcheryUpdatesController.banners.length,
+                    (index) => hatcheryUpdatesController.banners[index].type,
+                  ),
+                ),
+              );
+            }),
             SizedBox(height: 16),
-            UpdatesBannerWidget(),
             Obx(() {
               if (hatcheryUpdatesController.isLoading.value) {
                 return Padding(
@@ -103,8 +119,9 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                         .value
                         ?.data?[index],
                     ontap: () {
-                      hatcheryUpdatesController.fetchHatcherySpecificUpdates(
-                        hatcheryUpdatesController
+                      hatcheryUpdatesController.fetchHatcheryUpdatesSingle(
+                        id:
+                            hatcheryUpdatesController
                                 .hatcheryData
                                 .value
                                 ?.data?[index]
@@ -161,23 +178,23 @@ class _PostWidgetState extends State<PostWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: widget.ontap,
-      child: Card(
-        color: Colors.white,
-        margin: const EdgeInsets.symmetric(vertical: 8.0),
-        elevation: 0.0,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Post Header
-            Padding(
+    return Card(
+      color: Colors.white,
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      elevation: 0.0,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Post Header
+          InkWell(
+            onTap: widget.ontap,
+            child: Padding(
               padding: const EdgeInsets.all(12.0),
               child: Row(
                 children: [
                   CircleAvatar(
                     backgroundColor: Colors.black.withOpacity(.1),
-                    backgroundImage: AssetImage(
+                    backgroundImage: NetworkImage(
                       widget.postData?.profileImage ?? "",
                     ),
                     radius: 20,
@@ -213,158 +230,176 @@ class _PostWidgetState extends State<PostWidget> {
                 ],
               ),
             ),
-            // Post Text
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              child: Text(
-                widget.postData?.caption ?? '',
-                style: GoogleFonts.roboto(fontSize: 14),
-              ),
+          ),
+          // Post Text
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+            child: Text(
+              widget.postData?.caption ?? '',
+              style: GoogleFonts.roboto(fontSize: 14),
             ),
-            const SizedBox(height: 8),
-            // Media Carousel
-            Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                Container(
-                  height: 250,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(.1),
-                  ),
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: widget.postData?.mediaFiles?.length,
-                    itemBuilder: (context, index) {
-                      return CustomNetworkImage(
-                        imageUrl: widget.postData?.mediaFiles?[index] ?? '',
-                        fit: BoxFit.cover,
-                      );
-                    },
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+
+            child: Builder(
+              builder: (context) {
+                final tags = widget.postData?.hashtags ?? [];
+                final formatted = tags
+                    .map((e) => "#${e.name.toLowerCase()}")
+                    .join("  "); // double space
+
+                return Text(
+                  formatted,
+                  style: GoogleFonts.roboto(fontSize: 14, color: Colors.black),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Media Carousel
+          Stack(
+            alignment: Alignment.bottomCenter,
+            children: [
+              Container(
+                height: 250,
+                width: MediaQuery.of(context).size.width * 1,
+                // ignore: deprecated_member_use
+                decoration: BoxDecoration(color: Colors.black.withOpacity(.1)),
+                child: Builder(
+                  builder: (context) {
+                    final urls =
+                        widget.postData?.mediaFiles
+                            ?.map((e) => e.toString())
+                            .toList() ??
+                        [];
+                    return MediaCarouselWidget(
+                      mediaUrls: urls,
+                      mediaType: widget.postData?.mediaType ?? "",
+                      height: 350,
+                      borderRadius: 0,
+                    );
+                  },
+                ),
+              ),
+              // Page Indicator Dots
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    widget.postData?.mediaFiles?.length ?? 0,
+                    (index) => buildDot(index),
                   ),
                 ),
-                // Page Indicator Dots
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      widget.postData?.mediaFiles?.length ?? 0,
-                      (index) => buildDot(index),
+              ),
+            ],
+          ),
+          // Action Buttons
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    InkWell(
+                      onTap: () async {
+                        final phone =
+                            widget.postData?.callUrl ??
+                            "0000000000"; // Replace key if needed
+                        final Uri callUri = Uri(scheme: 'tel', path: phone);
+
+                        if (await canLaunchUrl(callUri)) {
+                          await launchUrl(
+                            callUri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Cannot make call")),
+                          );
+                        }
+                      },
+                      child: Image.asset('assets/images/call.png', height: 38),
                     ),
+
+                    const SizedBox(width: 12),
+
+                    // WHATSAPP BUTTON
+                    InkWell(
+                      onTap: () async {
+                        final phone =
+                            widget.postData?.whatsappUrl ??
+                            ""; // Should be number only
+                        final whatsappUrl = "https://wa.me/$phone";
+
+                        final Uri uri = Uri.parse(whatsappUrl);
+
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Cannot launch WhatsApp"),
+                            ),
+                          );
+                        }
+                      },
+                      child: Image.asset(
+                        'assets/images/whatsApp.png',
+                        height: 32,
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    // FACEBOOK BUTTON
+                    IconButton(
+                      icon: const Icon(Icons.facebook),
+                      color: Colors.blue,
+                      onPressed: () async {
+                        final fbPage =
+                            widget.postData?.facebookUrl ??
+                            ""; // Example: https://facebook.com/xyz
+                        final Uri uri = Uri.parse(fbPage);
+
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Cannot open Facebook"),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    Share.share(
+                      widget.postData?.shareLink ?? '',
+                      subject: 'Vehicle Tracking Info',
+                    );
+                  },
+                  icon: const Icon(Icons.share, size: 18),
+                  label: const Text('Share'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
                   ),
                 ),
               ],
             ),
-            // Action Buttons
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      // CALL BUTTON
-                      InkWell(
-                        onTap: () async {
-                          final phone =
-                              widget.postData?.callUrl ??
-                              "0000000000"; // Replace key if needed
-                          final Uri callUri = Uri(scheme: 'tel', path: phone);
-
-                          if (await canLaunchUrl(callUri)) {
-                            await launchUrl(
-                              callUri,
-                              mode: LaunchMode.externalApplication,
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Cannot make call")),
-                            );
-                          }
-                        },
-                        child: Image.asset(
-                          'assets/images/call.png',
-                          height: 38,
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      // WHATSAPP BUTTON
-                      InkWell(
-                        onTap: () async {
-                          final phone =
-                              widget.postData?.whatsappUrl ??
-                              ""; // Should be number only
-                          final whatsappUrl = "https://wa.me/$phone";
-
-                          final Uri uri = Uri.parse(whatsappUrl);
-
-                          if (await canLaunchUrl(uri)) {
-                            await launchUrl(
-                              uri,
-                              mode: LaunchMode.externalApplication,
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Cannot launch WhatsApp"),
-                              ),
-                            );
-                          }
-                        },
-                        child: Image.asset(
-                          'assets/images/whatsApp.png',
-                          height: 32,
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      // FACEBOOK BUTTON
-                      IconButton(
-                        icon: const Icon(Icons.facebook),
-                        color: Colors.blue,
-                        onPressed: () async {
-                          final fbPage =
-                              widget.postData?.facebookUrl ??
-                              ""; // Example: https://facebook.com/xyz
-                          final Uri uri = Uri.parse(fbPage);
-
-                          if (await canLaunchUrl(uri)) {
-                            await launchUrl(
-                              uri,
-                              mode: LaunchMode.externalApplication,
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Cannot open Facebook"),
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      Share.share(
-                        widget.postData?.shareLink ?? '',
-                        subject: 'Vehicle Tracking Info',
-                      );
-                    },
-                    icon: const Icon(Icons.share, size: 18),
-                    label: const Text('Share'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

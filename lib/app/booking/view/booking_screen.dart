@@ -38,20 +38,19 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          SizedBox(
-            width: 110,
-            height: 36,
-            child: _buildDropdownButton(selected, ["Filter"], (newValue) {
-              setState(() => selected = newValue!);
-            }),
-          ),
+          // SizedBox(
+          //   width: 110,
+          //   height: 36,
+          //   child: _buildDropdownButton(selected, ["Filter"], (newValue) {
+          //     setState(() => selected = newValue!);
+          //   }),
+          // ),
         ],
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
-        }
-
+        } 
         if (controller.bookingList.isEmpty) {
           return Center(
             child: Text(

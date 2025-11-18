@@ -32,13 +32,22 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
   final HomeController _homeController = Get.find<HomeController>();
   @override
   void initState() {
-    hatcheryCategoryController.fetchBanners(widget.hatcheryId);
-    hatcheryCategoryController.fetchHetcheryCategory('50');
+    initCall();
     super.initState();
   }
 
+  initCall() async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await hatcheryCategoryController.fetchBanners(widget.hatcheryId);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // hatcheryCategoryController.fetchHetcheryCategory(widget.hatcheryId);
+      hatcheryCategoryController.fetchHetcheryCategory(widget.hatcheryId);
+    });
+  }
+
   // Resolve category name from HomeController.categories (Category.id)
-  String resolvedCategoryName(SimilarHatchery hatchery) {
+  String resolvedCategoryName(SimilarHatchery hatchery){
     try {
       final cat = _homeController.categories.firstWhere(
         (c) => c.id == (hatchery.categoryId ?? -1),
@@ -136,14 +145,14 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                             },
 
                             child: Padding(
-                              padding: const EdgeInsets.only(top: 5,bottom: 5),
+                              padding: const EdgeInsets.only(top: 5, bottom: 5),
                               child: HarcheryCardWidget(
                                 hatcheryName: item.hatcheryName,
                                 categoryName: item.category?.name ?? "",
                                 imageUrl: (item.images.isEmpty)
                                     ? ""
                                     : item.images.first,
-                              
+
                                 /// units safe parsing
                                 unit1Location: item.units.isNotEmpty
                                     ? item.units[0].branchName
@@ -151,10 +160,10 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                                 unit2Location: item.units.length > 1
                                     ? item.units[1].branchName
                                     : "",
-                              
+
                                 /// broodstock safe
                                 broodstockCount: item.broodstock.toString(),
-                              
+
                                 price: item.price,
                                 availableDate: item.availableOn,
                                 callUrl: item.callUrl,

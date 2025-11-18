@@ -154,8 +154,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     _showError("Enter valid 10 digit phone number");
                     return;
                   }
-
-                  if (_unitController.text.trim().isNotEmpty) {
+                  if (_unitController.text.trim().isEmpty) {
                     _showError("Please select unit");
                     return;
                   }
@@ -174,7 +173,6 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     _showError("Please select date");
                     return;
                   }
-                  // ✅ If all valid, continue
                   Navigator.pop(context);
                   _showBookingReviewSheet(context,widget.isSpotHatchery??false);
                 },

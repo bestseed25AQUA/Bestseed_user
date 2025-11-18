@@ -6,8 +6,8 @@ import 'package:seedsuser/app/seed_price/widget/seed_price_banner_bottom_widget.
 import 'package:video_player/video_player.dart';
 
 class WantedBannerWidget extends StatefulWidget {
-  const WantedBannerWidget({super.key});
-
+  const WantedBannerWidget({super.key, required this.ontapImage});
+final VoidCallback ontapImage;
   @override
   State<WantedBannerWidget> createState() => _WantedBannerWidgetState();
 }
@@ -33,13 +33,16 @@ class _WantedBannerWidgetState extends State<WantedBannerWidget> {
                 final banner = controller.banners[index];
 
                 if (banner.type == "image") {
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      banner.url,
-                      width: double.infinity,
-                      height: 180,
-                      fit: BoxFit.cover,
+                  return InkWell(
+                    onTap: widget.ontapImage,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        banner.url,
+                        width: double.infinity,
+                        height: 180,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   );
                 } else if (banner.type == "video") {

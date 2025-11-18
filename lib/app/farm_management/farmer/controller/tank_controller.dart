@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/farm_management/farmer/model/feed_store_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_feed_history_response.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
@@ -35,11 +36,11 @@ class TankController extends GetxController {
   Future<bool> addTodayTankQuntity({
     required String feedQty,
     required String mealQty,
-    required String tankId, 
-    String ? date,
+    required String tankId,
+    String? date,
     String? feedId,
     String? mealId,
-     String? farmId,
+    String? farmId,
   }) async {
     print('adding...');
 
@@ -47,8 +48,7 @@ class TankController extends GetxController {
       "meals": mealQty,
       "feed_quantity": feedQty,
       'tank_id': tankId.toString(),
-      if(date!=null)
-      "feed_date" : date
+      if (date != null) "feed_date": date,
     };
     String endPoint =
         "${NetworkConfig.baseURL}/farmer/tanks/add-todays-tanks-quantity";
@@ -201,4 +201,71 @@ class TankController extends GetxController {
       isTankHistoryLoading.value = false;
     }
   }
+
+  Rx<FeedStoreModel?> feedStoreData = Rx<FeedStoreModel?>(null);
+  RxBool isFeedLoading = false.obs;
+  RxBool isOverlay = false.obs;
+  Future<void> getFeedStore(int farmId) async {
+    try {
+      isFeedLoading(true);
+
+      final response = await getRequest(
+        endPoint: "${NetworkConfig.baseURL}/farmer/farm/feed-store/$farmId",
+        headers: await buildHeader(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        feedStoreData.value = FeedStoreModel.fromJson(data["data"]);
+      } else {
+        CustomToast.error("Failed to fetch feed store");
+      }
+    } catch (e) {
+      CustomToast.error("Something went wrong");
+    } finally {
+      isFeedLoading(false);
+      loadDummyFeedStore(farmId);
+    }
+  }
+
+  void loadDummyFeedStore(int farmId) {
+  feedStoreData.value = FeedStoreModel.fromJson({
+    "farm_id": farmId,
+    "total_feed_used": "3200",
+    "feed_store": "04",
+    "unit": "Kgs",
+    "updated_at": "2025-02-22 11:30:00"
+  });
 }
+
+
+  Future<bool> updateFeedStore({
+    required int farmId,
+    required String totalFeedUsed,
+    required String feedStore,
+  }) async {
+    try {
+      isOverlay(true);
+
+      var response = await postRequest(
+        endPoint:
+            "${NetworkConfig.baseURL}/farmer/farm/$farmId/update-total-feed",
+        headers: await buildHeader(),
+        body: {"total_feed_used": totalFeedUsed, "feed_store": feedStore},
+      );
+
+      if (response.statusCode == 200) {
+        CustomToast.success("Feed updated successfully");
+        return true;
+      } else {
+        CustomToast.error("Failed to update feed");
+      }
+    } catch (e) {
+      CustomToast.error("Something went wrong");
+    } finally {
+      isOverlay(false);
+    }
+    return false;
+  }
+}
+

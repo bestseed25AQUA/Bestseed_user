@@ -25,6 +25,7 @@ class HatcheryCategoryController extends GetxController {
         endPoint: '${NetworkConfig.baseURL}/farmer/hatchery-all-category/$id',
         headers: await buildHeader(),
       );
+      print(response.body.toString());
 
       if (response.statusCode == 200) {
         try {

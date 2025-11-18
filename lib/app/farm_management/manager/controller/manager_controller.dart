@@ -57,8 +57,8 @@ class ManagerController extends GetxController {
         "edit_access": canEdit ? "1" : "0",
         "view_access": canView ? "1" : "0",
         "delete_access": canDelete ? "1" : "0",
-        "read_access": canCreate ? "1" : "0",
-        if (id != null) "manager_id": id,
+        "create_access": canCreate ? "1" : "0",
+        if (id != null) "id": id,
       };
       print('=======------------========');
       print(body);

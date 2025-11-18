@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_dropdown.dart';
+import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/model/brood_stock_model.dart';
 import 'package:seedsuser/app/model/category_model.dart';
@@ -98,7 +99,11 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                     itemBuilder: (context, index) {
                       BroodstockData data =
                           controller.filteredBroodStocks[index];
-                      return _buildHatcheryCard(data);
+                      return InkWell(
+                        onTap: () {
+                          Get.to(HatcheryCateogryScreen(hatcheryId: controller.filteredBroodStocks[index].id.toString()??'',));
+                        },
+                        child: _buildHatcheryCard(data));
                     },
                   ),
                 const SizedBox(height: 80),

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:carousel_slider/carousel_slider.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/language/language_screen.dart';
+import 'package:seedsuser/app/notification/notification_screen.dart';
+import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:seedsuser/app/updates/view/update_screen.dart';
 
 class HatcheryDetailsScreen extends StatefulWidget {
   const HatcheryDetailsScreen({super.key});
@@ -14,257 +16,159 @@ class HatcheryDetailsScreen extends StatefulWidget {
 }
 
 class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
-  int _currentIndex = 0;
-
   final hatcheryUpdatesController = Get.put(HatcheryUpdatesController());
 
-  final List<String> imageList = [
-    'assets/images/WhatsApp Image 2025-10-04 at 1.24.19 PM.jpeg',
-    'assets/images/WhatsApp Image 2025-10-04 at 1.24.17 PM.jpeg',
-    'assets/images/rama.png',
-    'assets/images/rama.png',
-  ];
+  @override
+  void initState() {
+    super.initState();
+  }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Obx(() {
-        return CustomScrollView(
-          slivers: [
-            /// HEADER SLIVER APPBAR
-            SliverAppBar(
-              expandedHeight: 160,
-              pinned: true,
-              backgroundColor: AppColors.primary,
-              iconTheme: const IconThemeData(color: Colors.white),
-              flexibleSpace: FlexibleSpaceBar(
-                background: Container(
-                  padding: const EdgeInsets.all(16),
-                  color: AppColors.primary,
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        automaticallyImplyLeading: false,
+        title: Text(
+          'Updates',
+          style: GoogleFonts.roboto(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        actions: [
+          InkWell(
+            onTap: () {
+              Get.to(() => LanguageSelectionScreen());
+            },
+            child: Image.asset('assets/images/lan_image.png', height: 32),
+          ),
+          const SizedBox(width: 16),
+          InkWell(
+            onTap: () {
+              Get.to(() => NotificationsScreen());
+            },
+            child: Image.asset('assets/images/notification.png', height: 32),
+          ),
+          SizedBox(width: 16),
+          InkWell(
+            onTap: () {
+              Get.to(() => ProfileScreen());
+            },
+            child: Image.asset('assets/images/person.png', height: 32),
+          ),
+          SizedBox(width: 16),
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            Container(
+              height: 140,
+              width: double.infinity,
+              color: AppColors.primary,
+              padding: const EdgeInsets.all(16),
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // ---------- IMAGE + NAME ----------
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              ClipOval(
-                                child: Image.asset(
-                                  'assets/images/rama.png',
-                                  width: 50,
-                                  height: 50,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                hatcheryUpdatesController
-                                        .hatcherySpecificUpdateData
-                                        .value
-                                        ?.data
-                                        ?.hatcheryName ??
-                                    '',
-                                style: GoogleFonts.roboto(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                          ClipOval(
+                            child: Image.network(
+                              "https://i.pravatar.cc/150?img=10",
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
+                            ),
                           ),
-                          Row(
-                            children: [
-                              const Icon(Icons.location_on,
-                                  color: Color(0xFF0076BE), size: 18),
-                              const SizedBox(width: 4),
-                              Text(
-                                hatcheryUpdatesController
-                                        .hatcherySpecificUpdateData
-                                        .value
-                                        ?.data
-                                        ?.location ??
-                                    '',
-                                style: GoogleFonts.roboto(),
-                              ),
-                            ],
+                          const SizedBox(width: 10),
+                          Text(
+                            "Hatchery",
+                            style: GoogleFonts.roboto(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
-                    ),
+
+                      // ---------- LOCATION ----------
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on,
+                            color: Colors.blue,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            "Location",
+                            style: GoogleFonts.roboto(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
-
-            /// LOADING STATE
-            if (hatcheryUpdatesController.isHatcherySpecificUpdateLoading.value)
-              SliverToBoxAdapter(
-                child: Padding(
+            SizedBox(height: 16),
+            Obx(() {
+              if (hatcheryUpdatesController.isLoading.value) {
+                return Padding(
                   padding: EdgeInsets.only(
-                      top: MediaQuery.of(context).size.height * .35),
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
-              )
-            else
-              /// MAIN POST LIST
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              ClipOval(
-                                child: Image.asset(
-                                  'assets/images/rama.png',
-                                  width: 30,
-                                  height: 30,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                hatcheryUpdatesController
-                                        .hatcherySpecificUpdateData
-                                        .value
-                                        ?.data
-                                        ?.hatcheryName ??
-                                    '',
-                                style: GoogleFonts.roboto(
-                                    fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                              const Spacer(),
-                              Text(
-                                'Posted 2 days ago',
-                                style: GoogleFonts.roboto(color: Colors.grey),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          Text(
-                            'Rama Hatchery\'s new crop SyAqua farming 🦐..... #Aquaculture #Shrimp #Water #PremiumQuality',
-                            style: GoogleFonts.roboto(fontSize: 16),
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          CarouselSlider(
-                            items: imageList.map((imagePath) {
-                              return ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.asset(
-                                  imagePath,
-                                  width: double.infinity,
-                                  height: 250,
-                                  fit: BoxFit.cover,
-                                ),
-                              );
-                            }).toList(),
-                            options: CarouselOptions(
-                              height: 250,
-                              viewportFraction: 1,
-                              autoPlay: true,
-                              onPageChanged: (index, reason) {
-                                setState(() => _currentIndex = index);
-                              },
-                            ),
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          Row(
-                            children: List.generate(
-                              imageList.length,
-                              (dotIndex) => Container(
-                                margin:
-                                    const EdgeInsets.symmetric(horizontal: 3),
-                                width: _currentIndex == dotIndex ? 10 : 8,
-                                height: _currentIndex == dotIndex ? 10 : 8,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: _currentIndex == dotIndex
-                                      ? AppColors.primary
-                                      : Colors.grey.shade300,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  GestureDetector(
-                                    onTap: () async {
-                                      final callUrl =
-                                          "tel:${hatcheryUpdatesController.hatcherySpecificUpdateData.value?.data?.vendorMobile ?? ''}";
-                                      final uri = Uri.parse(callUrl);
-                                      if (await canLaunchUrl(uri)) {
-                                        launchUrl(uri);
-                                      }
-                                    },
-                                    child: Image.asset('assets/images/call.png',
-                                        height: 38),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  InkWell(
-                                    onTap: () async {
-                                      final whatsappUrl =
-                                          hatcheryUpdatesController
-                                                  .hatcherySpecificUpdateData
-                                                  .value
-                                                  ?.data
-                                                  ?.whatsappUrl ??
-                                              '';
-                                      final uri = Uri.parse(whatsappUrl);
-                                      if (await canLaunchUrl(uri)) {
-                                        launchUrl(uri);
-                                      }
-                                    },
-                                    child: Image.asset(
-                                        'assets/images/whatsApp.png',
-                                        height: 32),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.facebook),
-                                    onPressed: () {},
-                                    color: Colors.blue.shade800,
-                                  ),
-                                ],
-                              ),
-                              TextButton.icon(
-                                onPressed: () {},
-                                icon: const Icon(Icons.share, size: 18),
-                                label: const Text('Share'),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: AppColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  childCount: 8,
-                ),
-              ),
+                    top: MediaQuery.of(context).size.height * .3,
+                  ),
+                  child: CircularProgressIndicator(),
+                );
+              }
+              return ListView.builder(
+                physics: NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                itemCount:
+                    hatcheryUpdatesController
+                        .hatcherySingleData
+                        .value
+                        ?.data
+                        ?.length ??
+                    0,
+                itemBuilder: (context, index) {
+                  return PostWidget(
+                    postData: hatcheryUpdatesController
+                        .hatcherySingleData
+                        .value
+                        ?.data?[index],
+                    // ontap: () {
+                    //   hatcheryUpdatesController.fetchHatcheryUpdatesSingle(
+                    //     id:
+                    //         hatcheryUpdatesController
+                    //             .hatcherySingleData
+                    //             .value
+                    //             ?.data?[index]
+                    //             .id
+                    //             .toString() ??
+                    //         '',
+                    //   );
+                    //   Get.to(() => HatcheryDetailsScreen());
+                    // },
+                  );
+                },
+              );
+            }),
           ],
-        );
-      }),
+        ),
+      ),
     );
   }
 }

@@ -35,6 +35,7 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
   void initState() {
     super.initState();
     tankController.getTankList(widget.farmId);
+    tankController.getFeedStore(int.parse(widget.farmId));
   }
 
   @override
@@ -138,87 +139,97 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
   }
 }
 
-// --- Widget for Total Feed Used and Store Card ---
 class FeedStoreCard extends StatelessWidget {
   const FeedStoreCard({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: AppColors.primary, // Blue background
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20.0),
-        child: IntrinsicHeight(
+    final TankController controller = Get.find();
+
+    return Obx(() {
+      if (controller.isFeedLoading.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      final data = controller.feedStoreData.value;
+
+      return Card(
+        color: AppColors.primary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: <Widget>[
-              // Total Feed Used
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Text(
-                      'Total feed used',
-                      style: GoogleFonts.roboto(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
+            children: [
+              // TOTAL FEED USED
+              Column(
+                children: [
+                  Text(
+                    "Total feed used",
+                    style: GoogleFonts.roboto(
+                      color: Colors.white70,
+                      fontSize: 14,
                     ),
-                    SizedBox(height: 4),
-                    Text(
-                      '2500',
-                      style: GoogleFonts.roboto(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    data?.totalFeedUsed ?? "0",
+                    style: GoogleFonts.roboto(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
                     ),
-                    SizedBox(height: 8),
-                    EditButton(),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () {
+                      showEditFeedBottomSheet();
+                    },
+                    child: EditButton(),
+                  ),
+                ],
               ),
-              // Separator
+
               const VerticalDivider(
                 color: Colors.white54,
                 thickness: 1,
-                indent: 8,
-                endIndent: 8,
+                width: 30,
               ),
-              // Store
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Text(
-                      'Store',
-                      style: GoogleFonts.roboto(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
+
+              // FEED STORE
+              Column(
+                children: [
+                  Text(
+                    "Store",
+                    style: GoogleFonts.roboto(
+                      color: Colors.white70,
+                      fontSize: 14,
                     ),
-                    SizedBox(height: 4),
-                    Text(
-                      '500',
-                      style: GoogleFonts.roboto(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    data?.feedStore ?? "0",
+                    style: GoogleFonts.roboto(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
                     ),
-                    SizedBox(height: 8),
-                    EditButton(),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () {
+                      showEditFeedBottomSheet();
+                    },
+                    child: EditButton(),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 }
 
@@ -619,4 +630,135 @@ Future<void> shareReport(String url) async {
   try {
     await Share.share(url, subject: "Feed Report Link");
   } catch (e) {}
+}
+
+
+void showEditFeedBottomSheet() {
+  final TankController controller = Get.find();
+
+  final totalFeedController =
+      TextEditingController(text: controller.feedStoreData.value?.totalFeedUsed ?? "");
+  final storeController =
+      TextEditingController(text: controller.feedStoreData.value?.feedStore ?? "");
+
+  Get.bottomSheet(
+    Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Close Button
+          Align(
+            alignment: Alignment.topRight,
+            child: GestureDetector(
+              onTap: () => Get.back(),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.black26),
+                ),
+                child: const Icon(Icons.close, size: 18),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Total feed used
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text("Total feed used",
+                style: GoogleFonts.roboto(fontSize: 16)),
+          ),
+          const SizedBox(height: 8),
+          feedInputField(totalFeedController),
+
+          const SizedBox(height: 20),
+
+          // Store
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text("Store", style: GoogleFonts.roboto(fontSize: 16)),
+          ),
+          const SizedBox(height: 8),
+          feedInputField(storeController),
+
+          const SizedBox(height: 30),
+
+          // Save Button
+          Obx(() {
+            return GestureDetector(
+              onTap: () async {
+                bool ok = await controller.updateFeedStore(
+                  farmId: controller.feedStoreData.value?.farmId ?? 0,
+                  totalFeedUsed: totalFeedController.text.trim(),
+                  feedStore: storeController.text.trim(),
+                );
+
+                if (ok) {
+                  Get.back();
+                  controller.getFeedStore(controller.feedStoreData.value!.farmId!);
+                }
+              },
+              child: Container(
+                height: 50,
+                width: double.infinity,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: controller.isOverlay.value
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        "Save",
+                        style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold),
+                      ),
+              ),
+            );
+          }),
+
+          const SizedBox(height: 20),
+        ],
+      ),
+    ),
+    isScrollControlled: true,
+  );
+}
+
+Widget feedInputField(TextEditingController controller) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    decoration: BoxDecoration(
+      color: Colors.grey.shade200,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+            ),
+          ),
+        ),
+        const Text("Kgs", style: TextStyle(color: Colors.black54)),
+        const SizedBox(width: 5),
+        const Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.black54),
+      ],
+    ),
+  );
 }

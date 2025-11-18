@@ -3,11 +3,16 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/common/media_carousel_widget.dart';
 import 'package:seedsuser/app/home/view/full_video_screen.dart';
 import 'package:seedsuser/app/home/widget/home_banner_carousel.dart';
 import 'package:seedsuser/app/model/wanted_crop_model.dart';
 import 'package:seedsuser/app/wanted/controller/wanted_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:seedsuser/app/common/custom_dropdown.dart';
+import 'package:seedsuser/app/model/category_model.dart';
+import 'package:seedsuser/app/model/location_model.dart';
+import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 
 class WantedCropBuyersScreen extends StatefulWidget {
   const WantedCropBuyersScreen({super.key});
@@ -22,15 +27,16 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
   String selected = "East Godavari";
   TextEditingController searchController = TextEditingController();
   String? selectedFilter;
+  final SeedsPriceController seedController = Get.put(SeedsPriceController());
+  @override
+  void initState() {
+    super.initState();
 
-  void _selectFilter(String? filter) {
-    setState(() {
-      if (selectedFilter == filter) {
-        selectedFilter = null;
-      } else {
-        selectedFilter = filter;
-      }
-    });
+    // Load banners
+    controller.fetchWantedBanners();
+
+    // Load crops default
+    controller.fetchCrops();
   }
 
   @override
@@ -40,24 +46,87 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
       appBar: _buildAppBar(),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 16),
-            _buildSearchField(),
-            const SizedBox(height: 8),
-            _buildFilterChips(),
-            const SizedBox(height: 8),
-            _buildFilterSection(),
-            const SizedBox(height: 16),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [ 
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: () {
+                  controller.fetchWantedBanners();
+                },
+                child: Text(controller.bannerList.length.toString())),
+              Obx(() {
+                return Container(
+                  decoration: BoxDecoration(color: Colors.grey.withOpacity(.3)),
+                  child: MediaCarouselWidget(
+                    mediaUrls: List.generate(
+                      controller.bannerList.length,
+                      (index) => controller.bannerList[index].url,
+                    ),
 
-            // ✅ Use GetX to show real-time data
-            Expanded(
-              child: Obx(() {
+                    mediaTypes: List.generate(
+                      controller.bannerList.length,
+                      (index) => controller.bannerList[index].type,
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Obx(() {
+                      if (seedController.locations.isEmpty) {
+                        return const SizedBox();
+                      }
+                      return CustomDropdown<Location>(
+                        selectedValue: controller.selectedLocation.value,
+                        items: seedController.locations,
+                        itemLabel: (loc) => loc.title,
+                        hintText: "Select Location",
+                        onChanged: (loc) {
+                          controller.selectedLocation.value = loc;
+                          controller.fetchCrops(
+                            categoryId: controller.selectedCategory.value?.id
+                                .toString(),
+                            locationId: controller.selectedLocation.value?.id
+                                .toString(),
+                          );
+                        },
+                      );
+                    }),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Obx(() {
+                      if (seedController.categories.isEmpty) {
+                        return const SizedBox();
+                      }
+
+                      return CustomDropdown<Category>(
+                        selectedValue: seedController.selectedCategory.value,
+                        items: seedController.categories,
+                        itemLabel: (cat) => cat.categoryName,
+                        hintText: "Select Category",
+                        onChanged: (cat) {
+                          controller.selectedCategory.value = cat;
+                          controller.fetchCrops(
+                            categoryId: controller.selectedCategory.value?.id
+                                .toString(),
+                            locationId: controller.selectedLocation.value?.id,
+                          );
+                        },
+                      );
+                    }),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Obx(() {
                 if (controller.isLoading.value) {
                   return const Center(child: CircularProgressIndicator());
                 }
-
                 if (controller.wantedCropsList.isEmpty) {
                   return const Center(child: Text("No wanted crops found."));
                 }
@@ -76,6 +145,7 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
                 }).toList();
 
                 return ListView.builder(
+                  shrinkWrap: true,
                   itemCount: filteredList.length,
                   itemBuilder: (context, index) {
                     final crop = filteredList[index];
@@ -83,8 +153,8 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
                   },
                 );
               }),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -104,107 +174,77 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
     );
   }
 
-  Widget _buildSearchField() {
-    return TextField(
-      controller: searchController,
-      onChanged: (_) => setState(() {}),
-      decoration: InputDecoration(
-        hintText: "Search buyers...",
-        prefixIcon: const Icon(Icons.search),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-      ),
-    );
-  }
+  // Widget _buildSearchField() {
+  //   return TextField(
+  //     controller: searchController,
+  //     onChanged: (_) => setState(() {}),
+  //     decoration: InputDecoration(
+  //       hintText: "Search buyers...",
+  //       prefixIcon: const Icon(Icons.search),
+  //       filled: true,
+  //       fillColor: Colors.white,
+  //       contentPadding: const EdgeInsets.symmetric(
+  //         horizontal: 16,
+  //         vertical: 12,
+  //       ),
+  //       border: OutlineInputBorder(
+  //         borderRadius: BorderRadius.circular(12),
+  //         borderSide: BorderSide.none,
+  //       ),
+  //     ),
+  //   );
+  // }
 
-  Widget _buildFilterChips() {
-    return Wrap(
-      spacing: 8,
-      children: ["Vannamei", "Tiger", "Shrimp"].map((type) {
-        final isSelected = selectedFilter == type;
-        return ChoiceChip(
-          label: Text(type),
-          selected: isSelected,
-          selectedColor: Colors.green,
-          backgroundColor: Colors.grey[200],
-          checkmarkColor: Colors.white,
-          labelStyle: TextStyle(
-            color: isSelected ? Colors.white : Colors.black,
-          ),
-          onSelected: (_) => _selectFilter(type),
-        );
-      }).toList(),
-    );
-  }
+  // Widget _buildFilterChips() {
+  //   return Wrap(
+  //     spacing: 8,
+  //     children: ["Vannamei", "Tiger", "Shrimp"].map((type) {
+  //       final isSelected = selectedFilter == type;
+  //       return ChoiceChip(
+  //         label: Text(type),
+  //         selected: isSelected,
+  //         selectedColor: Colors.green,
+  //         backgroundColor: Colors.grey[200],
+  //         checkmarkColor: Colors.white,
+  //         labelStyle: TextStyle(
+  //           color: isSelected ? Colors.white : Colors.black,
+  //         ),
+  //         onSelected: (_) => _selectFilter(type),
+  //       );
+  //     }).toList(),
+  //   );
+  // }
 
-  Widget _buildFilterSection() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildDropdownButton(
-            selected,
-            ["East Godavari", "Krishna", "Kereal"],
-            (newValue) {
-              setState(() {
-                selected = newValue!;
-              });
-            },
-          ),
-        ),
-        const SizedBox(width: 64),
-        Expanded(
-          child: _buildDropdownButton(
-            selectedValue,
-            ["Vannamei", "Tiger", "Shrimp"],
-            (newValue) {
-              setState(() {
-                selectedValue = newValue!;
-              });
-            },
-          ),
-        ),
-      ],
-    );
-  }
+  // Widget _buildFilterSection() {
+  //   return Row(
+  //     children: [
+  //       Expanded(
+  //         child: _buildDropdownButton(
+  //           selected,
+  //           ["East Godavari", "Krishna", "Kereal"],
+  //           (newValue) {
+  //             setState(() {
+  //               selected = newValue!;
+  //             });
+  //           },
+  //         ),
+  //       ),
+  //       const SizedBox(width: 64),
+  //       Expanded(
+  //         child: _buildDropdownButton(
+  //           selectedValue,
+  //           ["Vannamei", "Tiger", "Shrimp"],
+  //           (newValue) {
+  //             setState(() {
+  //               selectedValue = newValue!;
+  //             });
+  //           },
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 
-  Widget _buildDropdownButton(
-    String value,
-    List<String> items,
-    Function(String?) onChanged,
-  ) {
-    return Container(
-      height: 46,
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2.0),
-      decoration: BoxDecoration(
-        color: const Color(0xFFDCEEF8),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
-          items: items
-              .map(
-                (item) =>
-                    DropdownMenuItem<String>(value: item, child: Text(item)),
-              )
-              .toList(),
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-
-  // ✅ Dynamic hatchery card using real API data
   Widget _buildHatcheryCard(WantedCrop crop) {
     return Card(
       elevation: 2,

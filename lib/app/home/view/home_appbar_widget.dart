@@ -325,7 +325,8 @@ class _HomeAppBarState extends State<HomeAppBar> {
         ),
         const SizedBox(width: 16),
         InkWell(
-          onTap: () => _showFilterBottomSheet(context),
+          // onTap: () => _showFilterBottomSheet(context),
+           onTap: () => Get.to(() => const SearchScreen()),
           child: Container(
             padding: const EdgeInsets.all(12),
             height: 46,

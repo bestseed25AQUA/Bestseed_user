@@ -52,11 +52,11 @@ class PartnerController extends GetxController {
         "phone": phone,
         "view_access": viewAccess ? "1" : "0",
         "edit_access": editAccess ? "1" : "0",
-        "read_access": "0",
+        "create_access": "0",
         "delete_access": "0",
-        if (id != null) "partner_id": id,
+        if (id != null) "id": id,
       };
-
+      
       print(body);
 
       final response = await postRequest(
