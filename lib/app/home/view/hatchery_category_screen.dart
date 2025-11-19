@@ -41,16 +41,16 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
       await hatcheryCategoryController.fetchBanners(widget.hatcheryId);
     });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // hatcheryCategoryController.fetchHetcheryCategory(widget.hatcheryId);
       hatcheryCategoryController.fetchHetcheryCategory(widget.hatcheryId);
+      // hatcheryCategoryController.fetchHetcheryCategory('50');
     });
   }
 
   // Resolve category name from HomeController.categories (Category.id)
-  String resolvedCategoryName(SimilarHatchery hatchery){
+  String resolvedCategoryName(SimilarHatchery hatchery) {
     try {
       final cat = _homeController.categories.firstWhere(
-        (c) => c.id == (hatchery.categoryId ?? -1),
+        (c) => c.id == (hatchery.categoryId),
         // orElse: () => Category(id: -1, categoryName: ''),
       );
       return cat.id == -1 ? '' : cat.categoryName;
@@ -94,6 +94,15 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                       ),
                     );
                   }
+                  if (hatcheryCategoryController
+                      .hatcheryCateogoryData
+                      .value
+                      .data
+                      .isEmpty) {
+                    return const Center(
+                      child: Text('No categories for this hatchery'),
+                    );
+                  }
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 6, top: 20),
                     child: Column(
@@ -108,7 +117,6 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                               .hatcheryCateogoryData
                               .value
                               .data[index];
-
                           return InkWell(
                             onTap: () {
                               print(widget.hatcheryId);
@@ -123,30 +131,52 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                                     '',
                               );
                               // return;
-                              Get.to(
-                                () => HatcheryCategoryDetailScreen(
-                                  videoUrl: 'assets/videos/sample.mp4',
-                                  hatcheryId: widget.hatcheryId,
-                                  categoryId:
-                                      hatcheryCategoryController
-                                          .hatcheryCateogoryData
-                                          .value
-                                          .data[index]
-                                          .categories
-                                          .id
-                                          .toString() ??
-                                      '',
-                                  // hatcheryId: widget.hatcheryId,
-                                  // categoryId: hatcheryCategoryController
-                                  // .hatcheryCateogoryData
-                                  // .value.id.toString(),
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      HatcheryCategoryDetailScreen(
+                                        videoUrl: 'assets/videos/sample.mp4',
+                                        hatcheryId: widget.hatcheryId,
+                                        categoryId: hatcheryCategoryController
+                                            .hatcheryCateogoryData
+                                            .value
+                                            .data[index]
+                                            .categories
+                                            .id
+                                            .toString(),
+                                        // hatcheryId: widget.hatcheryId,
+                                        // categoryId: hatcheryCategoryController
+                                        // .hatcheryCateogoryData
+                                        // .value.id.toString(),
+                                      ),
                                 ),
                               );
+                              // Get.to(
+                              //   () => HatcheryCategoryDetailScreen(
+                              //     videoUrl: 'assets/videos/sample.mp4',
+                              //     hatcheryId: widget.hatcheryId,
+                              //     categoryId:
+                              //         hatcheryCategoryController
+                              //             .hatcheryCateogoryData
+                              //             .value
+                              //             .data[index]
+                              //             .categories
+                              //             .id
+                              //             .toString() ??
+                              //         '',
+                              //     // hatcheryId: widget.hatcheryId,
+                              //     // categoryId: hatcheryCategoryController
+                              //     // .hatcheryCateogoryData
+                              //     // .value.id.toString(),
+                              //   ),
+                              // );
                             },
 
                             child: Padding(
                               padding: const EdgeInsets.only(top: 5, bottom: 5),
                               child: HarcheryCardWidget(
+                                categoryId: item.category?.id.toString() ?? "",
                                 hatcheryName: item.hatcheryName,
                                 categoryName: item.category?.name ?? "",
                                 imageUrl: (item.images.isEmpty)
@@ -179,25 +209,6 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                 }),
                 SizedBox(height: 20),
                 // ignore: prefer_is_empty
-                if ((hatcheryCategoryController
-                        .hatcheryCateogoryData
-                        .value
-                        .similarHatcheries
-                        .length) !=
-                    0)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        'Similar Hatcheries',
-                        style: GoogleFonts.roboto(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ),
 
                 //  Text(( hatcheryCategoryController
                 //                 .hatcheryCateogoryData
@@ -213,67 +224,96 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
 
                   if (similarList.isEmpty) return SizedBox();
 
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: List.generate(similarList.length, (index) {
-                        final hatchery = similarList[index];
-
-                        // ⭐ PRE-COMPUTE SAFE VALUES
-                        final String categoryName = resolvedCategoryName(
-                          hatchery,
-                        ); // your helper function
-                        final String locationName =
-                            hatchery.location ?? ''; // your helper function
-
-                        // ⭐ IMAGE SAFE
-                        final String image = hatchery.image ?? "";
-
-                        // ⭐ DATE SAFE
-                        final String? availableDate =
-                            hatchery.availableOn != null &&
-                                hatchery.availableOn!.trim().isNotEmpty
-                            ? hatchery.availableOn
-                            : null;
-
-                        // ⭐ STATUS COLOR SAFE
-                        final String statusLower = hatchery.status
-                            .toLowerCase();
-
-                        final Color statusColor = statusLower == "open"
-                            ? const Color(0xff25A652)
-                            : statusLower == "coming soon"
-                            ? const Color(0xff007DFE)
-                            : const Color(0xffE31B1B);
-
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 16,
-                          ),
-                          child: SizedBox(
-                            height: 230,
-                            width: 160,
-
-                            child: HatcheryCard(
-                              width: 160,
-                              height: 295,
-
-                              /// ⭐ No nullable — model is safe
-                              id: hatchery.id.toString(),
-                              imagePath: image,
-
-                              title: hatchery.hatcheryName,
-                              location: locationName,
-                              type: categoryName,
-                              status: hatchery.status,
-                              statusColor: statusColor,
-                              availableUntil: availableDate,
+                  return Column(
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            'Similar Hatcheries',
+                            style: GoogleFonts.roboto(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
                           ),
-                        );
-                      }),
-                    ),
+                        ),
+                      ),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: List.generate(similarList.length, (index) {
+                            final hatchery = similarList[index];
+
+                            // ⭐ PRE-COMPUTE SAFE VALUES
+                            final String categoryName = resolvedCategoryName(
+                              hatchery,
+                            ); // your helper function
+                            final String locationName =
+                                hatchery.location ?? ''; // your helper function
+
+                            // ⭐ IMAGE SAFE
+                            final String image = hatchery.image ?? "";
+
+                            // ⭐ DATE SAFE
+                            final String? availableDate =
+                                hatchery.availableOn != null &&
+                                    hatchery.availableOn!.trim().isNotEmpty
+                                ? hatchery.availableOn
+                                : null;
+
+                            // ⭐ STATUS COLOR SAFE
+                            final String statusLower = hatchery.status
+                                .toLowerCase();
+
+                            final Color statusColor = statusLower == "open"
+                                ? const Color(0xff25A652)
+                                : statusLower == "coming soon"
+                                ? const Color(0xff007DFE)
+                                : const Color(0xffE31B1B);
+
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 16,
+                              ),
+                              child: SizedBox(
+                                height: 230,
+                                width: 160,
+
+                                child: HatcheryCard(
+                                  width: 160,
+                                  height: 295,
+                                  ontap: () {
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            HatcheryCateogryScreen(
+                                              hatcheryId: hatchery.id
+                                                  .toString(),
+                                            ),
+                                      ),
+                                    );
+                                  },
+
+                                  /// ⭐ No nullable — model is safe
+                                  id: hatchery.id.toString(),
+                                  imagePath: image,
+
+                                  title: hatchery.hatcheryName,
+                                  location: locationName,
+                                  type: categoryName,
+                                  status: hatchery.status,
+                                  statusColor: statusColor,
+                                  availableUntil: availableDate,
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                    ],
                   );
                 }),
               ],
@@ -291,6 +331,7 @@ class HarcheryCardWidget extends StatefulWidget {
   final String unit1Location;
   final String unit2Location;
   final String imageUrl;
+  final String categoryId;
 
   final String? availableDate;
   final String broodstockCount;
@@ -312,6 +353,7 @@ class HarcheryCardWidget extends StatefulWidget {
     this.availableDate,
     this.callUrl,
     this.whatsappUrl,
+    required this.categoryId,
   });
 
   @override
@@ -343,9 +385,9 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.2),
-            blurRadius: 16,
-            spreadRadius: 3,
-            offset: const Offset(0, 6),
+            blurRadius: 0,
+            spreadRadius: 0,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -508,6 +550,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                                 ),
                               ),
                               child: BookingBottomSheet(
+                                categoryId: widget.categoryId,
                                 hatcheryId: widget.hatcheryId,
                                 hatcheryName: widget.hatcheryName,
                               ),
@@ -651,150 +694,4 @@ String formatDate(DateTime date) {
   String year = date.year.toString();
 
   return "$day $month $year";
-}
-
-class _HatcheryGridCard extends StatelessWidget {
-  final SimilarHatchery hatchery;
-
-  const _HatcheryGridCard({required this.hatchery});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(.12),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // IMAGE
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(14),
-              topRight: Radius.circular(14),
-            ),
-            child: Image.network(
-              hatchery.image ?? '',
-              height: 120,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  Container(height: 120, color: Colors.grey.withOpacity(.2)),
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // HATCHERY NAME
-                Text(
-                  hatchery.hatcheryName ?? "",
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.roboto(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-
-                // CATEGORY NAME
-                Text(
-                  '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.roboto(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                  ),
-                ),
-
-                const SizedBox(height: 6),
-
-                // LOCATION
-                Row(
-                  children: [
-                    Icon(Icons.location_on, size: 16, color: AppColors.primary),
-                    const SizedBox(width: 3),
-                    Expanded(
-                      child: Text(
-                        '',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.roboto(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 8),
-
-                // BROODSTOCK COUNT
-                Row(
-                  children: [
-                    Icon(
-                      Icons.water_drop_outlined,
-                      size: 16,
-                      color: AppColors.primary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      // "${hatchery. ?? 0} Pieces",
-                      "",
-                      style: GoogleFonts.roboto(
-                        fontSize: 12,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 8),
-
-                // AVAILABLE DATE
-                if (hatchery.availableOn != null)
-                  Row(
-                    children: [
-                      Icon(Icons.calendar_today, size: 14, color: Colors.blue),
-                      const SizedBox(width: 4),
-                      Text(
-                        hatchery.availableOn ?? '',
-                        style: GoogleFonts.roboto(
-                          fontSize: 12,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 8),
-                // PRICE
-                Text(
-                  // "₹${hatchery.prices?.first.price ?? ''}",
-                  "",
-                  style: GoogleFonts.roboto(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

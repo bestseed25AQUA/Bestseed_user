@@ -52,7 +52,13 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
         });
       },
       onTap: () {
-        // Get.to(() => HatcheryDetail(videoUrl: 'assets/videos/sample.mp4'));
+        Get.to(
+          () => HatcheryCategoryDetailScreen(
+            videoUrl: '',
+            hatcheryId: hatchery.hatcheryId.toString(),
+            categoryId: hatchery.categoryId.toString(),
+          ),
+        );
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
@@ -66,7 +72,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
             BoxShadow(
               // ignore: deprecated_member_use
               color: Colors.black.withOpacity(0.2),
-              blurRadius: 16,
+              blurRadius: 2,
               spreadRadius: 3,
               offset: const Offset(0, 6),
             ),
@@ -81,35 +87,15 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                 topLeft: Radius.circular(12.0),
                 topRight: Radius.circular(12.0),
               ),
-              child: InkWell(
-                onTap: () {
-                  print('image url');
-                  print(
-                    (hatchery.images.isNotEmpty) ? hatchery.images.first : '',
-                  );
-                },
-                child: Image.network(
-                  (hatchery.images.isNotEmpty) ? hatchery.images.first : '',
-                  width: double.infinity,
+              child: Image.network(
+                (hatchery.images.isNotEmpty) ? hatchery.images.first : '',
+                width: double.infinity,
+                height: 160,
+                fit: BoxFit.cover,
+                errorBuilder: (context, _, __) => Container(
+                  color: Colors.grey.withOpacity(.2),
                   height: 160,
-                  fit: BoxFit.cover,
-                  // loadingBuilder: (context, child, loadingProgress) => Container(
-                  //   color: Colors.grey[300],
-                  //   height: 160,
-                  //   width: MediaQuery.of(context).size.width * .9,
-                  //   child: Center(
-                  //     child: SizedBox(
-                  //       height: 30,
-                  //       width: 30,
-                  //       child: CircularProgressIndicator(strokeWidth: 3),
-                  //     ),
-                  //   ),
-                  // ),
-                  errorBuilder: (context, _, __) => Container(
-                    color: Colors.grey.withOpacity(.2),
-                    height: 160,
-                    width: MediaQuery.of(context).size.width * .9,
-                  ),
+                  width: MediaQuery.of(context).size.width * .9,
                 ),
               ),
             ),
@@ -334,6 +320,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                                   ),
                                 ),
                                 child: BookingBottomSheet(
+                                  categoryId: widget.spotHatchery.categoryId.toString(),
                                   isSpotHatchery: true,
                                   hatcheryId: hatchery.hatcheryId.toString(),
                                   hatcheryName: hatchery.hatcheryName,

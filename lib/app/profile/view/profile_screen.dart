@@ -4,12 +4,13 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/view/booking_screen.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/controller/logout_controller.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
-import 'package:seedsuser/app/profile/view/edit_profile_screen.dart';
-import 'package:seedsuser/app/tracking/vehicle_tracking_screen.dart';
+import 'package:seedsuser/app/profile/view/edit_profile_screen.dart'; 
+import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking_screen.dart';
 import 'package:seedsuser/l10n/app_localizations.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -49,7 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               background: Column(
                 children: const [
                   SizedBox(
-                    height: kToolbarHeight + 38,
+                    height: kToolbarHeight + 0,
                   ), // leave space for status bar & toolbar
                   ProfileHeader(),
                 ],
@@ -82,6 +83,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Get.to(() => MyBookingScreen());
                 },
               ),
+              //  ProfileMenuItem(
+              //   icon: Icons.menu,
+              //   title: "Vehicle availability",
+              //   onTap: () {
+              //     Get.to(() => VehicleAvailabilityScreen());
+              //   },
+              // ),
+              //  ProfileMenuItem(
+              //   icon: Icons.menu,
+              //   title: "Vehicle tracking",
+              //   onTap: () {
+              //     Get.to(() => VehicleTrackingPage());
+              //   },
+              // ),
               ProfileMenuItem(
                 icon: Icons.headset_mic_outlined,
                 title: AppLocalizations.of(context).customer_support,

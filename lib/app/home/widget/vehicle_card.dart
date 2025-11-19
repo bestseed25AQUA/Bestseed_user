@@ -26,289 +26,341 @@ class _VehicleCardState extends State<VehicleCard> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      color: Colors.white,
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (widget.vehicle.vehicleImages.isNotEmpty)
-            Stack(
+          // ---------------------------
+          //        IMAGE CAROUSEL
+          // ---------------------------
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            child: SizedBox(
+              height: 160,
+              width: double.infinity,
+              child: PageView.builder(
+                controller: _pageController,
+                itemCount: widget.vehicle.vehicleImages.length,
+                onPageChanged: (i) => _currentIndex.value = i,
+                itemBuilder: (_, index) {
+                  return Image.network(
+                    widget.vehicle.vehicleImages[index],
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: Colors.grey.withOpacity(.2)),
+                  );
+                },
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // ---------------------------
+          //      ROUTE SECTION
+          // ---------------------------
+          Container(
+            width: MediaQuery.of(context).size.width * .8,
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+            decoration: BoxDecoration(
+              color: const Color(0xffEFF9FF),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  Image.asset('assets/images/truck.png', height: 20),
+                  const SizedBox(width: 10),
+                  if (widget.vehicle.vechileLocationTracking.isNotEmpty)
+                    Row(
+                      children:
+                          List.generate(
+                            widget.vehicle.vechileLocationTracking.length - 1,
+                            (index) => Padding(
+                              padding: const EdgeInsets.only(left: 5, right: 5),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.location_on,
+                                    color: AppColors.primary,
+                                    size: 16,
+                                  ),
+                                  Text(
+                                    widget
+                                        .vehicle
+                                        .vechileLocationTracking[index],
+                                    style: GoogleFonts.roboto(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                  Text(
+                                    ' ----->',
+                                    style: GoogleFonts.roboto(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ) +
+                          [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                widget.vehicle.vechileLocationTracking[widget
+                                        .vehicle
+                                        .vechileLocationTracking
+                                        .length -
+                                    1],
+                                style: GoogleFonts.roboto(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Icon(
+                                Icons.check_circle,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                    ),
+                  // Expanded(
+                  //   child: Wrap(
+                  //     spacing: 6,
+                  //     runSpacing: 6,
+                  //     children: List.generate(
+                  //       widget.vehicle.vechileLocationTracking.length,
+                  //       (i) => Row(
+                  //         mainAxisSize: MainAxisSize.min,
+                  //         children: [
+                  //           Text(
+                  //             widget.vehicle.vechileLocationTracking[i],
+                  //             style: GoogleFonts.roboto(
+                  //               color: Colors.blue[800],
+                  //               fontWeight: FontWeight.w600,
+                  //             ),
+                  //           ),
+                  //           if (i !=
+                  //               widget.vehicle.vechileLocationTracking.length - 1)
+                  //             const Text(
+                  //               " → ",
+                  //               style: TextStyle(color: Colors.grey),
+                  //             ),
+                  //         ],
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
+                ],
+              ),
+            ),
+          ),
+
+          // ---------------------------
+          //      HATCHERY NAME
+          // ---------------------------
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 4),
+            child: Text(
+              widget.vehicle.hatcheryName,
+              style: GoogleFonts.roboto(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+
+          // LOCATION ROW
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
               children: [
-                SizedBox(
-                  height: 150,
-                  width: double.infinity,
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: widget.vehicle.vehicleImages.length,
-                    onPageChanged: (index) => _currentIndex.value = index,
-                    itemBuilder: (context, index) {
-                      return ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(10),
-                        ),
-                        child: Image.network(
-                          widget.vehicle.vehicleImages[index],
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Image.asset(
-                              'assets/images/vehicle_image.png',
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                // Current index indicator
-                Positioned(
-                  bottom: 8,
-                  right: 8,
-                  child: Obx(
-                    () => Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        "${_currentIndex.value + 1}/${widget.vehicle.vehicleImages.length}",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                const Icon(Icons.location_on, size: 17, color: Colors.grey),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    widget.vehicle.hatcheryLocation ?? "Unknown location",
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      color: Colors.grey[700],
                     ),
                   ),
                 ),
               ],
-            )
-          else
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(10),
-              ),
-              child: Image.asset(
-                'assets/images/vehicle_image.png',
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: 150,
-              ),
             ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ---------------------------
+          //     START - END DATE
+          // ---------------------------
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _dateColumn("Starting date", widget.vehicle.startDate),
+                _dateColumn("Ending date", widget.vehicle.endDate),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ---------------------------
+          //    AVAILABLE SPACE
+          // ---------------------------
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                RouteTimelineCard(
-                  routes: widget.vehicle.vechileLocationTracking,
-                ),
-                // Hatchery Name
                 Text(
-                  widget.vehicle.hatcheryName,
+                  "No.of space available",
+                  style: GoogleFonts.roboto(color: Colors.grey),
+                ),
+                Text(
+                  "${(widget.vehicle.availableSpace / 100000).toStringAsFixed(0)} Lakhs seeds",
                   style: GoogleFonts.roboto(
-                    fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    fontSize: 15,
                   ),
                 ),
-                const SizedBox(height: 4),
-                // Location
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, size: 16, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(
-                      widget.vehicle.hatcheryLocation ?? 'Unknown location',
-                      style: GoogleFonts.roboto(color: Colors.grey),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Start and End Date
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Starting date',
-                          style: GoogleFonts.roboto(color: Colors.grey),
-                        ),
-                        Text(
-                          "${widget.vehicle.startDate.day}/${widget.vehicle.startDate.month}/${widget.vehicle.startDate.year}",
-                          style: GoogleFonts.roboto(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Ending date',
-                          style: GoogleFonts.roboto(color: Colors.grey),
-                        ),
-                        Text(
-                          widget.vehicle.endDate != null
-                              ? "${widget.vehicle.endDate!.day}/${widget.vehicle.endDate!.month}/${widget.vehicle.endDate!.year}"
-                              : 'N/A',
-                          style: GoogleFonts.roboto(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // Available Space
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'No. of space available',
-                      style: GoogleFonts.roboto(color: Colors.grey),
-                    ),
-                    Text(
-                      '${(widget.vehicle.availableSpace / 100000).toStringAsFixed(0)} Lakhs seeds',
-                      style: GoogleFonts.roboto(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                // Action Buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Call Now
-                    Expanded(
-                      child: InkWell(
-                        onTap: () =>
-                            _makePhoneCall(widget.vehicle.driverMobile),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 16,
-                          ),
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.only(
-                              bottomLeft: Radius.circular(16),
-                              topLeft: Radius.circular(16),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Image.asset(
-                                'assets/images/phone.png',
-                                height: 20,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Call Now',
-                                style: GoogleFonts.roboto(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ---------------------------
+          //        ACTION BUTTONS
+          // ---------------------------
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                // CALL NOW
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _makePhoneCall(widget.vehicle.driverMobile),
+                    child: Container(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(12),
+                          topLeft: Radius.circular(12),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    // WhatsApp
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => _openWhatsApp(context, widget.vehicle),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 16,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset('assets/images/phone.png', height: 18),
+                          const SizedBox(width: 6),
+                          const Text(
+                            "Call Now",
+                            style: TextStyle(color: Colors.white, fontSize: 13),
                           ),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.green),
-                          ),
-                          child: Row(
-                            children: [
-                              Image.asset(
-                                'assets/images/whatsApp.png',
-                                height: 20,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'WhatsApp',
-                                style: GoogleFonts.roboto(
-                                  color: Colors.green,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    // Book Now
-                    Expanded(
-                      child: InkWell(
-                        onTap: () {
-                          Get.to(
-                            () => BookingVehicleScreen(vehicle: widget.vehicle),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 16,
+                  ),
+                ),
+                // WHATSAPP
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _openWhatsApp(context, widget.vehicle),
+                    child: Container(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.green),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset('assets/images/whatsApp.png', height: 18),
+                          const SizedBox(width: 6),
+                          const Text(
+                            "WhatsApp",
+                            style: TextStyle(color: Colors.green, fontSize: 13),
                           ),
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.only(
-                              topRight: Radius.circular(16),
-                              bottomRight: Radius.circular(16),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Image.asset(
-                                'assets/images/Lightning.png',
-                                height: 20,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Book Now',
-                                style: GoogleFonts.roboto(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
+                ),
+
+                // BOOK NOW
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      Get.to(
+                        () => BookingVehicleScreen(vehicle: widget.vehicle),
+                      );
+                    },
+                    child: Container(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.only(
+                          bottomRight: Radius.circular(12),
+                          topRight: Radius.circular(12),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/images/Lightning.png',
+                            height: 18,
+                          ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            "Book Now",
+                            style: TextStyle(color: Colors.white, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _dateColumn(String title, DateTime? date) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: GoogleFonts.roboto(color: Colors.grey)),
+        Text(
+          date != null ? "${date.day}/${date.month}/${date.year}" : "",
+          style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
+      ],
     );
   }
 

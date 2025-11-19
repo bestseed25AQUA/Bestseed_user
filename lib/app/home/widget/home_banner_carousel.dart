@@ -6,8 +6,7 @@ import 'package:seedsuser/app/broadstock/view/broad_stock_screen.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/home/view/full_video_screen.dart';
 import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
-import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
-import 'package:seedsuser/app/tracking/vehicle_tracking_screen.dart';
+import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart'; 
 import 'package:video_player/video_player.dart';
 
 class HomeBannerCarousel extends StatefulWidget {

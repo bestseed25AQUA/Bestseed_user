@@ -11,29 +11,28 @@ class SeedRequestController extends GetxController {
   var isBooking = false.obs; // 👈 Booking loader
 
   /// 🚚 Send Seed Request API
-  Future<void> sendSeedRequest({
-    required int farmerId,
+  Future<void> sendSeedRequest({ 
     required int categoryId,
     required int brandId,
     required String name,
     required String mobile,
-    required int quantity,
+    required int pieces,
     required String droppingLocation,
     required String packingDate,
   }) async {
     try {
       isBooking.value = true;
 
-      final body = {
-        "farmer_id": farmerId,
+      final body = { 
         "category_id": categoryId,
         "brand_id": brandId,
         "name": name,
         "mobile": mobile,
-        "quantity": quantity,
+        "pieces": pieces,
         "dropping_location": droppingLocation,
         "packing_date": packingDate,
       };
+      print(body);
 
       final response = await postRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/seed-request",

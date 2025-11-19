@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/home/view/full_video_screen.dart';
 import 'package:seedsuser/app/home/widget/hachery_category_banner_widget.dart';
 import 'package:video_player/video_player.dart';
 
@@ -34,24 +35,30 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
     return Stack(
       alignment: Alignment.bottomCenter,
       children: [
-        CarouselSlider.builder(
-          itemCount: widget.mediaUrls.length,
-          carouselController: _carouselController,
-          itemBuilder: (context, index, realIndex) {
-            final type = widget.mediaTypes?[index] ?? widget.mediaType;
-            final url = widget.mediaUrls[index];
-            return type == "image"
-                ? _buildImage(url, widget.borderRadius ?? 12)
-                : _buildVideo(url, widget.borderRadius ?? 12, widget.height);
-          },
-          options: CarouselOptions(
-            height: widget.height,
-            enlargeCenterPage: true,
-            viewportFraction:
-                (MediaQuery.of(context).size.width) / (widget.height ?? 180),
-            onPageChanged: (index, reason) {
-              setState(() => currentIndex = index);
+
+        ClipRRect(
+          borderRadius: BorderRadius.circular(widget.borderRadius??0),
+          child: CarouselSlider.builder(
+            itemCount: widget.mediaUrls.length,
+            carouselController: _carouselController,
+            itemBuilder: (context, index, realIndex) {
+              final type = widget.mediaTypes?[index] ?? widget.mediaType;
+              final url = widget.mediaUrls[index];
+              print('object');
+              print(url);
+              return type == "image"
+                  ? _buildImage(url, widget.borderRadius ?? 12)
+                  : _buildVideo(url, widget.borderRadius ?? 12, widget.height);
             },
+            options: CarouselOptions(
+              height: widget.height,
+              enlargeCenterPage: true,
+              viewportFraction:
+                  (MediaQuery.of(context).size.width) / (widget.height ?? 180),
+              onPageChanged: (index, reason) {
+                setState(() => currentIndex = index);
+              },
+            ),
           ),
         ),
 
@@ -84,13 +91,13 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
         );
       },
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: BorderRadius.circular(30),
         child: Image.network(
           url,
           width: double.infinity,
           fit: BoxFit.fill,
           errorBuilder: (_, __, ___) => Container(
-            color: Colors.grey[300],
+            color: Colors.grey[300], 
             child: const Icon(Icons.broken_image),
           ),
         ),
@@ -102,7 +109,7 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
   Widget _buildVideo(String url, double borderRadius, double? aspectRatio) {
     return GestureDetector(
       onTap: () {
-        Get.to(() => VideoPlayerBanner(url: url));
+        Get.to(() => FullScreenVideoPlayer(videoUrl: url,));
       },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),

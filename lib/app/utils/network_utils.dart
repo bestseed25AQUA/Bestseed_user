@@ -41,7 +41,7 @@ Future<http.Response> postRequest({
           const Duration(seconds: NetworkConfig.timeoutDuration),
           onTimeout: (() => throw TimeoutException(AppConstNames.networkError)),
         );
-    
+
     debugPrint("response status code :${response.statusCode}");
     // debugPrint("response body :${response.body}");
     return response;
@@ -100,9 +100,9 @@ Future<http.Response> getRequest({
     debugPrint('headers : $headers');
     debugPrint('getRequest URL: $endPoint');
     debugPrint('getRequest status code ${response.statusCode}');
-    try{
+    try {
       // debugPrint('getRequest body ${response.body.toString().substring(0,100)}');
-    }catch(e){}
+    } catch (e) {}
     return response;
   } catch (e) {
     print(e);
@@ -231,16 +231,16 @@ Future<http.StreamedResponse> multipartPostRequest({
 
     var request = http.MultipartRequest("POST", Uri.parse(endPoint));
     print('after request');
- 
+
     if (fields != null) {
       request.fields.addAll(fields);
     }
- 
+
     if (headers != null) {
       request.headers.addAll(headers);
     }
     print('after header');
- 
+
     if (imagePaths != null && imagePaths.isNotEmpty) {
       for (String path in imagePaths) {
         request.files.add(
@@ -249,7 +249,7 @@ Future<http.StreamedResponse> multipartPostRequest({
       }
     }
     print('after imagepath');
- 
+
     var streamedResponse = await request.send().timeout(
       const Duration(seconds: 30),
       onTimeout: () =>

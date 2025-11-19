@@ -6,6 +6,7 @@ import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/model/hatchery_filter_model.dart';
+import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 import 'package:seedsuser/app/home/widget/hatchery_widgets.dart';
 
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -175,9 +176,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                             padding: EdgeInsets.only(
                               top: MediaQuery.of(context).size.height * .3,
                             ),
-                            child: Text(
-                              'Not found'
-                            ),
+                            child: Text('Not found'),
                           ),
                         ]
                       : List.generate((list.length / 2).ceil(), (rowIndex) {
@@ -199,6 +198,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                                     type: list[i1].category,
                                     status: list[i1].status ?? "",
                                     availableUntil: list[i1].availableOn,
+
                                     statusColor:
                                         list[i1].status.toLowerCase() == "open"
                                         ? const Color(0xff25A652)
@@ -206,6 +206,18 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                                               "coming soon"
                                         ? const Color(0xff007DFE)
                                         : const Color(0xffE31B1B),
+                                    ontap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              HatcheryCateogryScreen(
+                                                hatcheryId: list[i1].id
+                                                    .toString(),
+                                              ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
 

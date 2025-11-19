@@ -139,7 +139,7 @@ class _AddPartnerDetailsFormState extends State<AddPartnerDetailsForm> {
                 isLoading: controller.isCreateLoading.value,
                 onPressed: controller.isCreateLoading.value
                     ? () {}
-                    : () async {
+                    : () async { 
                         bool success = await controller.createPartner(
                           name: _nameController.text.trim(),
                           phone: _phoneController.text.trim(),

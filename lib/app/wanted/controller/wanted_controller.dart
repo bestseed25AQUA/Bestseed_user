@@ -4,12 +4,14 @@ import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/model/category_model.dart';
 import 'package:seedsuser/app/model/location_model.dart';
 import 'package:seedsuser/app/model/wanted_crop_model.dart';
+import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
 import 'package:seedsuser/app/wanted/model/wanted_banner_model.dart';
 
 class WantedCropController extends GetxController {
   var isLoading = false.obs;
+  var isBannerLoading = false.obs;
 
   var bannerList = <WantedBannerItem>[].obs;
   var wantedCropsList = <WantedCrop>[].obs;
@@ -17,14 +19,56 @@ class WantedCropController extends GetxController {
   Rx<Location?> selectedLocation = Rx<Location?>(null);
   Rx<Category?> selectedCategory = Rx<Category?>(null);
 
+  getDefaultCrops() {
+    final SeedsPriceController seedController = Get.put(SeedsPriceController());
+    if (seedController.locations.isNotEmpty) {
+      try {
+        bool isFound = false;
+        for (var location in seedController.locations) {
+          if (location.title == "East Godavari" ||
+              location.title == "East Godawari") {
+            selectedLocation.value = location;
+            isFound = true;
+            break;
+          }
+        }
+        if (!isFound) {
+          selectedLocation.value = seedController.locations.first;
+        }
+      } catch (e) {
+        selectedLocation.value = seedController.locations.first;
+      }
+      fetchCrops();
+    }
+
+    /// for default category
+    if (seedController.categories.isNotEmpty) {
+      try {
+        bool isFound = false;
+        for (var category in seedController.categories) {
+          if (category.categoryName == "Vannamei") {
+            selectedCategory.value = category;
+            isFound = true;
+            break;
+          }
+        }
+        if (!isFound) {
+          selectedCategory.value = seedController.categories.first;
+        }
+      } catch (e) {
+        selectedCategory.value = seedController.categories.first;
+      }
+    } 
+  }
+
   // ======================================================
   // 1️⃣ FETCH WANTED BANNERS
   // ======================================================
   Future<void> fetchWantedBanners() async {
     try {
-      isLoading(true);
+      isBannerLoading(true);
       print('========${"${NetworkConfig.baseURL}/farmer/wanted"}========');
-      
+
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/wanted",
         headers: await buildHeader(),
@@ -35,16 +79,14 @@ class WantedCropController extends GetxController {
         final jsonData = jsonDecode(response.body);
 
         if (jsonData["status"] == true) {
-          try{
-              bannerList.assignAll(
-            (jsonData["wanted"] as List)
-                .map((e) => WantedBannerItem.fromJson(e))
-                .toList(),
-              
-            
-          );
-          print('+++++++++++++data initialize+++++++++++');
-          }catch(e,s){
+          try {
+            bannerList.assignAll(
+              (jsonData["wanted_banners"] as List)
+                  .map((e) => WantedBannerItem.fromJson(e))
+                  .toList(),
+            );
+            print('+++++++++++++data initialize+++++++++++');
+          } catch (e, s) {
             print(e.toString());
             print(s.toString());
           }
@@ -55,26 +97,24 @@ class WantedCropController extends GetxController {
     } catch (e) {
       CustomToast.error("Something went wrong");
     } finally {
-      isLoading(false);
+      isBannerLoading(false);
     }
   }
 
   // ======================================================
   // 2️⃣ FETCH CROPS (Normal OR Filtered)
   // ======================================================
-  Future<void> fetchCrops({String? categoryId, String? locationId}) async {
+  Future<void> fetchCrops() async {
     try {
       isLoading(true);
 
       // Build URL dynamically
       String endPoint = "${NetworkConfig.baseURL}/farmer/wanted-crops";
-
-      if (categoryId != null || locationId != null) {
         endPoint += "?";
-        if (categoryId != null) endPoint += "category_id=$categoryId&";
-        if (locationId != null) endPoint += "location_id=$locationId";
-      }
-      
+        endPoint += "category_id=${selectedCategory.value?.id}&";
+        endPoint += "location_id=${selectedLocation.value?.id}";
+    
+
       print('==================');
       print(endPoint);
 

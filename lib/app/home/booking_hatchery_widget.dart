@@ -9,11 +9,13 @@ class BookingBottomSheet extends StatefulWidget {
   const BookingBottomSheet({
     super.key,
     required this.hatcheryId,
-    required this.hatcheryName,  this.isSpotHatchery,
+    required this.hatcheryName,
+    this.isSpotHatchery, required this.categoryId,
   });
   final String hatcheryId;
   final String hatcheryName;
   final bool? isSpotHatchery;
+  final String categoryId;
 
   @override
   State<BookingBottomSheet> createState() => _BookingBottomSheetState();
@@ -96,7 +98,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
             //     setState(() => _selectedUnit = v);
             //   },
             // ),
-             _buildTextField(
+            _buildTextField(
               controller: _unitController,
               label: "Unit",
               hint: "Enter Unit",
@@ -114,7 +116,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               controller: _dropLocController,
               label: "Dropping location",
               hint: "Enter your Dropping location",
-              icon: Icons.location_on
+              icon: Icons.location_on,
             ),
             // _buildDropdownField(
             //   label: "Dropping location",
@@ -154,7 +156,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     _showError("Enter valid 10 digit phone number");
                     return;
                   }
-                  if (_unitController.text.trim().isEmpty) {
+                  if (_unitController.text.isEmpty) {
                     _showError("Please select unit");
                     return;
                   }
@@ -174,7 +176,10 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     return;
                   }
                   Navigator.pop(context);
-                  _showBookingReviewSheet(context,widget.isSpotHatchery??false);
+                  _showBookingReviewSheet(
+                    context,
+                    widget.isSpotHatchery ?? false,
+                  );
                 },
                 text: "Confirm Booking",
               ),
@@ -189,7 +194,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     CustomToast.show(message: message);
   }
 
-  void _showBookingReviewSheet(BuildContext context,bool isSpotHatchery) {
+  void _showBookingReviewSheet(BuildContext context, bool isSpotHatchery) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -227,6 +232,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     child: SingleChildScrollView(
                       controller: scrollController,
                       child: BookingReviewContent(
+                        categoryId: widget.categoryId,
                         isSpotHatchery: isSpotHatchery,
                         name: _nameController.text,
                         phone: _phoneController.text,

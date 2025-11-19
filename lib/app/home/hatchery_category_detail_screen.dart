@@ -37,10 +37,10 @@ class _HatcheryCategoryDetailScreenState
     super.initState();
 
     hatcheryCategoryController.getHatcheryCategoryDetail(
-      // widget.hatcheryId,
-      // widget.categoryId,
-      '50',
-      '1',
+      widget.hatcheryId,
+      widget.categoryId
+      // '50',
+      // '1',
     );
 
     _controller = VideoPlayerController.asset(widget.videoUrl)
@@ -162,7 +162,7 @@ class _HatcheryCategoryDetailScreenState
                             _buildInfoRow(
                               Icons.water_drop_outlined,
                               "Broodstock",
-                              "${detail.broodstock.toString()} Pieces",
+                              "${detail.broodstock??0} Pieces",
                             ),
 
                             _buildInfoRow(
@@ -214,6 +214,12 @@ class _HatcheryCategoryDetailScreenState
                                 height: 108,
                                 width: 104,
                                 fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: Colors.grey.withOpacity(.3),
+                                     height: 108,
+                                width: 104,);
+                                },
                               ),
                             ),
                           );
@@ -270,6 +276,7 @@ class _HatcheryCategoryDetailScreenState
                                     ),
                                   ),
                                   child: BookingBottomSheet(
+                                    categoryId: widget.categoryId,
                                     hatcheryId: detail.id.toString(),
                                     hatcheryName: detail.hatcheryName ?? '',
                                   ),

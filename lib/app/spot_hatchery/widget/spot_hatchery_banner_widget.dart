@@ -36,7 +36,7 @@ class _SpotHatcheryBannerWidgetState extends State<SpotHatcheryBannerWidget> {
                 final banner = controller.banners[index];
                 if (banner.type == "image") {
                   return GestureDetector(
-                    onTap: () {
+                    onTap: (){
                       // Get.to(() => VehicleAvailabilityScreen());
                     },
                     child: ClipRRect(
@@ -46,6 +46,11 @@ class _SpotHatcheryBannerWidgetState extends State<SpotHatcheryBannerWidget> {
                         width: double.infinity,
                         height: 180,
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey.withOpacity(.2),
+                          );
+                        },
                       ),
                     ),
                   );

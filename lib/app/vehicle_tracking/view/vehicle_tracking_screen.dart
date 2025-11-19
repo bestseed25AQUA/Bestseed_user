@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:get/get.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
-import 'package:seedsuser/app/tracking/vehicle_tracking_bottom_sheet.dart';
+import 'package:seedsuser/app/vehicle_tracking/controller/vehicle_tracking_controller.dart';
+import 'package:seedsuser/app/vehicle_tracking/model/vehicle_tracking_model.dart';
 
 class VehicleTrackingPage extends StatefulWidget {
   const VehicleTrackingPage({super.key});
@@ -12,10 +14,16 @@ class VehicleTrackingPage extends StatefulWidget {
 }
 
 class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
+  final VehicleTrackingController controller = Get.put(
+    VehicleTrackingController(),
+  );
+
   String selected = "Filter";
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         title: Text(
@@ -25,7 +33,7 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           SizedBox(
             width: 100,
@@ -38,14 +46,34 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
           ),
         ],
       ),
+
+      // ------------------------------
+      // 🔥 LIST VIEW INTEGRATED HERE
+      // ------------------------------
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: ListView.builder(
-          itemCount: 8,
-          itemBuilder: (context, index) {
-            return _buildVehicleDetailsCard(context);
-          },
-        ),
+        child: Obx(() {
+          if (controller.isLoading.value) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (controller.vehicleList.isEmpty) {
+            return Center(
+              child: Text(
+                "No vehicle data found",
+                style: GoogleFonts.roboto(fontSize: 16),
+              ),
+            );
+          }
+
+          return ListView.builder(
+            itemCount: controller.vehicleList.length,
+            itemBuilder: (context, index) {
+              final item = controller.vehicleList[index];
+              return _buildVehicleDetailsCard(context, item);
+            },
+          );
+        }),
       ),
     );
   }
@@ -57,9 +85,9 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 0),
-      margin: EdgeInsets.only(right: 16),
+      margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
-        color: Color(0xFFDCEEF8),
+        color: const Color(0xFFDCEEF8),
         borderRadius: BorderRadius.circular(10),
       ),
       child: DropdownButtonHideUnderline(
@@ -79,10 +107,13 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
     );
   }
 
-  Widget _buildVehicleDetailsCard(BuildContext context) {
+  // -----------------------------------------
+  // 🔥 CARD WITH FULL API INTEGRATION
+  // -----------------------------------------
+  Widget _buildVehicleDetailsCard(BuildContext context, item) {
     return Container(
-      padding: EdgeInsets.all(16),
-      margin: EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -98,27 +129,20 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildImageSection(),
-          _buildInfoSection(),
-          SizedBox(height: 16),
-          _buildDriverDetails(),
+          _buildImageSection(item),
+          _buildInfoSection(item),
+          const SizedBox(height: 16),
+          _buildDriverDetails(item),
           CustomButton(
             text: 'Tracking your vehicle',
             onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (BuildContext context) {
-                  return const VehicleTrackingBottomSheet();
-                },
-              );
+              // show bottom sheet
             },
           ),
           const SizedBox(height: 8),
           Center(
             child: Text(
-              'You will receive SMS TO +91XXXXXXXX',
+              'You will receive SMS TO ${item.smsTo}',
               style: GoogleFonts.roboto(color: Colors.black54, fontSize: 12),
             ),
           ),
@@ -127,120 +151,83 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
     );
   }
 
-  Widget _buildImageSection() {
+  // -------------------------------------------------------
+  // 🔥 IMAGES FROM API (using first image only)
+  // -------------------------------------------------------
+  Widget _buildImageSection(VehicleTrackingModel item) {
+    final imageUrl = (item.images.isNotEmpty) ? item.images.first : null;
+
     return SizedBox(
-      height: 135, // Fixed height to prevent layout issues
+      height: 135,
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(16),
           bottom: Radius.circular(16),
         ),
-        child: Image.asset(
-          'assets/images/seeds_image.png',
-          height: 135,
-          width: double.infinity,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Container(
-            height: 135,
-            color: Colors.grey[300],
-            child: Center(
-              child: Text(
-                'Image Placeholder',
-                style: GoogleFonts.roboto(color: Colors.black54),
-              ),
-            ),
-          ),
-        ),
+        child: imageUrl != null
+            ? Image.network(
+                imageUrl,
+                height: 135,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _placeholder(),
+              )
+            : _placeholder(),
       ),
     );
   }
 
-  Widget _buildInfoSection() {
+  Widget _placeholder() {
+    return Container(
+      height: 135,
+      color: Colors.grey[300],
+      child: Center(
+        child: Text('', style: GoogleFonts.roboto(color: Colors.black54)),
+      ),
+    );
+  }
+
+  // -------------------------------------------------------
+  // 🔥 INFO SECTION BOUND WITH API
+  // -------------------------------------------------------
+  Widget _buildInfoSection(VehicleTrackingModel item) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Hatchery Name and Report Button
         const SizedBox(height: 4),
+
         Text(
-          "Seven Star Hatchery seeds",
+          item.hatcheryName,
           style: GoogleFonts.roboto(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
 
-        // Description
         Text(
-          "Syqua ",
+          item.categoryName,
           style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 20),
 
-        // Location and Availability Details
-         Column(
-           crossAxisAlignment: CrossAxisAlignment.start,
-           mainAxisAlignment: MainAxisAlignment.start,
-         
-           children: [
-             // _buildInfoRow(Icons.location_on, "Unit - 2", 'Godavari'),
-             // const SizedBox(height: 12),
-             _buildInfoRow(
-               Icons.calendar_today,
-               "Available Date",
-               "27 Sep 2024",
-             ),
-           ],
-         ),
-        // Row(
-        //   mainAxisAlignment: MainAxisAlignment.start,
-        //   crossAxisAlignment: CrossAxisAlignment.start,
-
-        //   children: [
-        //     Expanded(
-        //       child: Column(
-        //         crossAxisAlignment: CrossAxisAlignment.start,
-        //         children: [
-        //           // _buildInfoRow(Icons.location_on, "Unit - 1", 'Kakinada'),
-        //           // const SizedBox(height: 12),
-        //           _buildInfoRow(
-        //             Icons.water_drop_outlined,
-        //             "Broodstock",
-        //             "1200 Pieces",
-        //           ),
-        //           const SizedBox(height: 12),
-        //           _buildInfoRow(Icons.timer, "Price", "₹0.36"),
-        //         ],
-        //       ),
-        //     ),
-
-        //     const SizedBox(width: 12),
-        //     Expanded(
-        //       child: Column(
-        //         crossAxisAlignment: CrossAxisAlignment.start,
-        //         mainAxisAlignment: MainAxisAlignment.start,
-
-        //         children: [
-        //           // _buildInfoRow(Icons.location_on, "Unit - 2", 'Godavari'),
-        //           // const SizedBox(height: 12),
-        //           _buildInfoRow(
-        //             Icons.calendar_today,
-        //             "Available Date",
-        //             "27 Sep 2024",
-        //           ),
-        //         ],
-        //       ),
-        //     ),
-        //   ],
-        // ),
+        // Available date from booking details
+        _buildInfoRow(
+          Icons.calendar_today,
+          "Available Date",
+          item.bookingDetails.availableDate,
+        ),
       ],
     );
   }
 
-  Widget _buildDriverDetails() {
+  // -------------------------------------------------------
+  // 🔥 DRIVER DETAILS INTEGRATED
+  // -------------------------------------------------------
+  Widget _buildDriverDetails(VehicleTrackingModel item) {
     return Container(
       padding: const EdgeInsets.all(16.0),
       margin: const EdgeInsets.only(bottom: 16.0),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: Color(0xFFE9F7FF),
+        color: const Color(0xFFE9F7FF),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,22 +241,31 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
             ),
           ),
           const SizedBox(height: 12),
-          // Fixed the Row layout issue by wrapping in Expanded or using proper constraints
+
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(children: [Icon(Icons.person_outline), Text('Ramesh')]),
-
-                const SizedBox(width: 12),
-                Row(children: [Icon(Icons.call_outlined), Text('91xxxxxxxx')]),
+                Row(
+                  children: [
+                    const Icon(Icons.person_outline),
+                    Text(item.driverDetails.driverName),
+                  ],
+                ),
 
                 const SizedBox(width: 12),
                 Row(
                   children: [
-                    Icon(Icons.local_shipping_outlined),
-                    Text('TSN05656'),
+                    const Icon(Icons.call_outlined),
+                    Text(item.driverDetails.driverMobile),
+                  ],
+                ),
+
+                const SizedBox(width: 12),
+                Row(
+                  children: [
+                    const Icon(Icons.local_shipping_outlined),
+                    Text(item.driverDetails.vehicleNumber),
                   ],
                 ),
               ],

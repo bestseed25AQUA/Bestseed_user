@@ -14,6 +14,7 @@ class SpotHatcheryScreen extends StatelessWidget {
     final SpotHatcheryController controller = Get.put(SpotHatcheryController());
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         leading: IconButton(

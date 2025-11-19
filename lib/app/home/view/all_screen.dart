@@ -19,6 +19,7 @@ import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_news_screen.dart';
 import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
+import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
 import 'package:seedsuser/app/spot_hatchery/view/spot_hatchery_screen.dart';
 import 'package:seedsuser/app/home/today_price_widget.dart';
 import 'package:seedsuser/app/home/widget/home_banner_carousel.dart';
@@ -270,6 +271,55 @@ class _HomePageState extends State<HomePage>
                     },
                   ),
                   SizedBox(height: 20),
+                  Material(
+                    elevation: 4,
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+
+                        boxShadow: [
+                          BoxShadow(
+                            offset: Offset(1, 2),
+                            spreadRadius: 1,
+                            blurRadius: 0,
+                            color: Colors.white,
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 5,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Seed Request',
+                              style: GoogleFonts.roboto(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 17,
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                Get.to(() => SeedRequestsFormScreen());
+                              },
+                              icon: Icon(
+                                Icons.arrow_forward,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 20),
                   TodayPricesWidget(),
                   SizedBox(height: 16),
                   HatcherySuppliersWidget(),
@@ -346,7 +396,7 @@ class _HomePageState extends State<HomePage>
                   }),
                   SizedBox(height: 16),
                   HatcheryUpdatesWidget(),
-                  SizedBox(height: 80),
+                  SizedBox(height: 100),
                 ],
               ),
             ),

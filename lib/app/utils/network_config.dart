@@ -7,7 +7,7 @@ class NetworkConfig {
       "https://aliceblue-wallaby-326294.hostingersite.com/api";
 
   static const googleApiKey = 'AIzaSyBkrsDyM5XzvbiOjgzrQ2grE7q1MhE1XZQ';
-  static const googleApiKey2 = "AIzaSyCuy7IDC2zPrQOFC_3VKb8aJ6nJuI-vpyU";
+  static const googleApiKey2 = "AIzaSyDLVwCSkXWOjo49WNNwx7o0DSwomoFvbP0";
 
   static const noInternetMsg = 'Oops No Internet';
   static const msg = 'message';

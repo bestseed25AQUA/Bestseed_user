@@ -86,7 +86,7 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    const FeedStoreCard(),
+                    FeedStoreCard(farmId: widget.farmId),
                     const SizedBox(height: 16),
 
                     ...tankPairs.map((pair) {
@@ -140,7 +140,8 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
 }
 
 class FeedStoreCard extends StatelessWidget {
-  const FeedStoreCard({super.key});
+  const FeedStoreCard({super.key, required this.farmId});
+  final String farmId;
 
   @override
   Widget build(BuildContext context) {
@@ -184,7 +185,7 @@ class FeedStoreCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   InkWell(
                     onTap: () {
-                      showEditFeedBottomSheet();
+                      // showEditFeedBottomSheet(farmId);
                     },
                     child: EditButton(),
                   ),
@@ -219,7 +220,7 @@ class FeedStoreCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   InkWell(
                     onTap: () {
-                      showEditFeedBottomSheet();
+                      showEditFeedBottomSheet(farmId);
                     },
                     child: EditButton(),
                   ),
@@ -632,14 +633,15 @@ Future<void> shareReport(String url) async {
   } catch (e) {}
 }
 
-
-void showEditFeedBottomSheet() {
+void showEditFeedBottomSheet(String farmId) {
   final TankController controller = Get.find();
 
-  final totalFeedController =
-      TextEditingController(text: controller.feedStoreData.value?.totalFeedUsed ?? "");
-  final storeController =
-      TextEditingController(text: controller.feedStoreData.value?.feedStore ?? "");
+  final totalFeedController = TextEditingController(
+    text: controller.feedStoreData.value?.totalFeedUsed ?? "",
+  );
+  final storeController = TextEditingController(
+    text: controller.feedStoreData.value?.feedStore ?? "",
+  );
 
   Get.bottomSheet(
     Container(
@@ -675,11 +677,13 @@ void showEditFeedBottomSheet() {
           // Total feed used
           Align(
             alignment: Alignment.centerLeft,
-            child: Text("Total feed used",
-                style: GoogleFonts.roboto(fontSize: 16)),
+            child: Text(
+              "Total feed used",
+              style: GoogleFonts.roboto(fontSize: 16),
+            ),
           ),
           const SizedBox(height: 8),
-          feedInputField(totalFeedController),
+          feedInputField(totalFeedController, true),
 
           const SizedBox(height: 20),
 
@@ -689,7 +693,7 @@ void showEditFeedBottomSheet() {
             child: Text("Store", style: GoogleFonts.roboto(fontSize: 16)),
           ),
           const SizedBox(height: 8),
-          feedInputField(storeController),
+          feedInputField(storeController, false),
 
           const SizedBox(height: 30),
 
@@ -698,14 +702,18 @@ void showEditFeedBottomSheet() {
             return GestureDetector(
               onTap: () async {
                 bool ok = await controller.updateFeedStore(
-                  farmId: controller.feedStoreData.value?.farmId ?? 0,
+                  farmId: int.parse(farmId),
                   totalFeedUsed: totalFeedController.text.trim(),
                   feedStore: storeController.text.trim(),
                 );
 
                 if (ok) {
                   Get.back();
-                  controller.getFeedStore(controller.feedStoreData.value!.farmId!);
+                  print('++++++++++++++loading the data+++++++++++++=');
+                  controller.getFeedStore(
+                     int.parse(farmId),
+                  );
+                  storeController.text = storeController.text.trim();
                 }
               },
               child: Container(
@@ -721,9 +729,10 @@ void showEditFeedBottomSheet() {
                     : const Text(
                         "Save",
                         style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold),
+                          fontSize: 18,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
               ),
             );
@@ -737,7 +746,7 @@ void showEditFeedBottomSheet() {
   );
 }
 
-Widget feedInputField(TextEditingController controller) {
+Widget feedInputField(TextEditingController controller, bool disable) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 16),
     decoration: BoxDecoration(
@@ -749,10 +758,9 @@ Widget feedInputField(TextEditingController controller) {
         Expanded(
           child: TextField(
             controller: controller,
+            readOnly: disable,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-            ),
+            decoration: const InputDecoration(border: InputBorder.none),
           ),
         ),
         const Text("Kgs", style: TextStyle(color: Colors.black54)),

@@ -50,8 +50,8 @@ class FarmData {
     noOfTanks = json['no_of_tanks'];
     store = json['store'];
     lowFeedLimit = json['low_feed_limit'];
-    activeCount = json['active_count'];
-    inactiveCount = json['inactive_count'];
+    activeCount = json['active_tanks'];
+    inactiveCount = json['inactive_tanks'];
     images = json['images'] != null
         ? FarmImages.fromJson(json['images'])
         : null;

@@ -132,6 +132,7 @@ class HatcheryCard extends StatelessWidget {
   final Color statusColor;
   final String? availableUntil;
   final String? id;
+  final VoidCallback? ontap;
 
   const HatcheryCard({
     super.key,
@@ -145,6 +146,7 @@ class HatcheryCard extends StatelessWidget {
     required this.statusColor,
     this.availableUntil,
     this.id,
+    this.ontap,
   });
 
   @override
@@ -163,19 +165,14 @@ class HatcheryCard extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       // onTap: () => Get.to(() => HatcheryDetailScreen()),
-      onTap: () {
-        print('ontap ok');
-        Get.to(HatcheryCateogryScreen(hatcheryId: id.toString()));
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                HatcheryCateogryScreen(hatcheryId: id.toString()),
-          ),
-        );
+      onTap:
+          ontap ??
+          () {
+            print('ontap ok');
+            Get.to(HatcheryCateogryScreen(hatcheryId: id.toString()));
 
-        print('ontap on');
-      },
+            print('ontap on');
+          },
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,

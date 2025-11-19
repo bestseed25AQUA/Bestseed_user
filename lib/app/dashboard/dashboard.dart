@@ -475,7 +475,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Icon(
                           Icons.exit_to_app,
                           size: 50,
-                          color: AppColors.primary,
+                          color: AppColors.primary
                         ),
                         const SizedBox(height: 16),
                         Text(

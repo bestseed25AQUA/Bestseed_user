@@ -41,6 +41,7 @@ class VehicleController extends GetxController {
     } catch (e) {
       CustomToast.error("Something went wrong  ");
     } finally {
+      loadDummyVehicles();
       isLoading.value = false;
     }
   }
@@ -59,13 +60,12 @@ class VehicleController extends GetxController {
   }
 
   /// 🚚 Book Vehicle API
-  Future<void> bookVehicle({
+  Future<bool> bookVehicle({
     required String vehicleNumber,
     required String hatcheryName,
     required String name,
     required String mobile,
     required String date,
-    required String pickupAddress,
     required String deliveryAddress,
     required int seedQuantity,
   }) async {
@@ -78,7 +78,6 @@ class VehicleController extends GetxController {
         "name": name,
         "mobile": mobile,
         "date": date,
-        "pickup_address": pickupAddress,
         "delivery_address": deliveryAddress,
         "seed_quantity": seedQuantity,
       };
@@ -90,7 +89,7 @@ class VehicleController extends GetxController {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final result = json.decode(response.body);
+        // final result = json.decode(response.body);
         Get.back();
 
         Get.defaultDialog(
@@ -118,16 +117,75 @@ class VehicleController extends GetxController {
           ),
           radius: 16.0,
         );
-        CustomToast.success(
-          result["message"] ?? "Vehicle booked successfully!",
-        );
+        CustomToast.success("Vehicle booked successfully!");
       } else {
         CustomToast.error("Booking failed ");
       }
-    } catch (e) {
+    } catch (e, s) {
+      print(s.toString());
       CustomToast.error("Something went wrong  ");
     } finally {
       isBooking.value = false;
     }
+    return false;
+  }
+
+  void loadDummyVehicles() {
+    final dummyJson = {
+      "status": true,
+      "vehicles": [
+        {
+          "vehicle_number": "GJ05AB1234",
+          "driver_name": "Ramesh Kumar",
+          "driver_mobile": "9876543210",
+          "vehicle_images": [
+            "https://images.pexels.com/photos/170811/pexels-photo-170811.jpeg",
+            "https://images.pexels.com/photos/210019/pexels-photo-210019.jpeg",
+            "https://images.pexels.com/photos/358070/pexels-photo-358070.jpeg",
+          ],
+          "hatchery_name": "Super Hatchery Farm",
+          "hatchery_location": "Palanpur, Gujarat",
+          "vechile_location_tracking": [
+            "Puducherry",
+            "Vijayawada",
+            "Malappuram",
+          ],
+          "start_date": "2025-01-15T10:30:00.000Z",
+          "end_date": "2025-01-15T18:45:00.000Z",
+          "available_space": 150,
+          "call_now": "9876543210",
+          "whatsapp": "9876543210",
+        },
+        {
+          "vehicle_number": "RJ14CD9988",
+          "driver_name": "Suresh Patel",
+          "driver_mobile": "9090909090",
+          "vehicle_images": [
+            "https://images.pexels.com/photos/358070/pexels-photo-358070.jpeg",
+            "https://images.pexels.com/photos/112460/pexels-photo-112460.jpeg",
+          ],
+          "hatchery_name": "Premium Hatchery Pvt Ltd",
+          "vechile_location_tracking": [
+            "Puducherry",
+            "Vijayawada",
+            "Malappuram",
+          ],
+          "start_date": "2025-01-16T08:00:00.000Z",
+          "end_date": null,
+          "available_space": 200,
+          "call_now": "9090909090",
+          "whatsapp": "9090909090",
+        },
+      ],
+    };
+
+    /// Convert JSON → Model
+    VehicleAvailabilityModel dummyData = VehicleAvailabilityModel.fromJson(
+      dummyJson,
+    );
+
+    /// Assign to controller variables
+    vehicles.value = dummyData.vehicles;
+    filteredVehicles.value = dummyData.vehicles;
   }
 }

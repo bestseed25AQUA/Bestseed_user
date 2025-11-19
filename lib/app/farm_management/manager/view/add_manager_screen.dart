@@ -133,7 +133,7 @@ class _AddManagerDetailsFormState extends State<AddManagerDetailsForm> {
                                 canView: _canView,
                                 canDelete: _canDelete,
                                 canCreate: _canCreate,
-                                // id: widget.manager?.id.toString(),
+                                id: widget.manager?.id.toString(),
                               );
                               print('======success====== $isSuccess');
                               if (isSuccess) {

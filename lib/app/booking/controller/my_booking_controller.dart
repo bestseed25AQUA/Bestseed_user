@@ -41,36 +41,54 @@ var bookingDummy = {
 class MyBookingController extends GetxController {
   var isLoading = true.obs;
   var bookingList = <BookingData>[].obs;
+var selectedMonth = ''.obs;
+var selectedYear = ''.obs;
+var selectedDate = ''.obs;
+Future<void> fetchBookings() async {
+  try {
+    isLoading.value = true;
 
-  Future<void> fetchBookings() async {
-    try {
-      isLoading.value = true;
-      final response = await getRequest(
-        endPoint: "${NetworkConfig.baseURL}/farmer/my-bookings",
-        headers: await buildHeader(),
-      );
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(response.body);
-
-        if (data['status'] == true && data['data'] != null) {
-          final List<dynamic> listData = data['data'];
-          bookingList.assignAll(
-            listData.map((e) => BookingData.fromJson(e)).toList(),
-          );
-          return;
-        }
-      }
-    } catch (e) {
-      CustomToast.error("Something went wrong, showing offline data");
-    } finally {
-      isLoading.value = false;
+    // Build Query
+    String query = "";
+    if (selectedMonth.value.isNotEmpty) {
+      query += "?month=${selectedMonth.value}";
     }
+    if (selectedYear.value.isNotEmpty) {
+      query += query.isEmpty ? "?year=${selectedYear.value}" : "&year=${selectedYear.value}";
+    }
+    if (selectedDate.value.isNotEmpty) {
+      query += query.isEmpty ? "?date=${selectedDate.value}" : "&date=${selectedDate.value}";
+    }
+
+    final response = await getRequest(
+      endPoint: "${NetworkConfig.baseURL}/farmer/my-bookings$query",
+      headers: await buildHeader(),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = json.decode(response.body);
+
+      if (data['status'] == true && data['bookings'] != null) {
+        bookingList.assignAll(
+          (data['bookings'] as List)
+              .map((e) => BookingData.fromJson(e))
+              .toList(),
+        );
+      }
+    }
+  } catch (e) {
+    CustomToast.error("Something went wrong");
+  } finally {
+    isLoading.value = false;
   }
+}
+
 
   var isCreateLoading = false.obs;
 
   Future<bool> createHatcheryBooking({
     required String hatcheryId,
+    required String categoryId,
     required String hatcheryName,
     required String customerName,
     required String customerMobile,
@@ -89,9 +107,10 @@ class MyBookingController extends GetxController {
         "customer_mobile": customerMobile,
         "unit": unit,
         "no_of_pieces": noOfPieces.toString(),
-        "dropping_location": 'dropping location',
+        "dropping_location": droppingLocation,
         "packing_date": normalizeDate(packingDate),
-        "location_id": locationId.toString(),
+        "category_id": categoryId
+        // "location_id": locationId.toString(),
       };
 
       print('second map');

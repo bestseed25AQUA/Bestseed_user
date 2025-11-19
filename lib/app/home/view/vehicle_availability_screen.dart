@@ -13,6 +13,7 @@ class VehicleAvailabilityScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Vehicle availability'),
         backgroundColor: AppColors.primary,
@@ -21,35 +22,6 @@ class VehicleAvailabilityScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // Search field
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: searchController,
-              decoration: InputDecoration(
-                hintText: 'Search by hatchery name',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey), // default border
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Colors.grey,
-                  ), // normal border
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: AppColors.primary,
-                    width: 2,
-                  ), // focused color
-                ),
-              ),
-              onChanged: (value) => controller.searchVehicle(value),
-            ),
-          ),
           // Vehicle list
           Expanded(
             child: Obx(() {
@@ -57,13 +29,16 @@ class VehicleAvailabilityScreen extends StatelessWidget {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              if (controller.filteredVehicles.isEmpty) {
+              if (controller.vehicles.isEmpty) {
                 return const Center(child: Text('No vehicles found'));
               }
 
               return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: controller.filteredVehicles.length,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                itemCount: controller.vehicles.length,
                 itemBuilder: (context, index) {
                   final vehicle = controller.filteredVehicles[index];
                   return Padding(

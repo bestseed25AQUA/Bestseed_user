@@ -67,8 +67,8 @@ class HatcheryUpdatesController extends GetxController {
       }
     } catch (e) {
       CustomToast.error("Something went wrong  ");
-    } finally {
-      loadDummyHatcheries() ;
+    } finally { 
+        loadDummyHatcheries();
     }
   }
 

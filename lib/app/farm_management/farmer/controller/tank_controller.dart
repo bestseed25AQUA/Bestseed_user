@@ -224,20 +224,19 @@ class TankController extends GetxController {
       CustomToast.error("Something went wrong");
     } finally {
       isFeedLoading(false);
-      loadDummyFeedStore(farmId);
+      // loadDummyFeedStore(farmId);
     }
   }
 
   void loadDummyFeedStore(int farmId) {
-  feedStoreData.value = FeedStoreModel.fromJson({
-    "farm_id": farmId,
-    "total_feed_used": "3200",
-    "feed_store": "04",
-    "unit": "Kgs",
-    "updated_at": "2025-02-22 11:30:00"
-  });
-}
-
+    feedStoreData.value = FeedStoreModel.fromJson({
+      "farm_id": farmId,
+      "total_feed_used": "3200",
+      "feed_store": "04",
+      "unit": "Kgs",
+      "updated_at": "2025-02-22 11:30:00",
+    });
+  }
 
   Future<bool> updateFeedStore({
     required int farmId,
@@ -251,7 +250,10 @@ class TankController extends GetxController {
         endPoint:
             "${NetworkConfig.baseURL}/farmer/farm/$farmId/update-total-feed",
         headers: await buildHeader(),
-        body: {"total_feed_used": totalFeedUsed, "feed_store": feedStore},
+        body: {
+          // "total_feed_used": totalFeedUsed,
+          "store": feedStore,
+        },
       );
 
       if (response.statusCode == 200) {
@@ -268,4 +270,3 @@ class TankController extends GetxController {
     return false;
   }
 }
-

@@ -9,7 +9,7 @@ class FeedStoreModel {
     return FeedStoreModel(
       farmId: json["farm_id"],
       totalFeedUsed: json["total_feed_used"],
-      feedStore: json["feed_store"],
+      feedStore: json["store"],
     );
   }
 }

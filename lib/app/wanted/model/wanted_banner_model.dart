@@ -31,8 +31,8 @@ class WantedBannerItem {
   factory WantedBannerItem.fromJson(Map<String, dynamic> json) {
     return WantedBannerItem(
       id: json['id'] ?? 0,
-      type: json['media_type'] ?? "",
-      url: json['media_url'] ?? "",
+      type: json['type'] ?? "",
+      url: json['url'] ?? "",
     );
   }
 }

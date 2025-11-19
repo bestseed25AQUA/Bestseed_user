@@ -15,7 +15,8 @@ class HatcheryCategoryController extends GetxController {
   Rx<HatcheryDetailsResponse> hatcheryCateogoryData = HatcheryDetailsResponse(
     status: false,
     message: '',
-    data: [],similarHatcheries: []
+    data: [],
+    similarHatcheries: [],
   ).obs;
 
   Future<void> fetchHetcheryCategory(String id) async {
@@ -30,12 +31,15 @@ class HatcheryCategoryController extends GetxController {
       if (response.statusCode == 200) {
         try {
           final dataResponse = jsonDecode(response.body);
-          hatcheryCateogoryData.value = HatcheryDetailsResponse.fromJson(dataResponse);
+          hatcheryCateogoryData.value = HatcheryDetailsResponse.fromJson(
+            dataResponse
+          );
         } catch (e) {
           print(e.toString());
         }
       }
-    } catch (e, s) {
+    } catch (e, s){
+      print(s.toString());
       CustomToast.error("Something went wrong fetching hatcgery data");
     } finally {
       isLoading.value = false;
@@ -57,7 +61,6 @@ class HatcheryCategoryController extends GetxController {
             '${NetworkConfig.baseURL}/farmer/hatchery/$hatcheryId/category/$categoryId/detail',
         headers: await buildHeader(),
       );
-
       if (response.statusCode == 200) {
         try {
           final dataResponse = jsonDecode(response.body);
@@ -97,15 +100,15 @@ class HatcheryCategoryController extends GetxController {
             final List<dynamic> bannerList = data['banners'].isNotEmpty
                 ? data['banners']
                 : [
-                  {
-                    "id": 45,
-                    "hatchery_id": "50",
-                    "screen": "hatcherybanner",
-                    "type": "image",
-                    "url":
-                        "https://aliceblue-wallaby-326294.hostingersite.com/uploads/banners/banner_1762411814.jpg",
-                  }
-                ];
+                    // {
+                    //   "id": 45,
+                    //   "hatchery_id": "50",
+                    //   "screen": "hatcherybanner",
+                    //   "type": "image",
+                    //   "url":
+                    //       "https://aliceblue-wallaby-326294.hostingersite.com/uploads/banners/banner_1762411814.jpg",
+                    // }
+                  ];
             //   final List<dynamic> bannerList = ["https://aliceblue-wallaby-326294.hostingersite.com/uploads/banners/banner_1762411814.jpg"];
             banners.assignAll(
               bannerList.map((e) => BannerItem.fromJson(e)).toList(),

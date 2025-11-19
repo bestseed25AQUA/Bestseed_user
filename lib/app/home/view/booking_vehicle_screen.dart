@@ -52,19 +52,6 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
     }
   }
 
-  Future<void> _pickDeliveryAddress() async {
-    final selectedAddress = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const MapScreen()),
-    );
-
-    if (selectedAddress != null && selectedAddress is String) {
-      setState(() {
-        _deliveryController.text = selectedAddress;
-      });
-    }
-  }
-
   void _submitBooking() {
     if (_formKey.currentState!.validate()) {
       _vehicleController
@@ -74,9 +61,6 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
             name: _nameController.text.trim(),
             mobile: _phoneController.text.trim(),
             date: _dateController.text.trim(),
-            pickupAddress: _pickupController.text.trim().isEmpty
-                ? widget.vehicle.hatcheryLocation ?? 'Pakala'
-                : 'Pakala',
             deliveryAddress: _deliveryController.text.trim(),
             seedQuantity: int.tryParse(_quantityController.text.trim()) ?? 0,
           )
@@ -89,6 +73,7 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text('Booking vehicle at ${widget.vehicle.hatcheryName}'),
         backgroundColor: AppColors.primary,
@@ -115,8 +100,6 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
                 "Delivery Address",
                 _deliveryController,
                 Icons.location_on,
-                readOnly: true,
-                onTap: _pickDeliveryAddress,
               ),
               _buildTextField(
                 "Seed Quantity",
@@ -161,34 +144,34 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
             ),
           ),
           Text(widget.vehicle.hatcheryLocation ?? ''),
-          const SizedBox(height: 16),
-          Text(
-            'Vehicle Driver Details',
-            style: GoogleFonts.roboto(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.person),
-              const SizedBox(width: 8),
-              Text(widget.vehicle.driverName),
-              const Spacer(),
-              const Icon(Icons.phone),
-              const SizedBox(width: 8),
-              Text('+91${widget.vehicle.driverMobile}'),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.directions_car),
-              const SizedBox(width: 8),
-              Text(widget.vehicle.vehicleNumber),
-            ],
-          ),
+          // const SizedBox(height: 16),
+          // Text(
+          //   'Vehicle Driver Details',
+          //   style: GoogleFonts.roboto(
+          //     fontSize: 16,
+          //     fontWeight: FontWeight.w600,
+          //   ),
+          // ),
+          // const SizedBox(height: 8),
+          // Row(
+          //   children: [
+          //     const Icon(Icons.person),
+          //     const SizedBox(width: 8),
+          //     Text(widget.vehicle.driverName),
+          //     const Spacer(),
+          //     const Icon(Icons.phone),
+          //     const SizedBox(width: 8),
+          //     Text('+91${widget.vehicle.driverMobile}'),
+          //   ],
+          // ),
+          // const SizedBox(height: 8),
+          // Row(
+          //   children: [
+          //     const Icon(Icons.directions_car),
+          //     const SizedBox(width: 8),
+          //     Text(widget.vehicle.vehicleNumber),
+          //   ],
+          // ),
         ],
       ),
     );
@@ -211,27 +194,45 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
             label,
             style: GoogleFonts.roboto(
               fontSize: 16,
-              fontWeight: FontWeight.w400,
+              fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 8),
+
           TextFormField(
             controller: controller,
             readOnly: readOnly,
             onTap: onTap,
             keyboardType: keyboardType,
+
             decoration: InputDecoration(
               hintText: "Enter $label",
+
+              // NEW DESIGN
+              filled: true,
+              fillColor: Colors.white,
+
+              suffixIcon: Icon(icon, color: Colors.grey),
+
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-                borderSide: const BorderSide(color: Color(0xFFC1BFBF)),
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.withOpacity(.4)),
               ),
-              prefixIcon: Icon(icon),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.withOpacity(.4)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.withOpacity(.4)),
+              ),
+
               contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 12.0,
+                horizontal: 16,
+                vertical: 12,
               ),
             ),
+
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return 'Please enter $label';

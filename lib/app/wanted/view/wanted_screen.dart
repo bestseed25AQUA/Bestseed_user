@@ -28,6 +28,7 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
   TextEditingController searchController = TextEditingController();
   String? selectedFilter;
   final SeedsPriceController seedController = Get.put(SeedsPriceController());
+
   @override
   void initState() {
     super.initState();
@@ -36,35 +37,34 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
     controller.fetchWantedBanners();
 
     // Load crops default
-    controller.fetchCrops();
+    controller.getDefaultCrops();
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) { 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.white,
       appBar: _buildAppBar(),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [ 
+            children: [
               const SizedBox(height: 16),
-              InkWell(
-                onTap: () {
-                  controller.fetchWantedBanners();
-                },
-                child: Text(controller.bannerList.length.toString())),
               Obx(() {
                 return Container(
-                  decoration: BoxDecoration(color: Colors.grey.withOpacity(.3)),
+                  decoration: BoxDecoration(
+                    // ignore: deprecated_member_use
+                    color: Colors.grey.withOpacity(.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: MediaCarouselWidget(
+                    borderRadius: 12,
                     mediaUrls: List.generate(
                       controller.bannerList.length,
                       (index) => controller.bannerList[index].url,
                     ),
-
                     mediaTypes: List.generate(
                       controller.bannerList.length,
                       (index) => controller.bannerList[index].type,
@@ -87,12 +87,7 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
                         hintText: "Select Location",
                         onChanged: (loc) {
                           controller.selectedLocation.value = loc;
-                          controller.fetchCrops(
-                            categoryId: controller.selectedCategory.value?.id
-                                .toString(),
-                            locationId: controller.selectedLocation.value?.id
-                                .toString(),
-                          );
+                          controller.fetchCrops();
                         },
                       );
                     }),
@@ -105,17 +100,13 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
                       }
 
                       return CustomDropdown<Category>(
-                        selectedValue: seedController.selectedCategory.value,
+                        selectedValue:  controller.selectedCategory.value,
                         items: seedController.categories,
                         itemLabel: (cat) => cat.categoryName,
                         hintText: "Select Category",
                         onChanged: (cat) {
                           controller.selectedCategory.value = cat;
-                          controller.fetchCrops(
-                            categoryId: controller.selectedCategory.value?.id
-                                .toString(),
-                            locationId: controller.selectedLocation.value?.id,
-                          );
+                          controller.fetchCrops();
                         },
                       );
                     }),
@@ -128,7 +119,14 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (controller.wantedCropsList.isEmpty) {
-                  return const Center(child: Text("No wanted crops found."));
+                  return Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        top: MediaQuery.of(context).size.height * .2,
+                      ),
+                      child: Text("No wanted crops found."),
+                    ),
+                  );
                 }
 
                 // Optional: apply search/filtering in the UI
@@ -145,6 +143,7 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
                 }).toList();
 
                 return ListView.builder(
+                  physics: NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
                   itemCount: filteredList.length,
                   itemBuilder: (context, index) {
@@ -246,196 +245,217 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
   // }
 
   Widget _buildHatcheryCard(WantedCrop crop) {
-    return Card(
+    return Material(
+      color: Colors.white,
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image or Video preview (simplified as image here)
-          if (crop.mediaType == 'image')
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(15),
-              ),
-              child: Image.network(
-                crop.mediaUrl,
-                height: 150,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Image.asset(
-                  'assets/images/hatchery.png',
+      child: Container(
+        margin: EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(.1),
+              offset: Offset(1, 3),
+              spreadRadius: 0,
+              blurRadius: 2,
+            ),
+          ],
+          border: Border.all(width: .2),
+        ),
+
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image or Video preview (simplified as image here)
+            if (crop.mediaType == 'image')
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(15),
+                ),
+                child: Image.network(
+                  crop.mediaUrl,
                   height: 150,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                ),
-              ),
-            ),
-          if (crop.mediaType != 'image')
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(15),
-              ),
-              child: GestureDetector(
-                onTap: () {
-                  Get.to(() => FullScreenVideoPlayer(videoUrl: crop.mediaUrl));
-                },
-                child: VideoPlayerBanner(url: crop.mediaUrl),
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  crop.category.toUpperCase(),
-                  style: GoogleFonts.roboto(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                  errorBuilder: (_, __, ___) => Image.asset(
+                    'assets/images/hatchery.png',
+                    height: 150,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on, size: 20),
-                        const SizedBox(width: 4),
-                        Text(
-                          crop.location,
-                          style: GoogleFonts.roboto(
-                            color: Colors.black,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        const Icon(Icons.calendar_month, size: 20),
-                        const SizedBox(width: 4),
-                        Text(
-                          crop.packingDate,
-                          style: GoogleFonts.roboto(
-                            color: Colors.black,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+              ),
+            if (crop.mediaType != 'image')
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(15),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  crop.description,
-                  style: GoogleFonts.roboto(
-                    color: Colors.black,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                child: GestureDetector(
+                  onTap: () {
+                    Get.to(
+                      () => FullScreenVideoPlayer(videoUrl: crop.mediaUrl),
+                    );
+                  },
+                  child: VideoPlayerBanner(url: crop.mediaUrl),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    crop.category.toUpperCase(),
+                    style: GoogleFonts.roboto(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _infoColumn('Tons', crop.tons.toString()),
-                    _infoColumn('Payment', crop.payment),
-                    _infoColumn('Price', '₹${crop.price}'),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final whatsappUrl =
-                              "https://wa.me/${'+91${crop.contact}'.replaceAll('+', '')}";
-                          final Uri uri = Uri.parse(whatsappUrl);
-                          if (await canLaunchUrl(uri)) {
-                            await launchUrl(uri);
-                          } else {
-                            CustomToast.error("Cannot launch WhatsApp");
-                          }
-                        },
-                        child: Container(
-                          height: 48,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.green, width: 1.5),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on, size: 20),
+                          const SizedBox(width: 4),
+                          Text(
+                            crop.location,
+                            style: GoogleFonts.roboto(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Image.asset(
-                                'assets/images/whatsApp.png',
-                                height: 18,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'WhatsApp',
-                                style: GoogleFonts.roboto(
-                                  color: Colors.green,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_month, size: 20),
+                          const SizedBox(width: 4),
+                          Text(
+                            crop.packingDate,
+                            style: GoogleFonts.roboto(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    crop.description,
+                    style: GoogleFonts.roboto(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _infoColumn('Tons', crop.tons.toString()),
+                      _infoColumn('Payment', crop.payment),
+                      _infoColumn('Price', '₹${crop.price}'),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      // Expanded(
+                      //   child: InkWell(
+                      //     onTap: () async {
+                      //       final whatsappUrl =
+                      //           "https://wa.me/${'+91${crop.contact}'.replaceAll('+', '')}";
+                      //       final Uri uri = Uri.parse(whatsappUrl);
+                      //       if (await canLaunchUrl(uri)) {
+                      //         await launchUrl(uri);
+                      //       } else {
+                      //         CustomToast.error("Cannot launch WhatsApp");
+                      //       }
+                      //     },
+                      //     child: Container(
+                      //       height: 48,
+                      //       decoration: BoxDecoration(
+                      //         borderRadius: BorderRadius.circular(16),
+                      //         border: Border.all(
+                      //           color: Colors.green,
+                      //           width: 1.5,
+                      //         ),
+                      //       ),
+                      //       child: Row(
+                      //         mainAxisAlignment: MainAxisAlignment.center,
+                      //         children: [
+                      //           Image.asset(
+                      //             'assets/images/whatsApp.png',
+                      //             height: 18,
+                      //           ),
+                      //           const SizedBox(width: 6),
+                      //           Text(
+                      //             'WhatsApp',
+                      //             style: GoogleFonts.roboto(
+                      //               color: Colors.green,
+                      //               fontSize: 13,
+                      //               fontWeight: FontWeight.bold,
+                      //             ),
+                      //           ),
+                      //         ],
+                      //       ),
+                      //     ),
+                      //   ),
+                      // ),
+                      // SizedBox(width: 16),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final phoneNumber = "tel:${crop.contact}";
+                            if (await canLaunch(phoneNumber)) {
+                              await launch(phoneNumber);
+                            } else {
+                              CustomToast.error("Cannot launch call");
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            alignment: Alignment.center,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Image.asset(
+                                  'assets/images/customer_call.png',
+                                  height: 28,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Call & Book seeds',
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    SizedBox(width: 16),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final phoneNumber = "tel:${crop.contact}";
-                          if (await canLaunch(phoneNumber)) {
-                            await launch(phoneNumber);
-                          } else {
-                            CustomToast.error("Cannot launch call");
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          alignment: Alignment.center,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Image.asset(
-                                'assets/images/customer_call.png',
-                                height: 28,
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Call',
-                                style: GoogleFonts.roboto(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

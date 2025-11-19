@@ -25,11 +25,23 @@ class _SpotHatcheryBannerWidgetState
       if (controller.isLoading.value) {
         return SizedBox();
       } else if (controller.banners.isEmpty) {
-        return const Center(child: Text("No banners available"));
+        // return const Center(child: Text("No banners available"));
+        return Padding(
+          padding: const EdgeInsets.only(left: 20,right: 20),
+          child: Container(
+            
+            width: double.infinity, height: 180,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.grey.withOpacity(.4)
+            ),
+            ),
+        );
       } else {
         return Stack(
           alignment: Alignment.bottomCenter,
           children: [
+            
             CarouselSlider.builder(
               itemCount: controller.banners.length,
               itemBuilder: (context, index, realIndex) {
@@ -37,6 +49,8 @@ class _SpotHatcheryBannerWidgetState
                 if (banner.type == "image") {
                   return GestureDetector(
                     onTap: () {
+                      print('=========');
+                      print(banner.url);
                       // Get.to(() => VehicleAvailabilityScreen());
                     },
                     child: ClipRRect(

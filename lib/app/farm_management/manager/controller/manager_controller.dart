@@ -67,6 +67,7 @@ class ManagerController extends GetxController {
         headers: await buildHeader(),
         body: body,
       );
+      print(response.body);
       isCreateLoading.value = false;
       if (response.statusCode == 201 || response.statusCode == 200) {
         CustomToast.success('Successfully saved!');

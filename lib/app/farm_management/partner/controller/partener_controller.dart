@@ -56,7 +56,7 @@ class PartnerController extends GetxController {
         "delete_access": "0",
         if (id != null) "id": id,
       };
-      
+     print('======body==========');
       print(body);
 
       final response = await postRequest(
@@ -64,7 +64,7 @@ class PartnerController extends GetxController {
         headers: await buildHeader(),
         body: body,
       );
-
+      print(response.body);
       isCreateLoading.value = false;
 
       if (response.statusCode == 200 || response.statusCode == 201) {

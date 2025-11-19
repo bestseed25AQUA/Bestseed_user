@@ -36,13 +36,22 @@ class _SeedPriceBannerWidgetState extends State<SeedPriceBannerWidget> {
                     onTap: () {
                       // Get.to(() => VehicleAvailabilityScreen());
                     },
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        banner.url,
-                        width: double.infinity,
-                        height: 180,
-                        fit: BoxFit.cover,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.grey.withOpacity(.2),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          banner.url,
+                          width: double.infinity,
+                          height: 180,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container();
+                          },
+                        ),
                       ),
                     ),
                   );
