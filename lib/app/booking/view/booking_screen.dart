@@ -445,7 +445,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
         borderRadius: BorderRadius.circular(12),
         child: Container(
           color: Colors.grey[300],
-          child: CustomNetworkImage(imageUrl: url,fit: BoxFit.cover,),
+          child: CustomNetworkImage(imageUrl: url, fit: BoxFit.cover),
         ),
       ),
     );

@@ -41,48 +41,51 @@ var bookingDummy = {
 class MyBookingController extends GetxController {
   var isLoading = true.obs;
   var bookingList = <BookingData>[].obs;
-var selectedMonth = ''.obs;
-var selectedYear = ''.obs;
-var selectedDate = ''.obs;
-Future<void> fetchBookings() async {
-  try {
-    isLoading.value = true;
+  var selectedMonth = ''.obs;
+  var selectedYear = ''.obs;
+  var selectedDate = ''.obs;
+  Future<void> fetchBookings() async {
+    try {
+      isLoading.value = true;
 
-    // Build Query
-    String query = "";
-    if (selectedMonth.value.isNotEmpty) {
-      query += "?month=${selectedMonth.value}";
-    }
-    if (selectedYear.value.isNotEmpty) {
-      query += query.isEmpty ? "?year=${selectedYear.value}" : "&year=${selectedYear.value}";
-    }
-    if (selectedDate.value.isNotEmpty) {
-      query += query.isEmpty ? "?date=${selectedDate.value}" : "&date=${selectedDate.value}";
-    }
-
-    final response = await getRequest(
-      endPoint: "${NetworkConfig.baseURL}/farmer/my-bookings$query",
-      headers: await buildHeader(),
-    );
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = json.decode(response.body);
-
-      if (data['status'] == true && data['bookings'] != null) {
-        bookingList.assignAll(
-          (data['bookings'] as List)
-              .map((e) => BookingData.fromJson(e))
-              .toList(),
-        );
+      // Build Query
+      String query = "";
+      if (selectedMonth.value.isNotEmpty) {
+        query += "?month=${selectedMonth.value}";
       }
-    }
-  } catch (e) {
-    CustomToast.error("Something went wrong");
-  } finally {
-    isLoading.value = false;
-  }
-}
+      if (selectedYear.value.isNotEmpty) {
+        query += query.isEmpty
+            ? "?year=${selectedYear.value}"
+            : "&year=${selectedYear.value}";
+      }
+      if (selectedDate.value.isNotEmpty) {
+        query += query.isEmpty
+            ? "?date=${selectedDate.value}"
+            : "&date=${selectedDate.value}";
+      }
 
+      final response = await getRequest(
+        endPoint: "${NetworkConfig.baseURL}/farmer/my-bookings$query",
+        headers: await buildHeader(),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+
+        if (data['status'] == true && data['bookings'] != null) {
+          bookingList.assignAll(
+            (data['bookings'] as List)
+                .map((e) => BookingData.fromJson(e))
+                .toList(),
+          );
+        }
+      }
+    } catch (e) {
+      CustomToast.error("Something went wrong");
+    } finally {
+      isLoading.value = false;
+    }
+  }
 
   var isCreateLoading = false.obs;
 
@@ -109,7 +112,7 @@ Future<void> fetchBookings() async {
         "no_of_pieces": noOfPieces.toString(),
         "dropping_location": droppingLocation,
         "packing_date": normalizeDate(packingDate),
-        "category_id": categoryId
+        "category_id": categoryId,
         // "location_id": locationId.toString(),
       };
 

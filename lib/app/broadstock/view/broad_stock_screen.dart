@@ -101,7 +101,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                           controller.filteredBroodStocks[index];
                       return InkWell(
                         onTap: () {
-                          Get.to(HatcheryCateogryScreen(hatcheryId: controller.filteredBroodStocks[index].id.toString()??'',));
+                          Get.to(HatcheryCateogryScreen(hatcheryId: controller.filteredBroodStocks[index].id.toString(),hatcheryName: controller.filteredBroodStocks[index].hatcheryName.toString(),));
                         },
                         child: _buildHatcheryCard(data));
                     },

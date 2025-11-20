@@ -214,6 +214,8 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                                               HatcheryCateogryScreen(
                                                 hatcheryId: list[i1].id
                                                     .toString(),
+                                               hatcheryName: list[i1].hatcheryName
+                                                  .toString(),
                                               ),
                                         ),
                                       );
@@ -243,6 +245,20 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                                                     "coming soon"
                                               ? const Color(0xff007DFE)
                                               : const Color(0xffE31B1B),
+                                            ontap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              HatcheryCateogryScreen(
+                                                hatcheryId: list[i2].id
+                                                    .toString(),
+                                               hatcheryName: list[i2].hatcheryName
+                                                  .toString(),
+                                              ),
+                                        ),
+                                      );
+                                    },
                                         )
                                       : const SizedBox(),
                                 ),

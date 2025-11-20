@@ -5,6 +5,7 @@ import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
 import 'package:seedsuser/app/vehicle_tracking/controller/vehicle_tracking_controller.dart';
 import 'package:seedsuser/app/vehicle_tracking/model/vehicle_tracking_model.dart';
+import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking_bottom_sheet.dart';
 
 class VehicleTrackingPage extends StatefulWidget {
   const VehicleTrackingPage({super.key});
@@ -19,6 +20,294 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
   );
 
   String selected = "Filter";
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await controller.fetchVehicleList();
+    });
+  }
+
+  void applyFilter(String filter) async {
+    DateTime now = DateTime.now();
+
+    if (filter == "Today") {
+      controller.selectedDate.value =
+          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+      controller.selectedMonth.value = "";
+      controller.selectedYear.value = "";
+    } else if (filter == "This Month") {
+      controller.selectedMonth.value = now.month.toString();
+      controller.selectedYear.value = now.year.toString();
+      controller.selectedDate.value = "";
+    } else if (filter == "This Year") {
+      controller.selectedMonth.value = "";
+      controller.selectedYear.value = now.year.toString();
+      controller.selectedDate.value = "";
+    } else if (filter == "Custom Date") {
+      pickDate();
+      return;
+    } else if (filter == "Clear Filters") {
+      controller.selectedMonth.value = "";
+      controller.selectedYear.value = "";
+      controller.selectedDate.value = "";
+    }
+
+    controller.fetchVehicleList();
+  }
+
+  Future<void> pickDate() async {
+    DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035),
+    );
+
+    if (picked != null) {
+      controller.selectedDate.value =
+          "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+
+      controller.selectedMonth.value = "";
+      controller.selectedYear.value = "";
+
+      controller.fetchVehicleList();
+      Navigator.pop(context);
+    }
+  }
+
+  void showFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return FractionallySizedBox(
+          heightFactor: 0.90,
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ------- DRAG HANDLE -------
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 5,
+                      margin: const EdgeInsets.only(bottom: 15),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade400,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+
+                  // ------- TITLE -------
+                  Text(
+                    "Filter Bookings",
+                    style: GoogleFonts.roboto(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ------- MONTH PICKER -------
+                  Text(
+                    "Select Month",
+                    style: GoogleFonts.roboto(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: List.generate(12, (index) {
+                      final month = index + 1;
+                      return _monthChip(month);
+                    }),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // ------- YEAR PICKER -------
+                  Text(
+                    "Select Year",
+                    style: GoogleFonts.roboto(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  SizedBox(
+                    height: 45,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: List.generate(15, (index) {
+                        final year = 2018 + index;
+                        return _yearChip(year);
+                      }),
+                    ),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  // ------- CUSTOM DATE -------
+                  Text(
+                    "Custom Date",
+                    style: GoogleFonts.roboto(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  InkWell(
+                    onTap: pickDate,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade400),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today, size: 20),
+                          const SizedBox(width: 12),
+                          Text(
+                            controller.selectedDate.value.isNotEmpty
+                                ? controller.selectedDate.value
+                                : "Select date",
+                            style: GoogleFonts.roboto(fontSize: 15),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  // ------- CLEAR FILTER -------
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: () {
+                        controller.selectedMonth.value = "";
+                        controller.selectedYear.value = "";
+                        controller.selectedDate.value = "";
+                        controller.fetchVehicleList();
+                        Navigator.pop(context);
+                      },
+                      child: const Text(
+                        "Clear Filters",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _monthChip(int month) {
+    return InkWell(
+      onTap: () {
+        controller.selectedMonth.value = month.toString();
+        controller.selectedYear.value = "";
+        controller.selectedDate.value = "";
+        controller.fetchVehicleList();
+        Navigator.pop(context);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.blue.shade300),
+        ),
+        child: Text(
+          _monthName(month),
+          style: GoogleFonts.roboto(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.blue.shade700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _monthName(int m) {
+    return [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ][m - 1];
+  }
+
+  Widget _yearChip(int year) {
+    return InkWell(
+      onTap: () {
+        controller.selectedMonth.value = "";
+        controller.selectedDate.value = "";
+        controller.selectedYear.value = year.toString();
+        controller.fetchVehicleList();
+        Navigator.pop(context);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.green.shade300),
+        ),
+        child: Text(
+          "$year",
+          style: GoogleFonts.roboto(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.green.shade700,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,14 +324,31 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          SizedBox(
-            width: 100,
-            height: 36,
-            child: _buildDropdownButton(selected, ["Filter"], (newValue) {
-              setState(() {
-                selected = newValue!;
-              });
-            }),
+          GestureDetector(
+            onTap: () => showFilterSheet(),
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    "Filters",
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      color: Colors.black,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.keyboard_arrow_down, color: Colors.black),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -135,8 +441,26 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
           _buildDriverDetails(item),
           CustomButton(
             text: 'Tracking your vehicle',
-            onPressed: () {
-              // show bottom sheet
+            onPressed: () async {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                builder: (context) {
+                  return Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                    ),
+                    child: VehicleTrackingBottomSheet(vehicleId: ''),
+                  );
+                },
+              );
             },
           ),
           const SizedBox(height: 8),

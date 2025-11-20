@@ -83,20 +83,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Get.to(() => MyBookingScreen());
                 },
               ),
-              //  ProfileMenuItem(
-              //   icon: Icons.menu,
-              //   title: "Vehicle availability",
-              //   onTap: () {
-              //     Get.to(() => VehicleAvailabilityScreen());
-              //   },
-              // ),
-              //  ProfileMenuItem(
-              //   icon: Icons.menu,
-              //   title: "Vehicle tracking",
-              //   onTap: () {
-              //     Get.to(() => VehicleTrackingPage());
-              //   },
-              // ),
+               ProfileMenuItem(
+                icon: Icons.menu,
+                title: "Vehicle availability",
+                onTap: () {
+                  Get.to(() => VehicleAvailabilityScreen());
+                },
+              ),
+               ProfileMenuItem(
+                icon: Icons.menu,
+                title: "Vehicle tracking",
+                onTap: () {
+                  Get.to(() => VehicleTrackingPage());
+                },
+              ),
               ProfileMenuItem(
                 icon: Icons.headset_mic_outlined,
                 title: AppLocalizations.of(context).customer_support,

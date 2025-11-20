@@ -448,9 +448,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: AppColors.primary,
-        statusBarIconBrightness: true
-            ? Brightness.light
-            : Brightness.dark,
+        statusBarIconBrightness: true ? Brightness.light : Brightness.dark,
       ),
       child: SafeArea(
         child: WillPopScope(
@@ -475,7 +473,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Icon(
                           Icons.exit_to_app,
                           size: 50,
-                          color: AppColors.primary
+                          color: AppColors.primary,
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -551,53 +549,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             extendBody: true,
             bottomNavigationBar: SafeArea(
-              child: Builder(
-                builder: (context) {
-                  return Stack(
-                    children: [
-                      Positioned(
-                        bottom: 0,
-                        child: SizedBox(
-                          child: Container(
-                            color: Colors.white,
-                            width: 500,
-                            height: 83,
-                          ),
-                        ),
-                      ),
-                      AnimatedNotchBottomBar(
-                        notchBottomBarController: _notchController,
-                        color: AppColors.primary,
-                        showLabel: true,
-                        notchColor: AppColors.primary,
-                        bottomBarWidth: 500,
-                        bottomBarHeight: 70,
-                        kBottomRadius: 20,
-                        itemLabelStyle: GoogleFonts.roboto(
-                          fontSize: 11,
-                          color: Colors.white,
-                        ),
-                        durationInMilliSeconds: 300,
-                        bottomBarItems: List.generate(
-                          icons.length,
-                          (index) => BottomBarItem(
-                            inActiveItem: Icon(
-                              icons[index],
-                              color: Colors.white70,
-                            ),
-                            activeItem: Icon(icons[index], color: Colors.white),
-                            itemLabel: labels[index],
-                          ),
-                        ),
-                        onTap: (index) {
-                          log("Tab changed to $index");
-                          controller.changeIndex(index);
-                        },
-                        kIconSize: 20,
-                      ),
-                    ],
-                  );
-                },
+              child: SizedBox(
+                height: 90,
+                child: AnimatedNotchBottomBar(
+                  kIconSize: 20,
+                  notchBottomBarController: _notchController,
+                  color: AppColors.primary,
+                  notchColor: AppColors.primary,
+                  removeMargins: true,
+                  bottomBarWidth: MediaQuery.of(context).size.width,
+                  bottomBarHeight: 40,
+                  kBottomRadius: 0,
+                  showLabel: true,
+                  itemLabelStyle: GoogleFonts.roboto(
+                    fontSize: 11,
+                    color: Colors.white,
+                  ),
+                  bottomBarItems: List.generate(
+                    icons.length,
+                    (index) => BottomBarItem(
+                      inActiveItem: Icon(icons[index], color: Colors.white70),
+                      activeItem: Icon(icons[index], color: Colors.white),
+                      itemLabel: labels[index],
+                    ),
+                  ),
+                  onTap: (index) {
+                    controller.changeIndex(index);
+                  },
+                ),
               ),
             ),
           ),

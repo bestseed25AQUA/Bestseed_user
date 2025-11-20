@@ -169,7 +169,12 @@ class HatcheryCard extends StatelessWidget {
           ontap ??
           () {
             print('ontap ok');
-            Get.to(HatcheryCateogryScreen(hatcheryId: id.toString()));
+            Get.to(
+              HatcheryCateogryScreen(
+                hatcheryId: id.toString(),
+                hatcheryName: title,
+              ),
+            );
 
             print('ontap on');
           },

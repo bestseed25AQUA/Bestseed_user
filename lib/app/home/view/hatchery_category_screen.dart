@@ -17,16 +17,16 @@ import 'package:url_launcher/url_launcher_string.dart';
 import 'package:video_player/video_player.dart';
 
 class HatcheryCateogryScreen extends StatefulWidget {
-  const HatcheryCateogryScreen({super.key, required this.hatcheryId});
+  const HatcheryCateogryScreen({super.key, required this.hatcheryId, required this.hatcheryName});
   final String hatcheryId;
-
+  final String hatcheryName;
   @override
   State<HatcheryCateogryScreen> createState() => _HatcheryCateogryScreenState();
 }
 
 class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
   final HatcheryCategoryController hatcheryCategoryController = Get.put(
-    HatcheryCategoryController(),
+    HatcheryCategoryController()
   );
 
   final HomeController _homeController = Get.find<HomeController>();
@@ -38,11 +38,10 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
 
   initCall() async {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await hatcheryCategoryController.fetchBanners(widget.hatcheryId);
+      await hatcheryCategoryController.fetchHetcheryCategory(widget.hatcheryId);
     });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       hatcheryCategoryController.fetchHetcheryCategory(widget.hatcheryId);
-      // hatcheryCategoryController.fetchHetcheryCategory('50');
     });
   }
 
@@ -70,7 +69,7 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Hatchery Categories",
+          widget.hatcheryName,
           style: GoogleFonts.roboto(
             color: Colors.white,
             fontSize: 20,
@@ -291,6 +290,8 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                                         builder: (context) =>
                                             HatcheryCateogryScreen(
                                               hatcheryId: hatchery.id
+                                                  .toString(),
+                                                 hatcheryName: hatchery.hatcheryName
                                                   .toString(),
                                             ),
                                       ),
