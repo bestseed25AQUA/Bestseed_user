@@ -54,8 +54,10 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
       onTap: () {
         Get.to(
           () => HatcheryCategoryDetailScreen(
+            hatcheryName: hatchery.hatcheryName,
             videoUrl: '',
             hatcheryId: hatchery.hatcheryId.toString(),
+            
             categoryId: hatchery.categoryId.toString(),
           ),
         );

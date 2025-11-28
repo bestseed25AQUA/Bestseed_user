@@ -25,6 +25,50 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
   bool _dialogShown = false;
 
   @override
+  void initState() {
+    super.initState();
+
+    // If needed, you can log or validate the selected value
+    if (controller.locations.isNotEmpty) {
+      try {
+        bool isFound = false;
+        for (var location in controller.locations) {
+          if (location.title == "East Godavari" ||
+              location.title == "East Godawari") {
+            controller.selectedLocation.value = location;
+            isFound = true;
+            break;
+          }
+        }
+        if (!isFound) {
+          controller.selectedLocation.value = controller.locations.first;
+        }
+      } catch (e) {
+        controller.selectedLocation.value = controller.locations.first;
+      }
+    }
+
+    /// for default category
+    if (controller.categories.isNotEmpty) {
+      try {
+        bool isFound = false;
+        for (var category in controller.categories) {
+          if (category.categoryName == "Vannamei") {
+            controller.selectedCategory.value = category;
+            isFound = true;
+            break;
+          }
+        }
+        if (!isFound) {
+          controller.selectedCategory.value = controller.categories.first;
+        }
+      } catch (e) {
+        controller.selectedCategory.value = controller.categories.first;
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -289,14 +333,16 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                     //     ),
                     //   ),
                     // InkWell(
-                    //   onTap: () { 
+                    //   onTap: () {
                     //   Get.to(WantedCropBuyersScreen());
                     //  },
                     //   child: Text('wanted')),
                     const SizedBox(height: 30),
-                    WantedBannerWidget(ontapImage: () {
-                      Get.to(WantedCropBuyersScreen());
-                     },),
+                    WantedBannerWidget(
+                      ontapImage: () {
+                        Get.to(WantedCropBuyersScreen());
+                      },
+                    ),
                     const SizedBox(height: 100),
                   ],
                 ),

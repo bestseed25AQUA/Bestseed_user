@@ -34,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen>
       getDefaultLocation();
     }
     _homeController.selectedCategoryId.value = '';
-    _homeController.getHatcheries();
+    _homeController.getHatcheries('');
     _homeController.getPricesForHome();
     ever(_homeController.categories, (_) {
       _initTabController();

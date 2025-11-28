@@ -14,13 +14,32 @@ class SeedPriceBannerWidget extends StatefulWidget {
 
 class _SeedPriceBannerWidgetState extends State<SeedPriceBannerWidget> {
   final SeedBannerController controller = Get.put(SeedBannerController());
+  
   int _currentIndex = 0; // Track current banner index
+
+@override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    if(controller.banners.isEmpty){
+      controller.fetchBanners();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       if (controller.isLoading.value) {
-        return const Center(child: CircularProgressIndicator());
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: Container(
+            height: 180,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.grey.withOpacity(.2),
+            ),
+          ),
+        );
       } else if (controller.banners.isEmpty) {
         return const Center(child: Text("No banners available"));
       } else {
@@ -36,21 +55,31 @@ class _SeedPriceBannerWidgetState extends State<SeedPriceBannerWidget> {
                     onTap: () {
                       // Get.to(() => VehicleAvailabilityScreen());
                     },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        color: Colors.grey.withOpacity(.2),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          banner.url,
-                          width: double.infinity,
-                          height: 180,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container();
-                          },
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.withOpacity(1)),
+                          color: Colors.grey.withOpacity(.2),
+                          boxShadow: [
+                            BoxShadow(
+                              blurRadius: 2,
+                              // offset: Offset(2, 3)
+                            )
+                          ]
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            banner.url,
+                            width: double.infinity,
+                            height: 180,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container();
+                            },
+                          ),
                         ),
                       ),
                     ),

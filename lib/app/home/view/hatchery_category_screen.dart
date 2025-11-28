@@ -17,7 +17,11 @@ import 'package:url_launcher/url_launcher_string.dart';
 import 'package:video_player/video_player.dart';
 
 class HatcheryCateogryScreen extends StatefulWidget {
-  const HatcheryCateogryScreen({super.key, required this.hatcheryId, required this.hatcheryName});
+  const HatcheryCateogryScreen({
+    super.key,
+    required this.hatcheryId,
+    required this.hatcheryName,
+  });
   final String hatcheryId;
   final String hatcheryName;
   @override
@@ -26,7 +30,7 @@ class HatcheryCateogryScreen extends StatefulWidget {
 
 class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
   final HatcheryCategoryController hatcheryCategoryController = Get.put(
-    HatcheryCategoryController()
+    HatcheryCategoryController(),
   );
 
   final HomeController _homeController = Get.find<HomeController>();
@@ -83,7 +87,7 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
             child: Column(
               children: [
                 SizedBox(height: 20),
-                HatcheryCategoryBannerWidget(),
+                HatcheryCategoryBannerWidget(id: widget.hatcheryId),
                 SizedBox(height: 20),
                 Obx(() {
                   if (hatcheryCategoryController.isLoading.value) {
@@ -135,6 +139,7 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                                 MaterialPageRoute(
                                   builder: (context) =>
                                       HatcheryCategoryDetailScreen(
+                                        hatcheryName: widget.hatcheryName,
                                         videoUrl: 'assets/videos/sample.mp4',
                                         hatcheryId: widget.hatcheryId,
                                         categoryId: hatcheryCategoryController
@@ -291,7 +296,8 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                                             HatcheryCateogryScreen(
                                               hatcheryId: hatchery.id
                                                   .toString(),
-                                                 hatcheryName: hatchery.hatcheryName
+                                              hatcheryName: hatchery
+                                                  .hatcheryName
                                                   .toString(),
                                             ),
                                       ),

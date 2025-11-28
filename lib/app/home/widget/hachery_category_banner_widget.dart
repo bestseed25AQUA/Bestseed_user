@@ -6,7 +6,8 @@ import 'package:seedsuser/app/home/view/full_video_screen.dart';
 import 'package:video_player/video_player.dart';
 
 class HatcheryCategoryBannerWidget extends StatefulWidget {
-  const HatcheryCategoryBannerWidget({super.key});
+  const HatcheryCategoryBannerWidget({super.key, required this.id});
+  final String id;
 
   @override
   State<HatcheryCategoryBannerWidget> createState() =>
@@ -18,6 +19,12 @@ class _SpotHatcheryBannerWidgetState
   final HatcheryCategoryController controller =
       Get.find<HatcheryCategoryController>();
   int _currentIndex = 0; // Track current banner index
+  @override
+  void initState() {
+    controller.fetchBanners(widget.id);
+    // TODO: implement initState
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {

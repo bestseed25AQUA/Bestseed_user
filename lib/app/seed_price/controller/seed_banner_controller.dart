@@ -9,26 +9,22 @@ class SeedBannerController extends GetxController {
   var isLoading = true.obs;
   var banners = <BannerItem>[].obs;
 
-  @override
-  void onInit() {
-    super.onInit();
-    fetchBanners();
-  }
-
   Future<void> fetchBanners() async {
     try {
       isLoading.value = true;
 
       final response = await getRequest(
-        endPoint: "${NetworkConfig.baseURL}/farmer/updates",
+        endPoint: "${NetworkConfig.baseURL}/farmer/promo",
         headers: await buildHeader(),
       );
+      print('api calll ========');
+      print(response.body.toString());
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
 
-        if (data['status'] == true && data['updates_banners'] != null) {
-          final List<dynamic> bannerList = data['updates_banners'];
+        if (data['status'] == true && data['promo_banners'] != null) {
+          final List<dynamic> bannerList = data['promo_banners'];
           banners.assignAll(
             bannerList.map((e) => BannerItem.fromJson(e)).toList(),
           );

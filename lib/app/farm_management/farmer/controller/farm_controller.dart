@@ -1,11 +1,14 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/feed_store_model.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
+
+import 'package:http/http.dart' as http;
 
 class FarmListController extends GetxController {
   var isLoading = true.obs;
@@ -51,7 +54,7 @@ class FarmListController extends GetxController {
     try {
       isOverlay(true);
 
-      var response = await multipartPostRequest(
+      final streamedResponse = await multipartPostRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/create-farm",
         fields: {
           "type": "form",
@@ -64,12 +67,18 @@ class FarmListController extends GetxController {
         headers: await buildHeader(),
         imagePaths: imagePaths,
       );
+      final http.Response response = await http.Response.fromStream(
+        streamedResponse,
+      );
+      debugPrint("Create response: ${response.statusCode} -> ${response.body}");
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         CustomToast.success("Farm added successfully ✔");
+        isOverlay(false);
         return true;
       } else {
-        CustomToast.error("Failed to add farm ❌");
+        final msg = parseErrorMessage(response);
+        CustomToast.error(msg);
       }
     } catch (e) {
       CustomToast.error("Error  ");
@@ -77,6 +86,33 @@ class FarmListController extends GetxController {
     isOverlay(false);
     // ignore: control_flow_in_finally
     return false;
+  }
+
+  String parseErrorMessage(dynamic error) {
+    try {
+      if (error is Map && error.containsKey('errors')) {
+        final errors = error['errors'] as Map;
+
+        if (errors.isNotEmpty) {
+          // Take the first error field
+          final firstKey = errors.keys.first;
+
+          final firstErrorList = errors[firstKey];
+
+          if (firstErrorList is List && firstErrorList.isNotEmpty) {
+            return firstErrorList.first.toString();
+          }
+        }
+      }
+
+      if (error is Map && error.containsKey('message')) {
+        return error['message'].toString();
+      }
+
+      return "Something went wrong!";
+    } catch (e) {
+      return "Something went wrong!";
+    }
   }
 
   /// ------------- UPDATE FARM DETAILS ----------------- ///

@@ -41,7 +41,7 @@ class HomeController extends GetxController {
     print('categoryId - $categoryId, locationId $locationId');
 
     // hatcheries api
-    await getHatcheries();
+    await getHatcheries(categoryId);
     // price api
     getPricesForHome();
 
@@ -126,10 +126,10 @@ class HomeController extends GetxController {
 
   var hatcheries = <HatcheryHomeModel>[].obs;
 
-  Future<void> getHatcheries() async {
+  Future<void> getHatcheries(String? categoryId) async {
     try {
       final response = await getRequest(
-        endPoint: "${NetworkConfig.baseURL}/farmer/home-hatcheries",
+        endPoint: "${NetworkConfig.baseURL}/farmer/home-hatcheries?category_id=${categoryId??''}",
         headers: await buildHeader(),
       );
 

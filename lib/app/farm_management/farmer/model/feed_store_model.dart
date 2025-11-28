@@ -1,7 +1,7 @@
 class FeedStoreModel {
   int? farmId;
-  String? totalFeedUsed;
-  String? feedStore;
+  dynamic totalFeedUsed;
+  dynamic feedStore;
 
   FeedStoreModel({this.farmId, this.totalFeedUsed, this.feedStore});
 

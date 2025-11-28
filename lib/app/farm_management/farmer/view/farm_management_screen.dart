@@ -83,6 +83,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
         return Stack(
           children: [
             ListView.builder(
+              reverse: true,
               padding: const EdgeInsets.only(
                 top: 10,
                 right: 10,

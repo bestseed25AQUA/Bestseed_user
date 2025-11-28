@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -51,6 +53,22 @@ class _SearchScreenState extends State<SearchScreen> {
 
   // ⭐ PART 3 — APPLY FILTERS + VOICE + CLOSE CLASS
 
+  Timer? _debounceTimer;
+  bool _skipTextDebounce = false;
+
+  void doAfterDelay() {
+    if (_debounceTimer != null) {
+      _debounceTimer!.cancel();
+    }
+
+    _debounceTimer = Timer(const Duration(seconds: 1), () {
+      print("hi");
+      _applyFilters();
+      // Yaha aap API / filter apply call kar sakte ho
+      // filterHatcheryController.applyFilter();
+    });
+  }
+
   /// 🔹 Handle Apply Filters Action
   void _applyFilters() {
     filterHatcheryController.applyFilter();
@@ -66,14 +84,17 @@ class _SearchScreenState extends State<SearchScreen> {
       );
       if (available) {
         setState(() => _isListening = true);
-        _speech.listen(
+         _speech.listen(
           onResult: (val) {
             setState(() {
               _voiceText = val.recognizedWords;
               _searchController.text = _voiceText;
+              filterHatcheryController.query = _voiceText;
             });
+             _applyFilters();
           },
         );
+        
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Speech recognition not available")),
@@ -119,14 +140,14 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final categoryList = filterItemsWithIds(
       filterHatcheryController.categories.map((e) => e.categoryName).toList(),
-      filterHatcheryController.categories.map((e) => e.id.toString()).toList(),
-      _searchController.text,
+      filterHatcheryController.categories.map((e) => e.id.toString()).toList(),''
+      // _searchController.text,
     );
 
     final brandList = filterItemsWithIds(
       filterHatcheryController.brands.map((e) => e.brandName).toList(),
-      filterHatcheryController.brands.map((e) => e.id.toString()).toList(),
-      _searchController.text,
+      filterHatcheryController.brands.map((e) => e.id.toString()).toList(),''
+      // _searchController.text,
     );
 
     final locationList = filterItemsWithIds(
@@ -178,7 +199,14 @@ class _SearchScreenState extends State<SearchScreen> {
                             _focusNode.unfocus();
                           },
                           onChanged: (value) {
-                            setState(() {});
+                            // setState(() {});
+                            filterHatcheryController.query = value;
+                            if (_skipTextDebounce) {
+                              // Reset flag so next user typing will work
+                              _skipTextDebounce = false;
+                              return;
+                            }
+                            doAfterDelay();
                           },
                           controller: _searchController,
                           decoration: InputDecoration(
@@ -193,6 +221,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                   IconButton(
                                     icon: const Icon(Icons.clear),
                                     onPressed: () {
+                                      filterHatcheryController.query = '';
                                       setState(() => _searchController.clear());
                                     },
                                   ),
@@ -222,7 +251,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
                 // ⭐ CATEGORY SECTION
                 _buildDynamicSection(
-                  title: "Category",
+                  title: "",
                   items: categoryList.map((e) => e["name"]!).toList(),
                   ids: categoryList.map((e) => e["id"]!).toList(),
                   selectedIds: filterHatcheryController.selectedCategoryIds,
@@ -231,7 +260,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
                 // // ⭐ BRAND SECTION
                 _buildDynamicSection(
-                  title: "Brand",
+                  title: "",
                   items: brandList.map((e) => e["name"]!).toList(),
                   ids: brandList.map((e) => e["id"]!).toList(),
                   selectedIds: filterHatcheryController.selectedBrandIds,
@@ -239,26 +268,25 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
 
                 // // ⭐ LOCATION SECTION
-                _buildDynamicSection(
-                  title: "Location",
-                  items: locationList.map((e) => e["name"]!).toList(),
-                  ids: locationList.map((e) => e["id"]!).toList(),
-                  selectedIds: filterHatcheryController.selectedLocationIds,
-                  sectionKey: 'location',
-                ),
-
+                // _buildDynamicSection(
+                //   title: "Location",
+                //   items: locationList.map((e) => e["name"]!).toList(),
+                //   ids: locationList.map((e) => e["id"]!).toList(),
+                //   selectedIds: filterHatcheryController.selectedLocationIds,
+                //   sectionKey: 'location',
+                // ),
                 const SizedBox(height: 80),
               ],
             ),
           );
         }),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _applyFilters,
-          label: const Text("Apply Filters"),
-          icon: const Icon(Icons.check),
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-        ),
+        // floatingActionButton: FloatingActionButton.extended(
+        //   onPressed: _applyFilters,
+        //   label: const Text("Apply Filters"),
+        //   icon: const Icon(Icons.check),
+        //   backgroundColor: AppColors.primary,
+        //   foregroundColor: Colors.white,
+        // ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       ),
     );
@@ -293,45 +321,45 @@ class _SearchScreenState extends State<SearchScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Title + View All
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.roboto(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                if (total > 4)
-                  TextButton(
-                    onPressed: () {
-                      showAllFlag.value = !showAllFlag.value;
-                    },
-                    child: Text(
-                      showAllFlag.value ? "View less" : "View all",
-                      style: GoogleFonts.roboto(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
+            if (total > 4)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.roboto(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-              ],
-            ),
 
-            const SizedBox(height: 8),
+                  if (total > 4)
+                    TextButton(
+                      onPressed: () {
+                        showAllFlag.value = !showAllFlag.value;
+                      },
+                      child: Text(
+                        showAllFlag.value ? "View less" : "View all",
+                        style: GoogleFonts.roboto(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            if (total > 4) const SizedBox(height: 8),
 
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: List.generate(displayCount, (index) {
                 final id = ids[index];
-                final name = items[index]; 
+                final name = items[index];
 
                 return FilterChip(
                   label: Text(name),
-                  color: WidgetStateProperty.all(Colors.white) ,
+                  color: WidgetStateProperty.all(Colors.white),
                   selected: selectedIds.contains(id),
                   onSelected: (bool selected) {
                     // Only controller handles state changes
@@ -342,6 +370,8 @@ class _SearchScreenState extends State<SearchScreen> {
                     } else {
                       filterHatcheryController.toggleLocation(id);
                     }
+                    _skipTextDebounce = true;
+                    doAfterDelay();
                   },
                   selectedColor: Colors.blue.shade100,
                   checkmarkColor: Colors.blue,

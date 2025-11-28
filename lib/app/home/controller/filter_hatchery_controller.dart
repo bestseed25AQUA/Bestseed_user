@@ -18,6 +18,9 @@ class FilterHatcheryController extends GetxController {
   RxSet<String> selectedBrandIds = <String>{}.obs;
   RxSet<String> selectedLocationIds = <String>{}.obs;
 
+  String query = '';
+  int page = 1;
+
   @override
   void onInit() {
     super.onInit();
@@ -109,8 +112,14 @@ class FilterHatcheryController extends GetxController {
       final String url =
           "${NetworkConfig.baseURL}/farmer/hatcheries"
           "?category_id=$categoryCSV"
-          "&location_id=$locationCSV"
-          "&brand_id=$brandCSV";
+          // "&location_id=$locationCSV"
+          "&brand_id=$brandCSV"
+          "&q=$query"
+          "&page=$page"
+          ;
+
+          print('============url===============');
+          print(url);
 
       final response = await getRequest(
         endPoint: url,
@@ -141,8 +150,8 @@ class FilterHatcheryController extends GetxController {
   }
 
   void resetFilters() {
-  selectedCategoryIds.clear();
-  selectedBrandIds.clear();
-  selectedLocationIds.clear();
-}
+    selectedCategoryIds.clear();
+    selectedBrandIds.clear();
+    selectedLocationIds.clear();
+  }
 }

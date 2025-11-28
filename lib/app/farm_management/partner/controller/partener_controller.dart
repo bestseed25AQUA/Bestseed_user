@@ -142,7 +142,6 @@ class PartnerController extends GetxController {
         headers: await buildHeader(),
         body: body,
       );
-
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         if (json["status"] == true) {

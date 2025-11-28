@@ -12,12 +12,13 @@ class HatcheryCategoryDetailScreen extends StatefulWidget {
   final String videoUrl;
   final String hatcheryId;
   final String categoryId;
+  final String hatcheryName;
 
   const HatcheryCategoryDetailScreen({
     super.key,
     required this.videoUrl,
     required this.hatcheryId,
-    required this.categoryId,
+    required this.categoryId, required this.hatcheryName,
   });
 
   @override
@@ -67,7 +68,7 @@ class _HatcheryCategoryDetailScreenState
           },
         ),
         title: Text(
-          "Seven star Hatcheries",
+          "${widget.hatcheryName}",
           style: GoogleFonts.roboto(
             color: Colors.white,
             fontSize: 20,

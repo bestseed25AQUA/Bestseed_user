@@ -94,7 +94,7 @@ class _AddFarmerDetailsFormScreenState
         backgroundColor: AppColors.primary,
       ),
       body: Builder(
-      builder:  (context) => Padding(
+        builder: (context) => Padding(
           padding: const EdgeInsets.all(16),
           child: SingleChildScrollView(
             child: Form(
@@ -267,9 +267,9 @@ class _AddFarmerDetailsFormScreenState
                     "Stocking Date",
                     stockingDate,
                     readOnly: true,
-                    onTap: pickDate,
+                    onTap: pickDate,keyboardType: TextInputType.number
                   ),
-                  textField("Store", store),
+                  textField("Store*", store, keyboardType: TextInputType.number,),
                   textField(
                     "Low Feed Limit",
                     lowFeedLimit,
@@ -296,53 +296,55 @@ class _AddFarmerDetailsFormScreenState
                               style: const TextStyle(color: Colors.white),
                             ),
 
-                      onPressed: () async {
-                        if (!_formKey.currentState!.validate()) {
-                          return;
-                        }
-                        bool success = false;
+                      onPressed: controller.isOverlay.value
+                          ? () {}
+                          : () async {
+                              if (!_formKey.currentState!.validate()) {
+                                return;
+                              }
+                              bool success = false;
 
-                        if (images.isEmpty) {
-                          CustomToast.show(
-                            message: "Please upload at least 1 image",
-                          );
-                          return;
-                        }
-                        if (isEdit) {
-                          success = await controller.updateFarmData(
-                            farmId: widget.farmData!.id!,
-                            farmName: farmName.text,
-                            stockingDate: stockingDate.text,
-                            store: store.text,
-                            lowFeedLimit: lowFeedLimit.text,
-                            tanks: tanks.text,
-                            imagePaths: images
-                                .where((item) => item.containsKey('local'))
-                                .map((item) => item['local'].toString())
-                                .toList(),
-                          );
-                        } else {
-                          success = await controller.uploadFarmData(
-                            farmName: farmName.text,
-                            stockingDate: stockingDate.text,
-                            store: store.text,
-                            lowFeedLimit: lowFeedLimit.text,
-                            tanks: tanks.text,
-                            imagePaths:
-                                images
-                                        .where(
-                                          (item) => item.containsKey('local'),
-                                        )
-                                        .map((item) => item['local'])
-                                        .toList()
-                                    as List<String>,
-                          );
-                        }
-                        if (success) {
-                          Get.back();
-                          Get.find<FarmListController>().fetchFarmList();
-                        }
-                      },
+                              if (images.isEmpty) {
+                                CustomToast.show(
+                                  message: "Please upload at least 1 image",
+                                );
+                                return;
+                              }
+                              if (isEdit) {
+                                success = await controller.updateFarmData(
+                                  farmId: widget.farmData!.id!,
+                                  farmName: farmName.text,
+                                  stockingDate: stockingDate.text,
+                                  store: store.text,
+                                  lowFeedLimit: lowFeedLimit.text,
+                                  tanks: tanks.text,
+                                  imagePaths: images
+                                      .where(
+                                        (item) => item.containsKey('local'),
+                                      )
+                                      .map((item) => item['local'].toString())
+                                      .toList(),
+                                );
+                              } else {
+                                success = await controller.uploadFarmData(
+                                  farmName: farmName.text,
+                                  stockingDate: stockingDate.text,
+                                  store: store.text,
+                                  lowFeedLimit: lowFeedLimit.text,
+                                  tanks: tanks.text,
+                                  imagePaths: images
+                                      .where(
+                                        (item) => item.containsKey('local'),
+                                      )
+                                      .map((item) => item['local'].toString())
+                                      .toList(),
+                                );
+                              }
+                              if (success) {
+                                Get.back();
+                                Get.find<FarmListController>().fetchFarmList();
+                              }
+                            },
                     );
                   }),
                 ],
@@ -389,7 +391,7 @@ class _AddFarmerDetailsFormScreenState
           },
 
           decoration: InputDecoration(
-            hintText: "Enter $label",
+            hintText: "Enter $label".replaceAll('*', ''),
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),

@@ -65,7 +65,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
           // Dropdown UI
           Positioned(
             left: offset.dx,
-            top: offset.dy + size.height + 4,
+            top: offset.dy + 13,
             width: size.width,
             child: Material(
               elevation: 6,

@@ -23,10 +23,10 @@ class TankController extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         farmList.value = TankListModel.fromJson(data);
-        // CustomToast.success('Tank Feched Successfully');
+        CustomToast.success('Tank Feched Successfully');
       }
     } catch (e) {
-      // CustomToast.error('Failed to fetch tank list');
+      CustomToast.error('Failed to fetch tank list');
     } finally {
       isLoading.value = false;
     }
@@ -205,7 +205,7 @@ class TankController extends GetxController {
   Rx<FeedStoreModel?> feedStoreData = Rx<FeedStoreModel?>(null);
   RxBool isFeedLoading = false.obs;
   RxBool isOverlay = false.obs;
-  Future<void> getFeedStore(int farmId) async {
+  Future<void> getFeedStore(dynamic farmId) async {
     try {
       isFeedLoading(true);
 
@@ -213,14 +213,16 @@ class TankController extends GetxController {
         endPoint: "${NetworkConfig.baseURL}/farmer/farm/feed-store/$farmId",
         headers: await buildHeader(),
       );
-
+      print('==========+++++++++============');
+       print(response.body.toString());
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         feedStoreData.value = FeedStoreModel.fromJson(data["data"]);
       } else {
         CustomToast.error("Failed to fetch feed store");
       }
-    } catch (e) {
+    } catch (e, s) {
+      print(s.toString());
       CustomToast.error("Something went wrong");
     } finally {
       isFeedLoading(false);
@@ -239,7 +241,7 @@ class TankController extends GetxController {
   }
 
   Future<bool> updateFeedStore({
-    required int farmId,
+    required dynamic farmId,
     required String totalFeedUsed,
     required String feedStore,
   }) async {

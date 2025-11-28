@@ -462,6 +462,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 context: context,
                 barrierDismissible: false,
                 builder: (context) => Dialog(
+                  backgroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -523,7 +524,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ),
                                 onPressed: () => Navigator.pop(context, true),
-                                child: const Text("Yes"),
+                                child: Text(
+                                  "Yes",
+                                  style: GoogleFonts.roboto(
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -550,32 +556,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
             extendBody: true,
             bottomNavigationBar: SafeArea(
               child: SizedBox(
-                height: 90,
-                child: AnimatedNotchBottomBar(
-                  kIconSize: 20,
-                  notchBottomBarController: _notchController,
-                  color: AppColors.primary,
-                  notchColor: AppColors.primary,
-                  removeMargins: true,
-                  bottomBarWidth: MediaQuery.of(context).size.width,
-                  bottomBarHeight: 40,
-                  kBottomRadius: 0,
-                  showLabel: true,
-                  itemLabelStyle: GoogleFonts.roboto(
-                    fontSize: 11,
-                    color: Colors.white,
-                  ),
-                  bottomBarItems: List.generate(
-                    icons.length,
-                    (index) => BottomBarItem(
-                      inActiveItem: Icon(icons[index], color: Colors.white70),
-                      activeItem: Icon(icons[index], color: Colors.white),
-                      itemLabel: labels[index],
+                height: 100,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      top: 25, // Space for notch curve
+                      child: Container(color: Colors.white),
                     ),
-                  ),
-                  onTap: (index) {
-                    controller.changeIndex(index);
-                  },
+                    // ✅ Foreground – Your Animated Bar
+                    Positioned(
+                      bottom: 0,
+                      child: SizedBox(
+                        height: 100,
+                        child: AnimatedNotchBottomBar(
+                          kIconSize: 20,
+                          notchBottomBarController: _notchController,
+                          color: AppColors.primary,
+                          notchColor: AppColors.primary,
+                          removeMargins: true,
+                          bottomBarWidth: MediaQuery.of(context).size.width,
+                          bottomBarHeight: 40,
+                          kBottomRadius: 0,
+                          showLabel: true,
+                          itemLabelStyle: GoogleFonts.roboto(
+                            fontSize: 11,
+                            color: Colors.white,
+                          ),
+                          bottomBarItems: List.generate(
+                            icons.length,
+                            (index) => BottomBarItem(
+                              inActiveItem: Icon(
+                                icons[index],
+                                color: Colors.white70,
+                              ),
+                              activeItem: Icon(
+                                icons[index],
+                                color: Colors.white,
+                              ),
+                              // itemLabel: labels[index],
+                              itemLabelWidget: Text(
+                                labels[index],
+                                maxLines: 1,
+                                style: GoogleFonts.roboto(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                          onTap: (index) {
+                            controller.changeIndex(index);
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

@@ -48,6 +48,7 @@ class MyApp extends StatelessWidget {
               return MediaQuery(
                 data: mediaQueryData.copyWith(textScaler: TextScaler.linear(1.0)),
                 child: GetMaterialApp(
+                  
                   navigatorKey: navigatorKey,
                   debugShowCheckedModeBanner: false,
                   title: 'Seeds User',

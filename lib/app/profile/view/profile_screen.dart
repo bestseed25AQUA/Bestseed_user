@@ -9,7 +9,7 @@ import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/controller/logout_controller.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
-import 'package:seedsuser/app/profile/view/edit_profile_screen.dart'; 
+import 'package:seedsuser/app/profile/view/edit_profile_screen.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking_screen.dart';
 import 'package:seedsuser/l10n/app_localizations.dart';
 
@@ -26,179 +26,355 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          /// Collapsible SliverAppBar
-          SliverAppBar(
-            pinned: true,
-            expandedHeight: 180,
-            backgroundColor: AppColors.primary,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () {
-                Get.back();
+      appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            Get.back();
+          },
+        ),
+        title: Text(
+          'Profile',
+          style: GoogleFonts.roboto(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        
+        bottom: PreferredSize(
+          preferredSize: Size(double.infinity, 120),
+          child: Column(
+            children: const [
+              // leave space for status bar & toolbar
+              ProfileHeader(),
+              SizedBox(height: 20,)
+            ],
+          ),
+        ),
+        flexibleSpace: FlexibleSpaceBar(
+          background: SizedBox(height: 0,),
+          // background: Column(
+          //   children: const [
+          //     SizedBox(
+          //       height: kToolbarHeight + 0,
+          //     ), // leave space for status bar & toolbar
+          //     ProfileHeader(),
+          //   ],
+          // ),
+        ),
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // / Collapsible SliverAppBar
+            // SliverAppBar(
+            //   pinned: true,
+            //   expandedHeight: 180,
+            //   backgroundColor: AppColors.primary,
+            //   leading: IconButton(
+            //     icon: const Icon(Icons.arrow_back, color: Colors.white),
+            //     onPressed: () {
+            //       Get.back();
+            //     },
+            //   ),
+            //   title: Text(
+            //     'Profile',
+            //     style: GoogleFonts.roboto(
+            //       color: Colors.white,
+            //       fontWeight: FontWeight.bold,
+            //     ),
+            //   ),
+            //   flexibleSpace: FlexibleSpaceBar(
+            //     background: Column(
+            //       children: const [
+            //         SizedBox(
+            //           height: kToolbarHeight + 0,
+            //         ), // leave space for status bar & toolbar
+            //         ProfileHeader(),
+            //       ],
+            //     ),
+            //   ),
+            // ),
+            // ProfileHeader(),
+
+            /// Body List
+            const SizedBox(height: 16),
+            ProfileMenuItem(
+              icon: Icons.notifications_none,
+              title: AppLocalizations.of(context).notifications,
+              onTap: () {
+                Get.to(() => NotificationsScreen());
               },
             ),
-            title: Text(
-              'Profile',
-              style: GoogleFonts.roboto(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+            ProfileMenuItem(
+              icon: Icons.fire_truck_outlined,
+              title: AppLocalizations.of(context).tracking,
+              onTap: () {
+                Get.to(() => VehicleTrackingPage());
+              },
             ),
-            flexibleSpace: FlexibleSpaceBar(
-              background: Column(
-                children: const [
-                  SizedBox(
-                    height: kToolbarHeight + 0,
-                  ), // leave space for status bar & toolbar
-                  ProfileHeader(),
-                ],
-              ),
+            ProfileMenuItem(
+              icon: Icons.menu,
+              title: AppLocalizations.of(context).my_bookings,
+              onTap: () {
+                Get.to(() => MyBookingScreen());
+              },
             ),
-          ),
-
-          /// Body List
-          SliverList(
-            delegate: SliverChildListDelegate([
-              const SizedBox(height: 16),
-              ProfileMenuItem(
-                icon: Icons.notifications_none,
-                title: AppLocalizations.of(context).notifications,
-                onTap: () {
-                  Get.to(() => NotificationsScreen());
-                },
-              ),
-              ProfileMenuItem(
-                icon: Icons.fire_truck_outlined,
-                title: AppLocalizations.of(context).tracking,
-                onTap: () {
-                  Get.to(() => VehicleTrackingPage());
-                },
-              ),
-              ProfileMenuItem(
-                icon: Icons.menu,
-                title: AppLocalizations.of(context).my_bookings,
-                onTap: () {
-                  Get.to(() => MyBookingScreen());
-                },
-              ),
-               ProfileMenuItem(
-                icon: Icons.menu,
-                title: "Vehicle availability",
-                onTap: () {
-                  Get.to(() => VehicleAvailabilityScreen());
-                },
-              ),
-               ProfileMenuItem(
-                icon: Icons.menu,
-                title: "Vehicle tracking",
-                onTap: () {
-                  Get.to(() => VehicleTrackingPage());
-                },
-              ),
-              ProfileMenuItem(
-                icon: Icons.headset_mic_outlined,
-                title: AppLocalizations.of(context).customer_support,
-                onTap: () {
-                  Get.to(() => VehicleTrackingPage());
-                },
-              ),
-              ProfileMenuItem(
-                icon: Icons.description_outlined,
-                title: AppLocalizations.of(context).terms_conditions,
-                onTap: () {
-                  Get.to(() => VehicleTrackingPage());
-                },
-              ),
-              ProfileMenuItem(
-                icon: FontAwesomeIcons.language,
-                title: AppLocalizations.of(context).change_languages,
-                onTap: () {
-                  Get.to(() => LanguageSelectionScreen());
-                },
-              ),
-              ProfileMenuItem(
-                icon: Icons.privacy_tip_outlined,
-                title: AppLocalizations.of(context).privacy_policy,
-                onTap: () {},
-              ),
-              ProfileMenuItem(
-                icon: Icons.star_border,
-                title: AppLocalizations.of(context).rate_us,
-                onTap: () {},
-              ),
-              ProfileMenuItem(
-                icon: Icons.share_outlined,
-                title: AppLocalizations.of(context).share_app,
-                onTap: () {},
-              ),
-              Obx(() {
-                return logoutController.isLoading.value
-                    ? Center(child: CircularProgressIndicator())
-                    : ProfileMenuItem(
-                        icon: Icons.logout,
-                        title: AppLocalizations.of(context).logout,
-                        onTap: () {
-                          Get.bottomSheet(
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(20),
-                                ),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    "Are you sure you want to logout?",
-                                    style: GoogleFonts.roboto(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          onPressed: () {
-                                            Get.back(); // close bottom sheet
-                                          },
-                                          child: const Text("Cancel"),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: ElevatedButton(
-                                          onPressed: () {
-                                            Get.back();
-                                            logoutController.logout();
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.primary,
-                                            foregroundColor: Colors.white,
-                                          ),
-                                          child: const Text("Logout"),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 10),
-                                ],
+            ProfileMenuItem(
+              icon: Icons.menu,
+              title: "Vehicle availability",
+              onTap: () {
+                Get.to(() => VehicleAvailabilityScreen());
+              },
+            ),
+            ProfileMenuItem(
+              icon: Icons.menu,
+              title: "Vehicle tracking",
+              onTap: () {
+                Get.to(() => VehicleTrackingPage());
+              },
+            ),
+            ProfileMenuItem(
+              icon: Icons.headset_mic_outlined,
+              title: AppLocalizations.of(context).customer_support,
+              onTap: () {
+                Get.to(() => VehicleTrackingPage());
+              },
+            ),
+            ProfileMenuItem(
+              icon: Icons.description_outlined,
+              title: AppLocalizations.of(context).terms_conditions,
+              onTap: () {
+                Get.to(() => VehicleTrackingPage());
+              },
+            ),
+            ProfileMenuItem(
+              icon: FontAwesomeIcons.language,
+              title: AppLocalizations.of(context).change_languages,
+              onTap: () {
+                Get.to(() => LanguageSelectionScreen());
+              },
+            ),
+            ProfileMenuItem(
+              icon: Icons.privacy_tip_outlined,
+              title: AppLocalizations.of(context).privacy_policy,
+              onTap: () {},
+            ),
+            ProfileMenuItem(
+              icon: Icons.star_border,
+              title: AppLocalizations.of(context).rate_us,
+              onTap: () {},
+            ),
+            ProfileMenuItem(
+              icon: Icons.share_outlined,
+              title: AppLocalizations.of(context).share_app,
+              onTap: () {},
+            ),
+            Obx(() {
+              return logoutController.isLoading.value
+                  ? Center(child: CircularProgressIndicator())
+                  : ProfileMenuItem(
+                      icon: Icons.logout,
+                      title: AppLocalizations.of(context).logout,
+                      onTap: () {
+                        Get.bottomSheet(
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(20),
                               ),
                             ),
-                            isDismissible: true,
-                          );
-                        },
-                        isShow: false,
-                      );
-              }),
-            ]),
-          ),
-        ],
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  "Are you sure you want to logout?",
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: () {
+                                          Get.back(); // close bottom sheet
+                                        },
+                                        child: const Text("Cancel"),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        onPressed: () {
+                                          Get.back();
+                                          logoutController.logout();
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.primary,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                        child: const Text("Logout"),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                            ),
+                          ),
+                          isDismissible: true,
+                        );
+                      },
+                      isShow: false,
+                    );
+            }),
+          ],
+        ),
+        // SliverList(
+        //   delegate: SliverChildListDelegate([
+        //     const SizedBox(height: 16),
+        //     ProfileMenuItem(
+        //       icon: Icons.notifications_none,
+        //       title: AppLocalizations.of(context).notifications,
+        //       onTap: () {
+        //         Get.to(() => NotificationsScreen());
+        //       },
+        //     ),
+        //     ProfileMenuItem(
+        //       icon: Icons.fire_truck_outlined,
+        //       title: AppLocalizations.of(context).tracking,
+        //       onTap: () {
+        //         Get.to(() => VehicleTrackingPage());
+        //       },
+        //     ),
+        //     ProfileMenuItem(
+        //       icon: Icons.menu,
+        //       title: AppLocalizations.of(context).my_bookings,
+        //       onTap: () {
+        //         Get.to(() => MyBookingScreen());
+        //       },
+        //     ),
+        //     ProfileMenuItem(
+        //       icon: Icons.menu,
+        //       title: "Vehicle availability",
+        //       onTap: () {
+        //         Get.to(() => VehicleAvailabilityScreen());
+        //       },
+        //     ),
+        //     ProfileMenuItem(
+        //       icon: Icons.menu,
+        //       title: "Vehicle tracking",
+        //       onTap: () {
+        //         Get.to(() => VehicleTrackingPage());
+        //       },
+        //     ),
+        //     ProfileMenuItem(
+        //       icon: Icons.headset_mic_outlined,
+        //       title: AppLocalizations.of(context).customer_support,
+        //       onTap: () {
+        //         Get.to(() => VehicleTrackingPage());
+        //       },
+        //     ),
+        //     ProfileMenuItem(
+        //       icon: Icons.description_outlined,
+        //       title: AppLocalizations.of(context).terms_conditions,
+        //       onTap: () {
+        //         Get.to(() => VehicleTrackingPage());
+        //       },
+        //     ),
+        //     ProfileMenuItem(
+        //       icon: FontAwesomeIcons.language,
+        //       title: AppLocalizations.of(context).change_languages,
+        //       onTap: () {
+        //         Get.to(() => LanguageSelectionScreen());
+        //       },
+        //     ),
+        //     ProfileMenuItem(
+        //       icon: Icons.privacy_tip_outlined,
+        //       title: AppLocalizations.of(context).privacy_policy,
+        //       onTap: () {},
+        //     ),
+        //     ProfileMenuItem(
+        //       icon: Icons.star_border,
+        //       title: AppLocalizations.of(context).rate_us,
+        //       onTap: () {},
+        //     ),
+        //     ProfileMenuItem(
+        //       icon: Icons.share_outlined,
+        //       title: AppLocalizations.of(context).share_app,
+        //       onTap: () {},
+        //     ),
+        //     Obx(() {
+        //       return logoutController.isLoading.value
+        //           ? Center(child: CircularProgressIndicator())
+        //           : ProfileMenuItem(
+        //               icon: Icons.logout,
+        //               title: AppLocalizations.of(context).logout,
+        //               onTap: () {
+        //                 Get.bottomSheet(
+        //                   Container(
+        //                     padding: const EdgeInsets.all(16),
+        //                     decoration: BoxDecoration(
+        //                       color: Colors.white,
+        //                       borderRadius: const BorderRadius.vertical(
+        //                         top: Radius.circular(20),
+        //                       ),
+        //                     ),
+        //                     child: Column(
+        //                       mainAxisSize: MainAxisSize.min,
+        //                       children: [
+        //                         Text(
+        //                           "Are you sure you want to logout?",
+        //                           style: GoogleFonts.roboto(
+        //                             fontSize: 16,
+        //                             fontWeight: FontWeight.bold,
+        //                           ),
+        //                         ),
+        //                         const SizedBox(height: 20),
+        //                         Row(
+        //                           children: [
+        //                             Expanded(
+        //                               child: OutlinedButton(
+        //                                 onPressed: () {
+        //                                   Get.back(); // close bottom sheet
+        //                                 },
+        //                                 child: const Text("Cancel"),
+        //                               ),
+        //                             ),
+        //                             const SizedBox(width: 10),
+        //                             Expanded(
+        //                               child: ElevatedButton(
+        //                                 onPressed: () {
+        //                                   Get.back();
+        //                                   logoutController.logout();
+        //                                 },
+        //                                 style: ElevatedButton.styleFrom(
+        //                                   backgroundColor: AppColors.primary,
+        //                                   foregroundColor: Colors.white,
+        //                                 ),
+        //                                 child: const Text("Logout"),
+        //                               ),
+        //                             ),
+        //                           ],
+        //                         ),
+        //                         const SizedBox(height: 10),
+        //                       ],
+        //                     ),
+        //                   ),
+        //                   isDismissible: true,
+        //                 );
+        //               },
+        //               isShow: false,
+        //             );
+        //     }),
+        //   ]),
+        // ),  G
       ),
     );
   }

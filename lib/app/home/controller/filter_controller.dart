@@ -84,7 +84,7 @@ class FilterController extends GetxController {
       isLoading.value = true;
       final response = await getRequest(
         endPoint:
-            "${NetworkConfig.baseURL}/farmer/prices?category_id=${selectedCategory.value!.id}&location_id=${selectedLocation.value!.id}",
+            "${NetworkConfig.baseURL}/farmer/prices?category_id=${selectedCategory.value!.id}", //&location_id=${selectedLocation.value!.id
         headers: await buildHeader(),
       );
 

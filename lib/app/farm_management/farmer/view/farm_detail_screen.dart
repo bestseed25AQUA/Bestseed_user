@@ -162,20 +162,22 @@ class FeedStoreCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 20),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // TOTAL FEED USED
               Column(
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   Text(
                     "Total feed used",
                     style: GoogleFonts.roboto(
-                      color: Colors.white70,
-                      fontSize: 14,
+                      color: Colors.white,
+                      fontSize: 14,fontWeight: FontWeight.bold
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    data?.totalFeedUsed ?? "0",
+                    data?.totalFeedUsed.toString()??"0",
                     style: GoogleFonts.roboto(
                       color: Colors.white,
                       fontSize: 24,
@@ -183,12 +185,12 @@ class FeedStoreCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () {
-                      // showEditFeedBottomSheet(farmId);
-                    },
-                    child: EditButton(),
-                  ),
+                  // InkWell(
+                  //   onTap: () {
+                  //     showEditFeedBottomSheet(farmId.toString());
+                  //   },
+                  //   child: EditButton(),
+                  // ),
                 ],
               ),
 
@@ -204,13 +206,14 @@ class FeedStoreCard extends StatelessWidget {
                   Text(
                     "Store",
                     style: GoogleFonts.roboto(
-                      color: Colors.white70,
+
+                      color: Colors.white,fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    data?.feedStore ?? "0",
+                    data?.feedStore.toString()??"0",
                     style: GoogleFonts.roboto(
                       color: Colors.white,
                       fontSize: 24,
@@ -220,7 +223,8 @@ class FeedStoreCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   InkWell(
                     onTap: () {
-                      showEditFeedBottomSheet(farmId);
+                      print(farmId.toString());
+                      showEditFeedBottomSheet(farmId.toString());
                     },
                     child: EditButton(),
                   ),
@@ -637,10 +641,10 @@ void showEditFeedBottomSheet(String farmId) {
   final TankController controller = Get.find();
 
   final totalFeedController = TextEditingController(
-    text: controller.feedStoreData.value?.totalFeedUsed ?? "",
+    text: controller.feedStoreData.value?.totalFeedUsed.toString(),
   );
   final storeController = TextEditingController(
-    text: controller.feedStoreData.value?.feedStore ?? "",
+    text: controller.feedStoreData.value?.feedStore.toString(),
   );
 
   Get.bottomSheet(
@@ -702,7 +706,7 @@ void showEditFeedBottomSheet(String farmId) {
             return GestureDetector(
               onTap: () async {
                 bool ok = await controller.updateFeedStore(
-                  farmId: int.parse(farmId),
+                  farmId: farmId,
                   totalFeedUsed: totalFeedController.text.trim(),
                   feedStore: storeController.text.trim(),
                 );
@@ -711,7 +715,7 @@ void showEditFeedBottomSheet(String farmId) {
                   Get.back();
                   print('++++++++++++++loading the data+++++++++++++=');
                   controller.getFeedStore(
-                     int.parse(farmId),
+                    farmId
                   );
                   storeController.text = storeController.text.trim();
                 }
