@@ -12,6 +12,7 @@ import 'package:seedsuser/app/updates/model/hatchery_update_model.dart';
 import 'package:seedsuser/app/updates/view/hatchery_details_screen.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:readmore/readmore.dart';
 
 class UpdatesScreen extends StatefulWidget {
   UpdatesScreen({super.key});
@@ -30,7 +31,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   }
 
   initunc() async {
-    await hatcheryUpdatesController.fetchBanners();
+    // await hatcheryUpdatesController.fetchBanners();
     await hatcheryUpdatesController.fetchHatcheryUpdates();
   }
 
@@ -76,30 +77,33 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
         child: Column(
           children: [
             // SizedBox(height: 16),
-            Obx(() {
-              return Container(
-                decoration: BoxDecoration(color: Colors.grey.withOpacity(.3)),
-                child: MediaCarouselWidget(
-                  mediaUrls: List.generate(
-                    hatcheryUpdatesController.banners.length,
-                    (index) => hatcheryUpdatesController.banners[index].url,
-                  ),
+            // Obx(() {
+            //   return Container(
+            //     decoration: BoxDecoration(color: Colors.grey.withOpacity(.3)),
+            //     child: MediaCarouselWidget(
+            //       mediaUrls: List.generate(
+            //         hatcheryUpdatesController.banners.length,
+            //         (index) => hatcheryUpdatesController.banners[index].url,
+            //       ),
 
-                  mediaTypes: List.generate(
-                    hatcheryUpdatesController.banners.length,
-                    (index) => hatcheryUpdatesController.banners[index].type,
-                  ),
-                ),
-              );
-            }),
+            //       mediaTypes: List.generate(
+            //         hatcheryUpdatesController.banners.length,
+            //         (index) => hatcheryUpdatesController.banners[index].type,
+            //       ),
+            //     ),
+            //   );
+            // }),
             SizedBox(height: 16),
             Obx(() {
               if (hatcheryUpdatesController.isLoading.value) {
-                return Padding(
-                  padding: EdgeInsets.only(
-                    top: MediaQuery.of(context).size.height * .3,
+                return SizedBox(
+                  width: MediaQuery.of(context).size.width,
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      top: MediaQuery.of(context).size.height * .3,
+                    ),
+                    child: Center(child: CircularProgressIndicator()),
                   ),
-                  child: CircularProgressIndicator(),
                 );
               }
               return ListView.builder(
@@ -119,17 +123,18 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                         .value
                         ?.data?[index],
                     ontap: () {
-                      hatcheryUpdatesController.fetchHatcheryUpdatesSingle(
-                        id:
-                            hatcheryUpdatesController
-                                .hatcheryData
-                                .value
-                                ?.data?[index]
-                                .id
-                                .toString() ??
-                            '',
+                      Get.to(
+                        () => HatcheryDetailsScreen(
+                          id:
+                              hatcheryUpdatesController
+                                  .hatcheryData
+                                  .value
+                                  ?.data?[index]
+                                  .hatcheryId
+                                  ?.toString() ??
+                              '',
+                        ),
                       );
-                      Get.to(() => HatcheryDetailsScreen());
                     },
                   );
                 },
@@ -149,6 +154,7 @@ class PostWidget extends StatefulWidget {
   const PostWidget({super.key, required this.postData, this.ontap});
 
   @override
+  // ignore: library_private_types_in_public_api
   _PostWidgetState createState() => _PostWidgetState();
 }
 
@@ -234,24 +240,42 @@ class _PostWidgetState extends State<PostWidget> {
           // Post Text
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: Text(
+            child: ReadMoreText(
               widget.postData?.caption ?? '',
+              trimLines: 2, // kitni lines tak dikhani hai
+              colorClickableText: Colors.blue,
+              trimMode: TrimMode.Line,
+              trimCollapsedText: ' View More',
+              trimExpandedText: ' View Less',
               style: GoogleFonts.roboto(fontSize: 14),
+              moreStyle: GoogleFonts.roboto(
+                fontSize: 14,
+                color: Colors.blue,
+                fontWeight: FontWeight.w500,
+              ),
+              lessStyle: GoogleFonts.roboto(
+                fontSize: 14,
+                color: Colors.blue,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
+          SizedBox(height: 10),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
 
             child: Builder(
               builder: (context) {
                 final tags = widget.postData?.hashtags ?? [];
-                final formatted = tags
-                    .map((e) => "#${e.name.toLowerCase()}")
-                    .join("  "); // double space
+                final formatted = tags.toString(); // double space
 
                 return Text(
-                  formatted,
-                  style: GoogleFonts.roboto(fontSize: 14, color: Colors.black),
+                  formatted.replaceAll('[', '').replaceAll(']', ''),
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                  ),
                 );
               },
             ),

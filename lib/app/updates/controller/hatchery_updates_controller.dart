@@ -38,7 +38,7 @@ class HatcheryUpdatesController extends GetxController {
       CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false; 
-      loadDummyBanners();
+      // loadDummyBanners();
     }
   }
 
@@ -73,40 +73,6 @@ class HatcheryUpdatesController extends GetxController {
     }
   }
 
-  void loadDummyHatcheries() {
-  hatcheryHomeData.value = HatcheryModel.fromJson({
-    "status": true,
-    "message": "Hatchery list fetched successfully",
-    "data": [
-      {
-        "hatchery_id": "101",
-        "hatchery_name": "Rama Hatchery",
-        "profile_image": "https://i.pravatar.cc/150?img=10",
-        "view_profile_url": "https://example.com/hatchery/101"
-      },
-      {
-        "hatchery_id": "102",
-        "hatchery_name": "Gayathri Hatchery",
-        "profile_image": "https://i.pravatar.cc/150?img=12",
-        "view_profile_url": "https://example.com/hatchery/102"
-      },
-      {
-        "hatchery_id": "103",
-        "hatchery_name": "Sree Aqua Hatchery",
-        "profile_image": "https://i.pravatar.cc/150?img=14",
-        "view_profile_url": "https://example.com/hatchery/103"
-      },
-      {
-        "hatchery_id": "104",
-        "hatchery_name": "Blue Ocean Hatchery",
-        "profile_image": "https://i.pravatar.cc/150?img=18",
-        "view_profile_url": "https://example.com/hatchery/104"
-      }
-    ]
-  });
-
-  print("Dummy hatchery list loaded successfully");
-}
 
 
   var isLoading = true.obs;
@@ -129,7 +95,6 @@ class HatcheryUpdatesController extends GetxController {
     } catch (e) {
       CustomToast.error("Something went wrong  ");
     } finally {
-      dummyUpdates();
       isLoading.value = false;
     }
   }
@@ -139,9 +104,9 @@ class HatcheryUpdatesController extends GetxController {
 
   Future<void> fetchHatcheryUpdatesSingle({required String id}) async {
     try {
-      isLoading.value = true;
+      isSingleLoading.value = true;
       final response = await getRequest(
-        endPoint: "${NetworkConfig.baseURL}/farmer/hatchery-updates?id=$id",
+        endPoint: "${NetworkConfig.baseURL}/farmer/hatchery-updates/$id",
         headers: await buildHeader(),
       );
 
@@ -153,9 +118,8 @@ class HatcheryUpdatesController extends GetxController {
       }
     } catch (e) {
       CustomToast.error("Something went wrong  ");
-    } finally {
-      dummyUpdatesSingle();
-      isLoading.value = false;
+    } finally { 
+      isSingleLoading.value = false;
     }
   }
 

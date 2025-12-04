@@ -88,17 +88,15 @@ class HatcheryUpdatesWidget extends StatelessWidget {
                         imagePath: data?.hatcheryLogo ?? '',
                         hatcheryName: data?.hatcheryName ?? '',
                         viewProfileTap: () {
-                          hatcheryUpdatesController.fetchHatcheryUpdatesSingle(
-                            id: data?.hatcheryId ?? '',
+                          Get.to(
+                            HatcheryDetailsScreen(id: data?.hatcheryId ?? ''),
                           );
-                          Get.to(HatcheryDetailsScreen());
                         },
                       );
                     },
                   ),
                 );
         }),
-       
       ],
     );
   }

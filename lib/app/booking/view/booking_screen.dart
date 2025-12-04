@@ -27,7 +27,6 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
 
   void applyFilter(String filter) async {
     DateTime now = DateTime.now();
-
     if (filter == "Today") {
       controller.selectedDate.value =
           "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
@@ -70,6 +69,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
       controller.selectedYear.value = "";
 
       controller.fetchBookings();
+      // ignore: use_build_context_synchronously
       Navigator.pop(context);
     }
   }
@@ -306,6 +306,45 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
     );
   }
 
+  String selectedFilter = "";
+  Widget buildFilterChip(String label) {
+    bool isSelected = selectedFilter == label;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedFilter = label;
+        });
+
+        // CALL YOUR FILTER LOGIC HERE
+        if (label == "All") {
+          controller.filterType.value = "";
+        } else if (label == "Hatchery") {
+          controller.filterType.value = "hatchery";
+        } else if (label == "Spot Hatchery") {
+          controller.filterType.value = "spot";
+        }
+
+        controller.fetchBookings(); // refresh bookings
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue.shade100 : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -349,30 +388,65 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
           ),
         ],
       ),
-      body: Obx(() {
-        if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (controller.bookingList.isEmpty) {
-          return Center(
-            child: Text(
-              "No bookings found",
-              style: GoogleFonts.roboto(fontSize: 16),
-            ),
-          );
-        }
+      body: Builder(
+        builder: (context) {
+          return Column(
+            children: [
+              // Inside your build() Widget
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 20,
+                ),
+                child: Row(
+                  children: [
+                    buildFilterChip("All"),
+                    const SizedBox(width: 10),
+                    buildFilterChip("Hatchery"),
+                    const SizedBox(width: 10),
+                    buildFilterChip("Spot Hatchery"),
+                  ],
+                ),
+              ),
 
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: ListView.builder(
-            itemCount: controller.bookingList.length,
-            itemBuilder: (context, index) {
-              final booking = controller.bookingList[index];
-              return _buildBookingCard(context, booking);
-            },
-          ),
-        );
-      }),
+              Obx(() {
+                if (controller.isLoading.value) {
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      top: MediaQuery.of(context).size.height * .3,
+                    ),
+                    child: const Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (controller.bookingList.isEmpty) {
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      top: MediaQuery.of(context).size.height * .3,
+                    ),
+                    child: Center(
+                      child: Text(
+                        "No bookings found",
+                        style: GoogleFonts.roboto(fontSize: 16),
+                      ),
+                    ),
+                  );
+                }
+                return Expanded(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    itemCount: controller.bookingList.length,
+                    itemBuilder: (context, index) {
+                      final booking = controller.bookingList[index];
+                      return _buildBookingCard(booking);
+                    },
+                  ),
+                );
+              }),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -407,31 +481,203 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
   }
 
   // 🔹 Booking Card UI
-  Widget _buildBookingCard(BuildContext context, BookingData booking) {
+  Widget _buildBookingCard(BookingData data) {
+    // Status color
+    Color statusColor = Colors.orange;
+    if (data.status.toLowerCase() == "in progress") {
+      statusColor = Colors.green;
+    } else if (data.status.toLowerCase() == "completed") {
+      statusColor = Colors.blue;
+    }
+
     return Container(
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(.1), width: 1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 1,
-            offset: const Offset(1, 3),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildImageSection(
-            booking.images.isNotEmpty ? booking.images[0] : '',
-          ), // No image in API, using placeholder
+          // -------------------- TOP ROW --------------------
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                data.isSpot?.value == 1 ? "Spot Hatchery" : 'Hatchery',
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+
+              // Status Badge
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  (data.status).capitalizeFirst ?? '',
+                  style: GoogleFonts.roboto(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
           const SizedBox(height: 12),
-          _buildInfoSection(booking),
+
+          // -------------------- ID + DATETIME --------------------
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "ID:",
+                    style: GoogleFonts.roboto(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width * .3,
+                    child: Text(
+                      data.bookingUid,
+                      style: GoogleFonts.roboto(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                data.deliveryDatetime,
+                style: GoogleFonts.roboto(
+                  fontSize: 13,
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // -------------------- HATCHERY NAME --------------------
+          Text(
+            data.hatcheryName,
+            style: GoogleFonts.roboto(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Text(
+            data.categoryName,
+            style: GoogleFonts.roboto(
+              fontSize: 13,
+              color: Colors.grey.shade600,
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // -------------------- PIECES + DATE --------------------
+          Row(
+            children: [
+              Image.asset(
+                'assets/images/pieces_icon.png',
+                height: 25,
+                width: 25,
+                errorBuilder: (context, error, stackTrace) {
+                  return SizedBox(height: 20, width: 20);
+                },
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  "${data.noOfPieces} Pieces",
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+
+              const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
+              const SizedBox(width: 6),
+              Text(
+                data.packingDate,
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // -------------------- ADDRESS --------------------
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.location_on, size: 22, color: Colors.grey),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  data.droppingLocation,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // -------------------- VIEW DETAILS BUTTON --------------------
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              "View Details",
+              style: GoogleFonts.roboto(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade800,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -452,70 +698,6 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
   }
 
   // 🔹 Info Section
-  Widget _buildInfoSection(BookingData booking) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 🔹 Title (Hatchery Name)
-        Text(
-          booking.hatcheryName,
-          style: GoogleFonts.roboto(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.black,
-          ),
-        ),
-
-        // 🔹 Sub Title (Not available in API → use customerName as subtitle)
-        Text(
-          booking.categories.isNotEmpty
-              ? booking.categories[0].categoryName
-              : '',
-          style: GoogleFonts.roboto(fontSize: 14, color: Colors.black54),
-        ),
-
-        const SizedBox(height: 16),
-
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            /// LEFT SIDE
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _iconText(Icons.person, booking.customerName),
-                  const SizedBox(height: 12),
-
-                  _iconText(Icons.inventory_2, "${booking.noOfPieces} Pieces"),
-                  const SizedBox(height: 12),
-
-                  _iconText(
-                    Icons.calendar_today,
-                    formatDateDMY(booking.packingDate),
-                  ),
-                ],
-              ),
-            ),
-
-            SizedBox(width: 16),
-
-            /// RIGHT SIDE
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _iconText(Icons.phone, booking.customerMobile),
-                  const SizedBox(height: 12),
-                  _iconText(Icons.location_on, booking.droppingLocation),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
 
   Widget _iconText(IconData icon, String value) {
     return Row(

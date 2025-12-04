@@ -91,7 +91,7 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
         );
       },
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(borderRadius??30),
         child: Image.network(
           url,
           width: double.infinity,

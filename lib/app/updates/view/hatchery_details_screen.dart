@@ -9,7 +9,8 @@ import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dar
 import 'package:seedsuser/app/updates/view/update_screen.dart';
 
 class HatcheryDetailsScreen extends StatefulWidget {
-  const HatcheryDetailsScreen({super.key});
+  HatcheryDetailsScreen({super.key, required this.id});
+  final String id;
 
   @override
   State<HatcheryDetailsScreen> createState() => _HatcheryDetailsScreenState();
@@ -20,9 +21,21 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
 
   @override
   void initState() {
+    initFunc();
+
     super.initState();
   }
 
+  initFunc() async {
+    await Future.delayed(Duration(seconds: 1));
+    hatcheryUpdatesController.fetchHatcheryUpdatesSingle(id: widget.id);
+  }
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    hatcheryUpdatesController.isSingleLoading(true);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,18 +99,51 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
                         children: [
                           ClipOval(
                             child: Image.network(
-                              "https://i.pravatar.cc/150?img=10",
+                              (hatcheryUpdatesController
+                                          .hatcherySingleData
+                                          .value
+                                          ?.data
+                                          ?.isEmpty ??
+                                      true)
+                                  ? ""
+                                  : (hatcheryUpdatesController
+                                            .hatcherySingleData
+                                            .value
+                                            ?.data?[0]
+                                            .profileImage ??
+                                        ''),
                               width: 50,
                               height: 50,
                               fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return CircleAvatar(
+                                  radius: 25,
+                                  backgroundColor: Colors.grey.withOpacity(.2),
+                                );
+                              },
                             ),
                           ),
                           const SizedBox(width: 10),
-                          Text(
-                            "Hatchery",
-                            style: GoogleFonts.roboto(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
+                          SizedBox(
+                            width: MediaQuery.of(context).size.width*.3,
+                            child: Text(
+                              (hatcheryUpdatesController
+                                          .hatcherySingleData
+                                          .value
+                                          ?.data
+                                          ?.isEmpty ??
+                                      true)
+                                  ? ""
+                                  : (hatcheryUpdatesController
+                                            .hatcherySingleData
+                                            .value
+                                            ?.data?[0]
+                                            .hatcheryName ??
+                                        ''),
+                              style: GoogleFonts.roboto(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
@@ -113,7 +159,19 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
                           ),
                           const SizedBox(width: 5),
                           Text(
-                            "Location",
+                            (hatcheryUpdatesController
+                                        .hatcherySingleData
+                                        .value
+                                        ?.data
+                                        ?.isEmpty ??
+                                    true)
+                                ? ""
+                                : (hatcheryUpdatesController
+                                          .hatcherySingleData
+                                          .value
+                                          ?.data?[0]
+                                          .locationName ??
+                                      ''),
                             style: GoogleFonts.roboto(fontSize: 14),
                           ),
                         ],
@@ -125,7 +183,7 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
             ),
             SizedBox(height: 16),
             Obx(() {
-              if (hatcheryUpdatesController.isLoading.value) {
+              if (hatcheryUpdatesController.isSingleLoading.value) {
                 return Padding(
                   padding: EdgeInsets.only(
                     top: MediaQuery.of(context).size.height * .3,

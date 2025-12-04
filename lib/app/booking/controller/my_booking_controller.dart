@@ -44,12 +44,16 @@ class MyBookingController extends GetxController {
   var selectedMonth = ''.obs;
   var selectedYear = ''.obs;
   var selectedDate = ''.obs;
+  var filterType = ''.obs;
   Future<void> fetchBookings() async {
     try {
       isLoading.value = true;
 
       // Build Query
       String query = "";
+      if (filterType.value.isNotEmpty) {
+        query += "?type=${filterType.value}";
+      }
       if (selectedMonth.value.isNotEmpty) {
         query += "?month=${selectedMonth.value}";
       }

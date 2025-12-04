@@ -63,37 +63,34 @@ class _HomeScreenState extends State<HomeScreen>
         vsync: this,
       );
       _tabController?.addListener(() {
-
         currentTabIndex = (_tabController?.index ?? 0);
-        _homeController.selectedCategoryId.value = currentTabIndex == 0
+        print('++++++++tab controller index ${_tabController?.index}');
+        print('++++++++currentTabIndex ${_tabController?.index}');
+        print('${(currentTabIndex == 0)}=====');
+        _homeController.selectedCategoryId.value = (currentTabIndex == 0)
             ? ''
             : _homeController.categories[currentTabIndex - 1].id.toString();
 
-        _homeController.selectedCateogryName.value = _homeController
-            .categories[currentTabIndex - 1]
-            .categoryName
-            .toString();
-          if((_tabController?.index ?? 0)==0){
-             print('=======++++===========');
-            _homeController.selectedCateogryName.value = '';
-          }
+        _homeController.selectedCateogryName.value = (currentTabIndex == 0)
+            ? ''
+            : _homeController.categories[currentTabIndex - 1].categoryName.toString();
+
+
+        print('current tab is ${_tabController?.index}');
+        print('category selected ${_homeController.selectedCategoryId.value}');
+        if ((_tabController?.index ?? 0) == 0) {
+          print('=======++++===========');
+          _homeController.selectedCateogryName.value = '';
+        }
         if (kDebugMode) {
           print('============category name=====${currentTabIndex}====');
         }
-         print(_homeController.selectedCateogryName.value);
+        print(_homeController.selectedCateogryName.value);
         _homeController.changeHomeData(
           _homeController.selectedCategoryId.value,
           _locationController.selectedLocationId.value,
         );
       });
-    }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_homeController.categories.isNotEmpty) {
-      _initTabController();
     }
   }
 

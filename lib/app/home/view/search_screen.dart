@@ -77,24 +77,23 @@ class _SearchScreenState extends State<SearchScreen> {
 
   /// 🔹 Voice Input Logic
   Future<void> _toggleVoiceInput() async {
-    if (!_isListening){
+    if (!_isListening) {
       bool available = await _speech.initialize(
         onStatus: (val) => print('onStatus: $val'),
         onError: (val) => print('onError: $val'),
       );
       if (available) {
         setState(() => _isListening = true);
-         _speech.listen(
+        _speech.listen(
           onResult: (val) {
-            setState((){
+            setState(() {
               _voiceText = val.recognizedWords;
               _searchController.text = _voiceText;
               filterHatcheryController.query = _voiceText;
             });
-             _applyFilters();
+            _applyFilters();
           },
         );
-        
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Speech recognition not available")),
@@ -140,13 +139,15 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final categoryList = filterItemsWithIds(
       filterHatcheryController.categories.map((e) => e.categoryName).toList(),
-      filterHatcheryController.categories.map((e) => e.id.toString()).toList(),''
+      filterHatcheryController.categories.map((e) => e.id.toString()).toList(),
+      '',
       // _searchController.text,
     );
 
     final brandList = filterItemsWithIds(
       filterHatcheryController.brands.map((e) => e.brandName).toList(),
-      filterHatcheryController.brands.map((e) => e.id.toString()).toList(),''
+      filterHatcheryController.brands.map((e) => e.id.toString()).toList(),
+      '',
       // _searchController.text,
     );
 
@@ -292,7 +293,6 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // ⭐ PART 2 of 3 — UPDATED DYNAMIC SECTION
   Widget _buildDynamicSection({
     required String title,
     required List<String> items,

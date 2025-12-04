@@ -277,109 +277,141 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
       color: Colors.white,
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image section with overlay
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(15),
-                ),
-                child: Image.network(
-                  data.images.isNotEmpty ?? false ? data.images[0] : '',
-                  height: 160,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 160,
-                    color: Colors.grey[300],
-                    child: const Center(child: Icon(Icons.broken_image)),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 10,
-                right: 10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row 1 → Name + Count
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
                   child: Text(
-                    data.availableOn,
+                    data.hatcheryName,
                     style: GoogleFonts.roboto(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
                       color: Colors.black,
-                      fontSize: 12,
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.only(left: 12),
-            child: Text(
-              data.packingStart,
-              style: GoogleFonts.roboto(
-                color: AppColors.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(14.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
                 Text(
-                  data.hatcheryName,
+                  "Count",
                   style: GoogleFonts.roboto(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-
-                // Row(
-                //   children: [
-                //     const Icon(Icons.location_on, color: Colors.grey, size: 16),
-                //     const SizedBox(width: 4),
-                //     Text(
-                //       data.location,
-                //       style: GoogleFonts.roboto(color: Colors.grey),
-                //     ),
-                //   ],
-                // ),
-                // const SizedBox(height: 8),
-                // Text(
-                //   data.category.map((e) => e.capitalizeFirst ?? e).join(', '),
-                //   style: GoogleFonts.roboto(fontWeight: FontWeight.w500),
-                // ),
-                const SizedBox(height: 4),
-                Text('Imported Date: ${data.importedDate ?? ''}'),
-                const SizedBox(height: 8),
-                Text(
-                  'Available Quantity',
-                  style: GoogleFonts.roboto(color: Colors.grey[700]),
-                ),
-                Text(
-                  data.availableQuantity,
-                  style: GoogleFonts.roboto(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 14,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
+
+            const SizedBox(height: 6),
+
+            // Row 2 → Location
+            Row(
+              children: [
+                const Icon(Icons.location_on, size: 18, color: Colors.black54),
+                const SizedBox(width: 3),
+                Expanded(
+                  child: Text(
+                    "Location",
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                Text(
+                  data.availableQuantity,
+                  style: GoogleFonts.roboto(
+                    fontSize: 20,
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 4),
+
+            // Supplier + Imported Date
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    data.supplierName,
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+                Text(
+                  '20/06/2025', //  data.importedDate,
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Chips Row → Available + Packing (conditional)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (data.availableOn.isNotEmpty)
+                  _buildChip(
+                    label: data.availableOn.replaceAll(" on", ''),
+                    bgColor: Colors.green.withOpacity(0.15),
+                    textColor: Colors.green[800]!,
+                  ),
+
+                // if (data.availableOn.isNotEmpty && data.packingStart.isNotEmpty)
+                //   const SizedBox(width: 10),
+
+                if (data.packingStart.isNotEmpty)
+                  _buildChip(
+                    label: "${data.packingStart}",
+                    bgColor: Colors.blue.withOpacity(0.15),
+                    textColor: Colors.blue[700]!,
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChip({
+    required String label,
+    required Color bgColor,
+    required Color textColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: SizedBox(
+        width: MediaQuery.of(context).size.width * .4-22,
+        child: Center(
+          child: Text(
+            label,
+            style: GoogleFonts.roboto(
+              fontSize: 12,
+              color: textColor,
+              fontWeight: FontWeight.w500
+            ),maxLines: 1,textAlign: TextAlign.center,overflow: TextOverflow.ellipsis,
           ),
-        ],
+        ),
       ),
     );
   }

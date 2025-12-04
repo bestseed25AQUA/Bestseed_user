@@ -85,7 +85,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title:  Text(widget.title?? "Hatcheries"),
+        title:  Text(widget.title??((widget.title?.isEmpty??true)? "Hatcheries":'')),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
