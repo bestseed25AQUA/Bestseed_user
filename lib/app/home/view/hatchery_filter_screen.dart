@@ -12,7 +12,8 @@ import 'package:seedsuser/app/home/widget/hatchery_widgets.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class HatcheryFilterScreen extends StatefulWidget {
-  const HatcheryFilterScreen({super.key});
+  const HatcheryFilterScreen({super.key,  this.title});
+  final String? title;
 
   @override
   State<HatcheryFilterScreen> createState() => _HatcheryFilterScreenState();
@@ -84,7 +85,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Hatcheries"),
+        title:  Text(widget.title?? "Hatcheries"),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -196,7 +197,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                                     title: list[i1].hatcheryName,
                                     location: list[i1].location,
                                     type: list[i1].category,
-                                    status: list[i1].status ?? "",
+                                    status: list[i1].status,
                                     availableUntil: list[i1].availableOn,
 
                                     statusColor:
@@ -235,7 +236,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                                           title: list[i2].hatcheryName,
                                           location: list[i2].location,
                                           type: list[i2].category,
-                                          status: list[i2].status ?? "",
+                                          status: list[i2].status,
                                           availableUntil: list[i2].availableOn,
                                           statusColor:
                                               list[i1].status.toLowerCase() ==

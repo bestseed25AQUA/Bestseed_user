@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -23,6 +24,7 @@ import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
 import 'package:seedsuser/app/spot_hatchery/view/spot_hatchery_screen.dart';
 import 'package:seedsuser/app/home/today_price_widget.dart';
 import 'package:seedsuser/app/home/widget/home_banner_carousel.dart';
+import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -42,6 +44,7 @@ class _HomePageState extends State<HomePage>
   final _newsSpecificController = Get.put(NewsSpecificController());
   final _seedsPriceController = Get.put(SeedsPriceController());
   final _homeController = Get.put(HomeController());
+    final _hatcheryController = Get.put(HatcheryUpdatesController());
   // late Animation<Offset> _fishAnimation;
 
   @override
@@ -266,8 +269,10 @@ class _HomePageState extends State<HomePage>
                   const SizedBox(height: 16),
                   HatcheryWidget(
                     onViewAllTap: () {
+                      filterHatcheryController.selectedCategoryIds.clear();
+                      filterHatcheryController.selectedCategoryIds.add(_homeController.selectedCategoryId.value);
                       filterHatcheryController.applyFilter();
-                      Get.to(() => HatcheryFilterScreen());
+                      Get.to(() => HatcheryFilterScreen(title: _homeController.selectedCateogryName.value));
                     },
                   ),
                   SizedBox(height: 20),
@@ -394,8 +399,9 @@ class _HomePageState extends State<HomePage>
                     );
                   }),
                   SizedBox(height: 16),
+                  if(_hatcheryController.hatcheryHomeData.value?.data.isNotEmpty??false)
                   HatcheryUpdatesWidget(),
-                  SizedBox(height: 100),
+                  SizedBox(height: 100)
                 ],
               ),
             ),

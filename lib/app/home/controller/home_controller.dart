@@ -36,6 +36,7 @@ class HomeController extends GetxController {
   final _hatcheryController = Get.put(HatcheryUpdatesController());
 
   RxString selectedCategoryId = ''.obs;
+  RxString selectedCateogryName = ''.obs;
   changeHomeData(String categoryId, String locationId) async {
     print('========calling for the======');
     print('categoryId - $categoryId, locationId $locationId');

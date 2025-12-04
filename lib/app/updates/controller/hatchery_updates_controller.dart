@@ -58,17 +58,18 @@ class HatcheryUpdatesController extends GetxController {
       );
       print('========fetchHatcheryHomeUpdate========');
       print(response.body);
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         hatcheryHomeData.value = HatcheryModel.fromJson(data);
       } else {
         CustomToast.error("Failed to fetch ");
       }
-    } catch (e) {
+    } catch (e,s) {
+      print('=============++++++++++++==================');
+      print(e.toString());
+      print(s.toString());
       CustomToast.error("Something went wrong  ");
-    } finally { 
-        loadDummyHatcheries();
+    } finally {  
     }
   }
 

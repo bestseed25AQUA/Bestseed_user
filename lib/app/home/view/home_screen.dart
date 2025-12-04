@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -62,10 +63,24 @@ class _HomeScreenState extends State<HomeScreen>
         vsync: this,
       );
       _tabController?.addListener(() {
+
         currentTabIndex = (_tabController?.index ?? 0);
         _homeController.selectedCategoryId.value = currentTabIndex == 0
             ? ''
             : _homeController.categories[currentTabIndex - 1].id.toString();
+
+        _homeController.selectedCateogryName.value = _homeController
+            .categories[currentTabIndex - 1]
+            .categoryName
+            .toString();
+          if((_tabController?.index ?? 0)==0){
+             print('=======++++===========');
+            _homeController.selectedCateogryName.value = '';
+          }
+        if (kDebugMode) {
+          print('============category name=====${currentTabIndex}====');
+        }
+         print(_homeController.selectedCateogryName.value);
         _homeController.changeHomeData(
           _homeController.selectedCategoryId.value,
           _locationController.selectedLocationId.value,
@@ -115,15 +130,16 @@ class _HomeScreenState extends State<HomeScreen>
                     (categories.isEmpty)) {
                   return DefaultTabController(
                     length: 4,
-                    
+
                     child: TabBar(
                       tabAlignment: TabAlignment.start,
                       isScrollable: true,
                       padding: EdgeInsets.zero,
                       labelPadding: EdgeInsets.symmetric(
-                        horizontal: 5,vertical: 0
-                      ), 
-                      tabs: buildLoadingTabs(), 
+                        horizontal: 5,
+                        vertical: 0,
+                      ),
+                      tabs: buildLoadingTabs(),
                       overlayColor: WidgetStateProperty.all(Colors.white),
                       dividerColor: Colors.black,
                     ),
@@ -192,6 +208,9 @@ class _HomeScreenState extends State<HomeScreen>
               ...cats.map(
                 (cat) => RefreshIndicator(
                   onRefresh: () async {
+                    _homeController.selectedCateogryName.value =
+                        cat.categoryName;
+
                     await _homeController.changeHomeData(
                       cat.id.toString(),
                       _locationController.selectedLocationId.value,

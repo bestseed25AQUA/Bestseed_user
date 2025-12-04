@@ -14,13 +14,11 @@ import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
+import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
 
 // ignore: must_be_immutable
-class HomeAppBar extends StatefulWidget { 
-
-  HomeAppBar({
-    super.key, 
-  });
+class HomeAppBar extends StatefulWidget {
+  HomeAppBar({super.key});
 
   @override
   State<HomeAppBar> createState() => _HomeAppBarState();
@@ -81,6 +79,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
       print("Weather fetch error  ");
     }
   }
+
   final ProfileController profileController = Get.put(ProfileController());
   @override
   Widget build(BuildContext context) {
@@ -106,13 +105,25 @@ class _HomeAppBarState extends State<HomeAppBar> {
                         children: [
                           // Weather icon (from OpenWeatherMap)
                           InkWell(
-                            onTap: () {
+                            onTap: () async {
+                              print(_homeController.selectedCateogryName.value);
+                              return;
                               print(_locationController.selectedLocationId);
                               print(_locationController.selectedLatiude.value);
-                              print(
-                                _locationController.selectedLongitude.value,
+                              final _hatcheryController = Get.put(
+                                HatcheryUpdatesController(),
                               );
-                              _locationController.fetchDefaultLocation( profileController.profile.value?.id.toString() ?? '',);
+                              return;
+                              await _hatcheryController.fetchHatcheryHomeUpdate(
+                                // categoryId: categoryId,
+                                // locationId: locationId
+                                categoryId: '25',
+                                locationId: '191',
+                              );
+                              // print(
+                              //   _locationController.selectedLongitude.value,
+                              // );
+                              // _locationController.fetchDefaultLocation( profileController.profile.value?.id.toString() ?? '',);
                             },
                             child: Image.network(
                               weatherIconUrl!,
@@ -326,7 +337,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
         const SizedBox(width: 16),
         InkWell(
           // onTap: () => _showFilterBottomSheet(context),
-           onTap: () => Get.to(() => const SearchScreen()),
+          onTap: () => Get.to(() => const SearchScreen()),
           child: Container(
             padding: const EdgeInsets.all(12),
             height: 46,

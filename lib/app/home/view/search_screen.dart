@@ -77,7 +77,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   /// 🔹 Voice Input Logic
   Future<void> _toggleVoiceInput() async {
-    if (!_isListening) {
+    if (!_isListening){
       bool available = await _speech.initialize(
         onStatus: (val) => print('onStatus: $val'),
         onError: (val) => print('onError: $val'),
@@ -86,7 +86,7 @@ class _SearchScreenState extends State<SearchScreen> {
         setState(() => _isListening = true);
          _speech.listen(
           onResult: (val) {
-            setState(() {
+            setState((){
               _voiceText = val.recognizedWords;
               _searchController.text = _voiceText;
               filterHatcheryController.query = _voiceText;

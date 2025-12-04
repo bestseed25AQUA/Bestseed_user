@@ -186,6 +186,13 @@ class HatcherySuppliersWidget extends StatelessWidget {
                 //   style: GoogleFonts.roboto(fontWeight: FontWeight.w500),
                 // ),
                 // const SizedBox(height: 4),
+
+                 Text(
+                  'Imported Date: ${data.importedDate ?? ''}',
+                  style: GoogleFonts.roboto(color: Colors.grey),
+                ),
+
+                SizedBox(height: 5,),
                 Text(
                   'Imported Date: ${data.importedDate ?? ''}',
                   style: GoogleFonts.roboto(color: Colors.grey),

@@ -85,7 +85,7 @@ class HatcheryUpdatesWidget extends StatelessWidget {
                           .value
                           ?.data[index];
                       return _buildHatcheryCard(
-                        imagePath: data?.profileImage ?? '',
+                        imagePath: data?.hatcheryLogo ?? '',
                         hatcheryName: data?.hatcheryName ?? '',
                         viewProfileTap: () {
                           hatcheryUpdatesController.fetchHatcheryUpdatesSingle(
@@ -98,6 +98,7 @@ class HatcheryUpdatesWidget extends StatelessWidget {
                   ),
                 );
         }),
+       
       ],
     );
   }
