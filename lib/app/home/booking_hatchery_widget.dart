@@ -10,7 +10,8 @@ class BookingBottomSheet extends StatefulWidget {
     super.key,
     required this.hatcheryId,
     required this.hatcheryName,
-    this.isSpotHatchery, required this.categoryId,
+    this.isSpotHatchery,
+    required this.categoryId,
   });
   final String hatcheryId;
   final String hatcheryName;
@@ -201,9 +202,9 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.8,
-          minChildSize: 0.5,
-          maxChildSize: 0.8,
+          initialChildSize: 0.9,
+          minChildSize: 0.9,
+          maxChildSize: 0.9,
           builder: (context, scrollController) {
             return Container(
               decoration: const BoxDecoration(

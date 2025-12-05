@@ -104,6 +104,8 @@ class VehicleTrackingController extends GetxController {
 
   void vehicleListDummyData() {
     final dummyJson = {
+      "status": true,
+      "message": "Tracking data fetched successfully",
       "vehicles": [
         {
           "hatchery_name": "Super Hatchery Farm",

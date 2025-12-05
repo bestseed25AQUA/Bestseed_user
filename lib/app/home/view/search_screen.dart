@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/voice_mic_button.dart';
 import 'package:seedsuser/app/home/view/hatchery_filter_screen.dart';
+import 'package:seedsuser/app/utils/voice_service.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
-// ⭐ NEW CONTROLLER ⭐
+//  NEW CONTROLLER
 import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -23,10 +25,9 @@ class _SearchScreenState extends State<SearchScreen> {
 
   // Voice
   late stt.SpeechToText _speech;
-  bool _isListening = false;
-  String _voiceText = "";
+  bool _isAvailable = false;
 
-  // ⭐ Replace old controllers with this controller
+  //  Replace old controllers with this controller
   final FilterHatcheryController filterHatcheryController = Get.put(
     FilterHatcheryController(),
   );
@@ -41,7 +42,72 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    _initSpeech();
+  }
+
+  void startListening() {
+    if (!_isAvailable) {
+      print("Speech engine not available");
+      return;
+    }
+
+    fullText = "";
+    print("🎤 Listening started...");
+
+    _speech.listen(
+      listenMode: stt.ListenMode.dictation,
+      onResult: (result) {
+        fullText = result.recognizedWords;
+        print("Heard: $fullText");
+        if (fullText.isNotEmpty) {
+          stopListening(); // stop immediately when text detected
+
+          Navigator.pop(context); // close dialog
+          _searchController.text = fullText;
+          filterHatcheryController.query = fullText;
+          _applyFilters();
+        }
+
+        // If you want live update uncomment below
+        // setState(() {});
+      },
+      
+      listenOptions: stt.SpeechListenOptions(
+        
+      ),
+    );
+  }
+
+  // it is for storing dialogSetState
+  void Function(void Function())? dialogSetState;
+
+  void stopListening() {
+    print("🎤 Listening stopped.");
+    _speech.stop();
+  }
+
+  String _speechStatus = "notListening";
+
+  Future<void> _initSpeech() async {
     _speech = stt.SpeechToText();
+
+    try {
+      _isAvailable = await _speech.initialize(
+        onStatus: (status) {
+          print("STATUS: $status");
+          _speechStatus = status;
+          if (dialogSetState != null) {
+            dialogSetState!(() {}); // updates dialog immediately
+          }
+        },
+        onError: (error) {
+          print("ERROR: $error");
+        },
+      );
+      print("Mic available = $_isAvailable");
+    } catch (e) {
+      print("Speech init error: $e");
+    }
   }
 
   @override
@@ -64,45 +130,99 @@ class _SearchScreenState extends State<SearchScreen> {
     _debounceTimer = Timer(const Duration(seconds: 1), () {
       print("hi");
       _applyFilters();
-      // Yaha aap API / filter apply call kar sakte ho
-      // filterHatcheryController.applyFilter();
     });
   }
 
-  /// 🔹 Handle Apply Filters Action
   void _applyFilters() {
     filterHatcheryController.applyFilter();
     Get.to(() => HatcheryFilterScreen());
   }
 
-  /// 🔹 Voice Input Logic
-  Future<void> _toggleVoiceInput() async {
-    if (!_isListening) {
-      bool available = await _speech.initialize(
-        onStatus: (val) => print('onStatus: $val'),
-        onError: (val) => print('onError: $val'),
-      );
-      if (available) {
-        setState(() => _isListening = true);
-        _speech.listen(
-          onResult: (val) {
-            setState(() {
-              _voiceText = val.recognizedWords;
-              _searchController.text = _voiceText;
-              filterHatcheryController.query = _voiceText;
-            });
-            _applyFilters();
-          },
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Speech recognition not available")),
-        );
-      }
-    } else {
-      setState(() => _isListening = false);
-      _speech.stop();
-    }
+  bool isRecording = false;
+  String fullText = "";
+  void startRecording() {
+    showVoiceDialog();
+  }
+
+  void showVoiceDialog() {
+    // start listening when dialog opens
+    startListening();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setState) {
+          dialogSetState = setState;
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(30),
+              width: 260,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    "Voice assistance",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+
+                  SizedBox(height: 25),
+
+                  // MIC UI
+                  Container(
+                    height: 110,
+                    width: 110,
+                    decoration: _speechStatus == "listening"
+                        ? BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.blue.shade100,
+                                Colors.blue.shade300,
+                              ],
+                            ),
+                          )
+                        : BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.grey.shade300,
+                          ),
+                    child: InkWell(
+                      onTap: () {
+                        startListening();
+                        setState(() {});
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.all(15),
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.blue,
+                        ),
+                        child: const Icon(
+                          Icons.mic,
+                          size: 45,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(height: 20),
+
+                  Text(
+                    fullText.isEmpty ? "Listening..." : fullText,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   List<String> filterList(List<String> list, String query) {
@@ -141,7 +261,6 @@ class _SearchScreenState extends State<SearchScreen> {
       filterHatcheryController.categories.map((e) => e.categoryName).toList(),
       filterHatcheryController.categories.map((e) => e.id.toString()).toList(),
       '',
-      // _searchController.text,
     );
 
     final brandList = filterItemsWithIds(
@@ -151,7 +270,7 @@ class _SearchScreenState extends State<SearchScreen> {
       // _searchController.text,
     );
 
-    final locationList = filterItemsWithIds(
+    filterItemsWithIds(
       filterHatcheryController.locations
           .map((e) => extractLastValue(e.locationName))
           .toList(),
@@ -226,15 +345,16 @@ class _SearchScreenState extends State<SearchScreen> {
                                       setState(() => _searchController.clear());
                                     },
                                   ),
-                                IconButton(
-                                  icon: Icon(
-                                    _isListening ? Icons.mic_none : Icons.mic,
-                                    color: _isListening
-                                        ? Colors.red
-                                        : Colors.grey,
-                                  ),
-                                  onPressed: _toggleVoiceInput,
-                                ),
+                                // IconButton(
+                                //   icon: Icon(
+                                //     _isListening ? Icons.mic_none : Icons.mic,
+                                //     color: _isListening
+                                //         ? Colors.red
+                                //         : Colors.grey,
+                                //   ),
+                                //   onPressed: _toggleVoiceInput,
+                                // ),
+                                VoiceMicButton(onStart: startRecording),
                               ],
                             ),
                             border: OutlineInputBorder(

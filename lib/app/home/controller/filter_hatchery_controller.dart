@@ -115,11 +115,10 @@ class FilterHatcheryController extends GetxController {
           // "&location_id=$locationCSV"
           "&brand_id=$brandCSV"
           "&q=$query"
-          "&page=$page"
-          ;
+          "&page=$page";
 
-          print('============url===============');
-          print(url);
+      print('============url===============');
+      print(url);
 
       final response = await getRequest(
         endPoint: url,
