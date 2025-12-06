@@ -13,9 +13,7 @@ class SpecificVehicleTrackingResponse {
     return SpecificVehicleTrackingResponse(
       status: json['status'] ?? false,
       message: json['message'] ?? '',
-      data: json['data'] != null
-          ? TrackingData.fromJson(json['data'])
-          : null,
+      data: json['data'] != null ? TrackingData.fromJson(json['data']) : null,
     );
   }
 
@@ -26,27 +24,46 @@ class SpecificVehicleTrackingResponse {
       };
 }
 
+// ------------------------------------------------------------
+// TRACKING DATA
+// ------------------------------------------------------------
 class TrackingData {
+  final int vehicleId;
+  final int bookingId;
+
   final LocationPoint pickup;
   final LocationPoint drop;
-  final LocationPoint driverLocation;   // ✅ NEW
+  final LocationPoint driverLocation;
+
+  final DriverDetails driverDetails;            // ✅ NEW
   final DeliveryUpdates deliveryUpdates;
+
   final List<TimelineItem> timeline;
 
   TrackingData({
+    required this.vehicleId,
+    required this.bookingId,
     required this.pickup,
     required this.drop,
-    required this.driverLocation,       // ✅ NEW
+    required this.driverLocation,
+    required this.driverDetails,               // ✅ NEW
     required this.deliveryUpdates,
     required this.timeline,
   });
 
   factory TrackingData.fromJson(Map<String, dynamic> json) {
     return TrackingData(
+      vehicleId: json['vehicle_id'] ?? 0,
+      bookingId: json['booking_id'] ?? 0,
+
       pickup: LocationPoint.fromJson(json['pickup']),
       drop: LocationPoint.fromJson(json['drop']),
-      driverLocation: LocationPoint.fromJson(json['driver_location']), // ✅ NEW
+      driverLocation: LocationPoint.fromJson(json['driver_location']),
+
+      driverDetails: DriverDetails.fromJson(json['driver_details']), // ✅ NEW
+
       deliveryUpdates: DeliveryUpdates.fromJson(json['delivery_updates']),
+
       timeline: (json['timeline'] as List<dynamic>)
           .map((e) => TimelineItem.fromJson(e))
           .toList(),
@@ -54,15 +71,20 @@ class TrackingData {
   }
 
   Map<String, dynamic> toJson() => {
+        "vehicle_id": vehicleId,
+        "booking_id": bookingId,
         "pickup": pickup.toJson(),
         "drop": drop.toJson(),
-        "driver_location": driverLocation.toJson(), // ✅ NEW
+        "driver_location": driverLocation.toJson(),
+        "driver_details": driverDetails.toJson(),      // ✅ NEW
         "delivery_updates": deliveryUpdates.toJson(),
         "timeline": timeline.map((e) => e.toJson()).toList(),
       };
 }
 
-
+// ------------------------------------------------------------
+// LOCATION POINT
+// ------------------------------------------------------------
 class LocationPoint {
   final String name;
   final double lat;
@@ -88,42 +110,81 @@ class LocationPoint {
         "lng": lng,
       };
 }
-class DeliveryUpdates {
-  final String orderPlacedDate;
-  final String orderPlacedTime;
-  final String deliveryExpected;
 
-  DeliveryUpdates({
-    required this.orderPlacedDate,
-    required this.orderPlacedTime,
-    required this.deliveryExpected,
+// ------------------------------------------------------------
+// DRIVER DETAILS (NEW MODEL)
+// ------------------------------------------------------------
+class DriverDetails {
+  final String driverName;
+  final String driverPhone;
+  final String vehicleNumber;
+  final String driverImage;
+
+  DriverDetails({
+    required this.driverName,
+    required this.driverPhone,
+    required this.vehicleNumber,
+    required this.driverImage,
   });
 
-  factory DeliveryUpdates.fromJson(Map<String, dynamic> json) {
-    return DeliveryUpdates(
-      orderPlacedDate: json['order_placed_date'] ?? '',
-      orderPlacedTime: json['order_placed_time'] ?? '',
-      deliveryExpected: json['delivery_expected'] ?? '',
+  factory DriverDetails.fromJson(Map<String, dynamic> json) {
+    return DriverDetails(
+      driverName: json['driver_name'] ?? '',
+      driverPhone: json['driver_phone'] ?? '',
+      vehicleNumber: json['vehicle_number'] ?? '',
+      driverImage: json['driver_image'] ?? '',
     );
   }
 
   Map<String, dynamic> toJson() => {
-        "order_placed_date": orderPlacedDate,
-        "order_placed_time": orderPlacedTime,
-        "delivery_expected": deliveryExpected,
+        "driver_name": driverName,
+        "driver_phone": driverPhone,
+        "vehicle_number": vehicleNumber,
+        "driver_image": driverImage,
       };
 }
+
+// ------------------------------------------------------------
+// DELIVERY UPDATES (MODIFIED)
+// ------------------------------------------------------------
+class DeliveryUpdates {
+  final String deliveryExpected;
+  final String note;
+
+  DeliveryUpdates({
+    required this.deliveryExpected,
+    required this.note,
+  });
+
+  factory DeliveryUpdates.fromJson(Map<String, dynamic> json) {
+    return DeliveryUpdates(
+      deliveryExpected: json['delivery_expected'] ?? '',
+      note: json['note'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        "delivery_expected": deliveryExpected,
+        "note": note,
+      };
+}
+
+// ------------------------------------------------------------
+// TIMELINE ITEM (MIN CHANGE + status added)
+// ------------------------------------------------------------
 class TimelineItem {
   final String title;
   final String subtitle;
   final String time;
-  final String? date;
+  final String date;
+  final String status; // completed / pending
 
   TimelineItem({
     required this.title,
     required this.subtitle,
     required this.time,
-    this.date,
+    required this.date,
+    required this.status,
   });
 
   factory TimelineItem.fromJson(Map<String, dynamic> json) {
@@ -131,7 +192,8 @@ class TimelineItem {
       title: json['title'] ?? '',
       subtitle: json['subtitle'] ?? '',
       time: json['time'] ?? '',
-      date: json['date'],
+      date: json['date'] ?? '',
+      status: json['status'] ?? '',
     );
   }
 
@@ -140,5 +202,6 @@ class TimelineItem {
         "subtitle": subtitle,
         "time": time,
         "date": date,
+        "status": status,
       };
 }

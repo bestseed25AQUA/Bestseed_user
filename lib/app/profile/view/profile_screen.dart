@@ -10,7 +10,7 @@ import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/controller/logout_controller.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/profile/view/edit_profile_screen.dart';
-import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking_screen.dart';
+import 'package:seedsuser/app/vehicle_tracking/view/booking_vehicle_list_screen.dart';
 import 'package:seedsuser/l10n/app_localizations.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -64,6 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // ),
         ),
       ),
+      backgroundColor: Colors.white,
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -121,20 +122,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Get.to(() => MyBookingScreen());
               },
             ),
-            ProfileMenuItem(
-              icon: Icons.menu,
-              title: "Vehicle availability",
-              onTap: () {
-                Get.to(() => VehicleAvailabilityScreen());
-              },
-            ),
-            ProfileMenuItem(
-              icon: Icons.menu,
-              title: "Vehicle tracking",
-              onTap: () {
-                Get.to(() => VehicleTrackingPage());
-              },
-            ),
+            // ProfileMenuItem(
+            //   icon: Icons.menu,
+            //   title: "Vehicle availability",
+            //   onTap: () {
+            //     Get.to(() => VehicleAvailabilityScreen());
+            //   },
+            // ),
+            // ProfileMenuItem(
+            //   icon: Icons.menu,
+            //   title: "Vehicle tracking",
+            //   onTap: () {
+            //     Get.to(() => VehicleTrackingPage());
+            //   },
+            // ),
             ProfileMenuItem(
               icon: Icons.headset_mic_outlined,
               title: AppLocalizations.of(context).customer_support,
