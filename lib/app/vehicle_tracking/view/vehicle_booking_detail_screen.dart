@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/vehicle_tracking/model/vehicle_booking_detail_model.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/vehicle_tracking_screen.dart';
 import '../controller/vehicle_tracking_controller.dart';
@@ -29,6 +30,49 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
     controller.fetchVehicleBookingDetail(widget.id); // API call
   }
 
+  String getStatusString(String status) {
+    final statusStrings = {
+      "1": 'Pending',
+      "2": 'In Progress',
+      "3": 'Confirmed',
+      "4": 'Driver Assigned',
+      "5": 'Delivered',
+      "6": 'Cancelled',
+      "Pending": 'Pending',
+      "In_progress": 'In Progress',
+      "Confirmed": 'Confirmed',
+      "Driver_assigned": 'Driver Assigned',
+      "Delivered": 'Delivered',
+      "Cancelled": 'Cancelled',
+    };
+
+    return statusStrings[status] ?? '';
+  }
+
+  bool isPending(String status) {
+    return status == "1";
+  }
+
+  bool isInProgress(String status) {
+    return status == "2";
+  }
+
+  bool isConfirmed(String status) {
+    return status == "3";
+  }
+
+  bool isDriverAssigned(String status) {
+    return status == "4";
+  }
+
+  bool isDelivered(String status) {
+    return status == "5";
+  }
+
+  bool isCancelled(String status) {
+    return status == "6";
+  }
+
   @override
   Widget build(BuildContext context) {
     final h = MediaQuery.sizeOf(context).height;
@@ -37,16 +81,15 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        foregroundColor: Colors.black,
-        backgroundColor: Colors.white,
-        elevation: 0,
+        backgroundColor: AppColors.primary,
         title: Text(
-          "Seven Star Hatchery",
-          style: GoogleFonts.poppins(
+          'Seven Star Hatchery',
+          style: GoogleFonts.roboto(
+            color: Colors.white,
             fontWeight: FontWeight.w600,
-            fontSize: w * 0.045,
           ),
         ),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
 
       body: Obx(() {
@@ -67,8 +110,13 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(height: h * 0.01),
-
-              _buildStatusBox(data.status, data.statusDescription, w, h),
+              _buildStatusBox(
+                getStatusString(data.status),
+                data.status,
+                data.statusDescription,
+                w,
+                h,
+              ),
 
               SizedBox(height: h * 0.02),
 
@@ -86,21 +134,35 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
                 "${data.vehicleDetails.bookingDate}, ${data.vehicleDetails.bookingTime}",
                 w,
               ),
-
               SizedBox(height: 20),
 
-              if (status == "confirmed")
+              if (status == "pending" || status == '1') ...[
+                SizedBox(height: 20),
+                Center(
+                  child: InkWell(
+                    onTap: () => _openCancelReasonSheet(widget.id),
+                    child: Container(
+                      width: w * 0.9,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.red),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          "Cancel Booking",
+                          style: TextStyle(color: Colors.red, fontSize: 16),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ] else
                 _bookingStatusTimeline(data.bookingStatus, w, () {
                   Get.to(
-                    VehicleTrackingScreen(vehicleId: data.driverId.toString()),
+                    VehicleTrackingScreen(bookingId: data.bookingId.toString()),
                   );
                 }),
-
-              if (status == "pending") ...[
-                SizedBox(height: 20),
-                _cancelButton(w),
-              ],
-
               SizedBox(height: 40),
 
               _helpSection(w),
@@ -147,17 +209,24 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
 
   Widget _buildStatusBox(
     String status,
+    String statusValue,
     String description,
     double w,
     double h,
   ) {
-    final isConfirm = status.toLowerCase() == "confirmed";
+    Color statusColor =
+        (isPending(statusValue) || status.toLowerCase() == 'pending')
+        ? Colors.orange
+        : (isCancelled(statusValue) || status.toLowerCase() == 'cancelled')
+        ? Colors.red
+        : Colors.green;
 
     return Container(
       padding: EdgeInsets.symmetric(vertical: h * 0.02),
       width: double.infinity,
       decoration: BoxDecoration(
-        color: isConfirm ? const Color(0xFFE7F7EB) : const Color(0xFFFFF1E3),
+        // ignore: deprecated_member_use
+        color: statusColor.withOpacity(.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -167,17 +236,14 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
             style: GoogleFonts.poppins(
               fontSize: w * 0.047,
               fontWeight: FontWeight.w600,
-              color: isConfirm ? Colors.green : Colors.orange,
+              color: statusColor,
             ),
           ),
           SizedBox(height: 5),
           Text(
-            description,
+            'Booking Status: $status',
             textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
-              fontSize: w * 0.034,
-              color: isConfirm ? Colors.green.shade700 : Colors.orange.shade700,
-            ),
+            style: GoogleFonts.poppins(fontSize: w * 0.034, color: statusColor),
           ),
         ],
       ),
@@ -235,9 +301,24 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      "Pickup location\n${data.pickupDetails.location}",
-                      style: GoogleFonts.poppins(fontSize: w * 0.035),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Pickup location",
+                          style: GoogleFonts.poppins(fontSize: w * 0.035),
+                        ),
+                        SizedBox(
+                          width: MediaQuery.of(context).size.width * .4,
+                          child: Text(
+                            data.pickupDetails.location,
+                            style: GoogleFonts.poppins(
+                              fontSize: w * 0.035,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     SizedBox(
                       width: MediaQuery.of(context).size.width * .25,
@@ -245,7 +326,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
                         "${data.pickupDetails.date}, ${data.pickupDetails.time}",
                         style: GoogleFonts.poppins(
                           color: Colors.black,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w200,
                           fontSize: w * 0.033,
                         ),
                       ),
@@ -256,9 +337,24 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      "Drop location\n${data.dropDetails.location}",
-                      style: GoogleFonts.poppins(fontSize: w * 0.035),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Drop location",
+                          style: GoogleFonts.poppins(fontSize: w * 0.035),
+                        ),
+                        SizedBox(
+                          width: MediaQuery.of(context).size.width * .4,
+                          child: Text(
+                            data.dropDetails.location,
+                            style: GoogleFonts.poppins(
+                              fontSize: w * 0.035,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     SizedBox(
                       width: MediaQuery.of(context).size.width * .25,
@@ -267,7 +363,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
                         style: GoogleFonts.poppins(
                           fontSize: w * 0.033,
                           color: Colors.black,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w200,
                         ),
                       ),
                     ),
@@ -303,7 +399,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
             children: [
               Column(
                 children: [
-                  s.status == 1
+                  s.completed
                       ? Icon(
                           Icons.check_circle,
                           color: Colors.green,
@@ -314,7 +410,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
                     Container(
                       width: 2,
                       height: s.title.contains('progress') ? 45 : 30,
-                      color: s.status == 1 ? Colors.green : Colors.grey,
+                      color: s.completed == 1 ? Colors.green : Colors.grey,
                     ),
                 ],
               ),
@@ -360,29 +456,6 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
     );
   }
 
-  Widget _cancelButton(double w) {
-    return Center(
-      child: Container(
-        width: w * 0.55,
-        height: 48,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: Colors.red),
-        ),
-        child: Center(
-          child: Text(
-            "Cancel",
-            style: GoogleFonts.poppins(
-              fontSize: w * 0.045,
-              fontWeight: FontWeight.w500,
-              color: Colors.red,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _helpSection(double w) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -400,6 +473,117 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _openCancelReasonSheet(String bookingId) {
+    final List<String> reasons = [
+      "Delay in processing",
+      "Incorrect order details",
+      "Wrong quantity requested",
+      "Stock quality issues",
+      "Other",
+    ];
+
+    String selectedReason = reasons[0];
+
+    Get.bottomSheet(
+      StatefulBuilder(
+        builder: (context, setState) {
+          final w = MediaQuery.sizeOf(context).width;
+
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Reason for cancel",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Get.back(),
+                      child: const Icon(Icons.close, size: 22),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                ...reasons.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  String r = entry.value;
+                  return ListTile(
+                    dense: true,
+                    title: Text(r, style: const TextStyle(fontSize: 15)),
+                    trailing: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        boxShadow: selectedReason == r
+                            ? [BoxShadow(color: Colors.green, blurRadius: 7)]
+                            : [],
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: selectedReason == r
+                              ? Colors.green
+                              : Colors.grey,
+                          width: 2,
+                        ),
+                        color: selectedReason == r
+                            ? Colors.green
+                            : Colors.transparent,
+                      ),
+                    ),
+                    onTap: () {
+                      setState(() => selectedReason = r);
+                    },
+                  );
+                }),
+
+                const SizedBox(height: 20),
+
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    controller.cancelBooking(
+                      bookingId,
+                      (reasons.indexOf(selectedReason) + 1).toString(),
+                    );
+                  },
+                  child: Container(
+                    width: w * 0.8,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        "Cancel",
+                        style: TextStyle(color: Colors.red, fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 25),
+              ],
+            ),
+          );
+        },
+      ),
+      isScrollControlled: true,
     );
   }
 }

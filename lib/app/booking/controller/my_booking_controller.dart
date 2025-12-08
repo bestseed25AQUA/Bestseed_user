@@ -1,42 +1,45 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:seedsuser/app/booking/model/booking_detail_model.dart';
+import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/model/my_booking_model.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
 
-var bookingDummy = {
-  "status": true,
-  "message": "Your bookings fetched successfully",
-  "data": [
-    {
-      "booking_id": 6,
-      "hatchery_name": "My Test Hatchery",
-      "customer_name": "Nabeela Fatima",
-      "customer_mobile": "9700912007",
-      "unit": "Vizag Unit-2",
-      "no_of_pieces": 500,
-      "dropping_location": "17-2-14/A New Market Hyderabad",
-      "packing_date": "2025-11-15T00:00:00.000000Z",
-      "hatchery_location": "Hyderabad",
-      "created_at": "2025-11-12 07:49:30",
-    },
+// var bookingDummy = {
+//   "status": true,
+//   "message": "Your bookings fetched successfully",
+//   "data": [
+//     {
+//       "booking_id": 6,
+//       "hatchery_name": "My Test Hatchery",
+//       "customer_name": "Nabeela Fatima",
+//       "customer_mobile": "9700912007",
+//       "unit": "Vizag Unit-2",
+//       "no_of_pieces": 500,
+//       "dropping_location": "17-2-14/A New Market Hyderabad",
+//       "packing_date": "2025-11-15T00:00:00.000000Z",
+//       "hatchery_location": "Hyderabad",
+//       "created_at": "2025-11-12 07:49:30",
+//     },
 
-    {
-      "booking_id": 6,
-      "hatchery_name": "My Test Hatchery",
-      "customer_name": "Nabeela Fatima",
-      "customer_mobile": "9700912007",
-      "unit": "Vizag Unit-2",
-      "no_of_pieces": 500,
-      "dropping_location": "17-2-14/A New Market Hyderabad",
-      "packing_date": "2025-11-15T00:00:00.000000Z",
-      "hatchery_location": "Hyderabad",
-      "created_at": "2025-11-12 07:49:30",
-    },
-  ],
-};
+//     {
+//       "booking_id": 6,
+//       "hatchery_name": "My Test Hatchery",
+//       "customer_name": "Nabeela Fatima",
+//       "customer_mobile": "9700912007",
+//       "unit": "Vizag Unit-2",
+//       "no_of_pieces": 500,
+//       "dropping_location": "17-2-14/A New Market Hyderabad",
+//       "packing_date": "2025-11-15T00:00:00.000000Z",
+//       "hatchery_location": "Hyderabad",
+//       "created_at": "2025-11-12 07:49:30",
+//     },
+//   ],
+// };
 
 class MyBookingController extends GetxController {
   var isLoading = true.obs;
@@ -84,10 +87,87 @@ class MyBookingController extends GetxController {
           );
         }
       }
-    } catch (e) {
+    } catch (e, s) {
+      print('============error========');
+      print(e.toString());
+      print(s.toString());
       CustomToast.error("Something went wrong");
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  RxBool isDetailLoading = false.obs;
+  Rx<BookingDetailModel?> bookingDetail = Rx<BookingDetailModel?>(null);
+
+  Future<void> fetchBookingDetail(String id) async {
+    try {
+      isDetailLoading(true);
+
+      final headers = await buildHeader();
+      final response = await getRequest(
+        endPoint: "${NetworkConfig.baseURL}/farmer/my-bookings-details/$id",
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        print('==========+++++++++++++===============');
+        print(body["booking"]);
+
+        bookingDetail.value = BookingDetailModel.fromJson(body);
+        print('===========++++++++=============');
+        print(bookingDetail.value?.bookingUId);
+      } else {
+        // bookingDetail.value = dummyBookingDetail();
+      }
+      print('=====================');
+      print('-----------------');
+    } catch (e, s) {
+      print(e.toString());
+      print(s.toString());
+      // bookingDetail.value = dummyBookingDetail();
+    } finally {
+      isDetailLoading(false);
+    }
+  }
+
+  Future<void> cancelBooking(String bookingId, String reason) async {
+    try {
+      // isDetailLoading(true);
+      Get.dialog(
+        const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+        barrierDismissible: false,
+      );
+      final headers = await buildHeader();
+
+      final response = await postRequest(
+        endPoint: "${NetworkConfig.baseURL}/farmer/cancel-booking",
+        headers: headers,
+        body: {"booking_id": bookingId, "reason_code": reason},
+      );
+      print({"booking_id": bookingId, "reason_code": reason});
+      print('status code');
+      print(response.statusCode);
+      final body = jsonDecode(response.body);
+      print(body);
+      if (body["status"] == true) {
+        isDetailLoading(false);
+        CustomToast.success('Cancelled');
+        await fetchBookingDetail(bookingId);
+        await fetchBookings(); // reload
+      } else {
+        CustomToast.error('Failed to Cancel');
+      }
+    } catch (e, s) {
+      print(e.toString());
+      print(s.toString());
+      CustomToast.error('Failed to Cancel');
+    } finally {
+      if (isDetailLoading.value) isDetailLoading(false);
+      Get.back();
     }
   }
 
@@ -191,3 +271,44 @@ String normalizeDate(String input) {
     return "";
   }
 }
+
+// BookingDetailModel dummyBookingDetail() {
+//   return BookingDetailModel(
+//     bookingId: "244355",
+//     status: "Booking Confirmed",
+//     statusDescription:
+//         "We’ve received your booking. Within a few hours, we will assign your vehicle",
+//     bookingDateTime: "12:30PM, 25/11/2025",
+//     unitLocation: "Kakinada",
+//     pieces: "12,000",
+//     estimatedPrice: "₹1,20,000",
+//     droppingLocation: "9-186, Prakash Nagar, Hyderabad, Telangana, 500032",
+//     preferredDate: "21-11-2025",
+//     bookingStatus: [
+//       BookingStatusStep(
+//         title: "Booking Confirmed",
+//         date: "Mon, 21-11-2025",
+//         time: "12:23 PM",
+//         status: 1,
+//       ),
+//       BookingStatusStep(
+//         title: "Driver Assigned",
+//         date: "Mon, 21-11-2025",
+//         time: "12:23 PM",
+//         status: 1,
+//       ),
+//       BookingStatusStep(
+//         title: "In Progress",
+//         date: "Mon, 21-11-2025",
+//         time: "12:23 PM",
+//         status: 0,
+//       ),
+//       BookingStatusStep(
+//         title: "Delivered",
+//         date: "Mon, 21-11-2025",
+//         time: "12:23 PM",
+//         status: 0,
+//       ),
+//     ],
+//   );
+// }

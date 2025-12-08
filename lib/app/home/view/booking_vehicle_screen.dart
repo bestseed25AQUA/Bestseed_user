@@ -198,22 +198,17 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
             ),
           ),
           const SizedBox(height: 8),
-
           TextFormField(
             controller: controller,
             readOnly: readOnly,
             onTap: onTap,
             keyboardType: keyboardType,
-
             decoration: InputDecoration(
               hintText: "Enter $label",
-
               // NEW DESIGN
               filled: true,
               fillColor: Colors.white,
-
               suffixIcon: Icon(icon, color: Colors.grey),
-
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: Colors.grey.withOpacity(.4)),
@@ -226,13 +221,11 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: Colors.grey.withOpacity(.4)),
               ),
-
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 12,
               ),
             ),
-
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return 'Please enter $label';

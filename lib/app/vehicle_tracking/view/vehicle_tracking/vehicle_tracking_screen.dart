@@ -1,11 +1,12 @@
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/vehicle_tracking/controller/vehicle_tracking_controller.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/full_map_screen.dart';
@@ -16,8 +17,8 @@ import 'widgets/delivery_update_widget.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/widgets/time_line_section_widget.dart';
 
 class VehicleTrackingScreen extends StatefulWidget {
-  final String vehicleId;
-  const VehicleTrackingScreen({super.key, required this.vehicleId});
+  final String bookingId;
+  const VehicleTrackingScreen({super.key, required this.bookingId});
 
   @override
   State<VehicleTrackingScreen> createState() => _VehicleTrackingScreenState();
@@ -45,7 +46,7 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
   }
 
   Future<void> loadData() async {
-    await controller.fetchSpecificVehicleTracking(widget.vehicleId);
+    await controller.fetchSpecificVehicleTracking(widget.bookingId);
 
     final d = controller.specificVehicle.value?.data;
     if (d == null) return;
@@ -62,7 +63,6 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
     );
 
     await loadPolyline();
-
     setState(() {});
   }
 
@@ -124,12 +124,17 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Vehicle Tracking"),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: Colors.black,
+        backgroundColor: AppColors.primary,
+        title: Text(
+          'Vehicle tracking',
+          style: GoogleFonts.roboto(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Obx(() {
+      body: Obx((){
         final loading = controller.specificLoading.value;
         final res = controller.specificVehicle.value;
 
@@ -139,16 +144,12 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
         if (res == null) {
           return const Center(child: Text("No tracking data found"));
         }
-
         final d = res.data!;
-
         // Build last update details
         final lastUpdateTime = d.timeline.isNotEmpty
             ? "${d.timeline.first.time}, ${d.timeline.first.date}"
             : "-";
-
         final lastUpdateAddress = d.driverLocation.name;
-
         return SingleChildScrollView(
           child: Column(
             children: [
@@ -188,13 +189,13 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
                   driverIcon: driverIcon,
                   pickupIcon: pickupIcon,
                   destinationIcon: destinationIcon,
-                  onMapCreated: (controller){
+                  onMapCreated: (controller) {
                     mapController = controller;
                     Future.delayed(const Duration(milliseconds: 300), () {
                       fitMapBounds();
                     });
-                  }
-                )
+                  },
+                ),
               ),
 
               DriverSectionWidget(

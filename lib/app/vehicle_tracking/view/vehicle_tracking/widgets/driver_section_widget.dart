@@ -18,7 +18,7 @@ class DeliveryUpdateWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Delivery Timeline",
+          const Text("Vehicle  Status",
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           Text(note,

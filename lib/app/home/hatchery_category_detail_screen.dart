@@ -277,6 +277,7 @@ class _HatcheryCategoryDetailScreenState
                                     ),
                                   ),
                                   child: BookingBottomSheet(
+                                    price: detail.price?.toString()??'',
                                     categoryId: widget.categoryId,
                                     hatcheryId: detail.id.toString(),
                                     hatcheryName: detail.hatcheryName ?? '',

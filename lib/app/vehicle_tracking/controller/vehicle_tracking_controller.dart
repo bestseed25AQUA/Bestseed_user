@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
 import 'package:seedsuser/app/vehicle_tracking/model/specific_vehicle_tracking_response.dart';
@@ -79,73 +82,61 @@ class VehicleTrackingController extends GetxController {
             body["data"],
           );
         } else {
-          bookingDetail.value = dummyBookingDetail(); // fallback
+          // bookingDetail.value = dummyBookingDetail(); // fallback
         }
       } else {
-        bookingDetail.value = dummyBookingDetail(); // fallback
+        // bookingDetail.value = dummyBookingDetail(); // fallback
       }
     } catch (e, s) {
       print("❌ Error in booking detail API: $e");
       print(s);
-      bookingDetail.value = dummyBookingDetail(); // fallback
+      // bookingDetail.value = dummyBookingDetail(); // fallback
     } finally {
       isDetailLoading.value = false;
-       bookingDetail.value = dummyBookingDetail();
+      //  bookingDetail.value = dummyBookingDetail();
     }
   }
 
-  VehicleBookingDetailModel dummyBookingDetail() {
-    return VehicleBookingDetailModel(
-      driverId: 1,
-      bookingId: 1,
-      status: "Confirmed",
-      statusDescription:
-          "We'll notify you when the driver assigned and start their journey",
-      pickupDetails: PickupDrop(
-        location: "Dummy Hatchery",
-        date: "24/11/2025",
-        time: "10:20 AM",
-      ),
-      dropDetails: PickupDrop(
-        location: "Dummy Andhra Pradesh",
-        date: "26/11/2025",
-        time: "01:20 PM",
-      ),
-      vehicleDetails: VehicleDetails(
-        hatchery: "Dummy Rama Hatchery",
-        brand: "Dummy Brand",
-        qty: "5 tones",
-        bookingDate: "20/11/2025",
-        bookingTime: "05:30 PM",
-      ),
-      bookingStatus: [
-        BookingStatusStep(
-          title: "confirm",
-          status: 1,
-          date: "Mon,21-11-2025",
-          time: "12:23 PM",
+  Future<void> cancelBooking(String id, String reason) async {
+    try {
+      // isDetailLoading(true);
+      Get.dialog(
+        const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
-        BookingStatusStep(
-          title: "driver_assigned",
-          date: "Mon,21-11-2025",
-          time: "12:23 PM",
-          status: 1,
-        ),
-        BookingStatusStep(
-          title: "in_progress",
-          date: "Mon,21-11-2025",
-          time: "12:23 PM",
-          status: 0,
-        ),
-        BookingStatusStep(
-          title: "delivered",
-          date: "Mon,21-11-2025",
-          time: "12:23 PM",
-          status: 0,
-        ),
-      ],
-    );
+        barrierDismissible: false,
+      );
+      final headers = await buildHeader();
+
+      final response = await postRequest(
+        endPoint: "${NetworkConfig.baseURL}/farmer/vehicle_booking_delete/$id",
+        headers: headers,
+        body: {"booking_id": "$id", "reason_code": "$reason"},
+      );
+      print('========+++++++==============');
+      print(response.body.toString());
+
+      final body = jsonDecode(response.body);
+      if ( response.statusCode == 200) {
+        CustomToast.success('Cancelled');
+        isDetailLoading(false);
+        await fetchVehicleBookingDetail(id);
+        await fetchVehicleList();
+      } else {
+        CustomToast.error('Failed to Cancel');
+      }
+    } catch (e, s) {
+      print('======+++++++========');
+      print(e.toString());
+      print(s.toString());
+      CustomToast.error('Failed to Cancel');
+      isDetailLoading(false);
+    } finally {
+       if (isDetailLoading.value) isDetailLoading(false);
+      Get.back();
+    }
   }
+
   //////////
 
   RxBool specificLoading = false.obs;
@@ -174,9 +165,9 @@ class VehicleTrackingController extends GetxController {
       print("❌ Error: $e");
       print(s);
     } finally {
-      if (specificVehicle.value == null) {
-        specificVehicleTrackingDummyData();
-      }
+      // if (specificVehicle.value == null) {
+      //   // specificVehicleTrackingDummyData();
+      // }
       specificLoading.value = false;
     }
   }
@@ -301,3 +292,56 @@ class VehicleTrackingController extends GetxController {
     specificLoading.value = false;
   }
 }
+
+// VehicleBookingDetailModel dummyBookingDetail() {
+//   return VehicleBookingDetailModel(
+//     driverId: 1,
+//     bookingId: 1,
+//     status: "Confirmed",
+//     statusDescription:
+//         "We'll notify you when the driver assigned and start their journey",
+//     pickupDetails: PickupDrop(
+//       location: "Dummy Hatchery",
+//       date: "24/11/2025",
+//       time: "10:20 AM",
+//     ),
+//     dropDetails: PickupDrop(
+//       location: "Dummy Andhra Pradesh",
+//       date: "26/11/2025",
+//       time: "01:20 PM",
+//     ),
+//     vehicleDetails: VehicleDetails(
+//       hatchery: "Dummy Rama Hatchery",
+//       brand: "Dummy Brand",
+//       qty: "5 tones",
+//       bookingDate: "20/11/2025",
+//       bookingTime: "05:30 PM",
+//     ),
+//     bookingStatus: [
+//       BookingStatusStep(
+//         title: "confirm",
+//         status: 1,
+//         date: "Mon,21-11-2025",
+//         time: "12:23 PM",
+//       ),
+//       BookingStatusStep(
+//         title: "driver_assigned",
+//         date: "Mon,21-11-2025",
+//         time: "12:23 PM",
+//         status: 1,
+//       ),
+//       BookingStatusStep(
+//         title: "in_progress",
+//         date: "Mon,21-11-2025",
+//         time: "12:23 PM",
+//         status: 0,
+//       ),
+//       BookingStatusStep(
+//         title: "delivered",
+//         date: "Mon,21-11-2025",
+//         time: "12:23 PM",
+//         status: 0,
+//       ),
+//     ],
+//   );
+// }

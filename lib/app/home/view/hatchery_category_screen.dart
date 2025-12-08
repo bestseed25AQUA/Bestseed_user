@@ -557,6 +557,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                                 ),
                               ),
                               child: BookingBottomSheet(
+                                price: widget.price,
                                 categoryId: widget.categoryId,
                                 hatcheryId: widget.hatcheryId,
                                 hatcheryName: widget.hatcheryName,

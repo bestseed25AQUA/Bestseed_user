@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/home/booking_review_widget.dart';
+import 'package:seedsuser/app/home/map_search_screen.dart';
 
 class BookingBottomSheet extends StatefulWidget {
   const BookingBottomSheet({
@@ -12,11 +13,13 @@ class BookingBottomSheet extends StatefulWidget {
     required this.hatcheryName,
     this.isSpotHatchery,
     required this.categoryId,
+    required this.price,
   });
   final String hatcheryId;
   final String hatcheryName;
   final bool? isSpotHatchery;
   final String categoryId;
+  final String price;
 
   @override
   State<BookingBottomSheet> createState() => _BookingBottomSheetState();
@@ -44,6 +47,14 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     _dateController.dispose();
     _unitController.dispose();
     super.dispose();
+  }
+
+  String calculatePrice(String noOfPices, String price) {
+    try {
+      return (double.parse(noOfPices) * double.parse(price)).toString();
+    } catch (e) {
+      return '';
+    }
   }
 
   @override
@@ -113,6 +124,28 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               icon: Icons.format_list_numbered,
               keyboardType: TextInputType.number,
             ),
+            Row(
+              children: [
+                Text(
+                  'Estimated Price',
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Builder(
+                  builder: (context) {
+                    return Text(
+                      calculatePrice(_phoneController.text, widget.price),
+                      style: GoogleFonts.roboto(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
             _buildTextField(
               controller: _dropLocController,
               label: "Dropping location",
@@ -142,17 +175,17 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                   if (kDebugMode) {
                     print('validation here');
                   }
-
+      
                   if (_nameController.text.trim().isEmpty) {
                     _showError("Please enter name");
                     return;
                   }
-
+      
                   if (_phoneController.text.trim().isEmpty) {
                     _showError("Please enter phone number");
                     return;
                   }
-
+      
                   if (_phoneController.text.trim().length != 10) {
                     _showError("Enter valid 10 digit phone number");
                     return;
@@ -161,12 +194,12 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     _showError("Please select unit");
                     return;
                   }
-
+      
                   if (_piecesController.text.trim().isEmpty) {
                     _showError("Please enter number of pieces");
                     return;
                   }
-
+      
                   if (int.tryParse(_piecesController.text.trim()) == null ||
                       int.parse(_piecesController.text.trim()) <= 0) {
                     _showError("Enter valid number of pieces");
@@ -180,6 +213,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                   _showBookingReviewSheet(
                     context,
                     widget.isSpotHatchery ?? false,
+                    calculatePrice(_piecesController.text, widget.price),
                   );
                 },
                 text: "Confirm Booking",
@@ -195,7 +229,11 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     CustomToast.show(message: message);
   }
 
-  void _showBookingReviewSheet(BuildContext context, bool isSpotHatchery) {
+  void _showBookingReviewSheet(
+    BuildContext context,
+    bool isSpotHatchery,
+    String? estimatePrice,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -233,6 +271,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     child: SingleChildScrollView(
                       controller: scrollController,
                       child: BookingReviewContent(
+                        estimatedPrice: estimatePrice??"",
                         categoryId: widget.categoryId,
                         isSpotHatchery: isSpotHatchery,
                         name: _nameController.text,
@@ -264,7 +303,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     TextInputType keyboardType = TextInputType.text,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

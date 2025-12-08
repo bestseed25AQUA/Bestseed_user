@@ -43,34 +43,6 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
           ),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
-        // actions: [
-        //   GestureDetector(
-        //     onTap: () => showFilterSheet(),
-        //     child: Container(
-        //       margin: const EdgeInsets.only(right: 16),
-        //       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        //       decoration: BoxDecoration(
-        //         color: Colors.white,
-        //         borderRadius: BorderRadius.circular(8),
-        //         border: Border.all(color: Colors.grey.shade300),
-        //       ),
-        //       child: Row(
-        //         children: [
-        //           Text(
-        //             "Filters",
-        //             style: GoogleFonts.roboto(
-        //               fontSize: 14,
-        //               color: Colors.black,
-        //               fontWeight: FontWeight.w500,
-        //             ),
-        //           ),
-        //           const SizedBox(width: 6),
-        //           const Icon(Icons.keyboard_arrow_down, color: Colors.black),
-        //         ],
-        //       ),
-        //     ),
-        //   ),
-        // ],
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
@@ -87,34 +59,38 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
               ),
             );
           }
-
           return ListView.builder(
             itemCount: controller.vehicleList.length,
             itemBuilder: (context, index) {
               final item = controller.vehicleList[index];
               return VehicleAvaibalityCard(
+                statusColor: (item.status.toLowerCase() == 'pending')
+                    ? Colors.orange
+                    : (item.status.toLowerCase() == 'cancelled')
+                    ? Colors.red
+                    : Colors.green,
+
                 ontapViewDetails: () {
-                  print(item.status.toLowerCase());
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => BookingDetailsScreen(
-                        // status: item.status.toLowerCase(),
-                        status: 'confiremd',
+                        status: item.status.toLowerCase(),
                         id: item.id,
                       ),
                     ),
                   );
                 },
-                id: item.bookingId,
-                time: item.time,
-                date: item.date,
-                title: item.hatcheryName,
-                subTitle: item.categoryName,
-                status: item.status,
-                pickupLocation: item.pickupLocation,
-                dropLocation: item.dropLocation,
-                quantity: item.quantity,
+
+                id: item.bookingId?.toString() ?? "",
+                time: item.time?.toString() ?? "",
+                date: item.date?.toString() ?? "",
+                title: item.hatcheryName?.toString() ?? "",
+                subTitle: item.categoryName?.toString() ?? "",
+                status: item.status?.toString() ?? "",
+                pickupLocation: item.pickupLocation?.toString() ?? "",
+                dropLocation: item.dropLocation?.toString() ?? "",
+                quantity: item.quantity?.toString() ?? "",
               );
             },
           );

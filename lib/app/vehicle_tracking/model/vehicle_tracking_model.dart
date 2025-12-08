@@ -34,7 +34,7 @@ class VehicleTrackingModel {
       date: json['date'] ?? "",
       hatcheryName: json['hatchery_name'] ?? "",
       categoryName: json['category_name'] ?? "",
-      status: json['status'] ?? "",
+      status: json['status']?['label']?.toString() ?? "",
       pickupLocation: json['pickup_location'] ?? "",
       dropLocation: json['drop_location'] ?? "",
       quantity: json['quantity'] ?? "",

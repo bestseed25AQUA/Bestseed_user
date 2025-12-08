@@ -41,7 +41,6 @@ class VehicleController extends GetxController {
     } catch (e) {
       CustomToast.error("Something went wrong  ");
     } finally {
-      loadDummyVehicles();
       isLoading.value = false;
     }
   }

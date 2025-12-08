@@ -86,13 +86,13 @@ class BookingStatusStep {
   final String title;
   final String date;
   final String time;
-  final int status;
+  final bool completed;
 
   BookingStatusStep({
     required this.title,
     required this.date,
     required this.time,
-    required this.status
+    required this.completed
   });
 
   factory BookingStatusStep.fromJson(Map<String, dynamic> json) {
@@ -100,7 +100,7 @@ class BookingStatusStep {
       title: json["title"] ?? "",
       date: json["date"] ?? "",
       time: json["time"] ?? "",
-      status: json["status"] ?? "",
+      completed: json["completed"]??false,
     );
   }
 }

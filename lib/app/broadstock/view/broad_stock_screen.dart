@@ -350,7 +350,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                   ),
                 ),
                 Text(
-                  '20/06/2025', //  data.importedDate,
+                    data.importedDate,
                   style: GoogleFonts.roboto(
                     fontSize: 14,
                     color: Colors.black87,

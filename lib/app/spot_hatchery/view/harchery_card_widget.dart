@@ -322,8 +322,9 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                                   ),
                                 ),
                                 child: BookingBottomSheet(
+                                  price: '',
                                   categoryId: widget.spotHatchery.categoryId.toString(),
-                                  isSpotHatchery: true,
+                                  isSpotHatchery: false,
                                   hatcheryId: hatchery.hatcheryId.toString(),
                                   hatcheryName: hatchery.hatcheryName,
                                 ),

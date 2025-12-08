@@ -10,6 +10,7 @@ class VehicleAvaibalityCard extends StatelessWidget {
   final String pickupLocation;
   final String dropLocation;
   final String quantity;
+  final Color statusColor ;
   final VoidCallback ontapViewDetails;
 
   const VehicleAvaibalityCard({
@@ -24,6 +25,7 @@ class VehicleAvaibalityCard extends StatelessWidget {
     required this.dropLocation,
     required this.quantity,
     required this.ontapViewDetails,
+    required this.statusColor
   });
 
   @override
@@ -42,14 +44,14 @@ class VehicleAvaibalityCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           /// ---- ID + Date-Time Row ----
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
+           Text(
                 "ID:$id",
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
               ),
-
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+             Spacer(),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -100,7 +102,7 @@ class VehicleAvaibalityCard extends StatelessWidget {
                   horizontal: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.orange,
+                  color: statusColor,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(

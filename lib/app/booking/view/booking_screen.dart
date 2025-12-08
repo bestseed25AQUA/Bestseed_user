@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/controller/my_booking_controller.dart';
+import 'package:seedsuser/app/booking/view/booking_detail_screen.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
 import 'package:seedsuser/app/model/my_booking_model.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
+import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/vehicle_tracking_screen.dart';
 
 class MyBookingScreen extends StatefulWidget {
   const MyBookingScreen({super.key});
@@ -438,7 +440,9 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                     itemCount: controller.bookingList.length,
                     itemBuilder: (context, index) {
                       final booking = controller.bookingList[index];
-                      return _buildBookingCard(booking);
+                      return _buildBookingCard(booking, () {
+                        Get.to(BookingDetailScreen(bookingId: booking.bookingId.toString(),));
+                      });
                     },
                   ),
                 );
@@ -481,15 +485,16 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
   }
 
   // 🔹 Booking Card UI
-  Widget _buildBookingCard(BookingData data) {
+  Widget _buildBookingCard(BookingData data, VoidCallback ontap) {
     // Status color
-    Color statusColor = Colors.orange;
-    if (data.status.toLowerCase() == "in progress") {
-      statusColor = Colors.green;
-    } else if (data.status.toLowerCase() == "completed") {
-      statusColor = Colors.blue;
+    Color statusColor = Colors.green;
+    final String status = data.status?['label']?.toString() ?? '';
+    if (status.toLowerCase() == "pending") {
+      statusColor = Colors.orange;
+    } else if (status.toLowerCase() == "cancelled") {
+      statusColor = Colors.red;
     }
-
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -516,10 +521,9 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                 data.isSpot?.value == 1 ? "Spot Hatchery" : 'Hatchery',
                 style: GoogleFonts.roboto(
                   fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-
               // Status Badge
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -530,12 +534,17 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                   color: statusColor.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(
-                  (data.status).capitalizeFirst ?? '',
-                  style: GoogleFonts.roboto(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
+                child: InkWell(
+                  onTap: () {
+                    print(data.status.toString());
+                  },
+                  child: Text(
+                    (status.toString()).capitalizeFirst ?? '',
+                    style: GoogleFonts.roboto(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
                   ),
                 ),
               ),
@@ -661,20 +670,23 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
           const SizedBox(height: 20),
 
           // -------------------- VIEW DETAILS BUTTON --------------------
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              "View Details",
-              style: GoogleFonts.roboto(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade800,
+          InkWell(
+            onTap: ontap,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                "View Details",
+                style: GoogleFonts.roboto(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade800,
+                ),
               ),
             ),
           ),

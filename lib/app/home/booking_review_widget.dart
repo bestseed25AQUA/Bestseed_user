@@ -13,7 +13,7 @@ class BookingReviewContent extends StatelessWidget {
       date,
       hatcheryId,
       hatcheryName,
-      locationId,categoryId;
+      locationId,categoryId, estimatedPrice;
   final bool isSpotHatchery;
   const BookingReviewContent({
     super.key,
@@ -26,7 +26,7 @@ class BookingReviewContent extends StatelessWidget {
     required this.hatcheryId,
     required this.hatcheryName,
     required this.locationId,
-    required this.isSpotHatchery, required this.categoryId,
+    required this.isSpotHatchery, required this.categoryId, required this.estimatedPrice,
   });
 
   @override
@@ -96,6 +96,8 @@ class BookingReviewContent extends StatelessWidget {
                 _buildInfoRow('Unit', unit),
                 const Divider(),
                 _buildInfoRow('No.of Pieces', "$pieces Pieces"),
+                const Divider(),
+                _buildInfoRow('Estimated Price','₹$estimatedPrice'),
                 const Divider(),
                 _buildInfoRow('Dropping location', location),
                 const Divider(),
