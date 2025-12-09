@@ -44,7 +44,7 @@ class _HomePageState extends State<HomePage>
   final _newsSpecificController = Get.put(NewsSpecificController());
   final _seedsPriceController = Get.put(SeedsPriceController());
   final _homeController = Get.put(HomeController());
-    final _hatcheryController = Get.put(HatcheryUpdatesController());
+  final _hatcheryController = Get.put(HatcheryUpdatesController());
   // late Animation<Offset> _fishAnimation;
 
   @override
@@ -90,99 +90,129 @@ class _HomePageState extends State<HomePage>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            SizedBox(height: 20),
             // Header Section
-            Container(
-              color: AppColors.primary,
-              // padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: .0,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: SlideTransition(
-                            position: _leftAnimation,
-                            child: Image.asset(
-                              'assets/images/fish_icon.png',
-                              height: 50,
-                            ),
-                          ),
-                        ),
+            Column(
+              children: [
+                // Padding(
+                //   padding: const EdgeInsets.symmetric(
+                //     horizontal: .0,
+                //     vertical: 8,
+                //   ),
+                //   child: Row(
+                //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                //     children: [
+                //       Expanded(
+                //         child: SlideTransition(
+                //           position: _leftAnimation,
+                //           child: Image.asset(
+                //             'assets/images/fish_icon.png',
+                //             height: 50,
+                //           ),
+                //         ),
+                //       ),
 
-                        // Center text
-                        SizedBox(
-                          width: 240,
-                          child: Column(
-                            children: [
-                              Text(
-                                '"Grow More with the Best Seeds –\nQuality, Variety, and Trust"',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
+                //       // Center text
+                //       SizedBox(
+                //         width: 240,
+                //         child: Column(
+                //           children: [
+                //             Text(
+                //               '"Grow More with the Best Seeds –\nQuality, Variety, and Trust"',
+                //               style: TextStyle(
+                //                 color: Colors.white,
+                //                 fontSize: 15,
+                //                 fontWeight: FontWeight.bold,
+                //               ),
+                //               textAlign: TextAlign.center,
+                //             ),
+                //           ],
+                //         ),
+                //       ),
 
-                        // 👉 Right image moves right→left
-                        Expanded(
-                          child: SlideTransition(
-                            position: _rightAnimation,
-                            child: Image.asset(
-                              'assets/images/roya.png',
-                              height: 50,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  // CarouselCardsScreen(),
-                  HomeBannerCarousel(),
-                ],
-              ),
+                //       // 👉 Right image moves right→left
+                //       Expanded(
+                //         child: SlideTransition(
+                //           position: _rightAnimation,
+                //           child: Image.asset(
+                //             'assets/images/roya.png',
+                //             height: 50,
+                //           ),
+                //         ),
+                //       ),
+                //     ],
+                //   ),
+                // ),
+                const SizedBox(height: 4),
+                // CarouselCardsScreen(),
+                HomeBannerCarousel(),
+              ],
             ),
             // Menu Items Section
             Container(
-              color: AppColors.primary,
+              // color: AppColors.primary,
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
+                  // Expanded(
+                  //   child: _buildMenuItem(
+                  //     'Farm Management',
+                  //     'assets/images/farm.png',
+                  //     () {
+                  //       Get.to(() => FarmHomeScreen());
+                  //       // Fluttertoast.showToast(
+                  //       //   msg: "Working on it...",
+                  //       //   toastLength: Toast.LENGTH_SHORT,
+                  //       //   gravity: ToastGravity.BOTTOM,
+                  //       //   backgroundColor: Colors.black54,
+                  //       //   textColor: Colors.red,
+                  //       //   fontSize: 16.0,
+                  //       // );
+                  //     },
+                  //   ),
+                  // ),
                   Expanded(
-                    child: _buildMenuItem(
-                      'Farm Management',
-                      'assets/images/farm.png',
-                      () {
-                        Get.to(() => FarmHomeScreen());
-                        // Fluttertoast.showToast(
-                        //   msg: "Working on it...",
-                        //   toastLength: Toast.LENGTH_SHORT,
-                        //   gravity: ToastGravity.BOTTOM,
-                        //   backgroundColor: Colors.black54,
-                        //   textColor: Colors.red,
-                        //   fontSize: 16.0,
-                        // );
-                      },
+                    child: SizedBox(
+                      height: 180,
+                      width: MediaQuery.of(context).size.width * .35,
+                      child: _buildMenuItemMedicine(
+                        'FC Farm Medicine for fishes ',
+                        'assets/images/fc_prawn.png',
+                        () {
+                          // Get.to(() => FarmHomeScreen());
+                        },
+                      ),
                     ),
                   ),
                   SizedBox(width: 8),
-                  Expanded(
-                    child: _buildMenuItem(
-                      'Spot Hatcheries',
-                      'assets/images/hatchery_icon.png',
-                      () {
-                        Get.to(() => const SpotHatcheryScreen());
-                      },
+                  SizedBox(
+                    height: 180,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        SizedBox(
+                          width: MediaQuery.of(context).size.width * .52,
+                          child: _buildMenuItem(
+                            'Spot Hatcheries',
+                            'assets/images/hatchery_icon.png',
+                            () {
+                              Get.to(() => const SpotHatcheryScreen());
+                            },
+                          ),
+                        ),
+                        SizedBox(height: 10),
+                        SizedBox(
+                          width: MediaQuery.of(context).size.width * .52,
+                          child: _buildMenuItem(
+                            'Farm Management',
+                            'assets/images/farm.png',
+                            () {
+                              Get.to(() => FarmHomeScreen());
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   // SizedBox(width: 8),
@@ -203,10 +233,10 @@ class _HomePageState extends State<HomePage>
               padding: const EdgeInsets.only(left: 16.0, bottom: 16, right: 16),
               // height: 32,
               decoration: BoxDecoration(
-                color: AppColors.primary,
+                // color: AppColors.primary,
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
+                  bottomRight: Radius.circular(16)
                 ),
               ),
               child: ContactUsPage(),
@@ -214,65 +244,71 @@ class _HomePageState extends State<HomePage>
 
             // Hatcheries Section
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Image.asset(
-                        "assets/images/seeds.png",
-                        width: MediaQuery.of(context).size.width * .17,
-                      ),
-                      SizedBox(
-                        width: MediaQuery.of(context).size.width * .5,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // SlideTransition(
-                            //   position: _fishAnimation,
-                            //   child: Image.asset("assets/images/fish.png", height: 50),
-                            // ),
-                            Text(
-                              'Hatcheries',
-                              style: GoogleFonts.roboto(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF0076BE),
-                              ),
-                            ),
-                            SizedBox(height: 10),
-                            Image.asset(
-                              "assets/images/redline.png",
-                              width: MediaQuery.of(context).size.width * .3,
-                            ),
-                            Text(
-                              'Find nearby hatcheries for fish or shrimp seeds.',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.roboto(
-                                fontSize: 14,
-                                color: Colors.grey,
-                              ),
-                              maxLines: 2,
-                            ),
-                          ],
-                        ),
-                      ),
+                  // Row(
+                  //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  //   children: [
+                  //     Image.asset(
+                  //       "assets/images/seeds.png",
+                  //       width: MediaQuery.of(context).size.width * .17,
+                  //     ),
+                  //     SizedBox(
+                  //       width: MediaQuery.of(context).size.width * .5,
+                  //       child: Column(
+                  //         crossAxisAlignment: CrossAxisAlignment.center,
+                  //         children: [
+                  //           // SlideTransition(
+                  //           //   position: _fishAnimation,
+                  //           //   child: Image.asset("assets/images/fish.png", height: 50),
+                  //           // ),
+                  //           Text(
+                  //             'Hatcheries',
+                  //             style: GoogleFonts.roboto(
+                  //               fontSize: 20,
+                  //               fontWeight: FontWeight.bold,
+                  //               color: Color(0xFF0076BE),
+                  //             ),
+                  //           ),
+                  //           SizedBox(height: 10),
+                  //           Image.asset(
+                  //             "assets/images/redline.png",
+                  //             width: MediaQuery.of(context).size.width * .3,
+                  //           ),
+                  //           Text(
+                  //             'Find nearby hatcheries for fish or shrimp seeds.',
+                  //             textAlign: TextAlign.center,
+                  //             style: GoogleFonts.roboto(
+                  //               fontSize: 14,
+                  //               color: Colors.grey,
+                  //             ),
+                  //             maxLines: 2,
+                  //           ),
+                  //         ],
+                  //       ),
+                  //     ),
 
-                      Image.asset(
-                        "assets/images/fish.png",
-                        width: MediaQuery.of(context).size.width * .17,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                  //     Image.asset(
+                  //       "assets/images/fish.png",
+                  //       width: MediaQuery.of(context).size.width * .17,
+                  //     ),
+                  //   ],
+                  // ),
+                  // const SizedBox(height: 16),
                   HatcheryWidget(
                     onViewAllTap: () {
                       filterHatcheryController.selectedCategoryIds.clear();
-                      filterHatcheryController.selectedCategoryIds.add(_homeController.selectedCategoryId.value);
+                      filterHatcheryController.selectedCategoryIds.add(
+                        _homeController.selectedCategoryId.value,
+                      );
                       filterHatcheryController.applyFilter();
-                      Get.to(() => HatcheryFilterScreen(title: _homeController.selectedCateogryName.value));
+                      Get.to(
+                        () => HatcheryFilterScreen(
+                          title: _homeController.selectedCateogryName.value,
+                        ),
+                      );
                     },
                   ),
                   SizedBox(height: 20),
@@ -399,9 +435,14 @@ class _HomePageState extends State<HomePage>
                     );
                   }),
                   SizedBox(height: 16),
-                  if(_hatcheryController.hatcheryHomeData.value?.data.isNotEmpty??false)
-                  HatcheryUpdatesWidget(),
-                  SizedBox(height: 100)
+                  if (_hatcheryController
+                          .hatcheryHomeData
+                          .value
+                          ?.data
+                          .isNotEmpty ??
+                      false)
+                    HatcheryUpdatesWidget(),
+                  SizedBox(height: 100),
                 ],
               ),
             ),
@@ -473,40 +514,106 @@ class _HomePageState extends State<HomePage>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: Colors.white,
-          border: Border.all(color: Colors.black, width: 1),
+          border: Border.all(color: Colors.black.withOpacity(.1), width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(.5), // soft shadow
-              blurRadius: 12, // smooth blur
-              spreadRadius: 2, // light spread
-              offset: const Offset(0, 6), // shadow below the card
+              color: Colors.black.withOpacity(.1), // soft shadow
+              blurRadius: 1, // smooth blur
+              spreadRadius: 0, // light spread
+              offset: const Offset(0, 1), // shadow below the card
             ),
           ],
+          gradient: LinearGradient(
+            colors: [Colors.white, Colors.white, Color(0xff6AD7FF)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(height: 8),
+            SizedBox(
+              width: MediaQuery.of(context).size.width * .2,
+              child: Text(
+                text,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.roboto(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.start,
+              ),
+            ),
+            Spacer(),
+            Image.asset(iconPath, height: 50),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuItemMedicine(
+    String text,
+    String iconPath,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Colors.white,
+          border: Border.all(color: Colors.black.withOpacity(.1), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(.1), // soft shadow
+              blurRadius: 1, // smooth blur
+              spreadRadius: 1, // light spread
+              offset: const Offset(0, 1), // shadow below the card
+            ),
+          ],
+          gradient: LinearGradient(
+            colors: [Colors.white, Colors.white, Color(0xff6AD7FF)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
         ),
         child: Column(
           children: [
-            Image.asset(iconPath, height: 50),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    text,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.roboto(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-
-                    textAlign: TextAlign.center,
-                  ),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.yellow,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: EdgeInsets.only(top: 5, bottom: 5, left: 10, right: 10),
+              child: Text(
+                'Best Deals',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
                 ),
-                Icon(Icons.arrow_circle_right, color: Colors.black),
-              ],
+                textAlign: TextAlign.start,
+              ),
             ),
+            const SizedBox(height: 10),
+            SizedBox(
+              // width: MediaQuery.of(context).size.width * .2,
+              child: Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.roboto(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.start,
+              ),
+            ),
+            Expanded(child: Image.asset(iconPath, fit: BoxFit.cover)),
           ],
         ),
       ),

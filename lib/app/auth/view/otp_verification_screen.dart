@@ -29,10 +29,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     super.initState();
 
     // Autofill OTP from API
-    _otpController = TextEditingController(text: widget.otp);
+    _otpController = TextEditingController(text: '');
 
     otpController.phoneNumber.value = widget.phoneNumber;
-    otpController.otp.value = widget.otp; // set OTP in controller
+    // otpController.otp.value = widget.otp; // set OTP in controller
   }
 
   // @override

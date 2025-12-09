@@ -338,7 +338,6 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                           : List.generate((list.length / 2).ceil(), (rowIndex) {
                               final i1 = rowIndex * 2;
                               final i2 = i1 + 1;
-
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 14),
                                 child: Row(
@@ -397,11 +396,11 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                                               availableUntil:
                                                   list[i2].availableOn,
                                               statusColor:
-                                                  list[i1].status
+                                                  list[i2].status
                                                           .toLowerCase() ==
                                                       "open"
                                                   ? const Color(0xff25A652)
-                                                  : list[i1].status
+                                                  : list[i2].status
                                                             .toLowerCase() ==
                                                         "coming soon"
                                                   ? const Color(0xff007DFE)

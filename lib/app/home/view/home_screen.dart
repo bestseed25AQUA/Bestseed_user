@@ -8,6 +8,7 @@ import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/controller/location_controller.dart';
 import 'package:seedsuser/app/home/view/all_screen.dart';
 import 'package:seedsuser/app/home/view/home_appbar_widget.dart';
+import 'package:seedsuser/app/home/widget/home_loading.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 
@@ -21,7 +22,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   TabController? _tabController;
-  final HomeController _homeController = Get.put(HomeController());
+  final HomeController _homeController = Get.find<HomeController>();
   final FilterController filterController = Get.put(FilterController());
   final ProfileController profileController = Get.put(ProfileController());
 
@@ -30,17 +31,18 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
-
+    _initTabController();
     if (_locationController.selectedLocationId.value.isEmpty) {
       getDefaultLocation();
     }
+
     _homeController.selectedCategoryId.value = '';
     _homeController.getHatcheries('');
     _homeController.getPricesForHome();
-    ever(_homeController.categories, (_) {
-      _initTabController();
-      if (mounted) setState(() {});
-    });
+    // ever(_homeController.categories, (_) {
+    //   _initTabController();
+    //   if (mounted) setState(() {});
+    // });
   }
 
   void getDefaultLocation() async {
@@ -55,8 +57,14 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   int currentTabIndex = 0;
-  void _initTabController() {
-    if (_homeController.categories.isNotEmpty) {
+  void _initTabController() async { 
+    print('=====++1+++');
+    if (_homeController.categories.isEmpty) {
+      await _homeController.getCategories();
+    }
+    print('+++++2+++++');
+    if (_homeController.categories.isNotEmpty){
+       print('+++++3+ is not empty++++');
       _tabController?.dispose();
       _tabController = TabController(
         length: 4 + 1, //
@@ -73,8 +81,8 @@ class _HomeScreenState extends State<HomeScreen>
 
         _homeController.selectedCateogryName.value = (currentTabIndex == 0)
             ? ''
-            : _homeController.categories[currentTabIndex - 1].categoryName.toString();
-
+            : _homeController.categories[currentTabIndex - 1].categoryName
+                  .toString();
 
         print('current tab is ${_tabController?.index}');
         print('category selected ${_homeController.selectedCategoryId.value}');
@@ -91,6 +99,10 @@ class _HomeScreenState extends State<HomeScreen>
           _locationController.selectedLocationId.value,
         );
       });
+      if(mounted) {
+        setState(() {
+      });
+      }
     }
   }
 
@@ -100,14 +112,47 @@ class _HomeScreenState extends State<HomeScreen>
     super.dispose();
   }
 
-  List<Widget> buildLoadingTabs() {
-    return List.generate(4, (index) {
+  List<Widget> buildLoadingTabs(int length) {
+    return List.generate(length, (index) {
       return Tab(
         iconMargin: EdgeInsets.zero,
         child: ShimmerLoadingBox(width: 80, height: 20),
       );
     });
   }
+
+  //  SliverToBoxAdapter(
+  //           child: Container(
+  //             decoration: const BoxDecoration(
+  //               image: DecorationImage(
+  //                 image: AssetImage(
+  //                   "assets/images/background_animation.png",
+  //                 ),
+  //                 fit: BoxFit.cover,
+  //               ),
+  //             ),
+  //             child: Column(
+  //               children: [
+  //                 Obx((){
+  //                   final categories = _homeController.categories;
+  //                   return TabBar(
+  //                     controller: _tabController,
+  //                     isScrollable: true,
+  //                     labelColor: Colors.white,
+  //                     unselectedLabelColor: Colors.white70,
+  //                     indicatorColor: Colors.white,
+  //                     tabs: [
+  //                       const Tab(text: "All"),
+  //                       ...categories
+  //                           .take(4)
+  //                           .map((e) => Tab(text: e.categoryName)),
+  //                     ],
+  //                   );
+  //                 }),
+  //               ],
+  //             ),
+  //           ),
+  //         ),
 
   final _locationController = Get.put(LocationController());
   @override
@@ -116,19 +161,16 @@ class _HomeScreenState extends State<HomeScreen>
       backgroundColor: Colors.white,
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          HomeAppBar(),
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _SliverAppBarDelegate(
-              Obx(() {
+          HomeAppBar(
+            bottom: Builder(
+              builder: (context) {
                 final categories = _homeController.categories;
-
-                if (categories.isEmpty ||
-                    _tabController == null ||
-                    (categories.isEmpty)) {
+                if (categories.isEmpty || _tabController == null) {
+                  // return Row(children: [
+                  //  Text((_tabController == null).toString())
+                  // ],);
                   return DefaultTabController(
-                    length: 4,
-
+                    length: 5,
                     child: TabBar(
                       tabAlignment: TabAlignment.start,
                       isScrollable: true,
@@ -137,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen>
                         horizontal: 5,
                         vertical: 0,
                       ),
-                      tabs: buildLoadingTabs(),
+                      tabs: buildLoadingTabs(5),
                       overlayColor: WidgetStateProperty.all(Colors.white),
                       dividerColor: Colors.black,
                     ),
@@ -146,86 +188,44 @@ class _HomeScreenState extends State<HomeScreen>
                 return TabBar(
                   controller: _tabController,
                   isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.white70,
-                  indicatorColor: Colors.white,
-                  indicatorSize: TabBarIndicatorSize.label,
-                  indicatorWeight: 3,
-                  tabs:
-                      (categories.isEmpty ||
-                          _tabController == null ||
-                          (categories.isEmpty))
-                      ? []
+                  labelColor: Colors.black,
+                  unselectedLabelColor: Colors.black,
+                  indicatorColor: Colors.black,
+                  tabs: _tabController == null || (categories.isEmpty)
+                      ? [SizedBox()]
                       : [
                           const Tab(text: "All"),
                           ...categories
                               .take(4)
-                              .map((cat) => Tab(text: cat.categoryName)),
+                              .map((e) => Tab(text: e.categoryName)),
                         ],
                 );
-              }),
+              },
             ),
           ),
         ],
-        body: Obx(() {
-          final cats = _homeController.categories.take(4).toList();
-          if (_homeController.isLoading.value) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (_tabController == null) {
-            return const Center(
-              child: SizedBox(
-                height: 30,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _Dot(),
-                    SizedBox(width: 6),
-                    _Dot(),
-                    SizedBox(width: 6),
-                    _Dot(),
-                  ],
-                ),
-              ),
-            );
-          }
-          return TabBarView(
-            key: ValueKey(cats.length),
-            controller: _tabController,
-            children: [
-              RefreshIndicator(
-                onRefresh: () async {
-                  await _homeController.changeHomeData(
-                    _homeController.selectedCategoryId.value,
-                    _locationController.selectedLocationId.value,
-                  );
-                },
-                child: const HomePage(),
-              ),
-              ...cats.map(
-                (cat) => RefreshIndicator(
-                  onRefresh: () async {
-                    _homeController.selectedCateogryName.value =
-                        cat.categoryName;
 
-                    await _homeController.changeHomeData(
-                      cat.id.toString(),
-                      _locationController.selectedLocationId.value,
-                    );
-                  },
-                  child: const HomePage(),
-                ),
-              ),
-            ],
-          );
-        }),
+        body: Builder(
+          builder: (context) {
+            final categories = _homeController.categories;
+            return _tabController == null || (categories.isEmpty)
+                ? homeShimmer(context)
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      const HomePage(),
+                      ...categories.take(4).map((e) => const HomePage()),
+                    ],
+                  );
+          },
+        ),
       ),
     );
   }
 }
 
 /// Custom Delegate for Sticky TabBar
+// ignore: unused_element
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverAppBarDelegate(this._tabBar);
 
@@ -246,7 +246,7 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
     bool overlapsContent,
   ) {
     return Container(
-      color: AppColors.primary,
+      color: Colors.transparent,
       alignment: Alignment.centerLeft,
       child: _tabBar,
     );

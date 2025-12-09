@@ -39,7 +39,6 @@ class SingleNewDetailController extends GetxController {
       CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;
-      CustomToast.error("Error, loading dummy data…");
       // _loadDummyData();
     }
   }

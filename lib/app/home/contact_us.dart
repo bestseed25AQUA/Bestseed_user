@@ -127,7 +127,7 @@ class _ContactUsPageState extends State<ContactUsPage> {
                 title: "Call",
                 subtitle: phoneNumber,
                 imagePath: 'assets/images/phone.png',
-                color: Colors.black,
+                background: Colors.blue,
                 onTap: () async {
                   final Uri callUri = Uri(scheme: 'tel', path: phoneNumber);
                   if (await canLaunchUrl(callUri)) {
@@ -150,7 +150,7 @@ class _ContactUsPageState extends State<ContactUsPage> {
                 title: "WhatsApp",
                 subtitle: whatsappNumber,
                 imagePath: 'assets/images/whatsApp.png',
-                color: Colors.black,
+                background: Colors.green,
                 onTap: () async {
                   final whatsappUrl =
                       "https://wa.me/${whatsappNumber.replaceAll('+', '')}";
@@ -209,7 +209,7 @@ class _ContactUsPageState extends State<ContactUsPage> {
     required String title,
     required String subtitle,
     required String imagePath,
-    required Color color,
+    required Color background,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -218,7 +218,7 @@ class _ContactUsPageState extends State<ContactUsPage> {
         width: double.infinity, // smaller width
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: background.withOpacity(.1),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -228,26 +228,18 @@ class _ContactUsPageState extends State<ContactUsPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                Image.asset(imagePath, height: 28),
                 Text(
-                  title,
+                  subtitle,
                   style: GoogleFonts.roboto(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: color,
+                    color: background,
                   ),
                 ),
-                if (title == 'Call')
-                  Icon(Icons.phone, color: Colors.blue, size: 18)
-                else
-                  Image.asset(imagePath, height: 18),
               ],
             ),
             const SizedBox(height: 6),
-            Text(
-              subtitle,
-              style: GoogleFonts.roboto(fontSize: 13, color: Colors.black87),
-              textAlign: TextAlign.center,
-            ),
           ],
         ),
       ),

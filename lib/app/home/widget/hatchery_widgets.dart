@@ -42,6 +42,11 @@ class HatcheryWidget extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                Text('Hatcheries',style: GoogleFonts.roboto(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black
+                  ),),
                 SizedBox(width: 10),
                 TextButton(
                   onPressed: onViewAllTap,
