@@ -92,10 +92,10 @@ class WantedCropController extends GetxController {
           }
         }
       } else {
-        CustomToast.error("Failed to fetch banners");
+        // CustomToast.error("Failed to fetch banners");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong");
+      // CustomToast.error("Something went wrong");
     } finally {
       isBannerLoading(false);
     }

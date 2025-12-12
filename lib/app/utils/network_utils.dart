@@ -100,9 +100,8 @@ Future<http.Response> getRequest({
     debugPrint('headers : $headers');
     debugPrint('getRequest URL: $endPoint');
     debugPrint('getRequest status code ${response.statusCode}');
-    try {
-      // debugPrint('getRequest body ${response.body.toString().substring(0,100)}');
-    } catch (e) {}
+    debugPrint('getRequest status body ${response.body.toString()}');
+     
     return response;
   } catch (e) {
     print(e);

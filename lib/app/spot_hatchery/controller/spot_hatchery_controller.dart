@@ -7,6 +7,7 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 
 class SpotHatcheryController extends GetxController {
   var isLoading = true.obs;
+  var isError = false.obs;
   var spotHatchery = <SpotHatchery>[].obs;
 
   @override
@@ -17,6 +18,7 @@ class SpotHatcheryController extends GetxController {
 
   Future<void> fetchSpotHatcheries() async {
     try {
+      isError(false);
       isLoading.value = true;
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/spot-hatcheries",
@@ -33,13 +35,16 @@ class SpotHatcheryController extends GetxController {
           );
         } else {
           spotHatchery.clear();
-          CustomToast.error("No banners found.");
+          // CustomToast.error("No banners found.");
         }
       } else {
-        CustomToast.error("Failed to fetch banners ");
+         isError(true);
+
+        // CustomToast.error("Failed to fetch banners ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong");
+      isError(true);
+      // CustomToast.error("Something went wrong");
     } finally {
       isLoading.value = false;
     }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,6 +16,7 @@ import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
+import 'package:seedsuser/app/utils/app_animations.dart';
 
 // ignore: must_be_immutable
 class HomeAppBar extends StatefulWidget {
@@ -305,21 +307,18 @@ class _HomeAppBarState extends State<HomeAppBar> {
           return Stack(
             fit: StackFit.expand,
             children: [
-              Image.asset(
-                "assets/images/background_animation.png",
-                fit: BoxFit.cover,
-              ),
+              Image.asset("assets/images/home_top.png", fit: BoxFit.cover),
               FlexibleSpaceBar(
                 // titlePadding: EdgeInsets.only(top: 100),
                 // title: widget.bottom,
                 background: Container(
-                  padding: EdgeInsets.only(top: 0, left: 16, right: 16),
+                  padding: EdgeInsets.only(top: 10, left: 16, right: 16),
                   alignment: Alignment.bottomCenter,
                   child: Column(
                     children: [
                       Column(
                         children: [
-                          // const SizedBox(height: 12),
+                          const SizedBox(height: 32),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -534,33 +533,80 @@ class _HomeAppBarState extends State<HomeAppBar> {
                               ),
                               Row(
                                 children: [
-                                  InkWell(
-                                    onTap: () =>
-                                        Get.to(() => LanguageSelectionScreen()),
-                                    child: Image.asset(
+                                  OpenContainer(
+                                    closedElevation: 0,
+                                    openElevation: 0,
+                                    closedShape: const CircleBorder(),
+                                    transitionDuration: const Duration(
+                                      milliseconds: 700,
+                                    ),
+                                    transitionType:
+                                        ContainerTransitionType.fadeThrough,
+                                    closedBuilder: (context, action) {
+                                      return Image.asset(
                                       'assets/images/lan_image.png',
                                       height: 32,
-                                    ),
+                                    );
+                                    },
+                                    openBuilder: (context, action) {
+                                      return   LanguageSelectionScreen();
+                                    },
                                   ),
                                   const SizedBox(width: 16),
-                                  InkWell(
-                                    onTap: () => Get.to(
-                                      () => const NotificationsScreen(),
+                                  OpenContainer(
+                                    closedElevation: 0,
+                                    openElevation: 0,
+                                    closedShape: const CircleBorder(),
+                                    transitionDuration: const Duration(
+                                      milliseconds: 700,
                                     ),
-                                    child: Image.asset(
+                                    transitionType:
+                                        ContainerTransitionType.fadeThrough,
+                                    closedBuilder: (context, action) {
+                                      return Image.asset(
                                       'assets/images/notification.png',
                                       height: 32,
-                                    ),
+                                    );
+                                    },
+                                    openBuilder: (context, action) {
+                                      return const NotificationsScreen();
+                                    },
                                   ),
                                   const SizedBox(width: 16),
-                                  InkWell(
-                                    onTap: () =>
-                                        Get.to(() => const ProfileScreen()),
-                                    child: Image.asset(
-                                      'assets/images/person.png',
-                                      height: 32,
+                                  OpenContainer(
+                                    closedElevation: 0,
+                                    openElevation: 0,
+                                    closedShape: const CircleBorder(),
+                                    transitionDuration: const Duration(
+                                      milliseconds: 700,
                                     ),
+                                    transitionType:
+                                        ContainerTransitionType.fadeThrough,
+                                    closedBuilder: (context, action) {
+                                      return Image.asset(
+                                        'assets/images/person.png',
+                                        height: 32,
+                                      );
+                                    },
+                                    openBuilder: (context, action) {
+                                      return const ProfileScreen();
+                                    },
                                   ),
+                                  // InkWell(
+                                  //   onTap: () {
+                                  //     Navigator.push(
+                                  //       context,
+                                  //       AppAnimations.circularRevealRoute(
+                                  //         const ProfileScreen(),
+                                  //         center: Alignment.topCenter,
+                                  //       ),
+                                  //     );
+                                  //   },
+                                  //   child: Image.asset(
+                                  //     'assets/images/person.png',
+                                  //     height: 32,
+                                  //   ),
+                                  // ),
                                   const SizedBox(width: 16),
                                 ],
                               ),
@@ -568,6 +614,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                           ),
                         ],
                       ),
+                      SizedBox(height: 15),
                       _buildSearchBar(context),
                       // SizedBox(height: ,)
                     ],
@@ -593,10 +640,14 @@ class _HomeAppBarState extends State<HomeAppBar> {
           );
         },
       ),
-    
+
       bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(48),
-        child: Column(children: [widget.bottom, SizedBox(height: 00)]),
+        preferredSize: const Size(double.infinity, 48),
+        child: widget.bottom,
+        //  Column(
+        //   crossAxisAlignment: CrossAxisAlignment.start,
+        //   mainAxisAlignment: MainAxisAlignment.start,
+        //   children: [widget.bottom, SizedBox(height: 00)]),
       ),
     );
   }
@@ -607,18 +658,40 @@ class _HomeAppBarState extends State<HomeAppBar> {
         Expanded(
           child: SizedBox(
             height: 46,
-            child: TextField(
-              readOnly: true,
-              onTap: () => Get.to(() => const SearchScreen()),
-              decoration: InputDecoration(
-                hintText: 'Search for Hatcheries, locations, seeds',
-                hintStyle: GoogleFonts.roboto(color: Colors.grey),
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+            child: Hero(
+              tag: 'homeAppBarSearch',
+              child: Material(
+                color: Colors.transparent,
+                child: TextField(
+                  readOnly: true,
+                  onTap: () {
+                    Navigator.push(context, zoomOutFadeRoute(SearchScreen()));
+                  },
+                  decoration: InputDecoration(
+                    // hintText: 'Search for Hatcheries, locations, seeds',
+                    hintText: 'Search for Hatcher...',
+                    hintStyle: GoogleFonts.roboto(color: Colors.grey),
+                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                    filled: true,
+                    contentPadding: EdgeInsets.only(bottom: 20),
+                    suffixIcon: Icon(Icons.mic, color: AppColors.primary),
+                    // suffix: Column(
+                    //   children: [
+                    //     SizedBox(height: 00,),
+                    //     Padding(
+                    //       padding: const EdgeInsets.only(top: 0),
+                    //       child: Icon(Icons.mic,color: AppColors.primary),
+                    //     ),
+
+                    //     SizedBox(height: 10,),
+                    //   ],
+                    // ),
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -649,4 +722,29 @@ class _HomeAppBarState extends State<HomeAppBar> {
       builder: (_) => const FilterBottomSheet(),
     );
   }
+}
+
+Route zoomOutFadeRoute(Widget page) {
+  return PageRouteBuilder(
+    transitionDuration: const Duration(milliseconds: 650),
+    pageBuilder: (_, __, ___) => page,
+    transitionsBuilder: (_, animation, __, child) {
+      // Zoom out (scale from 0.8 → 1.0)
+      final scaleAnimation = Tween<double>(
+        begin: 0.8,
+        end: 1.0,
+      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
+
+      // Fade animation (0 → 1)
+      final fadeAnimation = Tween<double>(
+        begin: 0.0,
+        end: 1.0,
+      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeIn));
+
+      return Transform.scale(
+        scale: scaleAnimation.value,
+        child: FadeTransition(opacity: fadeAnimation, child: child),
+      );
+    },
+  );
 }

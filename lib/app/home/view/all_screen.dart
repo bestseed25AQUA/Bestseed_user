@@ -25,6 +25,7 @@ import 'package:seedsuser/app/spot_hatchery/view/spot_hatchery_screen.dart';
 import 'package:seedsuser/app/home/today_price_widget.dart';
 import 'package:seedsuser/app/home/widget/home_banner_carousel.dart';
 import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
+import 'package:seedsuser/app/utils/app_animations.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -90,7 +91,6 @@ class _HomePageState extends State<HomePage>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(height: 20),
             // Header Section
             Column(
               children: [
@@ -143,7 +143,13 @@ class _HomePageState extends State<HomePage>
                 //     ],
                 //   ),
                 // ),
-                const SizedBox(height: 4),
+                Image.asset(
+                  'assets/images/best_seed_bottom.png',
+                  width: double.infinity,
+                  fit: BoxFit.fitWidth,
+                ),
+
+                const SizedBox(height: 24),
                 // CarouselCardsScreen(),
                 HomeBannerCarousel(),
               ],
@@ -194,21 +200,22 @@ class _HomePageState extends State<HomePage>
                         SizedBox(
                           width: MediaQuery.of(context).size.width * .52,
                           child: _buildMenuItem(
-                            'Spot Hatcheries',
+                            'Spot \nHatcheries',
                             'assets/images/hatchery_icon.png',
                             () {
-                              Get.to(() => const SpotHatcheryScreen());
+                              Navigator.push(context, AppAnimations.fade(SpotHatcheryScreen()));
                             },
                           ),
                         ),
-                        SizedBox(height: 10),
+                        // SizedBox(height: 10),
+                        Spacer(),
                         SizedBox(
                           width: MediaQuery.of(context).size.width * .52,
                           child: _buildMenuItem(
-                            'Farm Management',
+                            'Farm \nManagement',
                             'assets/images/farm.png',
                             () {
-                              Get.to(() => FarmHomeScreen());
+                              Navigator.push(context, AppAnimations.fade(FarmHomeScreen())); 
                             },
                           ),
                         ),
@@ -236,7 +243,7 @@ class _HomePageState extends State<HomePage>
                 // color: AppColors.primary,
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16)
+                  bottomRight: Radius.circular(16),
                 ),
               ),
               child: ContactUsPage(),
@@ -304,9 +311,14 @@ class _HomePageState extends State<HomePage>
                         _homeController.selectedCategoryId.value,
                       );
                       filterHatcheryController.applyFilter();
-                      Get.to(
-                        () => HatcheryFilterScreen(
-                          title: _homeController.selectedCateogryName.value,
+                      Navigator.push(
+                        context,
+                        AppAnimations.fade(
+                          HatcheryFilterScreen(
+                            title:
+                            _homeController.selectedCateogryName.value.isEmpty? "Hatchery":
+                             _homeController.selectedCateogryName.value,
+                          ),
                         ),
                       );
                     },
@@ -347,7 +359,12 @@ class _HomePageState extends State<HomePage>
                             ),
                             IconButton(
                               onPressed: () {
-                                Get.to(() => SeedRequestsFormScreen());
+                                Navigator.push(
+                                  context,
+                                  AppAnimations.slideLeftToRight(
+                                    SeedRequestsFormScreen(),
+                                  ),
+                                );
                               },
                               icon: Icon(
                                 Icons.arrow_forward,
@@ -416,13 +433,27 @@ class _HomePageState extends State<HomePage>
                                     data?.medicineName ?? "",
                                     data?.curesFor ?? "",
                                     data?.mediaPath ?? "",
+                                    'medicine$index',
                                     () {
-                                      Get.to(
-                                        () => MedicineDetailScreen(
-                                          id: data?.id.toString() ?? '',
-                                          title:
-                                              data?.medicineName.toString() ??
-                                              '',
+                                      Navigator.push(
+                                        context,
+                                        PageRouteBuilder(
+                                          transitionDuration: const Duration(
+                                            milliseconds: 600,
+                                          ), // smooth
+                                          reverseTransitionDuration:
+                                              const Duration(milliseconds: 600),
+                                          pageBuilder: (_, __, ___) =>
+                                              MedicineDetailScreen(
+                                                id: data?.id.toString() ?? '',
+                                                title:
+                                                    data?.medicineName
+                                                        .toString() ??
+                                                    '',
+                                                subtitle: data?.curesFor ?? "",
+                                                imageUrl: data?.mediaPath ?? "",
+                                                tag: 'medicine$index',
+                                              ),
                                         ),
                                       );
                                     },
@@ -510,13 +541,14 @@ class _HomePageState extends State<HomePage>
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.all(16),
+        padding: EdgeInsets.all(18),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: Colors.white,
-          border: Border.all(color: Colors.black.withOpacity(.1), width: 1),
+          // border: Border.all(color: Colors.black.withOpacity(.1), width: 1),
           boxShadow: [
             BoxShadow(
+              // ignore: deprecated_member_use
               color: Colors.black.withOpacity(.1), // soft shadow
               blurRadius: 1, // smooth blur
               spreadRadius: 0, // light spread
@@ -533,16 +565,16 @@ class _HomePageState extends State<HomePage>
           children: [
             const SizedBox(height: 8),
             SizedBox(
-              width: MediaQuery.of(context).size.width * .2,
+              width: MediaQuery.of(context).size.width * .23,
               child: Text(
                 text,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.roboto(
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
-                textAlign: TextAlign.start,
+                textAlign: TextAlign.start
               ),
             ),
             Spacer(),
@@ -559,13 +591,14 @@ class _HomePageState extends State<HomePage>
     VoidCallback onTap,
   ) {
     return InkWell(
+      borderRadius: BorderRadius.circular(16),
       onTap: onTap,
-      child: Container(
+      child: Ink(
         padding: EdgeInsets.all(8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: Colors.white,
-          border: Border.all(color: Colors.black.withOpacity(.1), width: 1),
+          // border: Border.all(color: Colors.black.withOpacity(.1), width: 1),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(.1), // soft shadow
@@ -647,6 +680,7 @@ class _HomePageState extends State<HomePage>
     String title,
     String? subtitle,
     String imageUrl,
+    String tag,
     VoidCallback ontap,
   ) {
     return Padding(
@@ -656,29 +690,32 @@ class _HomePageState extends State<HomePage>
         children: [
           InkWell(
             onTap: ontap,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14.85),
-              child: Container(
-                height: MediaQuery.of(context).size.width * .38,
-                width: MediaQuery.of(context).size.width * .38,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: Colors.white.withOpacity(.7),
-                  border: Border.all(width: .1, color: Colors.grey),
-                  boxShadow: [BoxShadow(color: Colors.grey)],
-                ),
-                child: Image.network(
-                  imageUrl,
-                  height: 120,
-                  width: 150,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return SizedBox(
-                      height: 120,
-                      width: 150,
-                      child: CustomShimmer(),
-                    );
-                  },
+            child: Hero(
+              tag: tag,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14.85),
+                child: Container(
+                  height: MediaQuery.of(context).size.width * .38,
+                  width: MediaQuery.of(context).size.width * .38,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withOpacity(.7),
+                    border: Border.all(width: .1, color: Colors.grey),
+                    boxShadow: [BoxShadow(color: Colors.grey)],
+                  ),
+                  child: Image.network(
+                    imageUrl,
+                    height: 120,
+                    width: 150,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return SizedBox(
+                        height: 120,
+                        width: 150,
+                        child: CustomShimmer(),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),

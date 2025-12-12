@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:seedsuser/app/home/controller/hatchery_category_controller.dart';
 import 'package:seedsuser/app/home/view/full_video_screen.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:video_player/video_player.dart';
 
 class HatcheryCategoryBannerWidget extends StatefulWidget {
@@ -29,26 +30,27 @@ class _SpotHatcheryBannerWidgetState
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      if (controller.isLoading.value) {
-        return SizedBox();
-      } else if (controller.banners.isEmpty) {
+     if (controller.isLoading.value||controller.banners.isEmpty) {
         // return const Center(child: Text("No banners available"));
         return Padding(
-          padding: const EdgeInsets.only(left: 20,right: 20),
-          child: Container(
-            
-            width: double.infinity, height: 180,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.grey.withOpacity(.4)
+          padding: const EdgeInsets.only(left: 15, right: 15),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+            child: Container(
+              height: 180,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            ),
+          ),
         );
       } else {
         return Stack(
           alignment: Alignment.bottomCenter,
           children: [
-            
             CarouselSlider.builder(
               itemCount: controller.banners.length,
               itemBuilder: (context, index, realIndex) {

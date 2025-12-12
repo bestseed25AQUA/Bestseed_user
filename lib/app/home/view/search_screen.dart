@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/voice_mic_button.dart';
 import 'package:seedsuser/app/home/view/hatchery_filter_screen.dart';
+import 'package:seedsuser/app/home/view/home_appbar_widget.dart';
 import 'package:seedsuser/app/utils/voice_service.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
@@ -71,10 +72,8 @@ class _SearchScreenState extends State<SearchScreen> {
         // If you want live update uncomment below
         // setState(() {});
       },
-      
-      listenOptions: stt.SpeechListenOptions(
-        
-      ),
+
+      listenOptions: stt.SpeechListenOptions(),
     );
   }
 
@@ -135,7 +134,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _applyFilters() {
     filterHatcheryController.applyFilter();
-    Get.to(() => HatcheryFilterScreen());
+    Navigator.push(context, zoomOutFadeRoute(HatcheryFilterScreen()));
+    // Get.to(HatcheryFilterScreen());
   }
 
   bool isRecording = false;
@@ -290,13 +290,15 @@ class _SearchScreenState extends State<SearchScreen> {
           foregroundColor: Colors.white,
         ),
         body: Obx(() {
-          if (filterHatcheryController.isLoading.value &&
-              (filterHatcheryController.categories.isEmpty ||
-                  filterHatcheryController.locations.isEmpty ||
-                  filterHatcheryController.brands.isEmpty)) {
+          // if (filterHatcheryController.isLoading.value &&
+          //     (filterHatcheryController.categories.isEmpty ||
+          //         filterHatcheryController.locations.isEmpty ||
+          //         filterHatcheryController.brands.isEmpty)) {
+          //   return const Center(child: CircularProgressIndicator());
+          // }
+          if (filterHatcheryController.brands.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
-
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -311,55 +313,76 @@ class _SearchScreenState extends State<SearchScreen> {
                       left: 16,
                       right: 16,
                       child: Material(
-                        elevation: 6,
-                        borderRadius: BorderRadius.circular(12),
-                        child: TextField(
-                          focusNode: _focusNode,
-                          onTapOutside: (event) {
-                            _focusNode.unfocus();
-                          },
-                          onChanged: (value) {
-                            // setState(() {});
-                            filterHatcheryController.query = value;
-                            if (_skipTextDebounce) {
-                              // Reset flag so next user typing will work
-                              _skipTextDebounce = false;
-                              return;
-                            }
-                            doAfterDelay();
-                          },
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Colors.white,
-                            hintText: "Search...",
-                            prefixIcon: const Icon(Icons.search),
-                            suffixIcon: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (_searchController.text.isNotEmpty)
-                                  IconButton(
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: () {
-                                      filterHatcheryController.query = '';
-                                      setState(() => _searchController.clear());
-                                    },
+                        color: Colors.transparent,
+                        child: Hero(
+                          tag: 'homeAppBarSearch',
+                          child: Material(
+                            color: Colors.transparent,
+                            child: TextField(
+                              focusNode: _focusNode,
+                              onTapOutside: (event) {
+                                _focusNode.unfocus();
+                              },
+                              onChanged: (value) {
+                                // setState(() {});
+                                filterHatcheryController.query = value;
+                                if (_skipTextDebounce) {
+                                  // Reset flag so next user typing will work
+                                  _skipTextDebounce = false;
+                                  return;
+                                }
+                                doAfterDelay();
+                              },
+                              controller: _searchController,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Colors.white,
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    width: .1,
+                                    color: Colors.grey,
                                   ),
-                                // IconButton(
-                                //   icon: Icon(
-                                //     _isListening ? Icons.mic_none : Icons.mic,
-                                //     color: _isListening
-                                //         ? Colors.red
-                                //         : Colors.grey,
-                                //   ),
-                                //   onPressed: _toggleVoiceInput,
-                                // ),
-                                VoiceMicButton(onStart: startRecording),
-                              ],
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    width: .1,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                hintText: "Search...",
+                                prefixIcon: const Icon(Icons.search),
+                                suffixIcon: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (_searchController.text.isNotEmpty)
+                                      IconButton(
+                                        icon: const Icon(Icons.clear),
+                                        onPressed: () {
+                                          filterHatcheryController.query = '';
+                                          setState(
+                                            () => _searchController.clear(),
+                                          );
+                                        },
+                                      ),
+                                    // IconButton(
+                                    //   icon: Icon(
+                                    //     _isListening ? Icons.mic_none : Icons.mic,
+                                    //     color: _isListening
+                                    //         ? Colors.red
+                                    //         : Colors.grey,
+                                    //   ),
+                                    //   onPressed: _toggleVoiceInput,
+                                    // ),
+                                    VoiceMicButton(onStart: startRecording),
+                                  ],
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
                             ),
                           ),
                         ),

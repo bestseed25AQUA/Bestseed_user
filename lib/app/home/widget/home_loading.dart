@@ -11,7 +11,7 @@ Widget homeShimmer(BuildContext context) {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🔵 Banner
+            // Banner
             Container(
               height: 150,
               width: double.infinity,
@@ -22,7 +22,7 @@ Widget homeShimmer(BuildContext context) {
             ),
             const SizedBox(height: 16),
 
-            // 🔵 Best Deals section
+            // Best Deals section
             Row(
               children: [
                 Container(
@@ -68,10 +68,10 @@ Widget homeShimmer(BuildContext context) {
 
             const SizedBox(height: 16),
 
-            // 🔵 Buttons Row
+            // Buttons Row
             const SizedBox(height: 20),
 
-            // 🔵 Hatcheries Title Row
+            // Hatcheries Title Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -81,7 +81,7 @@ Widget homeShimmer(BuildContext context) {
             ),
             const SizedBox(height: 16),
 
-            // 🔵 Hatchery grid shimmer
+            // Hatchery grid shimmer
             GridView.builder(
               physics: const NeverScrollableScrollPhysics(),
               shrinkWrap: true,

@@ -25,7 +25,6 @@ class _HomeScreenState extends State<HomeScreen>
   final HomeController _homeController = Get.find<HomeController>();
   final FilterController filterController = Get.put(FilterController());
   final ProfileController profileController = Get.put(ProfileController());
-
   final newsSpecificController = Get.put(NewsSpecificController());
 
   @override
@@ -35,7 +34,6 @@ class _HomeScreenState extends State<HomeScreen>
     if (_locationController.selectedLocationId.value.isEmpty) {
       getDefaultLocation();
     }
-
     _homeController.selectedCategoryId.value = '';
     _homeController.getHatcheries('');
     _homeController.getPricesForHome();
@@ -57,14 +55,14 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   int currentTabIndex = 0;
-  void _initTabController() async { 
+  void _initTabController() async {
     print('=====++1+++');
     if (_homeController.categories.isEmpty) {
       await _homeController.getCategories();
     }
     print('+++++2+++++');
-    if (_homeController.categories.isNotEmpty){
-       print('+++++3+ is not empty++++');
+    if (_homeController.categories.isNotEmpty) {
+      print('+++++3+ is not empty++++');
       _tabController?.dispose();
       _tabController = TabController(
         length: 4 + 1, //
@@ -99,9 +97,8 @@ class _HomeScreenState extends State<HomeScreen>
           _locationController.selectedLocationId.value,
         );
       });
-      if(mounted) {
-        setState(() {
-      });
+      if (mounted) {
+        setState(() {});
       }
     }
   }
@@ -174,6 +171,10 @@ class _HomeScreenState extends State<HomeScreen>
                     child: TabBar(
                       tabAlignment: TabAlignment.start,
                       isScrollable: true,
+
+                      labelColor: Colors.black,
+                      unselectedLabelColor: Colors.black,
+                      indicatorColor: Colors.black,
                       padding: EdgeInsets.zero,
                       labelPadding: EdgeInsets.symmetric(
                         horizontal: 5,
@@ -185,19 +186,22 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   );
                 }
+                // return Text('All');
                 return TabBar(
+                  tabAlignment: TabAlignment.start,
                   controller: _tabController,
                   isScrollable: true,
-                  labelColor: Colors.black,
+                  labelColor: AppColors.primary,
                   unselectedLabelColor: Colors.black,
-                  indicatorColor: Colors.black,
+                  indicatorColor: AppColors.primary,
+                  padding: EdgeInsets.zero,
                   tabs: _tabController == null || (categories.isEmpty)
                       ? [SizedBox()]
                       : [
-                          const Tab(text: "All"),
+                          const Tab(text: "All", iconMargin: EdgeInsets.only()),
                           ...categories
                               .take(4)
-                              .map((e) => Tab(text: e.categoryName)),
+                              .map((e) => Tab(text: e.categoryName))
                         ],
                 );
               },
@@ -213,8 +217,36 @@ class _HomeScreenState extends State<HomeScreen>
                 : TabBarView(
                     controller: _tabController,
                     children: [
-                      const HomePage(),
-                      ...categories.take(4).map((e) => const HomePage()),
+                      RefreshIndicator(
+                        
+                        color: Colors.white,
+                        backgroundColor: AppColors.primary,
+                        strokeWidth: 3,
+                        displacement: 60,
+                        elevation: 6,
+                        onRefresh: () async {
+                         await _homeController.changeHomeData('', '');
+                        },
+                        child: const HomePage(),
+                      ),
+                      ...categories
+                          .take(4)
+                          .map(
+                            (e) => RefreshIndicator(
+                              color: Colors.white,
+                              backgroundColor: AppColors.primary,
+                              strokeWidth: 3,
+                              displacement: 60,
+                              elevation: 6,
+                              onRefresh: () async {
+                                await _homeController.changeHomeData(
+                                  _homeController.selectedCategoryId.value,
+                                  _locationController.selectedLocationId.value,
+                                );
+                              },
+                              child: const HomePage(),
+                            ),
+                          ),
                     ],
                   );
           },

@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:seedsuser/app/home/view/full_video_screen.dart';
-import 'package:seedsuser/app/seed_price/widget/seed_price_banner_bottom_widget.dart'; 
+import 'package:seedsuser/app/seed_price/widget/seed_price_banner_bottom_widget.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:video_player/video_player.dart';
 
 class WantedBannerWidget extends StatefulWidget {
   const WantedBannerWidget({super.key, required this.ontapImage});
-final VoidCallback ontapImage;
+  final VoidCallback ontapImage;
   @override
   State<WantedBannerWidget> createState() => _WantedBannerWidgetState();
 }
@@ -19,10 +20,22 @@ class _WantedBannerWidgetState extends State<WantedBannerWidget> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      if (controller.isLoading.value) {
-        return const Center(child: CircularProgressIndicator());
-      } else if (controller.banners.isEmpty) {
-        return const Center(child: Text("No banners available"));
+      if (controller.isLoading.value || controller.banners.isEmpty) {
+        return Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+            child: Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        );
       } else {
         return Stack(
           alignment: Alignment.bottomCenter,
@@ -31,24 +44,31 @@ class _WantedBannerWidgetState extends State<WantedBannerWidget> {
               itemCount: controller.banners.length,
               itemBuilder: (context, index, realIndex) {
                 final banner = controller.banners[index];
-
                 if (banner.type == "image") {
-                  return InkWell(
-                    onTap: widget.ontapImage,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        banner.url,
-                        width: double.infinity,
-                        height: 180,
-                        fit: BoxFit.cover,
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 24, right: 24),
+                    child: InkWell(
+                      onTap: widget.ontapImage,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          banner.url,
+                          width: double.infinity,
+                          height: 180,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   );
                 } else if (banner.type == "video") {
-                  return GestureDetector(
-                    onTap: () => Get.to(() => FullScreenVideoPlayer(videoUrl: banner.url)),
-                    child: VideoPlayerBanner(url: banner.url),
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 12, right: 12),
+                    child: GestureDetector(
+                      onTap: () => Get.to(
+                        () => FullScreenVideoPlayer(videoUrl: banner.url),
+                      ),
+                      child: VideoPlayerBanner(url: banner.url),
+                    ),
                   );
                 } else {
                   return const SizedBox.shrink();
@@ -58,7 +78,7 @@ class _WantedBannerWidgetState extends State<WantedBannerWidget> {
                 height: 160,
                 autoPlay: true,
                 enlargeCenterPage: true,
-                viewportFraction: 0.9,
+                viewportFraction: 1,
                 onPageChanged: (index, reason) {
                   setState(() {
                     _currentIndex = index;
@@ -72,18 +92,23 @@ class _WantedBannerWidgetState extends State<WantedBannerWidget> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: controller.banners.asMap().entries.map((entry) {
-                  return Container(
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.symmetric(horizontal: 0),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _currentIndex == entry.key ? Colors.blue : Colors.grey,
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.symmetric(horizontal: 0),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _currentIndex == entry.key
+                            ? Colors.blue
+                            : Colors.grey,
+                      ),
                     ),
                   );
                 }).toList(),
               ),
-            )
+            ),
           ],
         );
       }
@@ -121,30 +146,39 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
   @override
   Widget build(BuildContext context) {
     return _controller.value.isInitialized
-        ? ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                AspectRatio(
-                  aspectRatio: _controller.value.aspectRatio,
-                  child: VideoPlayer(_controller),
+        ? Stack(
+            children: [
+              SizedBox(
+                height: 160,
+                width: double.infinity,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AspectRatio(
+                    aspectRatio: _controller.value.aspectRatio,
+                    child: VideoPlayer(_controller),
+                  ),
                 ),
-                Icon(
+              ),
+              Center(
+                child: Icon(
                   Icons.play_circle_fill,
                   color: Colors.white,
                   size: 70,
-                )
-              ],
-            ),
+                ),
+              ),
+            ],
           )
-        : Container(
-            height: 160,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.grey[300],
+        : Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+            child: Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Center(child: CircularProgressIndicator()),
           );
   }
 }

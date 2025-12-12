@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/climate_news_detail_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
+import 'package:shimmer/shimmer.dart';
 
 class ClimateNewsScreen extends StatefulWidget {
   const ClimateNewsScreen({super.key});
@@ -42,6 +43,7 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.blue[800],
         leading: Padding(
@@ -68,48 +70,40 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
       body: Column(
         children: [
           // 🔍 Search Field
-          if(false)
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8.0,
-                vertical: 4.0,
-              ),
-              decoration: BoxDecoration(
-                color: Color(0xFFEEEEEE),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: TextField(
-                controller: _searchController,
-                onChanged: _filterNews,
-                decoration: InputDecoration(
-                  hintText: 'Search climate news...',
-                  prefixIcon: const Icon(Icons.search),
-                  // filled: true,
-                  // fillColor: Colors.grey[200],
-                  // contentPadding: const EdgeInsets.symmetric(
-                  //   horizontal: 16,
-                  //   vertical: 16,
-                  // ),
-                  border: InputBorder.none,
+          if (false)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8.0,
+                  vertical: 4.0,
+                ),
+                decoration: BoxDecoration(
+                  color: Color(0xFFEEEEEE),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: _filterNews,
+                  decoration: InputDecoration(
+                    hintText: 'Search climate news...',
+                    prefixIcon: const Icon(Icons.search),
+                    // filled: true,
+                    // fillColor: Colors.grey[200],
+                    // contentPadding: const EdgeInsets.symmetric(
+                    //   horizontal: 16,
+                    //   vertical: 16,
+                    // ),
+                    border: InputBorder.none,
+                  ),
                 ),
               ),
             ),
-          ),
 
           // 📰 Grid of News
           Obx(() {
             if (newsSpecificController.isLoading.value) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).size.height * .3,
-                ),
-                child: Align(
-                  alignment: Alignment.center,
-                  child: CircularProgressIndicator(),
-                ),
-              );
+              return climateNewsShimmer();
             }
             if ((newsSpecificController.newsSpecificData.value?.data?.length ??
                     0) ==
@@ -142,16 +136,29 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
                       ?.data?[index];
                   return InkWell(
                     onTap: () {
-                      Get.to(
-                        () => ClimateDetailScreen(
-                          id: data?.id.toString()??'', title:  data?.title??"",
+                      Navigator.push(
+                                context,
+                                PageRouteBuilder(
+                                  transitionDuration: const Duration(
+                                    milliseconds: 600,
+                                  ), // smooth
+                                  reverseTransitionDuration: const Duration(
+                                    milliseconds: 600,
+                                  ),
+                                  pageBuilder: (_, __, ___) => ClimateDetailScreen(
+                          id: data?.id.toString() ?? '',
+                          title: data?.title ?? "",
+                          subtitle: data?.curesFor ?? "",
+                          imageUrl: data?.mediaPath ?? '',
+                          tag: 'climateNewsScreen$index',
                         ),
-                      );
+                      ));
                     },
                     child: _buildNewsCard(
                       data?.title ?? '',
                       data?.curesFor ?? '',
                       data?.mediaPath ?? '',
+                      'climateNewsScreen$index',
                     ),
                   );
                 },
@@ -163,7 +170,12 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
     );
   }
 
-  Widget _buildNewsCard(String title, String? subtitle, String imageUrl) {
+  Widget _buildNewsCard(
+    String title,
+    String? subtitle,
+    String imageUrl,
+    String tag,
+  ) {
     return Container(
       width: 150,
       margin: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -177,16 +189,19 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
               border: Border.all(width: .1, color: Colors.grey),
               boxShadow: [BoxShadow(color: Colors.grey)],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                imageUrl,
-                height: 120,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return SizedBox(height: 120, width: 150);
-                },
+            child: Hero(
+              tag: tag,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  imageUrl,
+                  height: 120,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return SizedBox(height: 120, width: 150);
+                  },
+                ),
               ),
             ),
           ),
@@ -211,4 +226,55 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
       ),
     );
   }
+}
+
+Widget climateNewsShimmer() {
+  return Expanded(
+    child: GridView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: 6, // show 6 shimmer items
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 1,
+      ),
+      itemBuilder: (context, index) {
+        return Shimmer.fromColors(
+          baseColor: Colors.grey.shade300,
+          highlightColor: Colors.grey.shade100,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // IMAGE SHIMMER
+              Container(
+                height: 120,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // TITLE SHIMMER
+              Container(
+                height: 14,
+                width: 120,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+
+              const SizedBox(height: 6),
+
+              // SUBTITLE SHIMMER
+            ],
+          ),
+        );
+      },
+    ),
+  );
 }

@@ -3,15 +3,22 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/single_new_detail_controller.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class MedicineDetailScreen extends StatefulWidget {
   final String id;
   final String title;
+  final String subtitle;
+  final String imageUrl;
+  final String tag;
   const MedicineDetailScreen({
     super.key,
     required this.id,
     required this.title,
+    required this.subtitle,
+    required this.imageUrl,
+    required this.tag,
   });
 
   @override
@@ -34,7 +41,9 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
+        
         backgroundColor: Colors.blue[800],
         // automaticallyImplyLeading: false,
         leading: Padding(
@@ -59,26 +68,10 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
         children: <Widget>[
           // Scrollable content area
           Obx(() {
-            if (singleNewDetailController.singleDetailData.value == null ||
-                singleNewDetailController.isLoading.value) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).size.height * .3,
-                ),
-                child: Align(
-                  alignment: Alignment.center,
-                  child: Builder(
-                    builder: (context) {
-                      if (singleNewDetailController.isLoading.value) {
-                        return CircularProgressIndicator();
-                      } else {
-                        return Text('Something Went wrong');
-                      }
-                    },
-                  ),
-                ),
-              );
-            }
+            // if (singleNewDetailController.singleDetailData.value == null ||
+            //     singleNewDetailController.isLoading.value) {
+            //   return medicineShimmer();
+            // }
             final data = singleNewDetailController.singleDetailData.value;
             return Expanded(
               child: SingleChildScrollView(
@@ -87,27 +80,30 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     // Product Image Section
-                    Center(
-                      child: Container(
-                        height: 200,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: CustomNetworkImage(
-                            imageUrl: data?.data?.mediaPath ?? '',
-                            fit: BoxFit.cover,
-                          ),
+                    Hero(
+                      tag: widget.tag,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.network(
+                          widget.imageUrl, // <<< USE THE SAME IMAGE
+                          fit: BoxFit.cover,
+                          width: MediaQuery.of(context).size.width * .9,
+                          height: MediaQuery.of(context).size.height * .3,
+                          errorBuilder: (context, error, stackTrace) {
+                            return SizedBox(
+                              width: MediaQuery.of(context).size.width * .9,
+                              height: MediaQuery.of(context).size.height * .3,
+                            );
+                          },
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 16.0),
 
                     // Title and Brand
                     Text(
-                      data?.data?.medicineName ?? '',
+                      widget.title,
                       style: GoogleFonts.roboto(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -115,7 +111,7 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                     ),
                     const SizedBox(height: 4.0),
                     Text(
-                      data?.data?.title ?? '',
+                      widget.subtitle,
                       style: GoogleFonts.roboto(
                         fontSize: 16,
                         color: Colors.grey,
@@ -124,12 +120,20 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                     const SizedBox(height: 16.0),
 
                     // Description/Details Section
-                    Text(
-                      data?.data?.description ?? '',
-                      style: GoogleFonts.roboto(
-                        fontSize: 12,color: Colors.grey,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Builder(
+                      builder: (context) {
+                        if (singleNewDetailController.isLoading.value) {
+                          return medicineShimmer();
+                        }
+                        return Text(
+                          data?.data?.description ?? '',
+                          style: GoogleFonts.roboto(
+                            fontSize: 12,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -265,4 +269,26 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
       ],
     );
   }
+}
+
+Widget medicineShimmer() {
+  return Column(
+    children: List.generate(5, (index) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Shimmer.fromColors(
+          baseColor: Colors.grey.shade300,
+          highlightColor: Colors.grey.shade100,
+          child: Container(
+            height: 14,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+        ),
+      );
+    }),
+  );
 }

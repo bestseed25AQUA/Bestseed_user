@@ -42,11 +42,14 @@ class HatcheryWidget extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Hatcheries',style: GoogleFonts.roboto(
+                Text(
+                  'Hatcheries',
+                  style: GoogleFonts.roboto(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black
-                  ),),
+                    color: Colors.black,
+                  ),
+                ),
                 SizedBox(width: 10),
                 TextButton(
                   onPressed: onViewAllTap,
@@ -61,64 +64,38 @@ class HatcheryWidget extends StatelessWidget {
               ],
             ),
           ),
-          Column(
-            children: List.generate((list.length / 2).ceil(), (rowIndex) {
-              final i1 = rowIndex * 2;
-              final i2 = i1 + 1;
+          GridView.builder(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(left: 10, right: 10),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 14,
+              childAspectRatio: 0.73, // adjust based on your design
+            ),
+            itemCount: list.length,
+            itemBuilder: (context, index) {
+              final item = list[index];
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    // LEFT CARD
-                    Expanded(
-                      child: HatcheryCard(
-                        width: cardWidth,
-                        height: cardHeight,
-                        imagePath: list[i1].imagePath,
-                        title: list[i1].title,
-                        location: list[i1].location,
-                        type: list[i1].type,
-                        id: list[i1].id.toString(),
-                        status: list[i1].status,
-                        statusColor: list[i1].status.toLowerCase() == "open"
-                            ? const Color(0xff25A652)
-                            : list[i1].status.toLowerCase() == "coming soon"
-                            ? const Color(0xff007DFE)
-                            : const Color(0xffE31B1B),
-                        availableUntil: list[i1].availableUntil,
-                      ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    // RIGHT CARD (only if exists)
-                    Expanded(
-                      child: i2 < list.length
-                          ? HatcheryCard(
-                              width: cardWidth,
-                              height: cardHeight,
-                              id: list[i1].id.toString(),
-                              imagePath: list[i2].imagePath,
-                              title: list[i2].title,
-                              location: list[i2].location,
-                              type: list[i2].type,
-                              status: list[i2].status,
-                              statusColor:
-                                  list[i2].status.toLowerCase() == "open"
-                                  ? const Color(0xff25A652)
-                                  : list[i2].status.toLowerCase() ==
-                                        "coming soon"
-                                  ? const Color(0xff007DFE)
-                                  : const Color(0xffE31B1B),
-                              availableUntil: list[i2].availableUntil,
-                            )
-                          : const SizedBox(), // If odd number of items
-                    ),
-                  ],
-                ),
+              return HatcheryCard(
+                index: index,
+                width: cardWidth,
+                height: cardHeight,
+                imagePath: item.imagePath,
+                title: item.title,
+                location: item.location,
+                type: item.type,
+                id: item.id.toString(),
+                status: item.status,
+                statusColor: item.status.toLowerCase() == "open"
+                    ? const Color(0xff25A652)
+                    : item.status.toLowerCase() == "coming soon"
+                    ? const Color(0xff007DFE)
+                    : const Color(0xffE31B1B),
+                availableUntil: item.availableUntil,
               );
-            }),
+            },
           ),
         ],
       );
@@ -137,6 +114,7 @@ class HatcheryCard extends StatelessWidget {
   final Color statusColor;
   final String? availableUntil;
   final String? id;
+  final int index;
   final VoidCallback? ontap;
 
   const HatcheryCard({
@@ -152,6 +130,7 @@ class HatcheryCard extends StatelessWidget {
     this.availableUntil,
     this.id,
     this.ontap,
+    required this.index,
   });
 
   @override
@@ -173,11 +152,18 @@ class HatcheryCard extends StatelessWidget {
       onTap:
           ontap ??
           () {
+            print('HatcheryCard$index');
             print('ontap ok');
-            Get.to(
-              HatcheryCateogryScreen(
-                hatcheryId: id.toString(),
-                hatcheryName: title,
+            Navigator.push(
+              context,
+              PageRouteBuilder(
+                transitionDuration: const Duration(milliseconds: 600), // smooth
+                reverseTransitionDuration: const Duration(milliseconds: 600),
+                pageBuilder: (_, __, ___) => HatcheryCateogryScreen(
+                  hatcheryId: id.toString(),
+                  hatcheryName: title,
+                  tag: 'HatcheryCard$id$index',
+                ),
               ),
             );
 
@@ -208,13 +194,16 @@ class HatcheryCard extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: Image.network(
-                    imagePath,
-                    width: double.infinity,
-                    height: imgHeight,
-                    fit: BoxFit.cover,
-                    errorBuilder: (c, e, s) =>
-                        Container(height: imgHeight, child: CustomShimmer()),
+                  child: Hero(
+                    tag: 'HatcheryCard$id$index',
+                    child: Image.network(
+                      imagePath,
+                      width: double.infinity,
+                      height: imgHeight,
+                      fit: BoxFit.cover,
+                      errorBuilder: (c, e, s) =>
+                          SizedBox(height: imgHeight, child: CustomShimmer()),
+                    ),
                   ),
                 ),
 
@@ -235,7 +224,9 @@ class HatcheryCard extends StatelessWidget {
                       ),
                       child: Center(
                         child: Text(
-                          status.length <= 15
+                          status.isEmpty
+                              ? 'closed'
+                              : status.length <= 15
                               ? status
                               : status.substring(0, 15),
                           maxLines: 1,

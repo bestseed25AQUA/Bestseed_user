@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:seedsuser/app/home/view/full_video_screen.dart';
 import 'package:seedsuser/app/seed_price/controller/seed_banner_controller.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:video_player/video_player.dart';
 
 class SeedPriceBannerWidget extends StatefulWidget {
@@ -14,14 +15,13 @@ class SeedPriceBannerWidget extends StatefulWidget {
 
 class _SeedPriceBannerWidgetState extends State<SeedPriceBannerWidget> {
   final SeedBannerController controller = Get.put(SeedBannerController());
-  
+
   int _currentIndex = 0; // Track current banner index
 
-@override
+  @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    if(controller.banners.isEmpty){
+    if (controller.banners.isEmpty) {
       controller.fetchBanners();
     }
   }
@@ -29,19 +29,23 @@ class _SeedPriceBannerWidgetState extends State<SeedPriceBannerWidget> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      if (controller.isLoading.value) {
+      if (controller.isLoading.value || controller.banners.isEmpty) {
         return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: Container(
-            height: 180,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.grey.withOpacity(.2),
+          padding: const EdgeInsets.all(12.0),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+
+            child: Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         );
-      } else if (controller.banners.isEmpty) {
-        return const Center(child: Text("No banners available"));
       } else {
         return Stack(
           alignment: Alignment.bottomCenter,
@@ -66,8 +70,8 @@ class _SeedPriceBannerWidgetState extends State<SeedPriceBannerWidget> {
                             BoxShadow(
                               blurRadius: 2,
                               // offset: Offset(2, 3)
-                            )
-                          ]
+                            ),
+                          ],
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
@@ -191,13 +195,17 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
               ),
             ],
           )
-        : Container(
-            height: 160,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.grey[300],
+        : Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+            child: Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Center(child: CircularProgressIndicator()),
           );
   }
 }

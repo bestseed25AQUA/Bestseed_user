@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/common/animated_view_custom.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_dropdown.dart';
+import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/model/category_model.dart';
 import 'package:seedsuser/app/model/location_model.dart';
@@ -98,92 +100,92 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
         ],
       ),
       body: Obx(() {
-        if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
-        }
+        // if (controller.isLoading.value) {
+        //   return const Center(child: CircularProgressIndicator());
+        // }
 
         PriceModel? priceData = controller.priceData.value;
 
-        if ((priceData == null || priceData.prices.isEmpty) && !_dialogShown) {
-          _dialogShown = true;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            Get.dialog(
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  margin: const EdgeInsets.symmetric(horizontal: 32),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Material(
-                    color: Colors.white,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: Colors.orange,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No Prices Found',
-                          style: GoogleFonts.roboto(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          priceData?.msg ??
-                              'No price data is available for the selected filters.',
-                          style: GoogleFonts.roboto(
-                            fontSize: 16,
-                            color: Colors.grey[700],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () => Get.back(),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            child: Text(
-                              'OK',
-                              style: GoogleFonts.roboto(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              barrierDismissible: true,
-            );
-          });
-        }
+        // if ((priceData == null || priceData.prices.isEmpty) && !_dialogShown) {
+        //   _dialogShown = true;
+        //   WidgetsBinding.instance.addPostFrameCallback((_) {
+        //     Get.dialog(
+        //       Center(
+        //         child: Container(
+        //           padding: const EdgeInsets.all(24),
+        //           margin: const EdgeInsets.symmetric(horizontal: 32),
+        //           decoration: BoxDecoration(
+        //             color: Colors.white,
+        //             borderRadius: BorderRadius.circular(16),
+        //             boxShadow: [
+        //               BoxShadow(
+        //                 color: Colors.black26,
+        //                 blurRadius: 10,
+        //                 offset: const Offset(0, 4),
+        //               ),
+        //             ],
+        //           ),
+        //           child: Material(
+        //             color: Colors.white,
+        //             child: Column(
+        //               mainAxisSize: MainAxisSize.min,
+        //               children: [
+        //                 Icon(
+        //                   Icons.info_outline,
+        //                   color: Colors.orange,
+        //                   size: 48,
+        //                 ),
+        //                 const SizedBox(height: 16),
+        //                 Text(
+        //                   'No Prices Found',
+        //                   style: GoogleFonts.roboto(
+        //                     fontSize: 20,
+        //                     fontWeight: FontWeight.bold,
+        //                     color: Colors.black87,
+        //                   ),
+        //                   textAlign: TextAlign.center,
+        //                 ),
+        //                 const SizedBox(height: 12),
+        //                 Text(
+        //                   priceData?.msg ??
+        //                       'No price data is available for the selected filters.',
+        //                   style: GoogleFonts.roboto(
+        //                     fontSize: 16,
+        //                     color: Colors.grey[700],
+        //                   ),
+        //                   textAlign: TextAlign.center,
+        //                 ),
+        //                 const SizedBox(height: 24),
+        //                 SizedBox(
+        //                   width: double.infinity,
+        //                   child: ElevatedButton(
+        //                     onPressed: () => Get.back(),
+        //                     style: ElevatedButton.styleFrom(
+        //                       backgroundColor: AppColors.primary,
+        //                       shape: RoundedRectangleBorder(
+        //                         borderRadius: BorderRadius.circular(12),
+        //                       ),
+        //                       padding: const EdgeInsets.symmetric(vertical: 14),
+        //                     ),
+        //                     child: Text(
+        //                       'OK',
+        //                       style: GoogleFonts.roboto(
+        //                         fontSize: 16,
+        //                         fontWeight: FontWeight.bold,
+        //                         color: Colors.white,
+        //                       ),
+        //                     ),
+        //                   ),
+        //                 ),
+        //               ],
+        //             ),
+        //           ),
+        //         ),
+        //       ),
+        //       barrierDismissible: true,
+        //     );
+        //   });
+        // }
 
         return SingleChildScrollView(
           child: Column(
@@ -276,50 +278,79 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    if (priceData == null || priceData.prices.isEmpty)
-                      const Center(child: Text("No prices available.")),
-
-                    if (priceData != null && priceData.prices.isNotEmpty)
-                      ...priceData.prices.map((item) {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 16,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 6,
-                                offset: const Offset(0, 3),
+                    if (controller.isLoading.value)
+                      AnimatedAppearance(
+                        child: ListView.builder(
+                          itemCount: 3,
+                          shrinkWrap: true,
+                          padding: EdgeInsets.only(top: 5, bottom: 5),
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: EdgeInsets.only(top: 5, bottom: 5),
+                              child: CustomShimmer(
+                                width: MediaQuery.of(context).size.width * .9,
+                                height: 40,
                               ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                item.size,
-                                style: GoogleFonts.roboto(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                            );
+                          },
+                        ),
+                      )
+                    else if (priceData == null || priceData.prices.isEmpty)
+                      SizedBox(
+                        height: 80,
+                        child: const Center(
+                          child: Text("No prices available."),
+                        ),
+                      )
+                    else if (priceData.prices.isNotEmpty)
+                      ListView.builder(
+                        itemCount: priceData.prices.length,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemBuilder: (context, index) {
+                          final item = priceData.prices[index];
+                          return AnimatedAppearance(
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 12,
+                                horizontal: 16,
                               ),
-                              Text(
-                                "₹${item.todayPrice}",
-                                style: GoogleFonts.roboto(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue[800],
-                                ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        );
-                      }),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    item.size,
+                                    style: GoogleFonts.roboto(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Text(
+                                    "₹${item.todayPrice}",
+                                    style: GoogleFonts.roboto(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue[800],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      )
 
                     // const SizedBox(height: 20),
                     // if (priceData != null)
@@ -337,16 +368,17 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                     //   Get.to(WantedCropBuyersScreen());
                     //  },
                     //   child: Text('wanted')),
-                    const SizedBox(height: 30),
-                    WantedBannerWidget(
-                      ontapImage: () {
-                        Get.to(WantedCropBuyersScreen());
-                      },
-                    ),
-                    const SizedBox(height: 100),
                   ],
                 ),
               ),
+              SizedBox(height: 30),
+              // Container(color: Colors.black,height: 10,width: double.infinity,),
+              WantedBannerWidget(
+                ontapImage: () {
+                  Get.to(WantedCropBuyersScreen());
+                },
+              ),
+              const SizedBox(height: 100),
             ],
           ),
         );

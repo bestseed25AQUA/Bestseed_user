@@ -5,6 +5,7 @@ import 'package:seedsuser/app/booking/controller/my_booking_controller.dart';
 import 'package:seedsuser/app/booking/view/booking_detail_screen.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
+import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 import 'package:seedsuser/app/model/my_booking_model.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/vehicle_tracking_screen.dart';
@@ -440,9 +441,36 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                     itemCount: controller.bookingList.length,
                     itemBuilder: (context, index) {
                       final booking = controller.bookingList[index];
-                      return _buildBookingCard(booking, () {
-                        Get.to(BookingDetailScreen(bookingId: booking.bookingId.toString(),));
-                      });
+                      return _buildBookingCard(
+                        booking,
+                        () {
+                          Get.to(
+                            BookingDetailScreen(
+                              bookingId: booking.bookingId.toString(),
+                            ),
+                          );
+                        },
+                        () {
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              transitionDuration: const Duration(
+                                milliseconds: 600,
+                              ), // smooth
+                              reverseTransitionDuration: const Duration(
+                                milliseconds: 600,
+                              ),
+                              pageBuilder: (_, __, ___) =>
+                                  HatcheryCateogryScreen(
+                                    hatcheryId: booking.hatcheryId.toString(),
+                                    hatcheryName: booking.hatcheryName
+                                        .toString(),
+                                    tag: 'Booking$index'
+                                  ),
+                            ),
+                          );
+                        },
+                      );
                     },
                   ),
                 );
@@ -485,7 +513,11 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
   }
 
   // 🔹 Booking Card UI
-  Widget _buildBookingCard(BookingData data, VoidCallback ontap) {
+  Widget _buildBookingCard(
+    BookingData data,
+    VoidCallback ontap,
+    VoidCallback ontapTryAgain,
+  ) {
     // Status color
     Color statusColor = Colors.green;
     final String status = data.status?['label']?.toString() ?? '';
@@ -494,7 +526,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
     } else if (status.toLowerCase() == "cancelled") {
       statusColor = Colors.red;
     }
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -646,8 +678,6 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
           ),
 
           const SizedBox(height: 14),
-
-          // -------------------- ADDRESS --------------------
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -671,7 +701,9 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
 
           // -------------------- VIEW DETAILS BUTTON --------------------
           InkWell(
-            onTap: ontap,
+            onTap: (status.toLowerCase() == "cancelled")
+                ? ontapTryAgain
+                : ontap,
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -681,7 +713,9 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
               ),
               alignment: Alignment.center,
               child: Text(
-                "View Details",
+                (status.toLowerCase() == "cancelled")
+                    ? "Try Again"
+                    : "View Details",
                 style: GoogleFonts.roboto(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,

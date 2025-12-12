@@ -1,3 +1,5 @@
+
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,7 +13,7 @@ class VehicleController extends GetxController {
   var isLoading = false.obs;
   var vehicles = <Vehicle>[].obs;
   var filteredVehicles = <Vehicle>[].obs;
-  var isBooking = false.obs; // 👈 Added booking loader
+  var isBooking = false.obs;
 
   @override
   void onInit() {
@@ -38,7 +40,9 @@ class VehicleController extends GetxController {
       } else {
         CustomToast.error("Failed to fetch vehicles ");
       }
-    } catch (e) {
+    } catch (e,s) { 
+      print(e.toString());
+      print(s.toString());
       CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false;

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:seedsuser/app/home/view/full_video_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_banner_controller.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:video_player/video_player.dart';
 
 class NewsBannerWidget extends StatefulWidget {
@@ -160,13 +161,18 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
               ],
             ),
         )
-        : Container(
-            height: 160,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.grey[300],
+        : Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+          
+            child: Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Center(child: CircularProgressIndicator()),
           );
   }
 }

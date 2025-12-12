@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/broadstock/view/broad_stock_screen.dart';
@@ -48,7 +49,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     'assets/images/price_filled.png',
     'assets/images/broodstock_filled.png',
     'assets/images/news_filled.png',
-    'assets/images/updates.png',
+    'assets/images/updates_filled.png',
   ];
 
   late StreamSubscription subscription;
@@ -113,144 +114,164 @@ class _DashboardScreenState extends State<DashboardScreen> {
       AppLocalizations.of(context).updates,
     ];
 
-    return WillPopScope(
-      onWillPop: () async {
-        // Show confirmation dialog
-        if (controller.currentIndex.value != 0) {
-          controller.changeIndex(0);
-        } else {
-          final result = await showDialog<bool>(
-            context: context,
-            barrierDismissible: false, // user must choose
-            builder: (context) => Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              elevation: 4,
-              backgroundColor: Colors.white,
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.exit_to_app, size: 50, color: AppColors.primary),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Exit App',
-                      style: GoogleFonts.roboto(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+      ),
+      // ignore: deprecated_member_use
+      child: WillPopScope(
+        onWillPop: () async { 
+          // Show confirmation dialog
+          if (controller.currentIndex.value != 0) {
+            controller.changeIndex(0);
+            return false;
+          } else {
+            final result = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false, // user must choose
+              builder: (context) => Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 4,
+                backgroundColor: Colors.white,
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.exit_to_app,
+                        size: 50,
+                        color: AppColors.primary,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Are you sure you want to close the app?',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.roboto(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[700],
+                      const SizedBox(height: 16),
+                      Text(
+                        'Exit App',
+                        style: GoogleFonts.roboto(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey[300],
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Are you sure you want to close the app?',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.grey[300],
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                               ),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            onPressed: () => Navigator.of(context).pop(false),
-                            child: Text(
-                              'No',
-                              style: GoogleFonts.roboto(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black87,
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: Text(
+                                'No',
+                                style: GoogleFonts.roboto(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                               ),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            onPressed: () => Navigator.of(context).pop(true),
-                            child: Text(
-                              'Yes',
-                              style: GoogleFonts.roboto(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: Text(
+                                'Yes',
+                                style: GoogleFonts.roboto(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
+            );
 
-          return result ?? false;
-        }
-        return false;
+            return result ?? false;
+          }
 
-        // Return true to exit, false to stay
-      },
-      child: Scaffold(
-        body: Obx(() => pages[controller.currentIndex.value]),
-        bottomNavigationBar: Obx(
-          () => ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(0),
-              topRight: Radius.circular(0),
-            ),
-            child: BottomNavigationBar(
-              currentIndex: controller.currentIndex.value,
-              selectedItemColor: Colors.black,
-              unselectedItemColor: Colors.black,
-              backgroundColor: Colors.white, // AppColors.primary,
-              type: BottomNavigationBarType.fixed,
-              selectedFontSize: 12,
-              unselectedFontSize: 12,
-              selectedLabelStyle: GoogleFonts.roboto(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+          // Return true to exit, false to stay
+        },
+        child: Scaffold(
+          body: Obx(() => pages[controller.currentIndex.value]),
+          bottomNavigationBar: Obx(
+            () => ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(0),
+                topRight: Radius.circular(0),
               ),
-              unselectedLabelStyle: GoogleFonts.roboto(
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-              ),
-              onTap: (index) => controller.changeIndex(index),
-              items: List.generate(
-                icons.length,
-                (index) => BottomNavigationBarItem(
-                  icon: Image.asset(
-                    index == controller.currentIndex.value
-                        ? filledIcon[index]
-                        : icons[index],errorBuilder: (context, error, stackTrace) {
-                          return SizedBox();
-                        },
-                    height: 30,
-                    width: 30,
+              child: BottomNavigationBar(
+                currentIndex: controller.currentIndex.value,
+                selectedItemColor: Color(0xff0076BE),
+                unselectedItemColor: Colors.black,
+                backgroundColor: Colors.white, // AppColors.primary,
+                type: BottomNavigationBarType.fixed,
+                selectedFontSize: 12,
+                unselectedFontSize: 12,
+                selectedLabelStyle: GoogleFonts.roboto(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                unselectedLabelStyle: GoogleFonts.roboto(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                ),
+                onTap: (index) => controller.changeIndex(index),
+                items: List.generate(
+                  icons.length,
+                  (index) => BottomNavigationBarItem(
+                    icon: Image.asset(
+                      index == controller.currentIndex.value
+                          ? filledIcon[index]
+                          : icons[index],
+
+                      color: !(2 == controller.currentIndex.value)
+                          ? Color(0xff0076BE)
+                          : null,
+                      errorBuilder: (context, error, stackTrace) {
+                        return SizedBox();
+                      },  
+                      height: index == controller.currentIndex.value? 30:25,
+                      width:  index == controller.currentIndex.value? 30:25,
+                    ),
+                    label: labels[index],
+                    backgroundColor: Colors.black87,
                   ),
-                  label: labels[index],
-                  backgroundColor: Colors.black87,
                 ),
               ),
             ),

@@ -7,6 +7,7 @@ import 'package:seedsuser/app/home/view/full_video_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/trending_updates_details_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/widget/news_banner_widget.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:video_player/video_player.dart';
 
 class TrendingUpdatesScreen extends StatefulWidget {
@@ -84,16 +85,9 @@ class _TrendingUpdatesScreenState extends State<TrendingUpdatesScreen> {
           padding: const EdgeInsets.all(16.0),
           child: Obx(() {
             if (newsSpecificController.isLoading.value) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).size.height * .3,
-                ),
-                child: Align(
-                  alignment: Alignment.center,
-                  child: CircularProgressIndicator(),
-                ),
-              );
+              return trendingUpdatesShimmer();
             }
+
             if ((newsSpecificController.newsSpecificData.value?.data?.length ??
                     0) ==
                 0) {
@@ -112,7 +106,6 @@ class _TrendingUpdatesScreenState extends State<TrendingUpdatesScreen> {
                 children: List.generate(
                   newsSpecificController.newsSpecificData.value?.data?.length ??
                       0,
-
                   (index) {
                     final data = newsSpecificController
                         .newsSpecificData
@@ -331,3 +324,48 @@ class _TrendingUpdatesScreenState extends State<TrendingUpdatesScreen> {
 //     return '$minutes:$seconds';
 //   }
 // }
+
+Widget trendingUpdatesShimmer() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: List.generate(6, (index) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 10, bottom: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // IMAGE / VIDEO CONTAINER SHIMMER
+            Shimmer.fromColors(
+              baseColor: Colors.grey.shade300,
+              highlightColor: Colors.grey.shade100,
+              child: Container(
+                height: 180,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // TITLE SHIMMER
+            Shimmer.fromColors(
+              baseColor: Colors.grey.shade300,
+              highlightColor: Colors.grey.shade100,
+              child: Container(
+                height: 14,
+                width: 200,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }),
+  );
+}

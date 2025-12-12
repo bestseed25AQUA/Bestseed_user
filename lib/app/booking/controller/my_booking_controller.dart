@@ -187,6 +187,8 @@ class MyBookingController extends GetxController {
     required bool isSpotHatchery,
   }) async {
     try {
+      print('====is spot hatchery $isSpotHatchery========');
+      print("${NetworkConfig.baseURL}/farmer/${isSpotHatchery ? 'book-spot-hatchery' : 'book-hatchery'}");
       Map<String, String> body = {
         "hatchery_id": hatcheryId.toString(),
         "hatchery_name": hatcheryName,

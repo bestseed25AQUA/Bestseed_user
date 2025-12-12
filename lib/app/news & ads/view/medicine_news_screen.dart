@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
+import 'package:shimmer/shimmer.dart';
 
 class MedicineNewsScreen extends StatefulWidget {
   const MedicineNewsScreen({super.key});
@@ -37,10 +38,10 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
       }
     });
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.blue[800],
         leading: Padding(
@@ -100,16 +101,9 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
           // 📰 Grid of News
           Obx(() {
             if (newsSpecificController.isLoading.value) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).size.height * .3,
-                ),
-                child: Align(
-                  alignment: Alignment.center,
-                  child: CircularProgressIndicator(),
-                ),
-              );
+              return medicineNewsShimmer();
             }
+
             if ((newsSpecificController.newsSpecificData.value?.data?.length ??
                     0) ==
                 0) {
@@ -141,10 +135,22 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
                       ?.data?[index];
                   return InkWell(
                     onTap: () {
-                      Get.to(
-                        () => MedicineDetailScreen(
-                          id: data?.id.toString() ?? '',
-                          title: data?.medicineName.toString() ?? '',
+                      Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          transitionDuration: const Duration(
+                            milliseconds: 600,
+                          ), // smooth
+                          reverseTransitionDuration: const Duration(
+                            milliseconds: 600,
+                          ),
+                          pageBuilder: (_, __, ___) => MedicineDetailScreen(
+                            id: data?.id.toString() ?? '',
+                            title: data?.medicineName.toString() ?? '',
+                            subtitle: data?.curesFor ?? "",
+                            imageUrl: data?.mediaPath ?? "",
+                            tag: 'medicineNewScreen$index',
+                          ),
                         ),
                       );
                     },
@@ -152,6 +158,7 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
                       data?.medicineName ?? '',
                       data?.curesFor ?? '',
                       data?.mediaPath ?? '',
+                      'medicineNewScreen$index',
                     ),
                   );
                 },
@@ -163,7 +170,12 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
     );
   }
 
-  Widget _buildNewsCard(String title, String? subtitle, String imageUrl) {
+  Widget _buildNewsCard(
+    String title,
+    String? subtitle,
+    String imageUrl,
+    String tag,
+  ) {
     return Container(
       width: 150,
       margin: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -177,16 +189,19 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
               border: Border.all(width: .1, color: Colors.grey),
               boxShadow: [BoxShadow(color: Colors.grey)],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                imageUrl,
-                height: 120,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return SizedBox(height: 120, width: 150);
-                },
+            child: Hero(
+              tag: tag,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  imageUrl,
+                  height: 120,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return SizedBox(height: 120, width: 150);
+                  },
+                ),
               ),
             ),
           ),
@@ -212,3 +227,63 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
     );
   }
 }
+
+Widget medicineNewsShimmer() {
+  return Expanded(
+    child: GridView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: 6, // show 6 shimmer items
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 1,
+      ),
+      itemBuilder: (context, index) {
+        return Shimmer.fromColors(
+          baseColor: Colors.grey.shade300,
+          highlightColor: Colors.grey.shade100,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // IMAGE SHIMMER
+              Container(
+                height: 120,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // TITLE SHIMMER
+              Container(
+                height: 14,
+                width: 120,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+
+              const SizedBox(height: 6),
+
+              // SUBTITLE SHIMMER
+              Container(
+                height: 12,
+                width: 90,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+
+

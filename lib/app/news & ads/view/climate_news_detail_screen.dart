@@ -3,12 +3,23 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/single_new_detail_controller.dart';
+import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ClimateDetailScreen extends StatefulWidget {
   final String id;
   final String title;
-  const ClimateDetailScreen({super.key, required this.id, required this.title});
+  final String subtitle;
+  final String imageUrl;
+  final String tag;
+  const ClimateDetailScreen({
+    super.key,
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.imageUrl, required this.tag,
+  });
 
   @override
   State<ClimateDetailScreen> createState() => _ClimateDetailScreenState();
@@ -30,6 +41,7 @@ class _ClimateDetailScreenState extends State<ClimateDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.blue[800],
         // automaticallyImplyLeading: false,
@@ -55,26 +67,19 @@ class _ClimateDetailScreenState extends State<ClimateDetailScreen> {
         children: <Widget>[
           // Scrollable content area
           Obx(() {
-            if (singleNewDetailController.singleDetailData.value == null ||
-                singleNewDetailController.isLoading.value) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).size.height * .3,
-                ),
-                child: Align(
-                  alignment: Alignment.center,
-                  child: Builder(
-                    builder: (context) {
-                      if (singleNewDetailController.isLoading.value) {
-                        return CircularProgressIndicator();
-                      } else {
-                        return Text('Something Went wrong');
-                      }
-                    },
-                  ),
-                ),
-              );
-            }
+            // if (singleNewDetailController.singleDetailData.value == null ||
+            //     singleNewDetailController.isLoading.value) {
+            //   return Padding(
+            //     padding: EdgeInsets.only(
+            //       top: MediaQuery.of(context).size.height * .3,
+            //     ),
+            //     child: Align(
+            //       alignment: Alignment.center,
+            //       child: CircularProgressIndicator(),
+            //     ),
+            //   );
+            // }
+
             final data = singleNewDetailController.singleDetailData.value;
             return Expanded(
               child: SingleChildScrollView(
@@ -83,20 +88,21 @@ class _ClimateDetailScreenState extends State<ClimateDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     // Product Image Section
-                    Center(
-                      child: Container(
-                        height: 200,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: CustomNetworkImage(
-                            imageUrl: data?.data?.mediaPath ?? '',
-                            fit: BoxFit.cover,
-                          ),
-                          // child: Image.asset('assets/images/default_image.png'),
+                    Hero(
+                      tag: widget.tag,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.network(
+                          widget.imageUrl, // <<< USE THE SAME IMAGE
+                          fit: BoxFit.cover,
+                          width: MediaQuery.of(context).size.width * .9,
+                          height: MediaQuery.of(context).size.height * .3,
+                          errorBuilder: (context, error, stackTrace) {
+                            return SizedBox(
+                              width: MediaQuery.of(context).size.width * .9,
+                              height: MediaQuery.of(context).size.height * .3,
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -104,7 +110,7 @@ class _ClimateDetailScreenState extends State<ClimateDetailScreen> {
 
                     // Title and Brand
                     Text(
-                      data?.data?.title ?? '',
+                      widget.title,
                       style: GoogleFonts.roboto(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -112,7 +118,7 @@ class _ClimateDetailScreenState extends State<ClimateDetailScreen> {
                     ),
                     const SizedBox(height: 4.0),
                     Text(
-                      data?.data?.caption ?? '',
+                      widget.subtitle,
                       style: GoogleFonts.roboto(
                         fontSize: 16,
                         color: Colors.grey,
@@ -121,13 +127,20 @@ class _ClimateDetailScreenState extends State<ClimateDetailScreen> {
                     const SizedBox(height: 16.0),
 
                     // Description/Details Section
-                    Text(
-                      data?.data?.description ?? '',
-                      style: GoogleFonts.roboto(
-                        fontSize: 12,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Builder(
+                      builder: (context) {
+                        if (singleNewDetailController.isLoading.value) {
+                          return medicineShimmer();
+                        }
+                        return Text(
+                          data?.data?.description ?? '',
+                          style: GoogleFonts.roboto(
+                            fontSize: 12,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -196,4 +209,80 @@ class _ClimateDetailScreenState extends State<ClimateDetailScreen> {
       ],
     );
   }
+}
+
+Widget climateShimmer() {
+  return Expanded(
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // IMAGE SHIMMER
+          Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+            child: Container(
+              height: 200,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // TITLE SHIMMER
+          Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+            child: Container(
+              height: 22,
+              width: 220,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // CAPTION SHIMMER
+          Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+            child: Container(
+              height: 16,
+              width: 160,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // MULTILINE DESCRIPTION SHIMMER
+          ...List.generate(6, (index) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Shimmer.fromColors(
+                baseColor: Colors.grey.shade300,
+                highlightColor: Colors.grey.shade100,
+                child: Container(
+                  height: 14,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    ),
+  );
 }

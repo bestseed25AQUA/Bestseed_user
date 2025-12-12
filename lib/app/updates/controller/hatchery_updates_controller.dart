@@ -29,13 +29,13 @@ class HatcheryUpdatesController extends GetxController {
           );
         } else {
           banners.clear();
-          CustomToast.error("No banners found.");
+          // CustomToast.error("No banners found.");
         }
       } else {
-        CustomToast.error("Failed to fetch banners ");
+        // CustomToast.error("Failed to fetch banners ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong  ");
+      // CustomToast.error("Something went wrong  ");
     } finally {
       isLoading.value = false; 
       // loadDummyBanners();

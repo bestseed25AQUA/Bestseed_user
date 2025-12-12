@@ -3,7 +3,8 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/media_carousel_widget.dart';
-import 'package:seedsuser/app/news & ads/controller/single_new_detail_controller.dart'; 
+import 'package:seedsuser/app/news & ads/controller/single_new_detail_controller.dart';
+import 'package:shimmer/shimmer.dart'; 
 
 class TrendingUpdatesDetailsScreen extends StatefulWidget {
   final String id;
@@ -37,14 +38,9 @@ class _TrendingUpdatesDetailsScreenState
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      if (controller.isLoading.value) {
-        return const Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
-          ),
-        );
-      }
-
+       if (controller.isLoading.value) {
+    return trendingUpdatesShimmer();
+  }
       final data = controller.singleDetailData.value?.data;
 
       if (data == null) {
@@ -120,4 +116,73 @@ class _TrendingUpdatesDetailsScreenState
       );
     });
   }
+}
+
+
+
+Widget trendingUpdatesShimmer() {
+  return Scaffold(
+    body: SingleChildScrollView(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 30),
+
+          // IMAGE / CAROUSEL SHIMMER
+          Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+            child: Container(
+              height: 220,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // TITLE SHIMMER
+          Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+            child: Container(
+              height: 22,
+              width: 240,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // MULTILINE DESCRIPTION SHIMMER
+          Column(
+            children: List.generate(8, (index) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Shimmer.fromColors(
+                  baseColor: Colors.grey.shade300,
+                  highlightColor: Colors.grey.shade100,
+                  child: Container(
+                    height: 14,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    ),
+  );
 }

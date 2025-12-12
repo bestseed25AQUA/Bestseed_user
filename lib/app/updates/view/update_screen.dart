@@ -10,6 +10,7 @@ import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
 import 'package:seedsuser/app/updates/model/hatchery_update_model.dart';
 import 'package:seedsuser/app/updates/view/hatchery_details_screen.dart';
+import 'package:seedsuser/app/updates/view/widgets/post_shimmer_widget.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:readmore/readmore.dart';
@@ -32,7 +33,9 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
 
   initunc() async {
     // await hatcheryUpdatesController.fetchBanners();
-    await hatcheryUpdatesController.fetchHatcheryUpdates();
+    if (hatcheryUpdatesController.hatcheryData.value == null) {
+      await hatcheryUpdatesController.fetchHatcheryUpdates();
+    }
   }
 
   @override
@@ -95,22 +98,17 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
             // }),
             SizedBox(height: 16),
             Obx(() {
-              if (hatcheryUpdatesController.isLoading.value) {
-                return SizedBox(
-                  width: MediaQuery.of(context).size.width,
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      top: MediaQuery.of(context).size.height * .3,
-                    ),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
+              if (hatcheryUpdatesController.isLoading.value ||
+                  hatcheryUpdatesController.hatcheryData.value?.data == null) {
+                return Column(
+                  children: List.generate(4, (index) => postShimmerCard()),
                 );
               }
+
               return ListView.builder(
                 physics: NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
-                itemCount:
-                    hatcheryUpdatesController
+                itemCount: hatcheryUpdatesController
                         .hatcheryData
                         .value
                         ?.data

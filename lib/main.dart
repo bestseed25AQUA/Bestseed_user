@@ -25,12 +25,12 @@ void main() async {
   await GetStorage.init();
 
   Get.put(LanguageController());
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-    ),
-  );
+  // SystemChrome.setSystemUIOverlayStyle(
+  //   const SystemUiOverlayStyle(
+  //     statusBarColor: AppColors.primary,
+  //     statusBarIconBrightness: Brightness.light,
+  //   ),
+  // );
   runApp(const MyApp());
 }
 
@@ -41,50 +41,47 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<LanguageController>(
       builder: (languageController) {
-        return SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints){
-              final mediaQueryData = MediaQuery.of(context);
-              return MediaQuery(
-                data: mediaQueryData.copyWith(textScaler: TextScaler.linear(1.0)),
-                child: GetMaterialApp(
-                  
-                  navigatorKey: navigatorKey,
-                  debugShowCheckedModeBanner: false,
-                  title: 'Seeds User',
-                  locale: languageController.currentLocale.value,
-                  fallbackLocale: const Locale('en', 'US'),
-                  localizationsDelegates: [
-                    AppLocalizations.delegate,
-                    GlobalMaterialLocalizations.delegate,
-                    GlobalWidgetsLocalizations.delegate,
-                    GlobalCupertinoLocalizations.delegate,
-                  ],
-                  supportedLocales: const [
-                    Locale('en', 'US'),
-                    Locale('te', 'IN'),
-                    Locale('hi', 'IN'),
-                    Locale('ta', 'IN'),
-                    Locale('kn', 'IN'),
-                    Locale('ml', 'IN'),
-                    Locale('mr', 'IN'),
-                    Locale('gu', 'IN'),
-                    Locale('pa', 'IN'),
-                    Locale('bn', 'IN'),
-                    Locale('or', 'IN'),
-                    Locale('ur', 'IN'),
-                  ],
-                  theme: ThemeData(
-                    colorScheme: ColorScheme.fromSeed(
-                      seedColor: Colors.deepPurple,
-                    ),
-                    useMaterial3: true,
+        return LayoutBuilder(
+          builder: (context, constraints){
+            final mediaQueryData = MediaQuery.of(context);
+            return MediaQuery(
+              data: mediaQueryData.copyWith(textScaler: TextScaler.linear(1.0)),
+              child: GetMaterialApp(
+                navigatorKey: navigatorKey,
+                debugShowCheckedModeBanner: false,
+                title: 'Seeds User',
+                locale: languageController.currentLocale.value,
+                fallbackLocale: const Locale('en', 'US'),
+                localizationsDelegates: [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                supportedLocales: const [
+                  Locale('en', 'US'),
+                  Locale('te', 'IN'),
+                  Locale('hi', 'IN'),
+                  Locale('ta', 'IN'),
+                  Locale('kn', 'IN'),
+                  Locale('ml', 'IN'),
+                  Locale('mr', 'IN'),
+                  Locale('gu', 'IN'),
+                  Locale('pa', 'IN'),
+                  Locale('bn', 'IN'),
+                  Locale('or', 'IN'),
+                  Locale('ur', 'IN'),
+                ],
+                theme: ThemeData(
+                  colorScheme: ColorScheme.fromSeed(
+                    seedColor: Colors.deepPurple,
                   ),
-                  home: const SplashScreen(),
+                  useMaterial3: true,
                 ),
-              );
-            },
-          ),
+                home: const SplashScreen(),
+              ),
+            );
+          },
         );
       },
     );

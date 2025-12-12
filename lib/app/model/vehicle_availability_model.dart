@@ -6,9 +6,11 @@ class VehicleAvailabilityModel {
 
   factory VehicleAvailabilityModel.fromJson(Map<String, dynamic> json) {
     return VehicleAvailabilityModel(
-      status: json['status'] ?? false,
-      vehicles: json['vehicles'] != null
-          ? List<Vehicle>.from(json['vehicles'].map((x) => Vehicle.fromJson(x)))
+      status: json['status'] is bool ? json['status'] : false,
+      vehicles: (json['vehicles'] is List)
+          ? (json['vehicles'] as List)
+                .map((x) => Vehicle.fromJson(x ?? {}))
+                .toList()
           : [],
     );
   }
@@ -16,7 +18,7 @@ class VehicleAvailabilityModel {
   Map<String, dynamic> toJson() {
     return {
       'status': status,
-      'vehicles': vehicles.map((x) => x.toJson()).toList(),
+      'vehicles': vehicles.map((e) => e.toJson()).toList(),
     };
   }
 }
@@ -50,33 +52,59 @@ class Vehicle {
     required this.whatsapp,
   });
 
-  factory Vehicle.fromJson(Map<String, dynamic> json) {
-    DateTime? safeParseDate(String? date) {
-      if (date == null || date.isEmpty) return null;
-      try {
-        return DateTime.parse(date);
-      } catch (_) {
-        return null;
+  /// ---------- STATIC SAFE HELPERS ----------
+  static DateTime? safeDate(dynamic value) {
+    if (value == null) return null;
+    if (value is! String || value.isEmpty) return null;
+    try {
+      return DateTime.parse(value);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static List<String> safeList(dynamic value) {
+    if (value is List) return value.map((e) => e.toString()).toList();
+    return [];
+  }
+
+  static List<String> safeVechileLocationTrackingList(dynamic value) {
+    try {
+      if (value is List) {
+        return value
+            .map((e) {
+              if (e is Map && e.containsKey('location_name')) {
+                return e['location_name']?.toString() ?? "";
+              }
+              return "";
+            })
+            .where((x) => x.isNotEmpty)
+            .toList();
       }
+    } catch (_) {
+      // ignore errors
     }
 
+    return [];
+  }
+
+  factory Vehicle.fromJson(Map<String, dynamic> json) {
     return Vehicle(
-      vehicleNumber: json['vehicle_number'] ?? '',
-      driverName: json['driver_name'] ?? '',
-      driverMobile: json['driver_mobile'] ?? '',
-      vehicleImages: json['vehicle_images'] != null
-          ? List<String>.from(json['vehicle_images'])
-          : [],
-      hatcheryName: json['hatchery_name'] ?? '',
-      hatcheryLocation: json['hatchery_location'],
-      vechileLocationTracking: json['vechile_location_tracking'] != null
-          ? List<String>.from(json['vechile_location_tracking'])
-          : [],
-      startDate: safeParseDate(json['start_date']) ?? DateTime.now(),
-      endDate: safeParseDate(json['end_date']),
-      availableSpace: json['available_space'] ?? 0,
-      callNow: json['call_now'] ?? '',
-      whatsapp: json['whatsapp'] ?? '',
+      vehicleNumber: json['vehicle_number']?.toString() ?? "",
+      driverName: json['driver_name']?.toString() ?? "",
+      driverMobile: json['driver_mobile']?.toString() ?? "",
+      vehicleImages: safeList(json['vehicle_images']),
+      hatcheryName: json['hatchery_name']?.toString() ?? "",
+      hatcheryLocation: json['hatchery_location']?['location_name'] ?? '',
+      vechileLocationTracking: safeVechileLocationTrackingList(
+        json['vechile_location_tracking'],
+      ),
+      startDate: safeDate(json['start_date']) ?? DateTime.now(),
+      endDate: safeDate(json['end_date']),
+      availableSpace:
+          int.tryParse(json['available_space']?.toString() ?? "0") ?? 0,
+      callNow: json['call_now']?.toString() ?? "",
+      whatsapp: json['whatsapp']?.toString() ?? "",
     );
   }
 

@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
+import 'package:seedsuser/app/common/animated_view_custom.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_dropdown.dart';
+import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/model/brood_stock_model.dart';
 import 'package:seedsuser/app/model/category_model.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
+import 'package:shimmer/shimmer.dart';
 
 class BroodStockScreen extends StatefulWidget {
   const BroodStockScreen({super.key});
@@ -65,10 +68,6 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
       backgroundColor: Colors.grey[100],
       appBar: _buildAppBar(),
       body: Obx(() {
-        if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
         return SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -82,7 +81,21 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                 const SizedBox(height: 24),
                 _buildHatcheryListHeader(),
                 const SizedBox(height: 16),
-                if (controller.filteredBroodStocks.isEmpty)
+                if (controller.isLoading.value)
+                  ListView.builder(
+                    itemCount: 3,
+                    shrinkWrap: true,
+                    padding: EdgeInsets.only(top: 5, bottom: 5),
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: EdgeInsets.only(top: 5, bottom: 5),
+                        child: AnimatedAppearance(
+                          type: AnimationType.slideDown,
+                          child: hatcheryCardShimmer()),
+                      );
+                    },
+                  )
+                else if (controller.filteredBroodStocks.isEmpty)
                   Padding(
                     padding: EdgeInsets.only(
                       top: MediaQuery.of(context).size.height * .2,
@@ -92,31 +105,33 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                     ),
                   )
                 else
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: controller.filteredBroodStocks.length,
-                    itemBuilder: (context, index) {
-                      BroodstockData data =
-                          controller.filteredBroodStocks[index];
-                      return InkWell(
-                        onTap: () {
-                          Get.to(
-                            HatcheryCateogryScreen(
-                              hatcheryId: controller
-                                  .filteredBroodStocks[index]
-                                  .id
-                                  .toString(),
-                              hatcheryName: controller
-                                  .filteredBroodStocks[index]
-                                  .hatcheryName
-                                  .toString(),
-                            ),
-                          );
-                        },
-                        child: _buildHatcheryCard(data),
-                      );
-                    },
+                  AnimatedAppearance(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: controller.filteredBroodStocks.length,
+                      itemBuilder: (context, index) {
+                        BroodstockData data =
+                            controller.filteredBroodStocks[index];
+                        return InkWell(
+                          onTap: () {
+                            Get.to(
+                              HatcheryCateogryScreen(
+                                hatcheryId: controller
+                                    .filteredBroodStocks[index]
+                                    .id
+                                    .toString(),
+                                hatcheryName: controller
+                                    .filteredBroodStocks[index]
+                                    .hatcheryName
+                                    .toString(),
+                              ),
+                            );
+                          },
+                          child: _buildHatcheryCard(data),
+                        );
+                      },
+                    ),
                   ),
                 const SizedBox(height: 80),
               ],
@@ -192,9 +207,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
         // ✅ Category Dropdown
         Expanded(
           child: Obx(
-            () => controller.categories.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : CustomDropdown<Category>(
+            () => CustomDropdown<Category>(
                     selectedValue: controller.selectedCategory.value,
                     items: controller.categories,
                     itemLabel: (cat) => cat.categoryName,
@@ -350,7 +363,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                   ),
                 ),
                 Text(
-                    data.importedDate,
+                  data.importedDate,
                   style: GoogleFonts.roboto(
                     fontSize: 14,
                     color: Colors.black87,
@@ -374,7 +387,6 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
 
                 // if (data.availableOn.isNotEmpty && data.packingStart.isNotEmpty)
                 //   const SizedBox(width: 10),
-
                 if (data.packingStart.isNotEmpty)
                   _buildChip(
                     label: "${data.packingStart}",
@@ -401,18 +413,155 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: SizedBox(
-        width: MediaQuery.of(context).size.width * .4-22,
+        width: MediaQuery.of(context).size.width * .4 - 22,
         child: Center(
           child: Text(
             label,
             style: GoogleFonts.roboto(
               fontSize: 12,
               color: textColor,
-              fontWeight: FontWeight.w500
-            ),maxLines: 1,textAlign: TextAlign.center,overflow: TextOverflow.ellipsis,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ),
     );
   }
+}
+
+Widget hatcheryCardShimmer() {
+  return Shimmer.fromColors(
+    baseColor: Colors.grey.shade300,
+    highlightColor: Colors.grey.shade100,
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(width: 1),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  height: 14,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Row 2
+            Row(
+              children: [
+                Container(
+                  height: 18,
+                  width: 18,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Container(
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  height: 20,
+                  width: 35,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Row 3
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  height: 14,
+                  width: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 18),
+
+            // Chips
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 28,
+                    width: 90,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    height: 28,
+                    width: 70,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }

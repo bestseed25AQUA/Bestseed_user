@@ -6,7 +6,9 @@ import 'package:seedsuser/app/broadstock/view/broad_stock_screen.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/home/view/full_video_screen.dart';
 import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
-import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart'; 
+import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
+import 'package:seedsuser/app/utils/app_animations.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:video_player/video_player.dart';
 
 class HomeBannerCarousel extends StatefulWidget {
@@ -58,11 +60,24 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      if (controller.isLoading.value) {
-        return const Center(child: CircularProgressIndicator());
-      } else if (controller.banners.isEmpty) {
-        return const Center(child: Text("No banners available"));
-      } else {
+        if (controller.isLoading.value || controller.banners.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Shimmer.fromColors(
+              baseColor: Colors.grey.shade300,
+              highlightColor: Colors.grey.shade100,
+            
+              child: Container(
+                height: 150,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          );
+        }  else {
         return Stack(
           alignment: Alignment.bottomCenter,
           children: [
@@ -82,7 +97,7 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                           .where((b) => b.type == "image")
                           .length;
                       if (imageCountBefore == 0) {
-                        Get.to(() => VehicleAvailabilityScreen());
+                        Navigator.push(context, AppAnimations.fade(VehicleAvailabilityScreen()));
                       } else if (imageCountBefore == 1) {
                         Get.to(() => SeedRequestsFormScreen());
                       } else if (imageCountBefore == 2) {
@@ -111,7 +126,7 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                 }
                 // Video Banner
                 return GestureDetector(
-                  onTap:(){
+                  onTap: () {
                     Get.to(() => FullScreenVideoPlayer(videoUrl: banner.url));
                   },
                   child: Container(
@@ -218,13 +233,18 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
               ),
             ],
           )
-        : Container(
-            height: 160,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.grey[300],
+        : Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+          
+            child: Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Center(child: CircularProgressIndicator()),
           );
   }
 }

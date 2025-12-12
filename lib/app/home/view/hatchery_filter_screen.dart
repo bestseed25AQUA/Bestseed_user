@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/common/animated_view_custom.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/common/voice_mic_button.dart';
@@ -9,6 +10,7 @@ import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/model/hatchery_filter_model.dart';
 import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 import 'package:seedsuser/app/home/widget/hatchery_widgets.dart';
+import 'package:shimmer/shimmer.dart';
 
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
@@ -241,201 +243,249 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
       ),
       body: Builder(
         builder: (contxt) {
-          return SingleChildScrollView(
-            // padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-            child: Column(
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(height: 60, color: AppColors.primary),
-                    Positioned(
-                      bottom: -28,
-                      left: 16,
-                      right: 16,
-                      child: Material(
-                        elevation: 6,
-                        borderRadius: BorderRadius.circular(12),
-                        child: TextField(
-                          focusNode: _focusNode,
-                          onTapOutside: (event) {
-                            _focusNode.unfocus();
-                          },
-                          onChanged: (value) {
-                            filterHatcheryController.query = value;
-                            filterHatcheryController.applyFilter();
-                          },
-                          onSubmitted: (value) {},
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Colors.white,
-                            hintText: "Search...",
-                            prefixIcon: const Icon(Icons.search),
+          return Column(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(height: 60, color: AppColors.primary),
+                  Positioned(
+                    bottom: -28,
+                    left: 16,
+                    right: 16,
+                    child: Material(
+                      elevation: 6,
+                      borderRadius: BorderRadius.circular(12),
+                      child: TextField(
+                        focusNode: _focusNode,
+                        onTapOutside: (event) {
+                          _focusNode.unfocus();
+                        },
+                        onChanged: (value) {
+                          filterHatcheryController.query = value;
+                          filterHatcheryController.applyFilter();
+                        },
+                        onSubmitted: (value) {},
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          hintText: "Search...",
+                          prefixIcon: const Icon(Icons.search),
 
-                            suffixIcon: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (_searchController.text.isNotEmpty)
-                                  IconButton(
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: () {
-                                      setState(() => _searchController.clear());
-                                    },
-                                  ),
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_searchController.text.isNotEmpty)
+                                IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    setState(() => _searchController.clear());
+                                  },
+                                ),
 
-                                VoiceMicButton(onStart: startRecording),
-                              ],
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
+                              VoiceMicButton(onStart: startRecording),
+                            ],
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
                           ),
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
 
-                const SizedBox(height: 40),
-                Obx(() {
-                  if (controller.isLoading.value) {
-                    return SizedBox(
-                      height: screenWidth,
-                      child: const Center(
-                        child: const Center(child: CircularProgressIndicator()),
-                      ),
-                    );
-                  }
+              const SizedBox(height: 40),
+              Obx(() {
+                if (controller.isLoading.value) {
+                  return Expanded(
+                    child: GridView.builder(
+                      shrinkWrap: true,
 
-                  if (controller.hatcherFilteredData.value?.data == null ||
-                      controller.hatcherFilteredData.value!.data.isEmpty) {
-                    return SizedBox(
-                      height: screenWidth,
-                      child: const Center(
-                        child: Text(
-                          "No hatcheries found",
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                      ),
-                    );
-                  }
-
-                  final list = filterByName();
-                  return Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      children: list.isEmpty
-                          ? [
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  top: MediaQuery.of(context).size.height * .3,
-                                ),
-                                child: Text('Not found'),
-                              ),
-                            ]
-                          : List.generate((list.length / 2).ceil(), (rowIndex) {
-                              final i1 = rowIndex * 2;
-                              final i2 = i1 + 1;
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 14),
-                                child: Row(
-                                  children: [
-                                    // LEFT CARD
-                                    Expanded(
-                                      child: HatcheryCard(
-                                        width: cardWidth,
-                                        height: cardHeight,
-                                        imagePath: list[i1].image,
-                                        title: list[i1].hatcheryName,
-                                        location: list[i1].location,
-                                        type: list[i1].category,
-                                        status: list[i1].status,
-                                        availableUntil: list[i1].availableOn,
-
-                                        statusColor:
-                                            list[i1].status.toLowerCase() ==
-                                                "open"
-                                            ? const Color(0xff25A652)
-                                            : list[i1].status.toLowerCase() ==
-                                                  "coming soon"
-                                            ? const Color(0xff007DFE)
-                                            : const Color(0xffE31B1B),
-                                        ontap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  HatcheryCateogryScreen(
-                                                    hatcheryId: list[i1].id
-                                                        .toString(),
-                                                    hatcheryName: list[i1]
-                                                        .hatcheryName
-                                                        .toString(),
-                                                  ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-
-                                    const SizedBox(width: 12),
-
-                                    // RIGHT CARD
-                                    Expanded(
-                                      child: i2 < list.length
-                                          ? HatcheryCard(
-                                              width: cardWidth,
-                                              height: cardHeight,
-                                              imagePath: list[i2].image,
-                                              title: list[i2].hatcheryName,
-                                              location: list[i2].location,
-                                              type: list[i2].category,
-                                              status: list[i2].status,
-                                              availableUntil:
-                                                  list[i2].availableOn,
-                                              statusColor:
-                                                  list[i2].status
-                                                          .toLowerCase() ==
-                                                      "open"
-                                                  ? const Color(0xff25A652)
-                                                  : list[i2].status
-                                                            .toLowerCase() ==
-                                                        "coming soon"
-                                                  ? const Color(0xff007DFE)
-                                                  : const Color(0xffE31B1B),
-                                              ontap: () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (context) =>
-                                                        HatcheryCateogryScreen(
-                                                          hatcheryId: list[i2]
-                                                              .id
-                                                              .toString(),
-                                                          hatcheryName: list[i2]
-                                                              .hatcheryName
-                                                              .toString(),
-                                                        ),
-                                                  ),
-                                                );
-                                              },
-                                            )
-                                          : const SizedBox(),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }),
+                      padding: const EdgeInsets.only(left: 10, right: 10),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 14,
+                            childAspectRatio:
+                                0.8, // adjust based on your card height
+                          ),
+                      itemCount: 10,
+                      itemBuilder: (context, index) {
+                        return AnimatedAppearance(child: hatcheryCardGridShimmer(cardHeight));
+                      },
                     ),
                   );
-                }),
-              ],
-            ),
+                }
+
+                if (controller.hatcherFilteredData.value?.data == null ||
+                    controller.hatcherFilteredData.value!.data.isEmpty) {
+                  return SizedBox(
+                    height: screenWidth,
+                    child: const Center(
+                      child: Text(
+                        "No hatcheries found",
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ),
+                  );
+                }
+
+                final list = filterByName();
+                return Expanded(
+                  child: AnimatedAppearance(
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.only(left: 10, right: 10),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 14,
+                            childAspectRatio:
+                                0.8, // adjust based on your card height
+                          ),
+                      itemCount: list.length,
+                      itemBuilder: (context, index) {
+                        final item = list[index];
+                        return HatcheryCard(
+                          index: index,
+                          width: cardWidth,
+                          height: cardHeight,
+                          imagePath: item.image,
+                          title: item.hatcheryName,
+                          location: item.location,
+                          type: item.category,
+                          status: item.status,
+                          availableUntil: item.availableOn,
+                          statusColor: item.status.toLowerCase() == "open"
+                              ? const Color(0xff25A652)
+                              : item.status.toLowerCase() == "coming soon"
+                              ? const Color(0xff007DFE)
+                              : const Color(0xffE31B1B),
+                          ontap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => HatcheryCateogryScreen(
+                                  hatcheryId: item.id.toString(),
+                                  hatcheryName: item.hatcheryName.toString(),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                );
+              }),
+            ],
           );
         },
       ),
     );
   }
+}
+
+Widget hatcheryCardGridShimmer(double height) {
+  return Shimmer.fromColors(
+    baseColor: Colors.grey.shade300,
+    highlightColor: Colors.grey.shade100,
+    child: Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xff000000).withOpacity(.12),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 🔵 IMAGE AREA
+          Container(
+            height: height * 0.45,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // 🔵 TITLE
+          Container(
+            height: 16,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // 🔵 LOCATION ROW
+          Row(
+            children: [
+              Container(
+                height: 14,
+                width: 14,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(255, 164, 141, 141),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          // 🔵 TYPE ROW
+          Row(
+            children: [
+              Container(
+                height: 14,
+                width: 14,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(255, 164, 141, 141),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
 }
