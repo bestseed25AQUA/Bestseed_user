@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -16,7 +17,7 @@ class FeedUpdateScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
+      appBar: CustomAppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_circle_left, size: 28),
           onPressed: () => Navigator.of(context).pop(),

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/animated_view_custom.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_dropdown.dart';
+import 'package:seedsuser/app/common/custom_icon_appbar.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/model/category_model.dart';
@@ -74,31 +76,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        backgroundColor: Colors.blue[800],
-        automaticallyImplyLeading: false,
-        title: Text(
-          'Seed Prices',
-          style: GoogleFonts.roboto(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: Image.asset('assets/images/lan_image.png', height: 28),
-            onPressed: () => Get.to(() => LanguageSelectionScreen()),
-          ),
-          IconButton(
-            icon: Image.asset('assets/images/notification.png', height: 28),
-            onPressed: () => Get.to(() => NotificationsScreen()),
-          ),
-          IconButton(
-            icon: Image.asset('assets/images/person.png', height: 28),
-            onPressed: () => Get.to(() => ProfileScreen()),
-          ),
-        ],
-      ),
+      appBar: CustomIconAppbar(title: "Seed Prices"),
       body: Obx(() {
         // if (controller.isLoading.value) {
         //   return const Center(child: CircularProgressIndicator());
@@ -328,7 +306,8 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                                 ],
                               ),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     item.size,
@@ -350,7 +329,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                             ),
                           );
                         },
-                      )
+                      ),
 
                     // const SizedBox(height: 20),
                     // if (priceData != null)

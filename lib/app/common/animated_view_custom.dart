@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 
 enum AnimationType {
   fade,

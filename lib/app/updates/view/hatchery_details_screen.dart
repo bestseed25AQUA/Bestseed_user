@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -41,8 +42,8 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
+      appBar: CustomAppBar(
+    
         automaticallyImplyLeading: false,
         title: Text(
           'Updates',

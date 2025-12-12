@@ -4,9 +4,11 @@ import 'package:get/get.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_loading_box.dart';
 import 'package:seedsuser/app/home/controller/filter_controller.dart';
+import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/controller/location_controller.dart';
 import 'package:seedsuser/app/home/view/all_screen.dart';
+import 'package:seedsuser/app/home/view/hatchery_filter_screen.dart';
 import 'package:seedsuser/app/home/view/home_appbar_widget.dart';
 import 'package:seedsuser/app/home/widget/home_loading.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
@@ -24,6 +26,9 @@ class _HomeScreenState extends State<HomeScreen>
   TabController? _tabController;
   final HomeController _homeController = Get.find<HomeController>();
   final FilterController filterController = Get.put(FilterController());
+  final FilterHatcheryController filterHatcheryController = Get.put(
+    FilterHatcheryController(),
+  );
   final ProfileController profileController = Get.put(ProfileController());
   final newsSpecificController = Get.put(NewsSpecificController());
 
@@ -41,6 +46,12 @@ class _HomeScreenState extends State<HomeScreen>
     //   _initTabController();
     //   if (mounted) setState(() {});
     // });
+  }
+
+  fetchData() async {
+    await _homeController.getCategories();
+    _initTabController();
+    _homeController.changeHomeData('', '');
   }
 
   void getDefaultLocation() async {
@@ -195,13 +206,25 @@ class _HomeScreenState extends State<HomeScreen>
                   unselectedLabelColor: Colors.black,
                   indicatorColor: AppColors.primary,
                   padding: EdgeInsets.zero,
+                  onTap: (index) {
+                    // String catId = categories[index - 1].id.toString();
+                    String catName = categories[index - 1].categoryName.toString();
+                    // filterHatcheryController.toggleCategory(catId);
+                    filterHatcheryController.selectedCategoryIds.clear();
+                    filterHatcheryController.query = catName;
+                    filterHatcheryController.applyFilter();
+                    Navigator.push(
+                      context,
+                      zoomOutFadeRoute(HatcheryFilterScreen()),
+                    );
+                  },
                   tabs: _tabController == null || (categories.isEmpty)
                       ? [SizedBox()]
                       : [
                           const Tab(text: "All", iconMargin: EdgeInsets.only()),
                           ...categories
                               .take(4)
-                              .map((e) => Tab(text: e.categoryName))
+                              .map((e) => Tab(text: e.categoryName)),
                         ],
                 );
               },
@@ -213,19 +236,29 @@ class _HomeScreenState extends State<HomeScreen>
           builder: (context) {
             final categories = _homeController.categories;
             return _tabController == null || (categories.isEmpty)
-                ? homeShimmer(context)
+                ? RefreshIndicator(
+                    color: Colors.white,
+                    backgroundColor: AppColors.primary,
+                    strokeWidth: 3,
+                    displacement: 60,
+                    elevation: 6,
+                    onRefresh: () async {
+                      await _homeController.changeHomeData('', '');
+                    },
+                    child: homeShimmer(context),
+                  )
                 : TabBarView(
+                    physics: NeverScrollableScrollPhysics(),
                     controller: _tabController,
                     children: [
                       RefreshIndicator(
-                        
                         color: Colors.white,
                         backgroundColor: AppColors.primary,
                         strokeWidth: 3,
                         displacement: 60,
                         elevation: 6,
                         onRefresh: () async {
-                         await _homeController.changeHomeData('', '');
+                          await _homeController.changeHomeData('', '');
                         },
                         child: const HomePage(),
                       ),

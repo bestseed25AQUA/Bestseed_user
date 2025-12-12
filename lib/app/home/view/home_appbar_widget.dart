@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 // ignore: depend_on_referenced_packages
@@ -614,7 +615,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                           ),
                         ],
                       ),
-                      SizedBox(height: 15),
+                      SizedBox(height: 3),
                       _buildSearchBar(context),
                       // SizedBox(height: ,)
                     ],

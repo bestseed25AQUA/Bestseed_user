@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_icon_appbar.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
 import 'package:seedsuser/app/common/media_carousel_widget.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
@@ -41,40 +43,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        automaticallyImplyLeading: false,
-        title: Text(
-          'Updates',
-          style: GoogleFonts.roboto(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          InkWell(
-            onTap: () {
-              Get.to(() => LanguageSelectionScreen());
-            },
-            child: Image.asset('assets/images/lan_image.png', height: 32),
-          ),
-          const SizedBox(width: 16),
-          InkWell(
-            onTap: () {
-              Get.to(() => NotificationsScreen());
-            },
-            child: Image.asset('assets/images/notification.png', height: 32),
-          ),
-          SizedBox(width: 16),
-          InkWell(
-            onTap: () {
-              Get.to(() => ProfileScreen());
-            },
-            child: Image.asset('assets/images/person.png', height: 32),
-          ),
-          SizedBox(width: 16),
-        ],
-      ),
+      appBar: CustomIconAppbar(title: 'Updates'),
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
         child: Column(

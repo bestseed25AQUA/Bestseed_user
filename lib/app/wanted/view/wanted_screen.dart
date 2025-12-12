@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -159,9 +160,9 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
     );
   }
 
-  AppBar _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.blue[800],
+  CustomAppBar _buildAppBar() {
+    return CustomAppBar(
+        
       foregroundColor: Colors.white,
       title: Text(
         'Wanted Crops',

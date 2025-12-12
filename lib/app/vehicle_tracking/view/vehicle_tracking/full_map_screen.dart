@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class FullScreenMapPage extends StatefulWidget {
@@ -80,7 +81,7 @@ class _FullScreenMapPageState extends State<FullScreenMapPage> {
     final driver = LatLng(widget.driverLat, widget.driverLng);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: CustomAppBar(
         title: const Text("Vehicle tracking"),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,

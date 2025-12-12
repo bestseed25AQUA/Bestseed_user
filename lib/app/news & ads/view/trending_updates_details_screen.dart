@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -54,7 +55,7 @@ class _TrendingUpdatesDetailsScreenState
       final mediaTypes = [data.mediaType ?? "image"];
 
       return Scaffold(
-        appBar: AppBar(
+        appBar: CustomAppBar(
           backgroundColor: Colors.blue[800],
           leading: Padding(
             padding: const EdgeInsets.only(left: 16.0),

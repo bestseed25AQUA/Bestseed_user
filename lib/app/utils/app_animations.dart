@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get_navigation/src/routes/circular_reveal_clipper.dart';
 
 class AppAnimations {

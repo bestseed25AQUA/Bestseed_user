@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmap;
 import 'package:geocoding/geocoding.dart';
@@ -115,7 +116,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Select Delivery Address")),
+      appBar: CustomAppBar(title: const Text("Select Delivery Address")),
       body: Stack(
         children: [
           // Google Map

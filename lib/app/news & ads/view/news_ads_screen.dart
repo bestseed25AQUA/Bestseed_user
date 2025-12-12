@@ -1,9 +1,11 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_icon_appbar.dart';
 import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/controller/location_controller.dart';
@@ -65,40 +67,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.blue[800],
-        automaticallyImplyLeading: false,
-        title: Text(
-          'News & Ads',
-          style: GoogleFonts.roboto(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          InkWell(
-            onTap: () {
-              Get.to(() => LanguageSelectionScreen());
-            },
-            child: Image.asset('assets/images/lan_image.png', height: 32),
-          ),
-          const SizedBox(width: 16),
-          InkWell(
-            onTap: () {
-              Get.to(() => NotificationsScreen());
-            },
-            child: Image.asset('assets/images/notification.png', height: 32),
-          ),
-          const SizedBox(width: 16),
-          InkWell(
-            onTap: () {
-              Get.to(() => ProfileScreen());
-            },
-            child: Image.asset('assets/images/person.png', height: 32),
-          ),
-          const SizedBox(width: 16),
-        ],
-      ),
+      appBar: CustomIconAppbar(title: 'News & Ads'),
       body: CustomRefereshIndicator(
         onRefresh: () async {
           await newsAdsController.fetch();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -74,7 +75,7 @@ class _BookingVehicleScreenState extends State<BookingVehicleScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
+      appBar: CustomAppBar(
         title: Text('Booking vehicle at ${widget.vehicle.hatcheryName}'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,

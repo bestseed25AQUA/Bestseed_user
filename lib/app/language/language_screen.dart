@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -15,7 +16,7 @@ class LanguageSelectionScreen extends StatelessWidget {
     final languages = controller.langMap.keys.toList();
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: CustomAppBar(
         title: Text(
           AppLocalizations.of(context).selectLanguage,
           style: GoogleFonts.roboto(color: Colors.white),

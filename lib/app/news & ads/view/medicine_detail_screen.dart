@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
@@ -42,7 +43,7 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
+      appBar: CustomAppBar(
         
         backgroundColor: Colors.blue[800],
         // automaticallyImplyLeading: false,

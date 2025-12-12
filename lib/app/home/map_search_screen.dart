@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -121,7 +122,7 @@ class _GoogleMapSearchPlacesScreenState
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
-        // appBar: AppBar(
+        // appBar: CustomAppBar(
         //   elevation: 0,
         //   title: const Text(
         //     'Search places Api',

@@ -1,6 +1,7 @@
 // booking_details_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -80,8 +81,8 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
+      appBar: CustomAppBar(
+    
         title: Text(
           'Seven Star Hatchery',
           style: GoogleFonts.roboto(
@@ -89,7 +90,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.black),
       ),
 
       body: Obx(() {

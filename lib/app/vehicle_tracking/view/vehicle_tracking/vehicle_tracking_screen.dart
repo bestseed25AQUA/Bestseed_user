@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -123,8 +124,8 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
+      appBar: CustomAppBar(
+    
         title: Text(
           'Vehicle tracking',
           style: GoogleFonts.roboto(
@@ -132,7 +133,7 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: Obx((){
         final loading = controller.specificLoading.value;

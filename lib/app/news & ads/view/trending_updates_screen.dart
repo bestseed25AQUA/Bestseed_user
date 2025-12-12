@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -56,8 +57,8 @@ class _TrendingUpdatesScreenState extends State<TrendingUpdatesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.blue[800],
+      appBar: CustomAppBar(
+        
         // automaticallyImplyLeading: false,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0),

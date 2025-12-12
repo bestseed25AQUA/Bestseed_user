@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/controller/vehicle_availability_controller.dart';
@@ -15,7 +16,7 @@ class VehicleAvailabilityScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
+      appBar: CustomAppBar(
         title: const Text('Vehicle availability'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,

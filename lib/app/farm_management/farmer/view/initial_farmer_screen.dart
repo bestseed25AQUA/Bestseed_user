@@ -1,5 +1,6 @@
 // first_screen.dart
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
@@ -15,8 +16,8 @@ class InitialFarmScreen extends StatelessWidget {
     const Color primaryBlue = Color(0xFF007BFF); // Example blue
 
     return Scaffold(
-      // AppBar as seen in the image (blue background)
-      appBar: AppBar(
+      // CustomAppBar as seen in the image (blue background)
+      appBar: CustomAppBar(
         backgroundColor: primaryBlue,
         elevation: 0,
         foregroundColor: Colors.white,

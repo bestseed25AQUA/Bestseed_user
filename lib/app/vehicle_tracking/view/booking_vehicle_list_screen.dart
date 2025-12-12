@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -33,8 +34,8 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
+      appBar: CustomAppBar(
+    
         title: Text(
           'Vehicle tracking',
           style: GoogleFonts.roboto(
@@ -42,7 +43,7 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),

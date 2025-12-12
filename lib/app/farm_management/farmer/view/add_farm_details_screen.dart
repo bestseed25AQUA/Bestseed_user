@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -85,8 +86,8 @@ class _AddFarmerDetailsFormScreenState
     bool isEdit = widget.farmData != null;
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        iconTheme: IconThemeData(color: Colors.white),
+      appBar: CustomAppBar(
+        iconTheme: IconThemeData(color: Colors.black),
         title: const Text(
           "Farm Details",
           style: TextStyle(color: Colors.white),

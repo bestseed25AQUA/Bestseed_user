@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -100,7 +101,7 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
       backgroundColor: Colors.white,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(60.0),
-        child: AppBar(
+        child: CustomAppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_circle_left, size: 28),
             onPressed: () => Navigator.of(context).pop(),

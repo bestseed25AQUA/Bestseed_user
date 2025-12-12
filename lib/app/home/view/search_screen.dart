@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -238,7 +239,7 @@ class _SearchScreenState extends State<SearchScreen> {
   List<Map<String, String>> filterItemsWithIds(
     List<String> names,
     List<String> ids,
-    String query,
+    String query
   ) {
     List<Map<String, String>> combined = [];
 
@@ -284,7 +285,7 @@ class _SearchScreenState extends State<SearchScreen> {
       },
       child: Scaffold(
         backgroundColor: Colors.white,
-        appBar: AppBar(
+        appBar: CustomAppBar(
           title: const Text("Search"),
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,

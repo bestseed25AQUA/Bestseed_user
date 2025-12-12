@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/animated_view_custom.dart';
@@ -234,7 +235,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
     final cardHeight = cardWidth * 1.35;
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
+      appBar: CustomAppBar(
         title: Text(
           widget.title ?? ((widget.title?.isEmpty ?? true) ? "Hatcheries" : ''),
         ),

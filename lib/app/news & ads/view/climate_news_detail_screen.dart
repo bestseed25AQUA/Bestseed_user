@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
@@ -42,8 +43,8 @@ class _ClimateDetailScreenState extends State<ClimateDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.blue[800],
+      appBar: CustomAppBar(
+        
         // automaticallyImplyLeading: false,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0),

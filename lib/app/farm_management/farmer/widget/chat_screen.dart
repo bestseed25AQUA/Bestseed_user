@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -9,7 +10,7 @@ class ChatBotScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: CustomAppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -18,7 +19,7 @@ class ChatBotScreen extends StatelessWidget {
             Get.back();
           },
         ),
-        title: Row(
+        titleWidget: Row(
           children: [
             // Bot Avatar
             Container(

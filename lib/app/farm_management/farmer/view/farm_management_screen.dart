@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -58,7 +59,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
     const Color primaryBlue = Color(0xFF007BFF);
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
+      appBar: CustomAppBar(
         automaticallyImplyLeading: true,
         backgroundColor: AppColors.primary,
         elevation: 0,

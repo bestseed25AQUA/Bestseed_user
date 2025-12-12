@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/animated_view_custom.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_dropdown.dart';
+import 'package:seedsuser/app/common/custom_icon_appbar.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
@@ -66,7 +68,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: _buildAppBar(),
+      appBar: CustomIconAppbar(title: "Brood Stock"),
       body: Obx(() {
         return SingleChildScrollView(
           child: Padding(
@@ -91,7 +93,8 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                         padding: EdgeInsets.only(top: 5, bottom: 5),
                         child: AnimatedAppearance(
                           type: AnimationType.slideDown,
-                          child: hatcheryCardShimmer()),
+                          child: hatcheryCardShimmer(),
+                        ),
                       );
                     },
                   )
@@ -142,9 +145,8 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
     );
   }
 
-  AppBar _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.blue[800],
+  CustomAppBar _buildAppBar() {
+    return CustomAppBar(
       automaticallyImplyLeading: false,
       title: Text(
         'Brood Stock',
@@ -156,17 +158,38 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
       actions: [
         InkWell(
           onTap: () => Get.to(() => LanguageSelectionScreen()),
-          child: Image.asset('assets/images/lan_image.png', height: 28),
+          child: Container(
+            padding: EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.grey),
+            ),
+            child: Image.asset('assets/images/lan_image.png', height: 28),
+          ),
         ),
         const SizedBox(width: 16),
         InkWell(
           onTap: () => Get.to(() => NotificationsScreen()),
-          child: Image.asset('assets/images/notification.png', height: 28),
+          child: Container(
+            padding: EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.grey),
+            ),
+            child: Image.asset('assets/images/notification.png', height: 28),
+          ),
         ),
         const SizedBox(width: 16),
         InkWell(
           onTap: () => Get.to(() => ProfileScreen()),
-          child: Image.asset('assets/images/person.png', height: 28),
+          child: Container(
+            padding: EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.grey),
+            ),
+            child: Image.asset('assets/images/person.png', height: 28),
+          ),
         ),
         const SizedBox(width: 16),
       ],
@@ -208,14 +231,14 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
         Expanded(
           child: Obx(
             () => CustomDropdown<Category>(
-                    selectedValue: controller.selectedCategory.value,
-                    items: controller.categories,
-                    itemLabel: (cat) => cat.categoryName,
-                    hintText: "Select Category",
-                    onChanged: (cat) {
-                      controller.onCategoryChanged(cat);
-                    },
-                  ),
+              selectedValue: controller.selectedCategory.value,
+              items: controller.categories,
+              itemLabel: (cat) => cat.categoryName,
+              hintText: "Select Category",
+              onChanged: (cat) {
+                controller.onCategoryChanged(cat);
+              },
+            ),
           ),
         ),
 

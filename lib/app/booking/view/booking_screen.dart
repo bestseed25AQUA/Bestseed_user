@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/controller/my_booking_controller.dart';
@@ -352,8 +353,8 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
+      appBar: CustomAppBar(
+    
         title: Text(
           'My Bookings',
           style: GoogleFonts.roboto(
@@ -361,7 +362,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.black),
         actions: [
           GestureDetector(
             onTap: () => showFilterSheet(),

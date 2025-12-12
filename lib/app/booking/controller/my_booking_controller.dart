@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:seedsuser/app/booking/model/booking_detail_model.dart';

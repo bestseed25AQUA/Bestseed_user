@@ -1,5 +1,6 @@
 // import 'dart:io';
 // import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 // import 'package:google_fonts/google_fonts.dart';
 // import 'package:image_picker/image_picker.dart';
 // import 'package:seedsuser/app/common/app_color.dart';
@@ -113,7 +114,7 @@
 //   @override
 //   Widget build(BuildContext context) {
 //     return Scaffold(
-//       appBar: AppBar(
+//       appBar: CustomAppBar(
 //         leading: IconButton(
 //           icon: const Icon(Icons.arrow_circle_left),
 //           onPressed: () => Navigator.of(context).pop(),

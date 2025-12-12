@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:seedsuser/app/auth/controller/otp_verify_controller.dart';
+import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 
@@ -45,7 +49,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
+      appBar: CustomAppBar(
         backgroundColor: const Color(0xFF0076BE),
         elevation: 0,
         title: Text(
