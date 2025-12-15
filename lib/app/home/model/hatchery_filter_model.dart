@@ -19,8 +19,7 @@ class HatcheryFilterResponse {
         meta: MetaData.fromJson(json['meta'] ?? {}),
         data: (json['data'] as List<dynamic>? ?? [])
             .map((e) => HatcheryFilterItem.fromJson(e ?? {}))
-            .toList(),
-      );
+            .toList());
     } catch (e) {
       print("❌ HatcheryFilterResponse Error: $e");
       return HatcheryFilterResponse(

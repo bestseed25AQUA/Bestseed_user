@@ -1,11 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
+import 'package:flutter/material.dart'; 
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/view/booking_screen.dart';
-import 'package:seedsuser/app/common/app_color.dart';
-import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
+import 'package:seedsuser/app/common/app_color.dart'; 
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/controller/logout_controller.dart';
@@ -42,9 +40,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        
         bottom: PreferredSize(
-          preferredSize: Size(double.infinity, 120),
+          preferredSize: Size(double.infinity, 100),
           child: Column(
             children: const [
               // leave space for status bar & toolbar
@@ -396,7 +393,7 @@ class ProfileHeader extends StatelessWidget {
       if (controller.isLoading.value) {
         return const Center(
           child: Padding(
-            padding: EdgeInsets.all(24.0),
+            padding: EdgeInsets.all(12.0),
             child: CircularProgressIndicator(),
           ),
         );
@@ -404,7 +401,7 @@ class ProfileHeader extends StatelessWidget {
 
       return Container(
         margin: const EdgeInsets.symmetric(horizontal: 16.0),
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0,vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16.0),
@@ -420,7 +417,7 @@ class ProfileHeader extends StatelessWidget {
           children: [
             // 👤 Profile Image
             CircleAvatar(
-              radius: 35,
+              radius: 30,
               backgroundColor: Colors.grey[200],
               backgroundImage:
                   (profile?.profileImage != null &&

@@ -119,7 +119,6 @@ class FilterHatcheryController extends GetxController {
 
       print('============url===============');
       print(url);
-
       final response = await getRequest(
         endPoint: url,
         headers: await buildHeader(),
@@ -136,9 +135,13 @@ class FilterHatcheryController extends GetxController {
         CustomToast.error(data["message"] ?? "Something went wrong");
         return;
       }
+      print('===================data==================');
+      print(data["data"]);
+      print('=========================================');
 
       // Parse your Hatchery Filter Model
       hatcherFilteredData.value = HatcheryFilterResponse.fromJson(data);
+      print(hatcherFilteredData.value.data.length);
 
       CustomToast.success(data["message"] ?? "Filter Applied Successfully!");
     } catch (e, s) {

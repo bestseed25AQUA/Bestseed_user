@@ -217,8 +217,8 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                           borderRadius: BorderRadius.circular(30.0),
                         ),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                          horizontal: 4,
+                          vertical: 6,
                         ),
                         child: Row(
                           children: [
@@ -229,7 +229,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                             ),
                             const SizedBox(width: 6),
                             SizedBox(
-                              width: MediaQuery.of(context).size.width * .34,
+                              width: MediaQuery.of(context).size.width * .4,
                               child: Text(
                                 "Available on ${hatchery.availableOn}",
                                 style: GoogleFonts.roboto(

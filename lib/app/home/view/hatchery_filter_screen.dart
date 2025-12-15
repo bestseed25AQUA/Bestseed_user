@@ -216,17 +216,17 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
     super.dispose();
   }
 
-  List<HatcheryFilterItem> filterByName() {
-    final query = _searchController.text.trim().toLowerCase();
+  // List<HatcheryFilterItem> filterByName() {
+  //   final query = _searchController.text.trim().toLowerCase();
 
-    if (query.isEmpty) {
-      return controller.hatcherFilteredData.value.data;
-    }
+  //   if (query.isEmpty) {
+  //     return controller.hatcherFilteredData.value.data;
+  //   }
 
-    return controller.hatcherFilteredData.value.data
-        .where((item) => item.hatcheryName.toLowerCase().contains(query))
-        .toList();
-  }
+  //   return controller.hatcherFilteredData.value.data
+  //       .where((item) => item.hatcheryName.toLowerCase().contains(query))
+  //       .toList();
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -236,10 +236,10 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
-        title: Text(
+        titleWidget: Text(
           widget.title ?? ((widget.title?.isEmpty ?? true) ? "Hatcheries" : ''),
         ),
-        backgroundColor: AppColors.primary,
+        backgroundColorActual: AppColors.primary,
         foregroundColor: Colors.white,
       ),
       body: Builder(
@@ -249,7 +249,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Container(height: 60, color: AppColors.primary),
+                  Container(height: 50, color: AppColors.primary),
                   Positioned(
                     bottom: -28,
                     left: 16,
@@ -324,7 +324,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                 }
 
                 if (controller.hatcherFilteredData.value?.data == null ||
-                    controller.hatcherFilteredData.value!.data.isEmpty) {
+                    controller.hatcherFilteredData.value.data.isEmpty) {
                   return SizedBox(
                     height: screenWidth,
                     child: const Center(
@@ -336,7 +336,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                   );
                 }
 
-                final list = filterByName();
+                final list =controller.hatcherFilteredData.value.data;// filterByName();
                 return Expanded(
                   child: AnimatedAppearance(
                     child: GridView.builder(

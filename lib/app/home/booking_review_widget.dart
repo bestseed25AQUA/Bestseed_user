@@ -14,7 +14,9 @@ class BookingReviewContent extends StatelessWidget {
       date,
       hatcheryId,
       hatcheryName,
-      locationId,categoryId, estimatedPrice;
+      locationId,
+      categoryId,
+      estimatedPrice;
   final bool isSpotHatchery;
   const BookingReviewContent({
     super.key,
@@ -27,7 +29,9 @@ class BookingReviewContent extends StatelessWidget {
     required this.hatcheryId,
     required this.hatcheryName,
     required this.locationId,
-    required this.isSpotHatchery, required this.categoryId, required this.estimatedPrice,
+    required this.isSpotHatchery,
+    required this.categoryId,
+    required this.estimatedPrice,
   });
 
   @override
@@ -98,7 +102,7 @@ class BookingReviewContent extends StatelessWidget {
                 const Divider(),
                 _buildInfoRow('No.of Pieces', "$pieces Pieces"),
                 const Divider(),
-                _buildInfoRow('Estimated Price','₹$estimatedPrice'),
+                _buildInfoRow('Estimated Price', '₹$estimatedPrice'),
                 const Divider(),
                 _buildInfoRow('Dropping location', location),
                 const Divider(),
@@ -132,7 +136,7 @@ class BookingReviewContent extends StatelessWidget {
 
                       if (isBookingSuccess) {
                         Get.back();
-                        _showSuccess(context);
+                        showSuccess(context);
                       }
                     },
               text: controller.isCreateLoading.value ? "Loading..." : "Proceed",
@@ -144,42 +148,6 @@ class BookingReviewContent extends StatelessWidget {
   }
 
   // ✅ SUCCESS DIALOG (Your Original Design)
-  void _showSuccess(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          content: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                'assets/images/SealCheck.png',
-                height: 109,
-                width: 109,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Your \nrequest was sent',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.roboto(
-                  color: Colors.black,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'We will notify your booking status \nwithin 24 Hours',
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   // ✅ Info Row UI (Same as your design)
   Widget _buildInfoRow(String label, String value) {
@@ -208,4 +176,56 @@ class BookingReviewContent extends StatelessWidget {
       ),
     );
   }
+}
+
+void showSuccess(BuildContext context) {
+  showDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(child: Container()),
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(width: 1,color: Colors.grey),
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(30),
+                    child: Padding(
+                      padding: EdgeInsetsGeometry.all(4),
+                      child: const Icon(Icons.close)),
+                    onTap: () => Navigator.pop(dialogContext),
+                  ),
+                ),
+              ],
+            ),
+            Image.asset('assets/images/SealCheck.png', height: 109, width: 109),
+            const SizedBox(height: 16),
+            Text(
+              'Your \nrequest was sent',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.roboto(
+                color: Colors.black,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'We will notify your booking status \nwithin 24 Hours',
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    },
+  );
 }

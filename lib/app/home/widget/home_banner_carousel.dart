@@ -9,6 +9,7 @@ import 'package:seedsuser/app/home/view/full_video_screen.dart';
 import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
 import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
 import 'package:seedsuser/app/utils/app_animations.dart';
+import 'package:seedsuser/app/utils/app_size.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:video_player/video_player.dart';
 
@@ -60,6 +61,7 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
 
   @override
   Widget build(BuildContext context) {
+    final double heightCarousel = AppSize.height*.15;
     return Obx(() {
         if (controller.isLoading.value || controller.banners.isEmpty) {
           return Padding(
@@ -69,7 +71,7 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
               highlightColor: Colors.grey.shade100,
             
               child: Container(
-                height: 150,
+                height: heightCarousel,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -115,7 +117,7 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                         child: Image.network(
                           banner.url,
                           width: double.infinity,
-                          height: 180,
+                          height: heightCarousel,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) =>
                               // ignore: deprecated_member_use
@@ -135,13 +137,13 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                       border: Border.all(color: Colors.grey),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: VideoPlayerBanner(url: banner.url),
+                    child: VideoPlayerBanner(url: banner.url,height: heightCarousel,),
                   ),
                 );
               },
 
               options: CarouselOptions(
-                height: 160,
+                height: heightCarousel,
                 viewportFraction: 0.9,
                 enlargeCenterPage: true,
                 autoPlay: false, // ❌ TURN OFF AUTOPLAY
@@ -179,7 +181,8 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
 
 class VideoPlayerBanner extends StatefulWidget {
   final String url;
-  const VideoPlayerBanner({super.key, required this.url});
+  final double height;
+  const VideoPlayerBanner({super.key, required this.url, required this.height});
 
   @override
   State<VideoPlayerBanner> createState() => _VideoPlayerBannerState();
@@ -191,6 +194,7 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
   @override
   void initState() {
     super.initState();
+    // ignore: deprecated_member_use
     _controller = VideoPlayerController.network(widget.url)
       ..initialize().then((_) {
         setState(() {});
@@ -211,7 +215,7 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
         ? Stack(
             children: [
               SizedBox(
-                height: 160,
+                height: widget.height,
                 width: double.infinity,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -237,9 +241,8 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
         : Shimmer.fromColors(
             baseColor: Colors.grey.shade300,
             highlightColor: Colors.grey.shade100,
-          
             child: Container(
-              height: 150,
+              height: widget.height-10,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: Colors.white,

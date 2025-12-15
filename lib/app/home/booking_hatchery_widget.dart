@@ -6,6 +6,18 @@ import 'package:seedsuser/app/common/custom_button.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/home/booking_review_widget.dart';
 import 'package:seedsuser/app/home/map_search_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/home/controller/home_controller.dart';
+import 'package:seedsuser/app/home/controller/location_controller.dart';
+import 'package:seedsuser/app/home/map_search_screen.dart';
+import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 
 class BookingBottomSheet extends StatefulWidget {
   const BookingBottomSheet({
@@ -40,6 +52,42 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
   final List<String> _units = ["Unit 1", "Unit 2"];
   final List<String> _locations = ["Location A", "Location B"];
 
+  
+  Position? currentPosition;
+   getCurrentLocation() async {
+    currentPosition = await _getCurrentLocation();
+  }
+
+  Future<Position?> _getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      CustomToast.show(message: 'location is not enabled');
+      return null;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        CustomToast.show(message: 'Permission denied');
+        return null;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      CustomToast.show(message: 'Permission Permanently denied');
+      return null;
+    }
+
+    final position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+    print('====current location get successfully=======');
+    return position;
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -56,6 +104,13 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     } catch (e) {
       return '';
     }
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    getCurrentLocation();
+    super.initState();
   }
 
   @override
@@ -101,6 +156,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               hint: "Enter your Phone number",
               icon: Icons.phone_android,
               keyboardType: TextInputType.phone,
+              maxLength: 10,
             ),
             // _buildDropdownField(
             //   label: "Unit",
@@ -152,6 +208,48 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               label: "Dropping location",
               hint: "Enter your Dropping location",
               icon: Icons.location_on,
+              ontapSuffix: () async {
+                  print(currentPosition?.latitude);
+                  print(currentPosition?.longitude); 
+                  // return;
+                  if (currentPosition == null ||
+                      currentPosition?.latitude == null ||
+                      currentPosition?.longitude == null) {
+                    currentPosition = await getCurrentLocation();
+                  }
+                  if(currentPosition?.latitude != null && currentPosition?.longitude != null) {
+                    await Get.to(
+                    () => GoogleMapSearchPlacesScreen(
+                      latitude: currentPosition!.latitude,
+                      longitude: currentPosition!.longitude,
+                      ontapSelectLocation: (location) async {
+                        List<Placemark> placemarks =
+                            await placemarkFromCoordinates(
+                              location.latitude,
+                              location.longitude,
+                            );
+                        Placemark place = placemarks.first;
+                        String fullAddress =
+                            "${place.subLocality ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}";
+                        fullAddress = fullAddress
+                            .replaceAll(RegExp(r', ,'), ',')
+                            .replaceAll(RegExp(r',,'), ',')
+                            .trim();
+                        if (fullAddress.endsWith(',')) {
+                          fullAddress = fullAddress.substring(
+                            0,
+                            fullAddress.length - 1,
+                          );
+                        }
+                        setState(() {
+                          _dropLocController.text = fullAddress;
+                        });
+                      },
+                    ),
+                  );
+                  }
+                },
+              
             ),
             // _buildDropdownField(
             //   label: "Dropping location",
@@ -176,17 +274,17 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                   if (kDebugMode) {
                     print('validation here');
                   }
-      
+
                   if (_nameController.text.trim().isEmpty) {
                     _showError("Please enter name");
                     return;
                   }
-      
+
                   if (_phoneController.text.trim().isEmpty) {
                     _showError("Please enter phone number");
                     return;
                   }
-      
+
                   if (_phoneController.text.trim().length != 10) {
                     _showError("Enter valid 10 digit phone number");
                     return;
@@ -195,12 +293,12 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     _showError("Please select unit");
                     return;
                   }
-      
+
                   if (_piecesController.text.trim().isEmpty) {
                     _showError("Please enter number of pieces");
                     return;
                   }
-      
+
                   if (int.tryParse(_piecesController.text.trim()) == null ||
                       int.parse(_piecesController.text.trim()) <= 0) {
                     _showError("Enter valid number of pieces");
@@ -272,7 +370,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     child: SingleChildScrollView(
                       controller: scrollController,
                       child: BookingReviewContent(
-                        estimatedPrice: estimatePrice??"",
+                        estimatedPrice: estimatePrice ?? "",
                         categoryId: widget.categoryId,
                         isSpotHatchery: isSpotHatchery,
                         name: _nameController.text,
@@ -300,8 +398,11 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     required TextEditingController controller,
     required String label,
     required String hint,
+    VoidCallback? ontapSuffix,
     required IconData icon,
+    
     TextInputType keyboardType = TextInputType.text,
+    int? maxLength,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -317,11 +418,15 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
           ),
           const SizedBox(height: 8),
           TextField(
+            maxLength: maxLength,
             controller: controller,
             keyboardType: keyboardType,
             decoration: InputDecoration(
+              counter: SizedBox(),
               hintText: hint,
-              suffixIcon: Icon(icon, color: Colors.grey),
+              suffixIcon: InkWell(
+                onTap: ontapSuffix,
+                child: Icon(icon, color: Colors.grey)),
               filled: true,
               fillColor: Colors.grey[100],
               border: OutlineInputBorder(

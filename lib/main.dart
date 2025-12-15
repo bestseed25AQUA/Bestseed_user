@@ -1,12 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
-import 'package:seedsuser/app/auth/view/splash_screen.dart';
-import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/auth/view/splash_screen.dart'; 
 import 'package:seedsuser/app/language/controller/language_controller.dart';
+import 'package:seedsuser/app/utils/app_size.dart';
 import 'package:seedsuser/l10n/app_localizations.dart';
 import 'package:get_storage/get_storage.dart';
 
@@ -35,11 +33,13 @@ void main() async {
   runApp(const MyApp());
 }
 
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context){
+    AppSize.init(context);
     return GetBuilder<LanguageController>(
       builder: (languageController) {
         return LayoutBuilder(

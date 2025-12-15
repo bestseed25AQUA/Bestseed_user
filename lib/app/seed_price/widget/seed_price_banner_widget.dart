@@ -32,7 +32,7 @@ class _SeedPriceBannerWidgetState extends State<SeedPriceBannerWidget> {
     return Obx(() {
       if (controller.isLoading.value || controller.banners.isEmpty) {
         return Padding(
-          padding: const EdgeInsets.all(12.0),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Shimmer.fromColors(
             baseColor: Colors.grey.shade300,
             highlightColor: Colors.grey.shade100,

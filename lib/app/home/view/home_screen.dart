@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_loading_box.dart';
+import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/home/controller/filter_controller.dart';
 import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
@@ -72,14 +73,14 @@ class _HomeScreenState extends State<HomeScreen>
       await _homeController.getCategories();
     }
     print('+++++2+++++');
-    if (_homeController.categories.isNotEmpty) {
+    if (_homeController.categories.isNotEmpty){
       print('+++++3+ is not empty++++');
       _tabController?.dispose();
       _tabController = TabController(
         length: 4 + 1, //
         vsync: this,
       );
-      _tabController?.addListener(() {
+      _tabController?.addListener((){
         currentTabIndex = (_tabController?.index ?? 0);
         print('++++++++tab controller index ${_tabController?.index}');
         print('++++++++currentTabIndex ${_tabController?.index}');
@@ -96,17 +97,21 @@ class _HomeScreenState extends State<HomeScreen>
         print('current tab is ${_tabController?.index}');
         print('category selected ${_homeController.selectedCategoryId.value}');
         if ((_tabController?.index ?? 0) == 0) {
-          print('=======++++===========');
+          if (kDebugMode) {
+            print('=======++++===========');
+          }
           _homeController.selectedCateogryName.value = '';
         }
         if (kDebugMode) {
           print('============category name=====${currentTabIndex}====');
         }
-        print(_homeController.selectedCateogryName.value);
-        _homeController.changeHomeData(
-          _homeController.selectedCategoryId.value,
-          _locationController.selectedLocationId.value,
-        );
+        if (kDebugMode) {
+          print(_homeController.selectedCateogryName.value);
+        }
+        // _homeController.changeHomeData(
+        //   _homeController.selectedCategoryId.value,
+        //   _locationController.selectedLocationId.value,
+        // );
       });
       if (mounted) {
         setState(() {});
@@ -206,10 +211,9 @@ class _HomeScreenState extends State<HomeScreen>
                   unselectedLabelColor: Colors.black,
                   indicatorColor: AppColors.primary,
                   padding: EdgeInsets.zero,
-                  onTap: (index) {
-                    // String catId = categories[index - 1].id.toString();
-                    String catName = categories[index - 1].categoryName.toString();
-                    // filterHatcheryController.toggleCategory(catId);
+                  onTap: (index){ 
+                    _tabController?.index = 0;
+                    String catName = categories[index - 1].categoryName.toString(); 
                     filterHatcheryController.selectedCategoryIds.clear();
                     filterHatcheryController.query = catName;
                     filterHatcheryController.applyFilter();
@@ -236,12 +240,7 @@ class _HomeScreenState extends State<HomeScreen>
           builder: (context) {
             final categories = _homeController.categories;
             return _tabController == null || (categories.isEmpty)
-                ? RefreshIndicator(
-                    color: Colors.white,
-                    backgroundColor: AppColors.primary,
-                    strokeWidth: 3,
-                    displacement: 60,
-                    elevation: 6,
+                ? CustomRefereshIndicator(
                     onRefresh: () async {
                       await _homeController.changeHomeData('', '');
                     },
@@ -251,12 +250,7 @@ class _HomeScreenState extends State<HomeScreen>
                     physics: NeverScrollableScrollPhysics(),
                     controller: _tabController,
                     children: [
-                      RefreshIndicator(
-                        color: Colors.white,
-                        backgroundColor: AppColors.primary,
-                        strokeWidth: 3,
-                        displacement: 60,
-                        elevation: 6,
+                      CustomRefereshIndicator(
                         onRefresh: () async {
                           await _homeController.changeHomeData('', '');
                         },
@@ -265,12 +259,7 @@ class _HomeScreenState extends State<HomeScreen>
                       ...categories
                           .take(4)
                           .map(
-                            (e) => RefreshIndicator(
-                              color: Colors.white,
-                              backgroundColor: AppColors.primary,
-                              strokeWidth: 3,
-                              displacement: 60,
-                              elevation: 6,
+                            (e) => CustomRefereshIndicator(
                               onRefresh: () async {
                                 await _homeController.changeHomeData(
                                   _homeController.selectedCategoryId.value,

@@ -286,9 +286,10 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: CustomAppBar(
-          title: const Text("Search"),
-          backgroundColor: AppColors.primary,
+          toolbarHeight: 30,
+          backgroundColorActual: AppColors.primary,
           foregroundColor: Colors.white,
+          titleWidget: Text("Search",style: GoogleFonts.roboto(color: Colors.white),),
         ),
         body: Obx(() {
           // if (filterHatcheryController.isLoading.value &&

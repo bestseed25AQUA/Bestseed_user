@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
@@ -313,7 +314,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                 // titlePadding: EdgeInsets.only(top: 100),
                 // title: widget.bottom,
                 background: Container(
-                  padding: EdgeInsets.only(top: 10, left: 16, right: 16),
+                  padding: EdgeInsets.only(top: 5, left: 16, right: 16),
                   alignment: Alignment.bottomCenter,
                   child: Column(
                     children: [
@@ -428,7 +429,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                                           .value;
 
                                       // Default fallback when null or empty
-                                      if (raw == null || raw.trim().isEmpty) {
+                                      if (raw.trim().isEmpty) {
                                         raw = "Select Location";
                                       }
 
@@ -545,12 +546,12 @@ class _HomeAppBarState extends State<HomeAppBar> {
                                         ContainerTransitionType.fadeThrough,
                                     closedBuilder: (context, action) {
                                       return Image.asset(
-                                      'assets/images/lan_image.png',
-                                      height: 32,
-                                    );
+                                        'assets/images/lan_image.png',
+                                        height: 32,
+                                      );
                                     },
                                     openBuilder: (context, action) {
-                                      return   LanguageSelectionScreen();
+                                      return LanguageSelectionScreen();
                                     },
                                   ),
                                   const SizedBox(width: 16),
@@ -565,9 +566,9 @@ class _HomeAppBarState extends State<HomeAppBar> {
                                         ContainerTransitionType.fadeThrough,
                                     closedBuilder: (context, action) {
                                       return Image.asset(
-                                      'assets/images/notification.png',
-                                      height: 32,
-                                    );
+                                        'assets/images/notification.png',
+                                        height: 32,
+                                      );
                                     },
                                     openBuilder: (context, action) {
                                       return const NotificationsScreen();
@@ -615,9 +616,25 @@ class _HomeAppBarState extends State<HomeAppBar> {
                           ),
                         ],
                       ),
-                      SizedBox(height: 3),
-                      _buildSearchBar(context),
-                      // SizedBox(height: ,)
+                      SizedBox(height: 2),
+                      // _buildSearchBar(context),
+                      AnimatedSearchBar(
+                        titles: const [
+                          'Search "Hatchery Name"',
+                          'Search "Category Name"',
+                          'Search "Medicine"',
+                        ],
+                        onMicTap: () {
+                          print("Mic tapped");
+                          Get.to(() => const SearchScreen());
+                        },
+                        onTap: () {
+                          print("Search tapped");
+                          Get.to(() => const SearchScreen());
+                        },
+                      ),
+
+                      // SizedBox(height: 10)
                     ],
                   ),
                 ),
@@ -658,7 +675,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
       children: [
         Expanded(
           child: SizedBox(
-            height: 46,
+            height: 40,
             child: Hero(
               tag: 'homeAppBarSearch',
               child: Material(
@@ -703,26 +720,19 @@ class _HomeAppBarState extends State<HomeAppBar> {
           // onTap: () => _showFilterBottomSheet(context),
           onTap: () => Get.to(() => const SearchScreen()),
           child: Container(
-            padding: const EdgeInsets.all(12),
-            height: 46,
+            padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
+            height: 35,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(15),
             ),
-            child: const Icon(Icons.tune, color: Colors.grey),
+            child: Center(child: const Icon(Icons.tune, color: Colors.grey)),
           ),
         ),
       ],
     );
   }
 
-  void _showFilterBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => const FilterBottomSheet(),
-    );
-  }
 }
 
 Route zoomOutFadeRoute(Widget page) {
@@ -748,4 +758,146 @@ Route zoomOutFadeRoute(Widget page) {
       );
     },
   );
+}
+
+class AnimatedSearchBar extends StatefulWidget {
+  final List<String> titles;
+  final VoidCallback? onMicTap;
+  final VoidCallback? onTap;
+
+  const AnimatedSearchBar({
+    super.key,
+    required this.titles,
+    this.onMicTap,
+    this.onTap,
+  });
+
+  @override
+  State<AnimatedSearchBar> createState() => _AnimatedSearchBarState();
+}
+
+class _AnimatedSearchBarState extends State<AnimatedSearchBar>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<Offset> _outAnimation;
+  late Animation<Offset> _inAnimation;
+
+  int _currentIndex = 0;
+  int _nextIndex = 1;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+
+    _outAnimation = Tween<Offset>(
+      begin: Offset.zero,
+      end: const Offset(0, -1),
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
+
+    _inAnimation = Tween<Offset>(
+      begin: const Offset(0, 1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+
+    _timer = Timer.periodic(const Duration(seconds: 3), (_) {
+      _controller.forward().then((_) {
+        setState(() {
+          _currentIndex = _nextIndex;
+          _nextIndex = (_nextIndex + 1) % widget.titles.length;
+        });
+        _controller.reset();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: widget.onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Hero(
+        tag: 'homeAppBarSearch',
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.search, color: Colors.grey),
+
+                const SizedBox(width: 10),
+
+                /// 🔹 Animated Title
+                Expanded(
+                  child: ClipRect(
+                    child: Stack(
+                      alignment: Alignment.centerLeft,
+                      children: [
+                        SlideTransition(
+                          position: _outAnimation,
+                          child: Text(
+                            widget.titles[_currentIndex],
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                        SlideTransition(
+                          position: _inAnimation,
+                          child: Text(
+                            widget.titles[_nextIndex],
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                /// 🔹 Vertical Divider
+                Container(height: 22, width: 1, color: Colors.grey.shade300),
+
+                const SizedBox(width: 10),
+
+                /// 🔹 Mic Icon
+                InkWell(
+                  onTap: widget.onMicTap,
+                  child: const Icon(Icons.mic, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

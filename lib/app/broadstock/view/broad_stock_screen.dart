@@ -7,6 +7,7 @@ import 'package:seedsuser/app/common/animated_view_custom.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_dropdown.dart';
 import 'package:seedsuser/app/common/custom_icon_appbar.dart';
+import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
@@ -70,74 +71,83 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
       backgroundColor: Colors.grey[100],
       appBar: CustomIconAppbar(title: "Brood Stock"),
       body: Obx(() {
-        return SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                _buildSearchBar(),
-                const SizedBox(height: 16),
-                _buildFilterSection(),
-                const SizedBox(height: 24),
-                _buildHatcheryListHeader(),
-                const SizedBox(height: 16),
-                if (controller.isLoading.value)
-                  ListView.builder(
-                    itemCount: 3,
-                    shrinkWrap: true,
-                    padding: EdgeInsets.only(top: 5, bottom: 5),
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: EdgeInsets.only(top: 5, bottom: 5),
-                        child: AnimatedAppearance(
-                          type: AnimationType.slideDown,
-                          child: hatcheryCardShimmer(),
-                        ),
-                      );
-                    },
-                  )
-                else if (controller.filteredBroodStocks.isEmpty)
-                  Padding(
-                    padding: EdgeInsets.only(
-                      top: MediaQuery.of(context).size.height * .2,
-                    ),
-                    child: const Center(
-                      child: Text('No brood stock available.'),
-                    ),
-                  )
-                else
-                  AnimatedAppearance(
-                    child: ListView.builder(
+        return CustomRefereshIndicator(
+          onRefresh: () async {
+            await controller.getBroodStock();
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  _buildSearchBar(),
+                  const SizedBox(height: 8),
+                  _buildFilterSection(),
+                  const SizedBox(height: 12),
+                  _buildHatcheryListHeader(),
+                  const SizedBox(height: 8),
+                  if (controller.isLoading.value)
+                    ListView.builder(
+                      itemCount: 3,
                       shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: controller.filteredBroodStocks.length,
+                      padding: EdgeInsets.only(top: 5, bottom: 5),
                       itemBuilder: (context, index) {
-                        BroodstockData data =
-                            controller.filteredBroodStocks[index];
-                        return InkWell(
-                          onTap: () {
-                            Get.to(
-                              HatcheryCateogryScreen(
-                                hatcheryId: controller
-                                    .filteredBroodStocks[index]
-                                    .id
-                                    .toString(),
-                                hatcheryName: controller
-                                    .filteredBroodStocks[index]
-                                    .hatcheryName
-                                    .toString(),
-                              ),
-                            );
-                          },
-                          child: _buildHatcheryCard(data),
+                        return Padding(
+                          padding: EdgeInsets.only(top: 5, bottom: 5),
+                          child: AnimatedAppearance(
+                            type: AnimationType.slideDown,
+                            child: hatcheryCardShimmer(),
+                          ),
                         );
                       },
+                    )
+                  else if (controller.filteredBroodStocks.isEmpty)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        top: MediaQuery.of(context).size.height * .2,
+                      ),
+                      child: const Center(
+                        child: Text('No brood stock available.'),
+                      ),
+                    )
+                  else
+                    AnimatedAppearance(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: controller.filteredBroodStocks.length,
+                        itemBuilder: (context, index) {
+                          BroodstockData data =
+                              controller.filteredBroodStocks[index];
+                          return Padding(
+                            padding: EdgeInsetsGeometry.symmetric(vertical: 5),
+                            child: InkWell(
+                              onTap: () {
+                                Get.to(
+                                  HatcheryCateogryScreen(
+                                    hatcheryId: controller
+                                        .filteredBroodStocks[index]
+                                        .id
+                                        .toString(),
+                                    hatcheryName: controller
+                                        .filteredBroodStocks[index]
+                                        .hatcheryName
+                                        .toString(),
+                                  ),
+                                );
+                              },
+                              child: _buildHatcheryCard(data),
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                const SizedBox(height: 80),
-              ],
+                  const SizedBox(height: 10),
+                ],
+              ),
             ),
           ),
         );
@@ -198,7 +208,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
 
   Widget _buildSearchBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 1.0),
       decoration: BoxDecoration(
         color: const Color(0xFFEEEEEE),
         borderRadius: BorderRadius.circular(12),
@@ -209,7 +219,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
           hintText: 'Search for hatcheries...',
           border: InputBorder.none,
           suffixIcon: Container(
-            margin: const EdgeInsets.all(6),
+            margin: const EdgeInsets.all(3),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: AppColors.primary),
@@ -232,7 +242,13 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
           child: Obx(
             () => CustomDropdown<Category>(
               selectedValue: controller.selectedCategory.value,
-              items: controller.categories,
+              items: controller.categories
+                  .where(
+                    (cat) =>
+                        cat.categoryName.toLowerCase() == 'vannamei' ||
+                        cat.categoryName.toLowerCase() == 'syaqua',
+                  )
+                  .toList(),
               itemLabel: (cat) => cat.categoryName,
               hintText: "Select Category",
               onChanged: (cat) {
@@ -308,117 +324,131 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
   }
 
   Widget _buildHatcheryCard(BroodstockData data) {
-    return Card(
-      elevation: 3,
-      color: Colors.white,
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Row 1 → Name + Count
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    data.hatcheryName,
-                    style: GoogleFonts.roboto(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black,
+    return Ink(
+      // elevation: 3,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        border: Border.all(width: 1, color: Colors.grey.withOpacity(.1)),
+        boxShadow: [BoxShadow(color: Colors.black)],
+      ),
+
+      // shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Material(
+        elevation: 1,
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Row 1 → Name + Count
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      data.hatcheryName,
+                      style: GoogleFonts.roboto(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                      ),
                     ),
                   ),
-                ),
-                Text(
-                  "Count",
-                  style: GoogleFonts.roboto(
-                    fontSize: 14,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
+                  Text(
+                    "Count",
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
 
-            const SizedBox(height: 6),
+              const SizedBox(height: 4),
 
-            // Row 2 → Location
-            Row(
-              children: [
-                const Icon(Icons.location_on, size: 18, color: Colors.black54),
-                const SizedBox(width: 3),
-                Expanded(
-                  child: Text(
-                    "Location",
+              // Row 2 → Location
+              Row(
+                children: [
+                  const Icon(
+                    Icons.location_on,
+                    size: 18,
+                    color: Colors.black54,
+                  ),
+                  const SizedBox(width: 3),
+                  Expanded(
+                    child: Text(
+                      "Location",
+                      style: GoogleFonts.roboto(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    data.availableQuantity,
+                    style: GoogleFonts.roboto(
+                      fontSize: 17,
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 4),
+
+              // Supplier + Imported Date
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      data.supplierName,
+                      style: GoogleFonts.roboto(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                  Text(
+                    data.importedDate,
                     style: GoogleFonts.roboto(
                       fontSize: 14,
                       color: Colors.black87,
                     ),
                   ),
-                ),
-                Text(
-                  data.availableQuantity,
-                  style: GoogleFonts.roboto(
-                    fontSize: 20,
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
+                ],
+              ),
 
-            const SizedBox(height: 4),
+              const SizedBox(height: 12),
 
-            // Supplier + Imported Date
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    data.supplierName,
-                    style: GoogleFonts.roboto(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[600],
+              // Chips Row → Available + Packing (conditional)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (data.availableOn.isNotEmpty)
+                    _buildChip(
+                      label: data.availableOn.replaceAll(" on", ''),
+                      bgColor: Colors.green.withOpacity(0.15),
+                      textColor: Colors.green[800]!,
                     ),
-                  ),
-                ),
-                Text(
-                  data.importedDate,
-                  style: GoogleFonts.roboto(
-                    fontSize: 14,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
 
-            const SizedBox(height: 12),
-
-            // Chips Row → Available + Packing (conditional)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                if (data.availableOn.isNotEmpty)
-                  _buildChip(
-                    label: data.availableOn.replaceAll(" on", ''),
-                    bgColor: Colors.green.withOpacity(0.15),
-                    textColor: Colors.green[800]!,
-                  ),
-
-                // if (data.availableOn.isNotEmpty && data.packingStart.isNotEmpty)
-                //   const SizedBox(width: 10),
-                if (data.packingStart.isNotEmpty)
-                  _buildChip(
-                    label: "${data.packingStart}",
-                    bgColor: Colors.blue.withOpacity(0.15),
-                    textColor: Colors.blue[700]!,
-                  ),
-              ],
-            ),
-          ],
+                  // if (data.availableOn.isNotEmpty && data.packingStart.isNotEmpty)
+                  //   const SizedBox(width: 10),
+                  if (data.packingStart.isNotEmpty)
+                    _buildChip(
+                      label: "${data.packingStart}",
+                      bgColor: Colors.blue.withOpacity(0.15),
+                      textColor: Colors.blue[700]!,
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -430,7 +460,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
     required Color textColor,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),

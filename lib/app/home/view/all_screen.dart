@@ -15,6 +15,7 @@ import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/hatchery_suppliers_widget.dart';
 import 'package:seedsuser/app/home/hatchery_updates_widget.dart';
 import 'package:seedsuser/app/home/view/hatchery_filter_screen.dart';
+import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
 import 'package:seedsuser/app/home/widget/hatchery_widgets.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_ads_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
@@ -27,6 +28,7 @@ import 'package:seedsuser/app/home/today_price_widget.dart';
 import 'package:seedsuser/app/home/widget/home_banner_carousel.dart';
 import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
 import 'package:seedsuser/app/utils/app_animations.dart';
+import 'package:seedsuser/app/utils/app_size.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -147,101 +149,139 @@ class _HomePageState extends State<HomePage>
                 Image.asset(
                   'assets/images/best_seed_bottom.png',
                   width: double.infinity,
-                  fit: BoxFit.fitWidth,
+                  fit: BoxFit.cover,
+                  height: AppSize.height * .07,
                 ),
-
                 const SizedBox(height: 24),
-                // CarouselCardsScreen(),
-                HomeBannerCarousel(),
-              ],
-            ),
-            // Menu Items Section
-            Container(
-              // color: AppColors.primary,
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  // Expanded(
-                  //   child: _buildMenuItem(
-                  //     'Farm Management',
-                  //     'assets/images/farm.png',
-                  //     () {
-                  //       Get.to(() => FarmHomeScreen());
-                  //       // Fluttertoast.showToast(
-                  //       //   msg: "Working on it...",
-                  //       //   toastLength: Toast.LENGTH_SHORT,
-                  //       //   gravity: ToastGravity.BOTTOM,
-                  //       //   backgroundColor: Colors.black54,
-                  //       //   textColor: Colors.red,
-                  //       //   fontSize: 16.0,
-                  //       // );
-                  //     },
-                  //   ),
-                  // ),
-                  Expanded(
-                    child: SizedBox(
-                      height: 180,
-                      width: MediaQuery.of(context).size.width * .35,
-                      child: _buildMenuItemMedicine(
-                        'FC Farm Medicine for fishes ',
-                        'assets/images/fc_prawn.png',
-                        () {
-                          // Get.to(() => FarmHomeScreen());
-                        },
+                // HomeBannerCarousel(),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        AppAnimations.fade(VehicleAvailabilityScreen()),
+                      );
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        'assets/images/home_banner.jpeg',
+                        width: AppSize.width * .9,
+                        height: AppSize.height * .15,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            // ignore: deprecated_member_use
+                            Container(
+                              width: AppSize.width * .9,
+                              height: AppSize.height * .15,
+                              color: Colors.grey.withOpacity(.1),
+                            ),
                       ),
                     ),
                   ),
-                  SizedBox(width: 8),
-                  SizedBox(
-                    height: 180,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        SizedBox(
-                          width: MediaQuery.of(context).size.width * .52,
-                          child: _buildMenuItem(
-                            'Spot \nHatcheries',
-                            'assets/images/hatchery_icon.png',
-                            () {
-                              Navigator.push(context, AppAnimations.fade(SpotHatcheryScreen()));
-                            },
-                          ),
+                ),
+              ],
+            ),
+            // Menu Items Section
+            Builder(
+              builder: (context) {
+                final double boxesHeight = AppSize.height * .19;
+                return Container(
+                  // color: AppColors.primary,
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      // Expanded(
+                      //   child: _buildMenuItem(
+                      //     'Farm Management',
+                      //     'assets/images/farm.png',
+                      //     () {
+                      //       Get.to(() => FarmHomeScreen());
+                      //       // Fluttertoast.showToast(
+                      //       //   msg: "Working on it...",
+                      //       //   toastLength: Toast.LENGTH_SHORT,
+                      //       //   gravity: ToastGravity.BOTTOM,
+                      //       //   backgroundColor: Colors.black54,
+                      //       //   textColor: Colors.red,
+                      //       //   fontSize: 16.0,
+                      //       // );
+                      //     },
+                      //   ),
+                      // ),
+                      SizedBox(
+                        height: boxesHeight,
+                        width: MediaQuery.of(context).size.width * .35,
+                        child: _buildMenuItemMedicine(
+                          'FC Farm Medicine for fishes ',
+                          'assets/images/fc_prawn.png',
+                          () {
+                            // Get.to(() => FarmHomeScreen());
+                          },
                         ),
-                        // SizedBox(height: 10),
-                        Spacer(),
-                        SizedBox(
-                          width: MediaQuery.of(context).size.width * .52,
-                          child: _buildMenuItem(
-                            'Farm \nManagement',
-                            'assets/images/farm.png',
-                            () {
-                              Navigator.push(context, AppAnimations.fade(FarmHomeScreen())); 
-                            },
-                          ),
+                      ),
+                      SizedBox(width: 8),
+                      SizedBox(
+                        height: boxesHeight,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            SizedBox(
+                              width: MediaQuery.of(context).size.width * .52,
+                              child: _buildMenuItem(
+                                'Spot \nHatcheries',
+                                'assets/images/hatchery_icon.png',
+                                () {
+                                  Navigator.push(
+                                    context,
+                                    AppAnimations.fade(SpotHatcheryScreen()),
+                                  );
+                                },
+                              ),
+                            ),
+                            // SizedBox(height: 10),
+                            Spacer(),
+                            SizedBox(
+                              width: MediaQuery.of(context).size.width * .52,
+                              child: _buildMenuItem(
+                                'Farm \nManagement',
+                                'assets/images/farm.png',
+                                () {
+                                  Navigator.push(
+                                    context,
+                                    AppAnimations.fade(FarmHomeScreen()),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                      // SizedBox(width: 8),
+                      // Expanded(
+                      //   child: _buildMenuItem(
+                      //     'Seeds Requests',
+                      //     'assets/images/seeds.png',
+                      //     () {
+                      //       Get.to(() => const SeedRequestsFormScreen());
+                      //     },
+                      //   ),
+                      // ),
+                    ],
                   ),
-                  // SizedBox(width: 8),
-                  // Expanded(
-                  //   child: _buildMenuItem(
-                  //     'Seeds Requests',
-                  //     'assets/images/seeds.png',
-                  //     () {
-                  //       Get.to(() => const SeedRequestsFormScreen());
-                  //     },
-                  //   ),
-                  // ),
-                ],
-              ),
+                );
+              },
             ),
 
             Container(
-              padding: const EdgeInsets.only(left: 16.0, bottom: 16, right: 16),
+              padding: const EdgeInsets.only(left: 16.0, bottom: 0, right: 16),
               // height: 32,
               decoration: BoxDecoration(
-                // color: AppColors.primary,
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(16),
                   bottomRight: Radius.circular(16),
@@ -317,8 +357,12 @@ class _HomePageState extends State<HomePage>
                         AppAnimations.fade(
                           HatcheryFilterScreen(
                             title:
-                            _homeController.selectedCateogryName.value.isEmpty? "Hatchery":
-                             _homeController.selectedCateogryName.value,
+                                _homeController
+                                    .selectedCateogryName
+                                    .value
+                                    .isEmpty
+                                ? "Hatchery"
+                                : _homeController.selectedCateogryName.value,
                           ),
                         ),
                       );
@@ -542,7 +586,7 @@ class _HomePageState extends State<HomePage>
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.all(18),
+        padding: EdgeInsets.all(AppSize.height * .017),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: Colors.white,
@@ -564,7 +608,7 @@ class _HomePageState extends State<HomePage>
         ),
         child: Row(
           children: [
-            const SizedBox(height: 8),
+            SizedBox(height: AppSize.height * .005),
             SizedBox(
               width: MediaQuery.of(context).size.width * .23,
               child: Text(
@@ -575,11 +619,11 @@ class _HomePageState extends State<HomePage>
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
-                textAlign: TextAlign.start
+                textAlign: TextAlign.start,
               ),
             ),
             Spacer(),
-            Image.asset(iconPath, height: 50),
+            Image.asset(iconPath, height: AppSize.height * .055),
           ],
         ),
       ),

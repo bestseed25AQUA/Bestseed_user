@@ -47,7 +47,7 @@ class _WantedBannerWidgetState extends State<WantedBannerWidget> {
                 final banner = controller.banners[index];
                 if (banner.type == "image") {
                   return Padding(
-                    padding: const EdgeInsets.only(left: 24, right: 24),
+                    padding: const EdgeInsets.only(left: 12, right: 12),
                     child: InkWell(
                       onTap: widget.ontapImage,
                       child: ClipRRect(

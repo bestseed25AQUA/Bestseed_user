@@ -298,7 +298,7 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
                       () => FullScreenVideoPlayer(videoUrl: crop.mediaUrl),
                     );
                   },
-                  child: VideoPlayerBanner(url: crop.mediaUrl),
+                  child: VideoPlayerBanner(url: crop.mediaUrl,height: 160,),
                 ),
               ),
             Padding(

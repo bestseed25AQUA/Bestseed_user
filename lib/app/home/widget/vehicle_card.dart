@@ -44,19 +44,23 @@ class _VehicleCardState extends State<VehicleCard> {
             child: SizedBox(
               height: 160,
               width: double.infinity,
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: widget.vehicle.vehicleImages.length,
-                onPageChanged: (i) => _currentIndex.value = i,
-                itemBuilder: (_, index) {
-                  return Image.network(
-                    widget.vehicle.vehicleImages[index],
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        Container(color: Colors.grey.withOpacity(.2)),
-                  );
-                },
-              ),
+              child: widget.vehicle.vehicleImages.isEmpty
+                  // ignore: deprecated_member_use
+                  ? Container(color: Colors.grey.withOpacity(.2))
+                  : PageView.builder(
+                      controller: _pageController,
+                      itemCount: widget.vehicle.vehicleImages.length,
+                      onPageChanged: (i) => _currentIndex.value = i,
+                      itemBuilder: (_, index) {
+                        return Image.network(
+                          widget.vehicle.vehicleImages[index],
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              // ignore: deprecated_member_use
+                              Container(color: Colors.grey.withOpacity(.2)),
+                        );
+                      },
+                    ),
             ),
           ),
 
@@ -126,8 +130,8 @@ class _VehicleCardState extends State<VehicleCard> {
                                     1],
                                 style: GoogleFonts.roboto(
                                   color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
                                 ),
                               ),
                             ),

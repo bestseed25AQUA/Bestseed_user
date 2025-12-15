@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_icon_appbar.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
+import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/common/media_carousel_widget.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
@@ -13,6 +14,7 @@ import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dar
 import 'package:seedsuser/app/updates/model/hatchery_update_model.dart';
 import 'package:seedsuser/app/updates/view/hatchery_details_screen.dart';
 import 'package:seedsuser/app/updates/view/widgets/post_shimmer_widget.dart';
+import 'package:seedsuser/app/utils/app_size.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:readmore/readmore.dart';
@@ -45,69 +47,76 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
     return Scaffold(
       appBar: CustomIconAppbar(title: 'Updates'),
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // SizedBox(height: 16),
-            // Obx(() {
-            //   return Container(
-            //     decoration: BoxDecoration(color: Colors.grey.withOpacity(.3)),
-            //     child: MediaCarouselWidget(
-            //       mediaUrls: List.generate(
-            //         hatcheryUpdatesController.banners.length,
-            //         (index) => hatcheryUpdatesController.banners[index].url,
-            //       ),
-
-            //       mediaTypes: List.generate(
-            //         hatcheryUpdatesController.banners.length,
-            //         (index) => hatcheryUpdatesController.banners[index].type,
-            //       ),
-            //     ),
-            //   );
-            // }),
-            SizedBox(height: 16),
-            Obx(() {
-              if (hatcheryUpdatesController.isLoading.value ||
-                  hatcheryUpdatesController.hatcheryData.value?.data == null) {
-                return Column(
-                  children: List.generate(4, (index) => postShimmerCard()),
-                );
-              }
-
-              return ListView.builder(
-                physics: NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: hatcheryUpdatesController
-                        .hatcheryData
-                        .value
-                        ?.data
-                        ?.length ??
-                    0,
-                itemBuilder: (context, index) {
-                  return PostWidget(
-                    postData: hatcheryUpdatesController
-                        .hatcheryData
-                        .value
-                        ?.data?[index],
-                    ontap: () {
-                      Get.to(
-                        () => HatcheryDetailsScreen(
-                          id:
-                              hatcheryUpdatesController
-                                  .hatcheryData
-                                  .value
-                                  ?.data?[index]
-                                  .hatcheryId
-                                  ?.toString() ??
-                              '',
-                        ),
-                      );
-                    },
+      body: CustomRefereshIndicator(
+        onRefresh: () async{
+          await hatcheryUpdatesController.fetchHatcheryUpdates();
+        },
+        child: SingleChildScrollView(
+          physics: AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              // SizedBox(height: 16),
+              // Obx(() {
+              //   return Container(
+              //     decoration: BoxDecoration(color: Colors.grey.withOpacity(.3)),
+              //     child: MediaCarouselWidget(
+              //       mediaUrls: List.generate(
+              //         hatcheryUpdatesController.banners.length,
+              //         (index) => hatcheryUpdatesController.banners[index].url,
+              //       ),
+        
+              //       mediaTypes: List.generate(
+              //         hatcheryUpdatesController.banners.length,
+              //         (index) => hatcheryUpdatesController.banners[index].type,
+              //       ),
+              //     ),
+              //   );
+              // }),
+              SizedBox(height: 5),
+              Obx(() {
+                if (hatcheryUpdatesController.isLoading.value ||
+                    hatcheryUpdatesController.hatcheryData.value?.data == null) {
+                  return Column(
+                    children: List.generate(4, (index) => postShimmerCard()),
                   );
-                },
-              );
-            }),
-          ],
+                }
+        
+                return ListView.builder(
+                  physics: NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  itemCount:
+                      hatcheryUpdatesController
+                          .hatcheryData
+                          .value
+                          ?.data
+                          ?.length ??
+                      0,
+                  itemBuilder: (context, index) {
+                    return PostWidget(
+                      postData: hatcheryUpdatesController
+                          .hatcheryData
+                          .value
+                          ?.data?[index],
+                      ontap: () {
+                        Get.to(
+                          () => HatcheryDetailsScreen(
+                            id:
+                                hatcheryUpdatesController
+                                    .hatcheryData
+                                    .value
+                                    ?.data?[index]
+                                    .hatcheryId
+                                    ?.toString() ??
+                                '',
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              }),
+            ],
+          ),
         ),
       ),
     );
@@ -153,7 +162,7 @@ class _PostWidgetState extends State<PostWidget> {
   Widget build(BuildContext context) {
     return Card(
       color: Colors.white,
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      margin: const EdgeInsets.symmetric(vertical: 2.0),
       elevation: 0.0,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,15 +171,29 @@ class _PostWidgetState extends State<PostWidget> {
           InkWell(
             onTap: widget.ontap,
             child: Padding(
-              padding: const EdgeInsets.all(12.0),
+              padding: const EdgeInsets.all(6.0),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: Colors.black.withOpacity(.1),
-                    backgroundImage: NetworkImage(
-                      widget.postData?.profileImage ?? "",
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
                     ),
-                    radius: 20,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.network(
+                        widget.postData?.profileImage ?? "",
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey.shade300,
+                            child: const Icon(Icons.person),
+                          );
+                        },
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Column(
@@ -209,7 +232,7 @@ class _PostWidgetState extends State<PostWidget> {
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
             child: ReadMoreText(
               widget.postData?.caption ?? '',
-              trimLines: 2, // kitni lines tak dikhani hai
+              trimLines: 2,
               colorClickableText: Colors.blue,
               trimMode: TrimMode.Line,
               trimCollapsedText: ' View More',
@@ -230,18 +253,16 @@ class _PostWidgetState extends State<PostWidget> {
           SizedBox(height: 10),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
-
             child: Builder(
               builder: (context) {
                 final tags = widget.postData?.hashtags ?? [];
-                final formatted = tags.toString(); // double space
-
+                final formatted = tags.toString();
                 return Text(
                   formatted.replaceAll('[', '').replaceAll(']', ''),
                   style: GoogleFonts.roboto(
                     fontSize: 14,
                     color: Colors.black,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.bold
                   ),
                 );
               },
@@ -253,17 +274,19 @@ class _PostWidgetState extends State<PostWidget> {
             alignment: Alignment.bottomCenter,
             children: [
               Container(
-                height: 250,
+                height: AppSize.height * .25,
                 width: MediaQuery.of(context).size.width * 1,
                 // ignore: deprecated_member_use
                 decoration: BoxDecoration(color: Colors.black.withOpacity(.1)),
                 child: Builder(
                   builder: (context) {
+
                     final urls =
                         widget.postData?.mediaFiles
                             ?.map((e) => e.toString())
                             .toList() ??
                         [];
+                      print(urls);
                     return MediaCarouselWidget(
                       mediaUrls: urls,
                       mediaType: widget.postData?.mediaType ?? "",

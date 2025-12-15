@@ -25,6 +25,7 @@ import 'package:seedsuser/app/news%20&%20ads/widget/news_banner_widget.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
+import 'package:seedsuser/app/utils/app_size.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:video_player/video_player.dart';
 
@@ -80,271 +81,296 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
               //   Get.to(() => TrendingUpdatesScreen());
               // }),
               // _buildTrendingSection(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               // NewsBannerWidget(),
               Obx(() {
-                if (newsAdsController.newsAdsData.value?.data == null) {
+                if (newsAdsController.newsAdsData.value?.data == null || newsAdsController.isLoading.value) {
                   return newsAdsFullShimmer();
                 }
-                return Column(
-                  children: [
-                    _buildSectionHeader('Trending Update', () {
-                      Get.to(TrendingUpdatesScreen());
-                    }),
-                    Stack(
-                      alignment: Alignment.bottomCenter,
+                return Builder(
+                  builder: (context) {
+                    return Column(
                       children: [
-                        CarouselSlider.builder(
-                          itemCount:
-                              newsAdsController
-                                  .newsAdsData
-                                  .value
-                                  ?.data
-                                  ?.trendingUpdate
-                                  ?.length ??
-                              0,
-                          itemBuilder: (context, index, realIndex) {
-                            final data = newsAdsController
-                                .newsAdsData
-                                .value
-                                ?.data
-                                ?.trendingUpdate?[index];
-                            if (data?.mediaType == "image") {
-                              return GestureDetector(
-                                onTap: () {},
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                    color: Colors.white.withOpacity(.7),
-                                    border: Border.all(
-                                      width: .1,
-                                      color: Colors.grey,
-                                    ),
-                                    boxShadow: [BoxShadow(color: Colors.grey)],
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.network(
-                                      data?.mediaPath ?? '',
-                                      width: double.infinity,
-                                      height: 180,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                            return Shimmer.fromColors(
-                                              baseColor: Colors.grey.shade300,
-                                              highlightColor:
-                                                  Colors.grey.shade100,
-
-                                              child: Container(
-                                                height: 150,
-                                                width: double.infinity,
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white,
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            } else if (data?.mediaType == "video") {
-                              return GestureDetector(
-                                onTap: () {
-                                  Get.to(
-                                    () => FullScreenVideoPlayer(
-                                      videoUrl: data?.mediaPath ?? "",
-                                    ),
-                                  );
-                                },
-                                child: VideoPlayerBanner(
-                                  url: data?.mediaPath ?? "",
-                                ),
-                              );
-                            } else {
-                              return const SizedBox.shrink();
-                            }
-                          },
-                          options: CarouselOptions(
-                            height: 160,
-                            autoPlay: true,
-                            enlargeCenterPage: true,
-                            viewportFraction: 0.9,
-                            onPageChanged: (index, reason) {
-                              setState(() {
-                                _currentIndex = index; // update current index
-                              });
-                            },
-                          ),
-                        ),
-
-                        // Indicator Dots
-                        Positioned(
-                          bottom: 10,
-                          left: 0,
-                          right: 0,
-                          child: Builder(
-                            builder: (context) {
-                              try {
-                                return Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children:
+                        _buildSectionHeader('Trending Update', () {
+                          Get.to(TrendingUpdatesScreen());
+                        }),
+                        Builder(
+                          builder: (context) {
+                            final boxHeight = AppSize.height * .2;
+                            return Stack(
+                              alignment: Alignment.bottomCenter,
+                              children: [
+                                CarouselSlider.builder(
+                                  itemCount:
                                       newsAdsController
-                                              .newsAdsData
-                                              ?.value
-                                              ?.data
-                                              ?.trendingUpdate
-                                              ?.asMap()
-                                              .entries
-                                              .map((entry) {
-                                                return Container(
-                                                      width: 8.0,
-                                                      height: 8.0,
-                                                      margin:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 4.0,
-                                                          ),
-                                                      decoration: BoxDecoration(
-                                                        shape: BoxShape.circle,
-                                                        color:
-                                                            _currentIndex ==
-                                                                entry.key
-                                                            ? Colors
-                                                                  .blue // Active dot
-                                                            : Colors
-                                                                  .grey, // Inactive dot
+                                          .newsAdsData
+                                          .value
+                                          ?.data
+                                          ?.trendingUpdate
+                                          ?.length ??
+                                      0,
+                                  itemBuilder: (context, index, realIndex) {
+                                    final data = newsAdsController
+                                        .newsAdsData
+                                        .value
+                                        ?.data
+                                        ?.trendingUpdate?[index];
+                                    if (data?.mediaType == "image") {
+                                      return GestureDetector(
+                                        onTap: () {},
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            color: Colors.white.withOpacity(.7),
+                                            border: Border.all(
+                                              width: .1,
+                                              color: Colors.grey,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(color: Colors.grey),
+                                            ],
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            child: Image.network(
+                                              data?.mediaPath ?? '',
+                                              width: double.infinity,
+                                              height: boxHeight,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                    return Shimmer.fromColors(
+                                                      baseColor:
+                                                          Colors.grey.shade300,
+                                                      highlightColor:
+                                                          Colors.grey.shade100,
+
+                                                      child: Container(
+                                                        height: 150,
+                                                        width: double.infinity,
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.white,
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                12,
+                                                              ),
+                                                        ),
                                                       ),
-                                                    )
-                                                    as Widget;
-                                              })
-                                              .toList()
-                                          as List<Widget>,
+                                                    );
+                                                  },
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    } else if (data?.mediaType == "video") {
+                                      return GestureDetector(
+                                        onTap: () {
+                                          Get.to(
+                                            () => FullScreenVideoPlayer(
+                                              videoUrl: data?.mediaPath ?? "",
+                                            ),
+                                          );
+                                        },
+                                        child: VideoPlayerBanner(
+                                          url: data?.mediaPath ?? "",
+                                        ),
+                                      );
+                                    } else {
+                                      return const SizedBox.shrink();
+                                    }
+                                  },
+                                  options: CarouselOptions(
+                                    height: boxHeight - 20,
+                                    autoPlay: true,
+                                    enlargeCenterPage: true,
+                                    viewportFraction: 0.9,
+                                    onPageChanged: (index, reason) {
+                                      setState(() {
+                                        _currentIndex =
+                                            index; // update current index
+                                      });
+                                    },
+                                  ),
+                                ),
+
+                                // Indicator Dots
+                                Positioned(
+                                  bottom: 10,
+                                  left: 0,
+                                  right: 0,
+                                  child: Builder(
+                                    builder: (context) {
+                                      try {
+                                        return Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children:
+                                              newsAdsController
+                                                      .newsAdsData
+                                                      ?.value
+                                                      ?.data
+                                                      ?.trendingUpdate
+                                                      ?.asMap()
+                                                      .entries
+                                                      .map((entry) {
+                                                        return Container(
+                                                              width: 8.0,
+                                                              height: 8.0,
+                                                              margin:
+                                                                  const EdgeInsets.symmetric(
+                                                                    horizontal:
+                                                                        4.0,
+                                                                  ),
+                                                              decoration: BoxDecoration(
+                                                                shape: BoxShape
+                                                                    .circle,
+                                                                color:
+                                                                    _currentIndex ==
+                                                                        entry
+                                                                            .key
+                                                                    ? Colors
+                                                                          .blue // Active dot
+                                                                    : Colors
+                                                                          .grey, // Inactive dot
+                                                              ),
+                                                            )
+                                                            as Widget;
+                                                      })
+                                                      .toList()
+                                                  as List<Widget>,
+                                        );
+                                      } catch (e) {
+                                        SizedBox();
+                                      } finally {
+                                        // ignore: control_flow_in_finally
+                                        return SizedBox();
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        _buildSectionHeader('Medicine news', () {
+                          Get.to(() => const MedicineNewsScreen());
+                        }),
+                        SizedBox(
+                          height: 180,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8.0,
+                            ),
+                            children: List.generate(
+                              newsAdsController
+                                      .newsAdsData
+                                      .value
+                                      ?.data
+                                      ?.medicineNews
+                                      ?.length ??
+                                  0,
+                              (index) {
+                                final data = newsAdsController
+                                    .newsAdsData
+                                    .value
+                                    ?.data
+                                    ?.medicineNews?[index];
+                                return _buildNewsCard(
+                                  data?.medicineName ?? "",
+                                  data?.curesFor ?? "",
+                                  data?.mediaPath ?? "",
+                                  'medicine$index',
+                                  () {
+                                    Navigator.push(
+                                      context,
+                                      PageRouteBuilder(
+                                        transitionDuration: const Duration(
+                                          milliseconds: 600,
+                                        ), // smooth
+                                        reverseTransitionDuration:
+                                            const Duration(milliseconds: 600),
+                                        pageBuilder: (_, __, ___) =>
+                                            MedicineDetailScreen(
+                                              id: data?.id.toString() ?? '',
+                                              title: data?.medicineName ?? '',
+                                              subtitle: data?.curesFor ?? '',
+                                              imageUrl: data?.mediaPath ?? '',
+                                              tag: 'medicine$index',
+                                            ),
+                                      ),
+                                    );
+                                  },
                                 );
-                              } catch (e) {
-                                SizedBox();
-                              } finally {
-                                // ignore: control_flow_in_finally
-                                return SizedBox();
-                              }
-                            },
+                              },
+                            ),
                           ),
                         ),
+                        const SizedBox(height:0),
+                        _buildSectionHeader('Climate news', () {
+                          Get.to(ClimateNewsScreen());
+                        }),
+                        SizedBox(
+                          height: 180,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8.0,
+                            ),
+                            children: List.generate(
+                              newsAdsController
+                                      .newsAdsData
+                                      .value
+                                      ?.data
+                                      ?.climateNews
+                                      ?.length ??
+                                  0,
+                              (index) {
+                                final data = newsAdsController
+                                    .newsAdsData
+                                    .value
+                                    ?.data
+                                    ?.climateNews?[index];
+                                return _buildNewsCard(
+                                  data?.title ?? "",
+                                  null,
+                                  data?.mediaPath ?? "",
+                                  'climate$index',
+                                  () {
+                                    Navigator.push(
+                                      context,
+                                      PageRouteBuilder(
+                                        transitionDuration: const Duration(
+                                          milliseconds: 600,
+                                        ), // smooth
+                                        reverseTransitionDuration:
+                                            const Duration(milliseconds: 600),
+                                        pageBuilder: (_, __, ___) =>
+                                            ClimateDetailScreen(
+                                              id: data?.id.toString() ?? '',
+                                              title: data?.title ?? '',
+                                              subtitle: data?.title ?? '',
+                                              imageUrl: data?.mediaPath ?? '',
+                                              tag: 'climate$index',
+                                              // title: data?.n.toString() ?? '',
+                                            ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
                       ],
-                    ),
-                    const SizedBox(height: 20),
-                    _buildSectionHeader('Medicine news', () {
-                      Get.to(() => const MedicineNewsScreen());
-                    }),
-                    SizedBox(
-                      height: 180,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        children: List.generate(
-                          newsAdsController
-                                  .newsAdsData
-                                  .value
-                                  ?.data
-                                  ?.medicineNews
-                                  ?.length ??
-                              0,
-                          (index) {
-                            final data = newsAdsController
-                                .newsAdsData
-                                .value
-                                ?.data
-                                ?.medicineNews?[index];
-                            return _buildNewsCard(
-                              data?.medicineName ?? "",
-                              data?.curesFor ?? "",
-                              data?.mediaPath ?? "",
-                              'medicine$index',
-                              () {
-                                Navigator.push(
-                                  context,
-                                  PageRouteBuilder(
-                                    transitionDuration: const Duration(
-                                      milliseconds: 600,
-                                    ), // smooth
-                                    reverseTransitionDuration: const Duration(
-                                      milliseconds: 600,
-                                    ),
-                                    pageBuilder: (_, __, ___) =>
-                                        MedicineDetailScreen(
-                                          id: data?.id.toString() ?? '',
-                                          title: data?.medicineName ?? '',
-                                          subtitle: data?.curesFor ?? '',
-                                          imageUrl: data?.mediaPath ?? '',
-                                          tag: 'medicine$index',
-                                        ),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    _buildSectionHeader('Climate news', () {
-                      Get.to(ClimateNewsScreen());
-                    }),
-                    SizedBox(
-                      height: 180,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        children: List.generate(
-                          newsAdsController
-                                  .newsAdsData
-                                  .value
-                                  ?.data
-                                  ?.climateNews
-                                  ?.length ??
-                              0,
-                          (index) {
-                            final data = newsAdsController
-                                .newsAdsData
-                                .value
-                                ?.data
-                                ?.climateNews?[index];
-                            return _buildNewsCard(
-                              data?.title ?? "",
-                              null,
-                              data?.mediaPath ?? "",
-                              'climate$index',
-                              () {
-                                Navigator.push(
-                                  context,
-                                  PageRouteBuilder(
-                                    transitionDuration: const Duration(
-                                      milliseconds: 600,
-                                    ), // smooth
-                                    reverseTransitionDuration: const Duration(
-                                      milliseconds: 600,
-                                    ),
-                                    pageBuilder: (_, __, ___) =>
-                                        ClimateDetailScreen(
-                                          id: data?.id.toString() ?? '',
-                                          title: data?.title ?? '',
-                                          subtitle: data?.title ?? '',
-                                          imageUrl: data?.mediaPath ?? '',
-                                          tag: 'climate$index',
-                                          // title: data?.n.toString() ?? '',
-                                        ),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 80),
-                  ],
+                    );
+                  },
                 );
               }),
             ],
@@ -616,7 +642,7 @@ Widget newsAdsFullShimmer() {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
-              height: 160,
+              height: 130,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: Colors.grey.shade300,
@@ -625,7 +651,7 @@ Widget newsAdsFullShimmer() {
             ),
           ),
 
-          const SizedBox(height: 30),
+          const SizedBox(height: 10),
 
           // 🔷 Medicine News Header
           Row(

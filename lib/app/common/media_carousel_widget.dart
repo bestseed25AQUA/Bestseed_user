@@ -6,6 +6,9 @@ import 'package:seedsuser/app/home/view/full_video_screen.dart';
 import 'package:seedsuser/app/home/widget/hachery_category_banner_widget.dart';
 import 'package:video_player/video_player.dart';
 
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
 class MediaCarouselWidget extends StatefulWidget {
   final List<String> mediaUrls;
   final List<String>? mediaTypes;
@@ -45,11 +48,13 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
             itemBuilder: (context, index, realIndex) {
               final type = widget.mediaTypes?[index] ?? widget.mediaType;
               final url = widget.mediaUrls[index];
-              print('object');
-              print(url);
+              // print('object');
+              // print(url);
               return type == "image"
                   ? _buildImage(url, widget.borderRadius ?? 12)
-                  : _buildVideo(url, widget.borderRadius ?? 12, widget.height);
+                  : _buildVideo(
+                    url,
+                   widget.borderRadius ?? 12, widget.height);
             },
             options: CarouselOptions(
               height: widget.height,
@@ -117,9 +122,9 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            VideoPlayerPreview(
+            VideoPlayerPreview( 
               url: url,
-              aspectRatio: aspectRatio,
+              // aspectRatio: aspectRatio,
               height: widget.height,
             ),
             const Icon(Icons.play_circle_fill, size: 65, color: Colors.white),
@@ -132,14 +137,12 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
 
 class VideoPlayerPreview extends StatefulWidget {
   final String url;
-  final double? aspectRatio;
   final double? height;
   final double? width;
 
   const VideoPlayerPreview({
     super.key,
     required this.url,
-    this.aspectRatio,
     this.height,
     this.width,
   });
@@ -149,46 +152,59 @@ class VideoPlayerPreview extends StatefulWidget {
 }
 
 class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
-  late VideoPlayerController controller;
+  Uint8List? thumbnail;
 
   @override
   void initState() {
     super.initState();
-    controller = VideoPlayerController.network(widget.url)
-      ..initialize().then((_) {
-        controller.setLooping(true);
-        controller.setVolume(0);
-        if (mounted) setState(() {});
-      });
+    _loadThumbnail();
   }
 
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
+  Future<void> _loadThumbnail() async {
+    final data = await VideoThumbnail.thumbnailData(
+      video: widget.url,
+      imageFormat: ImageFormat.JPEG,
+      maxHeight: 350, // banner height
+      quality: 75,
+    );
+
+    if (mounted) {
+      setState(() => thumbnail = data);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!controller.value.isInitialized) {
-      return const SizedBox(
-        height: 200,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-    final width = MediaQuery.of(context).size.width;
-    final height = width / controller.value.aspectRatio;
     return SizedBox(
       width: widget.width ?? MediaQuery.of(context).size.width,
       height: widget.height ?? 350,
-      child: FittedBox(
-        fit: BoxFit.cover, // or BoxFit.fill if you want full stretch
-        child: SizedBox(
-          height: 350, // original video width
-          width: MediaQuery.of(context).size.width, // original video height
-          child: VideoPlayer(controller),
-        ),
-      ),
+      child: thumbnail == null
+          ? const Center(child: CircularProgressIndicator())
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.memory(
+                  thumbnail!,
+                  fit: BoxFit.cover,
+                ),
+
+                // ▶ Play icon overlay (optional)
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.play_arrow,
+                      color: Colors.white,
+                      size: 40,
+                    ),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
