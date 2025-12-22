@@ -123,7 +123,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // ignore: deprecated_member_use
       child: WillPopScope(
         onWillPop: () async { 
-          // Show confirmation dialog
+          print('++++++++++++++++++++++++');
+          print(controller.currentIndex);
+          // Show confirmation dialog 
           if (controller.currentIndex.value != 0) {
             controller.changeIndex(0);
             return false;
@@ -133,7 +135,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               barrierDismissible: false, // user must choose
               builder: (context) => Dialog(
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16)
                 ),
                 elevation: 4,
                 backgroundColor: Colors.white,

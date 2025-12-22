@@ -6,10 +6,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
+import 'package:seedsuser/app/common/infinite_image_scroll.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/farm_management/farm_home/farm_home_screen.dart';
 import 'package:seedsuser/app/home/contact_us.dart';
 import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
+import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/hatchery_suppliers_widget.dart';
@@ -48,6 +50,7 @@ class _HomePageState extends State<HomePage>
   final _newsSpecificController = Get.put(NewsSpecificController());
   final _seedsPriceController = Get.put(SeedsPriceController());
   final _homeController = Get.put(HomeController());
+  final _homeBannerController = Get.put(HomeBannerController());
   final _hatcheryController = Get.put(HatcheryUpdatesController());
   // late Animation<Offset> _fishAnimation;
 
@@ -146,14 +149,31 @@ class _HomePageState extends State<HomePage>
                 //     ],
                 //   ),
                 // ),
-                Image.asset(
-                  'assets/images/best_seed_bottom.png',
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  height: AppSize.height * .07,
-                ),
+                // Image.asset(
+                //   'assets/images/best_seed_bottom.png',
+                //   width: double.infinity,
+                //   fit: BoxFit.cover,
+                //   height: AppSize.height * .08,
+                // ),
+                Obx(() {
+                  return Image.network(
+                    _homeBannerController.bannersBackGround.isEmpty
+                        ? ''
+                        : _homeBannerController.bannersBackGround[0].url,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    height: AppSize.height * .08,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Image.asset(
+                        'assets/images/best_seed_bottom.png',
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        height: AppSize.height * .08,
+                      );
+                    },
+                  );
+                }),
                 const SizedBox(height: 24),
-                // HomeBannerCarousel(),
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey),
@@ -691,7 +711,35 @@ class _HomePageState extends State<HomePage>
                 textAlign: TextAlign.start,
               ),
             ),
-            Expanded(child: Image.asset(iconPath, fit: BoxFit.cover)),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 0, bottom: 0),
+                child: InkWell(
+                  onTap: () {
+                    _homeBannerController.fetchBannersBackground();
+                  },
+                  child: Obx(() {
+                    return ImageCarousel(
+                      placeHolder: 'assets/images/fc_prawn.png',
+                      images: _homeBannerController.bannersMedicine.isEmpty
+                          ? [iconPath]
+                          : List.generate(
+                              _homeBannerController.bannersMedicine.length,
+                              (index) => _homeBannerController
+                                  .bannersMedicine[index]
+                                  .url,
+                            ),
+                      height: 160,
+                      isNetwork: _homeBannerController.bannersMedicine.isEmpty
+                          ? false
+                          : true,
+                      // imageWidth: 70,
+                    );
+                  }),
+                ),
+              ),
+            ),
+            // Expanded(child: Image.asset(iconPath, fit: BoxFit.cover)),
           ],
         ),
       ),

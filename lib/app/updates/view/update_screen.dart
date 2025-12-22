@@ -48,7 +48,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
       appBar: CustomIconAppbar(title: 'Updates'),
       backgroundColor: Colors.white,
       body: CustomRefereshIndicator(
-        onRefresh: () async{
+        onRefresh: () async {
           await hatcheryUpdatesController.fetchHatcheryUpdates();
         },
         child: SingleChildScrollView(
@@ -64,7 +64,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
               //         hatcheryUpdatesController.banners.length,
               //         (index) => hatcheryUpdatesController.banners[index].url,
               //       ),
-        
+
               //       mediaTypes: List.generate(
               //         hatcheryUpdatesController.banners.length,
               //         (index) => hatcheryUpdatesController.banners[index].type,
@@ -75,12 +75,13 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
               SizedBox(height: 5),
               Obx(() {
                 if (hatcheryUpdatesController.isLoading.value ||
-                    hatcheryUpdatesController.hatcheryData.value?.data == null) {
+                    hatcheryUpdatesController.hatcheryData.value?.data ==
+                        null) {
                   return Column(
                     children: List.generate(4, (index) => postShimmerCard()),
                   );
                 }
-        
+
                 return ListView.builder(
                   physics: NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
@@ -262,7 +263,7 @@ class _PostWidgetState extends State<PostWidget> {
                   style: GoogleFonts.roboto(
                     fontSize: 14,
                     color: Colors.black,
-                    fontWeight: FontWeight.bold
+                    fontWeight: FontWeight.bold,
                   ),
                 );
               },
@@ -280,13 +281,12 @@ class _PostWidgetState extends State<PostWidget> {
                 decoration: BoxDecoration(color: Colors.black.withOpacity(.1)),
                 child: Builder(
                   builder: (context) {
-
                     final urls =
                         widget.postData?.mediaFiles
                             ?.map((e) => e.toString())
                             .toList() ??
                         [];
-                      print(urls);
+                    print(urls);
                     return MediaCarouselWidget(
                       mediaUrls: urls,
                       mediaType: widget.postData?.mediaType ?? "",

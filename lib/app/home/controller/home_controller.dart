@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
@@ -8,7 +6,6 @@ import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/model/brand_model.dart';
 import 'package:seedsuser/app/home/model/hatcheries_model.dart';
 import 'package:seedsuser/app/model/category_model.dart';
-import 'package:seedsuser/app/model/hatchery_model.dart';
 import 'package:seedsuser/app/model/price_home_model.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
 import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
@@ -131,7 +128,8 @@ class HomeController extends GetxController {
   Future<void> getHatcheries(String? categoryId) async {
     try {
       final response = await getRequest(
-        endPoint: "${NetworkConfig.baseURL}/farmer/home-hatcheries?category_id=${categoryId??''}",
+        endPoint:
+            "${NetworkConfig.baseURL}/farmer/home-hatcheries?category_id=${categoryId ?? ''}",
         headers: await buildHeader(),
       );
 

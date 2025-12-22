@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 // ignore: depend_on_referenced_packages
 import 'package:http/http.dart' as http;
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/controller/location_controller.dart';
 import 'package:seedsuser/app/home/filter_bottom_sheet.dart';
@@ -36,6 +37,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
 
   final _locationController = Get.find<LocationController>();
   final _homeController = Get.find<HomeController>();
+  final _homeBannerController = Get.put(HomeBannerController());
   final _profileController = Get.find<ProfileController>();
 
   @override
@@ -309,7 +311,31 @@ class _HomeAppBarState extends State<HomeAppBar> {
           return Stack(
             fit: StackFit.expand,
             children: [
-              Image.asset("assets/images/home_top.png", fit: BoxFit.cover),
+              Obx(() {
+                String image = _homeBannerController.bannersTop.isEmpty
+                    ? ''
+                    : _homeBannerController.bannersTop[0].url;
+                return Image.network(
+                  _homeBannerController.bannersTop.isEmpty ? image : image,
+                  // _homeBannerController.bannersTop.isEmpty
+                  //     ? ''
+                  //     : _homeBannerController.bannersTop[0].url,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    return Image.asset(
+                      "assets/images/home_top.png",
+                      fit: BoxFit.cover,
+                    );
+                  },
+                  errorBuilder: (context, child, loadingProgress) {
+                    return Image.asset(
+                      "assets/images/home_top.png",
+                      fit: BoxFit.cover,
+                    );
+                  },
+                );
+              }),
+              // Image.asset("assets/images/home_top.png", fit: BoxFit.cover),
               FlexibleSpaceBar(
                 // titlePadding: EdgeInsets.only(top: 100),
                 // title: widget.bottom,
@@ -633,7 +659,6 @@ class _HomeAppBarState extends State<HomeAppBar> {
                           Get.to(() => const SearchScreen());
                         },
                       ),
-
                       // SizedBox(height: 10)
                     ],
                   ),
@@ -732,7 +757,6 @@ class _HomeAppBarState extends State<HomeAppBar> {
       ],
     );
   }
-
 }
 
 Route zoomOutFadeRoute(Widget page) {
@@ -833,7 +857,7 @@ class _AnimatedSearchBarState extends State<AnimatedSearchBar>
         child: Material(
           color: Colors.transparent,
           child: Container(
-            height: 48,
+            height: 42,
             padding: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -891,7 +915,7 @@ class _AnimatedSearchBarState extends State<AnimatedSearchBar>
                 /// 🔹 Mic Icon
                 InkWell(
                   onTap: widget.onMicTap,
-                  child: const Icon(Icons.mic, color: Colors.grey),
+                  child: const Icon(Icons.mic, color: Colors.blue),
                 ),
               ],
             ),

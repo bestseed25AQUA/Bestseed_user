@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/vehicle_tracking/model/vehicle_booking_detail_model.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/vehicle_tracking_screen.dart';
+import 'package:seedsuser/app/vehicle_tracking/view/widgets/booking_detail_shimmer.dart';
 import '../controller/vehicle_tracking_controller.dart';
 
 class BookingDetailsScreen extends StatefulWidget {
@@ -95,7 +96,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
 
       body: Obx(() {
         if (controller.isDetailLoading.value) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: BookingDetailsShimmer());
         }
 
         final data = controller.bookingDetail.value;
@@ -118,9 +119,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
                 w,
                 h,
               ),
-
               SizedBox(height: h * 0.02),
-
               _buildLocationCard(data, w),
 
               SizedBox(height: 25),
@@ -442,7 +441,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
                           'Check vehicle status',
                           style: GoogleFonts.roboto(
                             fontSize: 12,
-                            color: Color(0xff3B82F6),
+                            color: Color(0xff3B82F6),fontWeight: FontWeight.bold
                           ),
                         ),
                       ),

@@ -21,7 +21,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final double toolbarHeight;
   final IconThemeData? iconTheme;
   final TextTheme? textTheme;
-  final Brightness? brightness;
+  final Brightness? brightness; 
 
   const CustomAppBar({
     super.key,

@@ -217,7 +217,7 @@ class _ContactUsPageState extends State<ContactUsPage> {
       onTap: onTap,
       child: Container(
         width: double.infinity, // smaller width
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
           color: background.withOpacity(.1),
           borderRadius: BorderRadius.circular(12),

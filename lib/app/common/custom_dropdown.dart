@@ -10,13 +10,13 @@ class CustomDropdown<T> extends StatefulWidget {
   final String hintText;
 
   const CustomDropdown({
-    Key? key,
+    super.key,
     required this.selectedValue,
     required this.items,
     required this.itemLabel,
     required this.onChanged,
     required this.hintText,
-  }) : super(key: key);
+  });
 
   @override
   State<CustomDropdown<T>> createState() => _CustomDropdownState<T>();
@@ -66,7 +66,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
           // Dropdown UI
           Positioned(
             left: offset.dx,
-            top: offset.dy + 13,
+            top: offset.dy + 48,
             width: size.width,
             child: Material(
               elevation: 6,

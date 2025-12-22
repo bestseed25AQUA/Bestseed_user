@@ -213,23 +213,26 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
         color: const Color(0xFFEEEEEE),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: TextField(
-        decoration: InputDecoration(
-          icon: const Icon(Icons.search, color: Colors.grey),
-          hintText: 'Search for hatcheries...',
-          border: InputBorder.none,
-          suffixIcon: Container(
-            margin: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.primary),
+      child: SizedBox(
+        height: 38,
+        child: TextField(
+          decoration: InputDecoration(
+            icon: const Icon(Icons.search, color: Colors.grey),
+            hintText: 'Search for hatcheries...',
+            border: InputBorder.none,
+            suffixIcon: Container(
+              margin: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.primary),
+              ),
+              child: const Icon(Icons.mic, color: Colors.blue),
             ),
-            child: const Icon(Icons.mic, color: Colors.blue),
           ),
+          onChanged: (query) {
+            controller.filterBroodStocks(query);
+          },
         ),
-        onChanged: (query) {
-          controller.filterBroodStocks(query);
-        },
       ),
     );
   }

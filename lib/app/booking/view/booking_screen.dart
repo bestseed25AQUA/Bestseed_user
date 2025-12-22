@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/animated_view_custom.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,10 +7,12 @@ import 'package:seedsuser/app/booking/controller/my_booking_controller.dart';
 import 'package:seedsuser/app/booking/view/booking_detail_screen.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
+import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 import 'package:seedsuser/app/model/my_booking_model.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/vehicle_tracking_screen.dart';
+import 'package:shimmer/shimmer.dart';
 
 class MyBookingScreen extends StatefulWidget {
   const MyBookingScreen({super.key});
@@ -310,7 +313,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
     );
   }
 
-  String selectedFilter = "";
+  String selectedFilter = "All";
   Widget buildFilterChip(String label) {
     bool isSelected = selectedFilter == label;
 
@@ -354,7 +357,6 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
-    
         title: Text(
           'My Bookings',
           style: GoogleFonts.roboto(
@@ -391,51 +393,59 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
             ),
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: Size(double.infinity, 60),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+            child: Row(
+              children: [
+                buildFilterChip("All"),
+                const SizedBox(width: 10),
+                buildFilterChip("Hatchery"),
+                const SizedBox(width: 10),
+                buildFilterChip("Spot Hatchery"),
+              ],
+            ),
+          ),
+        ),
       ),
       body: Builder(
         builder: (context) {
-          return Column(
-            children: [
-              // Inside your build() Widget
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 20,
-                ),
-                child: Row(
-                  children: [
-                    buildFilterChip("All"),
-                    const SizedBox(width: 10),
-                    buildFilterChip("Hatchery"),
-                    const SizedBox(width: 10),
-                    buildFilterChip("Spot Hatchery"),
-                  ],
-                ),
-              ),
-
-              Obx(() {
-                if (controller.isLoading.value) {
-                  return Padding(
-                    padding: EdgeInsets.only(
-                      top: MediaQuery.of(context).size.height * .3,
-                    ),
-                    child: const Center(child: CircularProgressIndicator()),
-                  );
-                }
-                if (controller.bookingList.isEmpty) {
-                  return Padding(
-                    padding: EdgeInsets.only(
-                      top: MediaQuery.of(context).size.height * .3,
-                    ),
-                    child: Center(
-                      child: Text(
-                        "No bookings found",
-                        style: GoogleFonts.roboto(fontSize: 16),
-                      ),
-                    ),
-                  );
-                }
+          return CustomRefereshIndicator(
+            onRefresh: () async {
+              await controller.fetchBookings();
+            },
+            child: Obx(() {
+              if (controller.isLoading.value) {
                 return Expanded(
+                  child: AnimatedAppearance(
+                    type: AnimationType.slideDown,
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      itemCount: 3,
+                      itemBuilder: (context, index) {
+                        return bookingCardShimmer();
+                      },
+                    ),
+                  ),
+                );
+              }
+              if (controller.bookingList.isEmpty) {
+                return Padding(
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).size.height * .3,
+                  ),
+                  child: Center(
+                    child: Text(
+                      "No bookings found",
+                      style: GoogleFonts.roboto(fontSize: 16),
+                    ),
+                  ),
+                );
+              }
+              return Expanded(
+                child: AnimatedAppearance(
                   child: ListView.builder(
                     shrinkWrap: true,
                     padding: EdgeInsets.symmetric(horizontal: 10),
@@ -466,7 +476,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                                     hatcheryId: booking.hatcheryId.toString(),
                                     hatcheryName: booking.hatcheryName
                                         .toString(),
-                                    tag: 'Booking$index'
+                                    tag: 'Booking$index',
                                   ),
                             ),
                           );
@@ -474,9 +484,9 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                       );
                     },
                   ),
-                );
-              }),
-            ],
+                ),
+              );
+            }),
           );
         },
       ),
@@ -537,7 +547,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.2),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -583,48 +593,55 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
           // -------------------- ID + DATETIME --------------------
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "ID:",
-                    style: GoogleFonts.roboto(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  SizedBox(
-                    width: MediaQuery.of(context).size.width * .3,
-                    child: Text(
-                      data.bookingUid,
-                      style: GoogleFonts.roboto(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                ],
+              // Column(
+              //   crossAxisAlignment: CrossAxisAlignment.start,
+              //   children: [
+              //     Text(
+              //       "ID:",
+              //       style: GoogleFonts.roboto(
+              //         fontSize: 16,
+              //         fontWeight: FontWeight.w700,
+              //       ),
+              //     ),
+              //     SizedBox(height: 10),
+              //     SizedBox(
+              //       width: MediaQuery.of(context).size.width * .3,
+              //       child: Text(
+              //         data.bookingUid,
+              //         style: GoogleFonts.roboto(
+              //           fontSize: 13,
+              //           fontWeight: FontWeight.w400,
+              //         ),
+              //       ),
+              //     ),
+              //   ],
+              // ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "ID: ${data.bookingUid}",
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
               ),
-              Text(
-                data.deliveryDatetime,
-                style: GoogleFonts.roboto(
-                  fontSize: 13,
-                  color: Colors.grey.shade700,
-                  fontWeight: FontWeight.w500,
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  data.deliveryDatetime,
+                  style: GoogleFonts.roboto(
+                    fontSize: 13,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 0),
 
           // -------------------- HATCHERY NAME --------------------
           Text(
@@ -642,7 +659,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
             ),
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 5),
 
           // -------------------- PIECES + DATE --------------------
           Row(
@@ -678,7 +695,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 5),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -698,89 +715,40 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
             ],
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
           // -------------------- VIEW DETAILS BUTTON --------------------
           InkWell(
             onTap: (status.toLowerCase() == "cancelled")
                 ? ontapTryAgain
                 : ontap,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                (status.toLowerCase() == "cancelled")
-                    ? "Try Again"
-                    : "View Details",
-                style: GoogleFonts.roboto(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade800,
+            child: Material(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(20),
+              elevation: 1,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  (status.toLowerCase() == "cancelled")
+                      ? "Try Again"
+                      : "View Details",
+                  style: GoogleFonts.roboto(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade800,
+                  ),
                 ),
               ),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  // 🔹 Always placeholder (API has no image field)
-  Widget _buildImageSection(String url) {
-    return SizedBox(
-      height: 150,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          color: Colors.grey[300],
-          child: CustomNetworkImage(imageUrl: url, fit: BoxFit.cover),
-        ),
-      ),
-    );
-  }
-
-  // 🔹 Info Section
-
-  Widget _iconText(IconData icon, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: AppColors.primary),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            value,
-            style: GoogleFonts.roboto(
-              fontSize: 14,
-              color: Colors.black87,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 20, color: AppColors.primary),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            value.isNotEmpty ? value : "",
-            style: GoogleFonts.roboto(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -792,4 +760,107 @@ String formatDateDMY(String dateString) {
   } catch (e) {
     return ""; // return empty if error
   }
+}
+
+Widget bookingCardShimmer() {
+  return Shimmer.fromColors(
+    baseColor: Colors.grey.shade300,
+    highlightColor: Colors.grey.shade100,
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ---------------- TOP ROW ----------------
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _shimmerBox(width: 120, height: 16),
+              _shimmerBox(width: 80, height: 24, radius: 20),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // ---------------- ID + DATE ----------------
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _shimmerBox(width: 160, height: 14),
+              _shimmerBox(width: 100, height: 14),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // ---------------- HATCHERY NAME ----------------
+          _shimmerBox(width: double.infinity, height: 18),
+          const SizedBox(height: 6),
+          _shimmerBox(width: 140, height: 14),
+
+          const SizedBox(height: 14),
+
+          // ---------------- PIECES + DATE ----------------
+          Row(
+            children: [
+              _shimmerCircle(size: 24),
+              const SizedBox(width: 8),
+              _shimmerBox(width: 80, height: 14),
+              const Spacer(),
+              _shimmerCircle(size: 18),
+              const SizedBox(width: 6),
+              _shimmerBox(width: 70, height: 14),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // ---------------- LOCATION ----------------
+          Row(
+            children: [
+              _shimmerCircle(size: 20),
+              const SizedBox(width: 8),
+              Expanded(child: _shimmerBox(height: 14)),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // ---------------- BUTTON ----------------
+          _shimmerBox(width: double.infinity, height: 44, radius: 20),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _shimmerBox({
+  double width = 100,
+  double height = 12,
+  double radius = 8,
+}) {
+  return Container(
+    width: width,
+    height: height,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(radius),
+    ),
+  );
+}
+
+Widget _shimmerCircle({double size = 20}) {
+  return Container(
+    width: size,
+    height: size,
+    decoration: const BoxDecoration(
+      color: Colors.white,
+      shape: BoxShape.circle,
+    ),
+  );
 }

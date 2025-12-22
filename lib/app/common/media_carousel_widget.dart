@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/common/full_image_screen.dart';
 import 'package:seedsuser/app/home/view/full_video_screen.dart';
 import 'package:seedsuser/app/home/widget/hachery_category_banner_widget.dart';
 import 'package:video_player/video_player.dart';
@@ -9,6 +10,7 @@ import 'package:video_player/video_player.dart';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
+
 class MediaCarouselWidget extends StatefulWidget {
   final List<String> mediaUrls;
   final List<String>? mediaTypes;
@@ -39,9 +41,8 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
     return Stack(
       alignment: Alignment.bottomCenter,
       children: [
-
         ClipRRect(
-          borderRadius: BorderRadius.circular(widget.borderRadius??0),
+          borderRadius: BorderRadius.circular(widget.borderRadius ?? 0),
           child: CarouselSlider.builder(
             itemCount: widget.mediaUrls.length,
             carouselController: _carouselController,
@@ -52,9 +53,7 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
               // print(url);
               return type == "image"
                   ? _buildImage(url, widget.borderRadius ?? 12)
-                  : _buildVideo(
-                    url,
-                   widget.borderRadius ?? 12, widget.height);
+                  : _buildVideo(url, widget.borderRadius ?? 12, widget.height);
             },
             options: CarouselOptions(
               height: widget.height,
@@ -89,22 +88,29 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
     );
   }
 
-  Widget _buildImage(String url, double borderRadius) {
+  Widget _buildImage(String imageUrl, double borderRadius) {
     return GestureDetector(
       onTap: () {
-        Get.dialog(
-          InteractiveViewer(child: Image.network(url, fit: BoxFit.contain)),
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 400),
+            pageBuilder: (_, __, ___) => FullImageScreen(imageUrl: imageUrl),
+          ),
         );
       },
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius??30),
-        child: Image.network(
-          url,
-          width: double.infinity,
-          fit: BoxFit.fill,
-          errorBuilder: (_, __, ___) => Container(
-            color: Colors.grey[300], 
-            child: const Icon(Icons.broken_image),
+      child: Hero(
+        tag: imageUrl,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(borderRadius ?? 30),
+          child: Image.network(
+            imageUrl,
+            width: double.infinity,
+            fit: BoxFit.fill,
+            errorBuilder: (_, __, ___) => Container(
+              color: Colors.grey[300],
+              child: const Icon(Icons.broken_image),
+            ),
           ),
         ),
       ),
@@ -115,14 +121,14 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
   Widget _buildVideo(String url, double borderRadius, double? aspectRatio) {
     return GestureDetector(
       onTap: () {
-        Get.to(() => FullScreenVideoPlayer(videoUrl: url,));
+        Get.to(() => FullScreenVideoPlayer(videoUrl: url));
       },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            VideoPlayerPreview( 
+            VideoPlayerPreview(
               url: url,
               // aspectRatio: aspectRatio,
               height: widget.height,
@@ -183,10 +189,7 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
           : Stack(
               fit: StackFit.expand,
               children: [
-                Image.memory(
-                  thumbnail!,
-                  fit: BoxFit.cover,
-                ),
+                Image.memory(thumbnail!, fit: BoxFit.cover),
 
                 // ▶ Play icon overlay (optional)
                 Center(

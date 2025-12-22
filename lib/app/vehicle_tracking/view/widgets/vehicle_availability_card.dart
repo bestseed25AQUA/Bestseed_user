@@ -234,3 +234,4 @@ class VehicleAvaibalityCard extends StatelessWidget {
     );
   }
 }
+

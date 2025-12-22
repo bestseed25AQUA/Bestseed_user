@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/booking/view/widgets/booking_detail_shimmer.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -69,7 +70,6 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
-    
         title: Text(
           'Detail',
           style: GoogleFonts.roboto(
@@ -82,7 +82,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
 
       body: Obx(() {
         if (controller.isDetailLoading.value) {
-          return const Center(child: CircularProgressIndicator());
+          return const BookingDetailShimmer();
         }
 
         final data = controller.bookingDetail.value;
@@ -94,7 +94,12 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              _statusBox(data.statusValue, data.status, data.statusDescription, w ),
+              _statusBox(
+                data.statusValue,
+                data.status,
+                data.statusDescription,
+                w,
+              ),
 
               const SizedBox(height: 20),
 
@@ -237,7 +242,11 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     );
   }
 
-  Widget _timelineSection(List<BookingStatusStep> steps, double w, VoidCallback ontapCheckVehicleStatus) {
+  Widget _timelineSection(
+    List<BookingStatusStep> steps,
+    double w,
+    VoidCallback ontapCheckVehicleStatus,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -302,8 +311,9 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                           onTap: ontapCheckVehicleStatus,
                           child: Text(
                             "Check vehicle status",
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.roboto(
                               color: Colors.blue,
+                              fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
                           ),
@@ -481,5 +491,4 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       isScrollControlled: true,
     );
   }
-
 }
