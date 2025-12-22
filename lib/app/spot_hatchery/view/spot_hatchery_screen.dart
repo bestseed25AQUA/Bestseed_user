@@ -37,8 +37,8 @@ class SpotHatcheryScreen extends StatelessWidget {
           return SingleChildScrollView(
             child: Column(
               children: [
-                SizedBox(height: 16),
-                SpotHatcheryBannerWidget(),
+                // SizedBox(height: 16),
+                // SpotHatcheryBannerWidget(),
                 SizedBox(height: 8),
                 Obx(() {
                   if (controller.isLoading.value || controller.isError.value){

@@ -417,18 +417,16 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
             },
             child: Obx(() {
               if (controller.isLoading.value) {
-                return Expanded(
-                  child: AnimatedAppearance(
-                    type: AnimationType.slideDown,
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      itemCount: 3,
-                      itemBuilder: (context, index) {
-                        return bookingCardShimmer();
-                      },
-                    ),
+                return ListView.builder(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 15,
                   ),
+                  itemCount: 3,
+                  itemBuilder: (context, index) {
+                    return bookingCardShimmer();
+                  },
                 );
               }
               if (controller.bookingList.isEmpty) {
@@ -444,47 +442,44 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                   ),
                 );
               }
-              return Expanded(
-                child: AnimatedAppearance(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    padding: EdgeInsets.symmetric(horizontal: 10),
-                    itemCount: controller.bookingList.length,
-                    itemBuilder: (context, index) {
-                      final booking = controller.bookingList[index];
-                      return _buildBookingCard(
-                        booking,
-                        () {
-                          Get.to(
-                            BookingDetailScreen(
-                              bookingId: booking.bookingId.toString(),
-                            ),
-                          );
-                        },
-                        () {
-                          Navigator.push(
-                            context,
-                            PageRouteBuilder(
-                              transitionDuration: const Duration(
-                                milliseconds: 600,
-                              ), // smooth
-                              reverseTransitionDuration: const Duration(
-                                milliseconds: 600,
-                              ),
-                              pageBuilder: (_, __, ___) =>
-                                  HatcheryCateogryScreen(
-                                    hatcheryId: booking.hatcheryId.toString(),
-                                    hatcheryName: booking.hatcheryName
-                                        .toString(),
-                                    tag: 'Booking$index',
-                                  ),
-                            ),
-                          );
-                        },
+              return ListView.builder(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 15,
+                ),
+                itemCount: controller.bookingList.length,
+                itemBuilder: (context, index) {
+                  final booking = controller.bookingList[index];
+                  return _buildBookingCard(
+                    booking,
+                    () {
+                      Get.to(
+                        BookingDetailScreen(
+                          bookingId: booking.bookingId.toString(),
+                        ),
                       );
                     },
-                  ),
-                ),
+                    () {
+                      Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          transitionDuration: const Duration(
+                            milliseconds: 600,
+                          ), // smooth
+                          reverseTransitionDuration: const Duration(
+                            milliseconds: 600,
+                          ),
+                          pageBuilder: (_, __, ___) => HatcheryCateogryScreen(
+                            hatcheryId: booking.hatcheryId.toString(),
+                            hatcheryName: booking.hatcheryName.toString(),
+                            tag: 'Booking$index',
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
               );
             }),
           );

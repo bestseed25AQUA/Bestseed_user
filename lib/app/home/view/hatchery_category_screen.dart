@@ -92,11 +92,7 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
             child: Column(
               children: [
                 SizedBox(height: 20),
-                Hero(
-                  tag: widget.tag ?? "",
-                  child: HatcheryCategoryBannerWidget(id: widget.hatcheryId),
-                ),
-                SizedBox(height: 20),
+              
                 Obx(() {
                   if (hatcheryCategoryController.isLoading.value) {
                     return ListView.builder(

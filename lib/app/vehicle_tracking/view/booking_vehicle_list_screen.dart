@@ -46,70 +46,65 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
         ),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-        child: CustomRefereshIndicator(
-            onRefresh: () async {
-              await controller.fetchVehicleList();
-            },
-          child: Obx(() {
-            if (controller.isLoading.value) {
-              return Expanded(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  padding: EdgeInsets.symmetric(horizontal: 10),
-                  itemCount: 3,
-                  itemBuilder: (context, index) {
-                    return vehicleAvailabilityCardShimmer();
-                  },
-                ),
-              );
-            }
-            if (controller.vehicleList.isEmpty) {
-              return Center(
-                child: Text(
-                  "No vehicle data found",
-                  style: GoogleFonts.roboto(fontSize: 16),
-                ),
-              );
-            }
+      body: CustomRefereshIndicator(
+          onRefresh: () async {
+            await controller.fetchVehicleList();
+          },
+        child: Obx(() {
+          if (controller.isLoading.value) {
             return ListView.builder(
-              itemCount: controller.vehicleList.length,
+              shrinkWrap: true,
+             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+              itemCount: 3,
               itemBuilder: (context, index) {
-                final item = controller.vehicleList[index];
-                return VehicleAvaibalityCard(
-                  statusColor: (item.status.toLowerCase() == 'pending')
-                      ? Colors.orange
-                      : (item.status.toLowerCase() == 'cancelled')
-                      ? Colors.red
-                      : Colors.green,
-          
-                  ontapViewDetails: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => BookingDetailsScreen(
-                          status: item.status.toLowerCase(),
-                          id: item.id,
-                        ),
-                      ),
-                    );
-                  },
-          
-                  id: item.bookingId?.toString() ?? "",
-                  time: item.time?.toString() ?? "",
-                  date: item.date?.toString() ?? "",
-                  title: item.hatcheryName?.toString() ?? "",
-                  subTitle: item.categoryName?.toString() ?? "",
-                  status: item.status?.toString() ?? "",
-                  pickupLocation: item.pickupLocation?.toString() ?? "",
-                  dropLocation: item.dropLocation?.toString() ?? "",
-                  quantity: item.quantity?.toString() ?? "",
-                );
+                return vehicleAvailabilityCardShimmer();
               },
             );
-          }),
-        ),
+          }
+          if (controller.vehicleList.isEmpty) {
+            return Center(
+              child: Text(
+                "No vehicle data found",
+                style: GoogleFonts.roboto(fontSize: 16),
+              ),
+            );
+          }
+          return ListView.builder(
+            itemCount: controller.vehicleList.length,
+            itemBuilder: (context, index) {
+              final item = controller.vehicleList[index];
+              return VehicleAvaibalityCard(
+                statusColor: (item.status.toLowerCase() == 'pending')
+                    ? Colors.orange
+                    : (item.status.toLowerCase() == 'cancelled')
+                    ? Colors.red
+                    : Colors.green,
+        
+                ontapViewDetails: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BookingDetailsScreen(
+                        status: item.status.toLowerCase(),
+                        id: item.id,
+                      ),
+                    ),
+                  );
+                },
+        
+                id: item.bookingId?.toString() ?? "",
+                time: item.time?.toString() ?? "",
+                date: item.date?.toString() ?? "",
+                title: item.hatcheryName?.toString() ?? "",
+                subTitle: item.categoryName?.toString() ?? "",
+                status: item.status?.toString() ?? "",
+                pickupLocation: item.pickupLocation?.toString() ?? "",
+                dropLocation: item.dropLocation?.toString() ?? "",
+                quantity: item.quantity?.toString() ?? "",
+              );
+            },
+          );
+        }),
       ),
     );
   }
