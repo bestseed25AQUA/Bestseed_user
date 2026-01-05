@@ -4,11 +4,15 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 class DeliveryUpdateWidget extends StatelessWidget {
   final String expected;
   final String note;
+  final String travelCost;
+  final String expectedDelivery;
 
   const DeliveryUpdateWidget({
     super.key,
     required this.expected,
     required this.note,
+    required this.travelCost,
+    required this.expectedDelivery,
   });
 
   @override
@@ -19,14 +23,66 @@ class DeliveryUpdateWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Vehicle  Status",
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+          const Text(
+            "Vehicle  Status",
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 6),
-          Text(note,
-              style: const TextStyle(fontSize: 14, color: Colors.black54)),
-          const SizedBox(height: 6),
-          Text("Delivery Expected on $expected",
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          Text(
+            note,
+            style: const TextStyle(fontSize: 14, color: Colors.black54),
+          ),
+          SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              BoxCustom(title: 'Travel cost', subtitle: travelCost),
+              SizedBox(width: MediaQuery.of(context).size.width * .02),
+              BoxCustom(
+                title: 'Delivery Expected on',
+                subtitle: expectedDelivery,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+        ],
+      ),
+    );
+  }
+}
+
+class BoxCustom extends StatelessWidget {
+  const BoxCustom({super.key, required this.title, required this.subtitle});
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: MediaQuery.of(context).size.width * .43,
+      padding: EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Color(0xffF6F6F6),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(color: Color(0xff374151), fontSize: 14),
+            maxLines: 1,
+          ),
+          SizedBox(height: 5),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

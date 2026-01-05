@@ -14,6 +14,7 @@ import 'package:video_thumbnail/video_thumbnail.dart';
 class MediaCarouselWidget extends StatefulWidget {
   final List<String> mediaUrls;
   final List<String>? mediaTypes;
+  final String? title;
   final String? mediaType;
   final double? height;
   final double? borderRadius;
@@ -25,6 +26,7 @@ class MediaCarouselWidget extends StatefulWidget {
     this.mediaType,
     this.height,
     this.borderRadius,
+    this.title,
   });
 
   @override
@@ -52,8 +54,8 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
               // print('object');
               // print(url);
               return type == "image"
-                  ? _buildImage(url, widget.borderRadius ?? 12)
-                  : _buildVideo(url, widget.borderRadius ?? 12, widget.height);
+                  ? _buildImage(url, widget.borderRadius ?? 12,title: widget.title)
+                  : _buildVideo(url, widget.borderRadius ?? 12, widget.height,widget.title);
             },
             options: CarouselOptions(
               height: widget.height,
@@ -88,14 +90,15 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
     );
   }
 
-  Widget _buildImage(String imageUrl, double borderRadius) {
+  Widget _buildImage(String imageUrl, double borderRadius, {String? title}) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 400),
-            pageBuilder: (_, __, ___) => FullImageScreen(imageUrl: imageUrl),
+            pageBuilder: (_, __, ___) =>
+                FullImageScreen(imageUrl: imageUrl, title: title),
           ),
         );
       },
@@ -118,10 +121,10 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
   }
 
   /// ---------------- VIDEO VIEW ----------------
-  Widget _buildVideo(String url, double borderRadius, double? aspectRatio) {
+  Widget _buildVideo(String url, double borderRadius, double? aspectRatio, String? title) {
     return GestureDetector(
       onTap: () {
-        Get.to(() => FullScreenVideoPlayer(videoUrl: url));
+        Get.to(() => FullScreenVideoPlayer(videoUrl: url,title: title,));
       },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),

@@ -30,6 +30,7 @@ class BroodstockModel {
 
 class BroodstockData {
   final int id;
+  final int hatcheryId;
   final String hatcheryName;
   final String supplierName;
   final String categoryName;
@@ -46,6 +47,7 @@ class BroodstockData {
 
   BroodstockData({
     required this.id,
+    required this.hatcheryId,
     required this.hatcheryName,
     required this.supplierName,
     required this.categoryName,
@@ -64,6 +66,7 @@ class BroodstockData {
   factory BroodstockData.fromJson(Map<String, dynamic> json) {
     return BroodstockData(
       id: json['id'] ?? 0,
+      hatcheryId: json['hatchery_id'] ?? 0,
       hatcheryName: json['hatchery_name'] ?? '',
       supplierName: json['supplier_name'] ?? '',
       categoryName: json['category']?['category_name'] ?? '',
@@ -87,6 +90,7 @@ class BroodstockData {
 
   Map<String, dynamic> toJson() => {
     'id': id,
+    'hatchery_id': hatcheryId,
     'hatchery_name': hatcheryName,
     'supplier_name': supplierName,
     'imported_date': importedDate,

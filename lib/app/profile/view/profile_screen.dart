@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart'; 
+import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/view/booking_screen.dart';
-import 'package:seedsuser/app/common/app_color.dart'; 
+import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_best_seed_background.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/controller/logout_controller.dart';
@@ -24,34 +25,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final ProfileController profileController = Get.put(ProfileController());
   @override
   Widget build(BuildContext context) {
+    Widget divider = Divider(height: 1,);
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
+        titleSpacing: 0,
+        backgroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
             Get.back();
           },
         ),
         title: Text(
           'Profile',
-          style: GoogleFonts.roboto(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          style: GoogleFonts.roboto(fontWeight: FontWeight.bold, fontSize: 17),
         ),
         bottom: PreferredSize(
-          preferredSize: Size(double.infinity, 100),
+          preferredSize: Size(double.infinity, 90),
           child: Column(
             children: const [
               // leave space for status bar & toolbar
               ProfileHeader(),
-              SizedBox(height: 20,)
+              SizedBox(height: 20),
             ],
           ),
         ),
         flexibleSpace: FlexibleSpaceBar(
-          background: SizedBox(height: 0,),
+          background: SizedBox(height: 0),
           // background: Column(
           //   children: const [
           //     SizedBox(
@@ -66,6 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
+            SizedBox(height: 5),
             // / Collapsible SliverAppBar
             // SliverAppBar(
             //   pinned: true,
@@ -98,141 +99,213 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // ProfileHeader(),
 
             /// Body List
-            const SizedBox(height: 16),
-            ProfileMenuItem(
-              icon: Icons.notifications_none,
-              title: AppLocalizations.of(context).notifications,
-              onTap: () {
-                Get.to(() => NotificationsScreen());
-              },
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 20),
+              padding: EdgeInsets.only(bottom: 10,left: 15,right: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    // ignore: deprecated_member_use
+                    color: Colors.black.withOpacity(0.15),
+                    offset: const Offset(0, -2), // 🔥 TOP shadow
+                    blurRadius: 6,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    offset: const Offset(0, 2), // bottom shadow
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 16),
+                  ProfileMenuItem(
+                    icon: Icons.notifications_none,
+                    title: AppLocalizations.of(context).notifications,
+                    onTap: () {
+                      Get.to(() => NotificationsScreen());
+                    },
+                  ),
+                  Divider(height: 1,),
+                  ProfileMenuItem(
+                    icon: Icons.fire_truck_outlined,
+                    title: AppLocalizations.of(context).tracking,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => VehicleTrackingPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  divider,
+                  ProfileMenuItem(
+                    icon: Icons.menu,
+                    title: AppLocalizations.of(context).my_bookings,
+                    onTap: () {
+                      print('ontap');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MyBookingScreen(),
+                        ),
+                      );
+                      // Get.to(() => MyBookingScreen());
+                    },
+                  ),
+                  divider,
+                  // ProfileMenuItem(
+                  //   icon: Icons.menu,
+                  //   title: "Vehicle availability",
+                  //   onTap: () {
+                  //     Get.to(() => VehicleAvailabilityScreen());
+                  //   },
+                  // ),
+                  // ProfileMenuItem(
+                  //   icon: Icons.menu,
+                  //   title: "Vehicle tracking",
+                  //   onTap: () {
+                  //     Get.to(() => VehicleTrackingPage());
+                  //   },
+                  // ),
+                  ProfileMenuItem(
+                    icon: Icons.headset_mic_outlined,
+                    title: AppLocalizations.of(context).customer_support,
+                    onTap: () {
+                      // Navigator.push(context, MaterialPageRoute(builder: (context)=>VehicleTrackingPage()));
+                    },
+                  ),
+                  divider,
+                  ProfileMenuItem(
+                    icon: Icons.description_outlined,
+                    title: AppLocalizations.of(context).terms_conditions,
+                    onTap: () {
+                      // Get.to(() => VehicleTrackingPage());
+                    },
+                  ),
+                  divider,
+                  ProfileMenuItem(
+                    icon: FontAwesomeIcons.language,
+                    title: AppLocalizations.of(context).change_languages,
+                    onTap: () {
+                      Get.to(() => LanguageSelectionScreen());
+                    },
+                  ),
+                  divider,
+                  ProfileMenuItem(
+                    icon: Icons.privacy_tip_outlined,
+                    title: AppLocalizations.of(context).privacy_policy,
+                    onTap: () {},
+                  ),
+                  divider,
+                  ProfileMenuItem(
+                    icon: Icons.star_border,
+                    title: AppLocalizations.of(context).rate_us,
+                    onTap: () {},
+                  ),
+                  divider,
+                  ProfileMenuItem(
+                    icon: Icons.share_outlined,
+                    title: AppLocalizations.of(context).share_app,
+                    onTap: () {},
+                  ),
+                ],
+              ),
             ),
-            ProfileMenuItem(
-              icon: Icons.fire_truck_outlined,
-              title: AppLocalizations.of(context).tracking,
-              onTap: () {
-                Get.to(() => VehicleTrackingPage());
-              },
-            ),
-            ProfileMenuItem(
-              icon: Icons.menu,
-              title: AppLocalizations.of(context).my_bookings,
-              onTap: () {
-                Get.to(() => MyBookingScreen());
-              },
-            ),
-            // ProfileMenuItem(
-            //   icon: Icons.menu,
-            //   title: "Vehicle availability",
-            //   onTap: () {
-            //     Get.to(() => VehicleAvailabilityScreen());
-            //   },
-            // ),
-            // ProfileMenuItem(
-            //   icon: Icons.menu,
-            //   title: "Vehicle tracking",
-            //   onTap: () {
-            //     Get.to(() => VehicleTrackingPage());
-            //   },
-            // ),
-            ProfileMenuItem(
-              icon: Icons.headset_mic_outlined,
-              title: AppLocalizations.of(context).customer_support,
-              onTap: () {
-                Get.to(() => VehicleTrackingPage());
-              },
-            ),
-            ProfileMenuItem(
-              icon: Icons.description_outlined,
-              title: AppLocalizations.of(context).terms_conditions,
-              onTap: () {
-                Get.to(() => VehicleTrackingPage());
-              },
-            ),
-            ProfileMenuItem(
-              icon: FontAwesomeIcons.language,
-              title: AppLocalizations.of(context).change_languages,
-              onTap: () {
-                Get.to(() => LanguageSelectionScreen());
-              },
-            ),
-            ProfileMenuItem(
-              icon: Icons.privacy_tip_outlined,
-              title: AppLocalizations.of(context).privacy_policy,
-              onTap: () {},
-            ),
-            ProfileMenuItem(
-              icon: Icons.star_border,
-              title: AppLocalizations.of(context).rate_us,
-              onTap: () {},
-            ),
-            ProfileMenuItem(
-              icon: Icons.share_outlined,
-              title: AppLocalizations.of(context).share_app,
-              onTap: () {},
-            ),
-            Obx(() {
-              return logoutController.isLoading.value
-                  ? Center(child: CircularProgressIndicator())
-                  : ProfileMenuItem(
-                      icon: Icons.logout,
-                      title: AppLocalizations.of(context).logout,
-                      onTap: () {
-                        Get.bottomSheet(
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(20),
+            SizedBox(height: 10),
+            Container( 
+              margin: EdgeInsets.symmetric(horizontal: 20),
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    // ignore: deprecated_member_use
+                    color: Colors.black.withOpacity(0.15),
+                    offset: const Offset(0, -2), // 🔥 TOP shadow
+                    blurRadius: 6,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    offset: const Offset(0, 2), // bottom shadow
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+              child: Obx(() {
+                return logoutController.isLoading.value
+                    ? Center(child: CircularProgressIndicator())
+                    : ProfileMenuItem(
+                        iconColor: AppColors.primary,
+                        titleColor: AppColors.primary,
+                        icon: Icons.logout,
+                        title: AppLocalizations.of(context).logout,
+                        onTap: () {
+                          Get.bottomSheet(
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(20),
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    "Are you sure you want to logout?",
+                                    style: GoogleFonts.roboto(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton(
+                                          onPressed: () {
+                                            Get.back(); // close bottom sheet
+                                          },
+                                          child: const Text("Cancel"),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            Get.back();
+                                            logoutController.logout();
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: AppColors.primary,
+                                            foregroundColor: Colors.white,
+                                          ),
+                                          child: const Text("Logout"),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                ],
                               ),
                             ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  "Are you sure you want to logout?",
-                                  style: GoogleFonts.roboto(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: OutlinedButton(
-                                        onPressed: () {
-                                          Get.back(); // close bottom sheet
-                                        },
-                                        child: const Text("Cancel"),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: ElevatedButton(
-                                        onPressed: () {
-                                          Get.back();
-                                          logoutController.logout();
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors.primary,
-                                          foregroundColor: Colors.white,
-                                        ),
-                                        child: const Text("Logout"),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                              ],
-                            ),
-                          ),
-                          isDismissible: true,
-                        );
-                      },
-                      isShow: false,
-                    );
-            }),
+                            isDismissible: true,
+                          );
+                        },
+                        isShow: true,
+                      );
+              }),
+            ),
+            SizedBox(height: 15),
+            CustomBestSeedBackground(),
+            SizedBox(height: 15),
           ],
         ),
         // SliverList(
@@ -400,16 +473,22 @@ class ProfileHeader extends StatelessWidget {
       }
 
       return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16.0),
-        padding: const EdgeInsets.symmetric(horizontal: 16.0,vertical: 10),
+        margin: const EdgeInsets.symmetric(horizontal: 20.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
         decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16.0),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
+              // ignore: deprecated_member_use
+              color: Colors.black.withOpacity(0.15),
+              offset: const Offset(0, -2), // 🔥 TOP shadow
+              blurRadius: 3,
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              offset: const Offset(0, 2), // bottom shadow
+              blurRadius: 3,
             ),
           ],
         ),
@@ -445,7 +524,7 @@ class ProfileHeader extends StatelessWidget {
                     style: GoogleFonts.roboto(
                       color: Colors.black,
                       fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                      fontSize: 17,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -453,7 +532,7 @@ class ProfileHeader extends StatelessWidget {
                     profile?.mobile ?? "N/A",
                     style: GoogleFonts.roboto(
                       color: Colors.black,
-                      fontSize: 14,
+                      fontSize: 15,
                     ),
                   ),
                 ],
@@ -461,17 +540,23 @@ class ProfileHeader extends StatelessWidget {
             ),
 
             // ✏️ Edit button
-            ElevatedButton.icon(
-              onPressed: () {
-                Get.to(() => EditProfileScreen());
-              },
-              icon: const Icon(Icons.edit, size: 16),
-              label: const Text('Edit'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16.0),
+            SizedBox(
+              // width: 90,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Get.to(() => EditProfileScreen());
+                },
+
+                icon: const Icon(Icons.edit, size: 16),
+
+                label: Text('Edit', style: GoogleFonts.roboto(fontSize: 16)),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16.0),
+                  ),
                 ),
               ),
             ),
@@ -488,6 +573,8 @@ class ProfileMenuItem extends StatelessWidget {
   final String title;
   final VoidCallback onTap;
   final bool isShow;
+  final Color? iconColor;
+  final Color? titleColor;
 
   const ProfileMenuItem({
     super.key,
@@ -495,13 +582,20 @@ class ProfileMenuItem extends StatelessWidget {
     required this.title,
     required this.onTap,
     this.isShow = true,
+    this.iconColor,
+    this.titleColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: Colors.black54),
-      title: Text(title),
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: iconColor ?? Colors.black54),
+      title: Text(
+        title,
+        style: GoogleFonts.roboto(fontSize: 14, color: titleColor),
+      ),
       trailing: isShow
           ? const Icon(Icons.arrow_forward, size: 24, color: AppColors.primary)
           : null,

@@ -1,80 +1,384 @@
 import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/voice_mic_button.dart';
 import 'package:seedsuser/app/spot_hatchery/controller/spot_hatchery_controller.dart';
 import 'package:seedsuser/app/spot_hatchery/view/harchery_card_widget.dart';
-import 'package:seedsuser/app/spot_hatchery/widget/spot_hatchery_banner_widget.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
-class SpotHatcheryScreen extends StatelessWidget {
+class SpotHatcheryScreen extends StatefulWidget {
   const SpotHatcheryScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final SpotHatcheryController controller = Get.put(SpotHatcheryController());
+  State<SpotHatcheryScreen> createState() => _SpotHatcheryScreenState();
+}
 
+class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
+  final SpotHatcheryController controller = Get.put(SpotHatcheryController());
+
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+
+  // 🎤 Speech
+  late stt.SpeechToText _speech;
+  bool _isAvailable = false;
+  String _speechStatus = "notListening";
+  String fullText = "";
+
+  BuildContext? dialogContext;
+  void Function(void Function())? dialogSetState;
+
+  @override
+  void initState() {
+    super.initState();
+    _initSpeech();
+  }
+
+  Future<void> _initSpeech() async {
+    _speech = stt.SpeechToText();
+
+    try {
+      _isAvailable = await _speech.initialize(
+        onStatus: (status) {
+          print("STATUS: $status");
+          _speechStatus = status;
+          if (dialogSetState != null) {
+            dialogSetState!(() {}); // updates dialog immediately
+          }
+        },
+        onError: (error) {
+          print("ERROR: $error");
+        },
+      );
+      print("Mic available = $_isAvailable");
+    } catch (e) {
+      print("Speech init error: $e");
+    }
+  }
+
+  void startRecording() {
+    showVoiceDialog();
+  }
+
+  void startListening() {
+    if (!_isAvailable) {
+      print("Speech engine not available");
+      return;
+    }
+
+    fullText = "";
+    print("🎤 Listening started...");
+
+    _speech.listen(
+      listenMode: stt.ListenMode.dictation,
+      onResult: (result) {
+        fullText = result.recognizedWords;
+        print("Heard: $fullText");
+
+        if (fullText.isNotEmpty) {
+          stopListening(); // stop immediately when text detected
+          if (dialogContext != null&&mounted && Navigator.canPop(context)) {
+            Navigator.pop(dialogContext!);
+          } // close dialog
+          _searchController.text = fullText;
+          _searchController.text = fullText;
+          setState(() {});
+          // _applyFilters();
+        }
+
+        // If you want live update uncomment below
+        // setState(() {});
+      },
+      listenOptions: stt.SpeechListenOptions(),
+    );
+  }
+
+  // it is for storing dialogSetState
+
+  void stopListening() {
+    print("🎤 Listening stopped.");
+    _speech.stop();
+  }
+
+  void showVoiceDialog() {
+    // start listening when dialog opens
+    startListening();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            dialogSetState = setState;
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(30),
+                width: 260,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Voice assistance",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    SizedBox(height: 25),
+
+                    // MIC UI
+                    Container(
+                      height: 110,
+                      width: 110,
+                      decoration: _speechStatus == "listening"
+                          ? BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.blue.shade100,
+                                  Colors.blue.shade300,
+                                ],
+                              ),
+                            )
+                          : BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.grey.shade300,
+                            ),
+                      child: InkWell(
+                        onTap: () {
+                          startListening();
+                          setState(() {});
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.all(15),
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.blue,
+                          ),
+                          child: const Icon(
+                            Icons.mic,
+                            size: 45,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: 20),
+
+                    Text(
+                      fullText.isEmpty ? "Listening..." : fullText,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
-    
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           "Spot Hatcheries",
           style: GoogleFonts.roboto(
             color: Colors.white,
-            fontSize: 20,
+            fontSize: 17,
             fontWeight: FontWeight.bold,
           ),
         ),
       ),
-      body: Builder(
-        builder: (context) {
-          return SingleChildScrollView(
-            child: Column(
-              children: [
-                // SizedBox(height: 16),
-                // SpotHatcheryBannerWidget(),
-                SizedBox(height: 8),
-                Obx(() {
-                  if (controller.isLoading.value || controller.isError.value){
-                    return ListView.builder(
-                      physics: NeverScrollableScrollPhysics(),
-                      shrinkWrap: true,
-                      itemCount: 3,
-                      itemBuilder: (context, index) =>
-                          hatcheryCardFullShimmer(),
-                    );
-                  }
-                  return ListView.builder(
-                    physics: NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.only(bottom: 2),
-                    itemCount:
-                        controller.spotHatchery.length, // +1 for promo banner
-                    itemBuilder: (context, index) {
-                      final hatchery = controller.spotHatchery[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 6, top: 20),
-                        child: HarcheryCardWidget(spotHatchery: hatchery),
-                      );
-                    },
-                  );
-                }),
-              ],
+      body: Column(
+        children: [
+          /// 🔍 SEARCH BAR
+          // Padding(
+          //   padding: const EdgeInsets.all(16),
+          //   child: Material(
+          //     elevation: 5,
+          //     borderRadius: BorderRadius.circular(12),
+          //     child: TextField(
+          //       controller: _searchController,
+          //       focusNode: _focusNode,
+          //       onChanged: (_) => setState(() {}),
+          //       decoration: InputDecoration(
+          //         hintText: "Search hatchery...",
+          //         prefixIcon: const Icon(Icons.search),
+          //         suffixIcon: Row(
+          //           mainAxisSize: MainAxisSize.min,
+          //           children: [
+          //             if (_searchController.text.isNotEmpty)
+          //               IconButton(
+          //                 icon: const Icon(Icons.clear),
+          //                 onPressed: () {
+          //                   setState(() => _searchController.clear());
+          //                 },
+          //               ),
+          //             IconButton(
+          //               icon: const Icon(Icons.mic),
+          //               onPressed: showVoiceDialog,
+          //             ),
+          //           ],
+          //         ),
+          //         filled: true,
+          //         fillColor: Colors.white,
+          //         border: OutlineInputBorder(
+          //           borderRadius: BorderRadius.circular(12),
+          //           borderSide: BorderSide.none,
+          //         ),
+          //       ),
+          //     ),
+          //   ),
+          // ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: _buildSearchBar(
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_searchController.text.isNotEmpty)
+                    IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        setState(() => _searchController.clear());
+                      },
+                    ),
+
+                  Container(
+                    padding: EdgeInsets.only(
+                      left: 3,
+                      right: 3,
+                      bottom: 0,
+                      top: 0,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.blue),
+                    ),
+                    child: InkWell(
+                      onTap: startRecording,
+                      child: Padding(
+                        padding:  EdgeInsets.only(
+                      left: 3,
+                      right: 3,
+                      bottom: 3,
+                      top: 3,
+                    ),
+                        child: Icon(Icons.mic, color: Colors.blue, size: 30)),
+                    ),
+                  ),
+                ],
+              ),
+              controller: _searchController,
+              onMicTap: showVoiceDialog,
+              onChanged: (_) {
+                setState(() {});
+              },
             ),
-          );
-        },
+          ),
+
+          /// 📃 LIST
+          Expanded(
+            child: Obx(() {
+              if (controller.isLoading.value || controller.isError.value) {
+                return ListView.builder(
+                  itemCount: 3,
+                  itemBuilder: (_, __) => hatcheryCardFullShimmer(),
+                );
+              }
+              
+              final query = _searchController.text.trim().toLowerCase();
+
+              final filteredList = controller.spotHatchery.where((item) {
+                return query.isEmpty ||
+                    item.hatcheryName.toString().toLowerCase().contains(query);
+              }).toList();
+
+              if (filteredList.isEmpty) {
+                return const Center(
+                  child: Text(
+                    "No hatcheries found",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                itemCount: filteredList.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: HarcheryCardWidget(
+                      spotHatchery: filteredList[index],
+                    ),
+                  );
+                },
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  Widget _buildSearchBar({
+    required VoidCallback onMicTap,
+    required TextEditingController controller,
+    required ValueChanged<String> onChanged,
+    required Widget suffixIcon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEEEEE),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(width: 1,color: Color(0xffE5E7EB)),
+      ),
+      child: SizedBox(
+        height: 43,
+        child: TextField(
+          controller: controller,
+          onChanged: onChanged,
+
+          decoration: InputDecoration(
+            icon: const Icon(Icons.search, color: Colors.grey),
+            hintText: 'Search for hatcherie...',
+
+            border: InputBorder.none,
+            isDense: true,
+            suffixIcon: suffixIcon,
+          ),
+        ),
       ),
     );
   }
 }
-
-// import 'package:shimmer/shimmer.dart';
 
 Widget hatcheryCardFullShimmer() {
   return Shimmer.fromColors(

@@ -9,6 +9,7 @@ import 'package:seedsuser/app/common/custom_dropdown.dart';
 import 'package:seedsuser/app/common/custom_icon_appbar.dart';
 import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
+import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/model/brood_stock_model.dart';
@@ -65,11 +66,17 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
     return monthNames[month];
   }
 
+  final dashboardCtrl = Get.find<DashboardController>();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: CustomIconAppbar(title: "Brood Stock"),
+      backgroundColor: Colors.white,
+      appBar: CustomIconAppbar(
+        title: "Brood Stock",
+        ontapBack: () {
+          dashboardCtrl.changeIndex(0);
+        },
+      ),
       body: Obx(() {
         return CustomRefereshIndicator(
           onRefresh: () async {
@@ -123,15 +130,19 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                           BroodstockData data =
                               controller.filteredBroodStocks[index];
                           return Padding(
-                            padding: EdgeInsetsGeometry.symmetric(vertical: 5),
+                            padding: EdgeInsetsGeometry.symmetric(
+                              vertical: 5,
+                              horizontal: 10,
+                            ),
                             child: InkWell(
                               onTap: () {
                                 Get.to(
                                   HatcheryCateogryScreen(
                                     hatcheryId: controller
                                         .filteredBroodStocks[index]
-                                        .id
+                                        .hatcheryId
                                         .toString(),
+                                    // hatcheryId: '139',
                                     hatcheryName: controller
                                         .filteredBroodStocks[index]
                                         .hatcheryName
@@ -218,6 +229,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
         child: TextField(
           decoration: InputDecoration(
             icon: const Icon(Icons.search, color: Colors.grey),
+            fillColor: Color(0xffF3F4F6),
             hintText: 'Search for hatcheries...',
             border: InputBorder.none,
             suffixIcon: Container(
@@ -240,7 +252,6 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
   Widget _buildFilterSection() {
     return Row(
       children: [
-        // ✅ Category Dropdown
         Expanded(
           child: Obx(
             () => CustomDropdown<Category>(
@@ -249,10 +260,11 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                   .where(
                     (cat) =>
                         cat.categoryName.toLowerCase() == 'vannamei' ||
-                        cat.categoryName.toLowerCase() == 'syaqua',
+                        cat.categoryName.toLowerCase() == 'tiger',
                   )
                   .toList(),
               itemLabel: (cat) => cat.categoryName,
+              backgroundColor: Color(0xffF3F4F6),
               hintText: "Select Category",
               onChanged: (cat) {
                 controller.onCategoryChanged(cat);
@@ -267,6 +279,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
         Expanded(
           child: Obx(
             () => CustomDropdown<String>(
+              backgroundColor: Color(0xffF3F4F6),
               selectedValue: selectedMonthYear.value,
               items: getPastMonths(12),
               itemLabel: (month) => month,
@@ -331,7 +344,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
       // elevation: 3,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: Colors.white,
+        color: Color(0xffF9FAFB),
         border: Border.all(width: 1, color: Colors.grey.withOpacity(.1)),
         boxShadow: [BoxShadow(color: Colors.black)],
       ),
@@ -339,7 +352,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
       // shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Material(
         elevation: 1,
-        color: Colors.white,
+        color: Color(0xffF9FAFB),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
@@ -354,7 +367,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                     child: Text(
                       data.hatcheryName,
                       style: GoogleFonts.roboto(
-                        fontSize: 18,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: Colors.black,
                       ),
@@ -378,7 +391,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                 children: [
                   const Icon(
                     Icons.location_on,
-                    size: 18,
+                    size: 14,
                     color: Colors.black54,
                   ),
                   const SizedBox(width: 3),
@@ -392,9 +405,9 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                     ),
                   ),
                   Text(
-                    data.availableQuantity,
+                    data.availableQuantity.replaceAll("Pieces", ""),
                     style: GoogleFonts.roboto(
-                      fontSize: 17,
+                      fontSize: 14,
                       color: Colors.black,
                       fontWeight: FontWeight.bold,
                     ),
@@ -431,7 +444,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
 
               // Chips Row → Available + Packing (conditional)
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (data.availableOn.isNotEmpty)
                     _buildChip(
@@ -442,12 +455,12 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
 
                   // if (data.availableOn.isNotEmpty && data.packingStart.isNotEmpty)
                   //   const SizedBox(width: 10),
-                  if (data.packingStart.isNotEmpty)
-                    _buildChip(
-                      label: "${data.packingStart}",
-                      bgColor: Colors.blue.withOpacity(0.15),
-                      textColor: Colors.blue[700]!,
-                    ),
+                  // if (data.packingStart.isNotEmpty)
+                  //   _buildChip(
+                  //     label: "${data.packingStart}",
+                  //     bgColor: Colors.blue.withOpacity(0.15),
+                  //     textColor: Colors.blue[700]!,
+                  //   ),
                 ],
               ),
             ],
@@ -469,12 +482,12 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: SizedBox(
-        width: MediaQuery.of(context).size.width * .4 - 22,
+        width: MediaQuery.of(context).size.width * .6 - 22,
         child: Center(
           child: Text(
-            label,
+            label.replaceAll("Start", ""),
             style: GoogleFonts.roboto(
-              fontSize: 12,
+              fontSize: 14,
               color: textColor,
               fontWeight: FontWeight.w500,
             ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/booking/view/booking_detail_screen.dart';
+import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -17,6 +19,7 @@ class BookingReviewContent extends StatelessWidget {
       locationId,
       categoryId,
       estimatedPrice;
+  final BuildContext bottomSheetContext;
   final bool isSpotHatchery;
   const BookingReviewContent({
     super.key,
@@ -32,6 +35,7 @@ class BookingReviewContent extends StatelessWidget {
     required this.isSpotHatchery,
     required this.categoryId,
     required this.estimatedPrice,
+    required this.bottomSheetContext,
   });
 
   @override
@@ -39,7 +43,7 @@ class BookingReviewContent extends StatelessWidget {
     final controller = Get.put(MyBookingController());
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
+      padding: EdgeInsets.only(bottom: 24, left: 24, right: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -49,9 +53,13 @@ class BookingReviewContent extends StatelessWidget {
               Text(
                 'Review Bookings',
                 style: GoogleFonts.roboto(
-                  fontSize: 22,
+                  fontSize: 17,
                   fontWeight: FontWeight.bold,
                 ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(bottomSheetContext),
               ),
             ],
           ),
@@ -82,13 +90,16 @@ class BookingReviewContent extends StatelessWidget {
                       color: Colors.grey[300],
                       child: const Icon(Icons.star_border, color: Colors.green),
                     ),
+
                     const SizedBox(width: 10),
                     Text(
                       hatcheryName,
                       style: GoogleFonts.roboto(
-                        fontSize: 18,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -119,7 +130,7 @@ class BookingReviewContent extends StatelessWidget {
               onPressed: controller.isCreateLoading.value
                   ? () {}
                   : () async {
-                      bool isBookingSuccess = await controller
+                      String? isBookingId = await controller
                           .createHatcheryBooking(
                             categoryId: categoryId,
                             isSpotHatchery: isSpotHatchery,
@@ -133,12 +144,17 @@ class BookingReviewContent extends StatelessWidget {
                             packingDate: date,
                             locationId: '3', // locationId,
                           );
-
-                      if (isBookingSuccess) {
+                      if (isBookingId != null) {
                         Get.back();
-                        showSuccess(context);
+                        showSuccess(context, isBookingId);
                       }
                     },
+              verticalPadding: 9,
+              textStyle: GoogleFonts.roboto(
+                fontSize: 14,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
               text: controller.isCreateLoading.value ? "Loading..." : "Proceed",
             ),
           ),
@@ -158,7 +174,7 @@ class BookingReviewContent extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.roboto(color: Colors.grey[600], fontSize: 16),
+            style: GoogleFonts.roboto(color: Colors.grey[600], fontSize: 14),
           ),
           Flexible(
             child: Text(
@@ -167,7 +183,7 @@ class BookingReviewContent extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
               style: GoogleFonts.roboto(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -178,12 +194,14 @@ class BookingReviewContent extends StatelessWidget {
   }
 }
 
-void showSuccess(BuildContext context) {
+void showSuccess(BuildContext context, String bookingId) {
   showDialog<void>(
     context: context,
     barrierDismissible: true,
     builder: (BuildContext dialogContext) {
       return AlertDialog(
+        contentPadding: EdgeInsets.all(10),
+        backgroundColor: Colors.white,
         content: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
@@ -195,33 +213,67 @@ void showSuccess(BuildContext context) {
                 Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(width: 1,color: Colors.grey),
+                    border: Border.all(width: 1, color: Colors.grey),
                   ),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(30),
                     child: Padding(
                       padding: EdgeInsetsGeometry.all(4),
-                      child: const Icon(Icons.close)),
+                      child: const Icon(Icons.close),
+                    ),
                     onTap: () => Navigator.pop(dialogContext),
                   ),
                 ),
               ],
             ),
-            Image.asset('assets/images/SealCheck.png', height: 109, width: 109),
+            Image.asset('assets/images/SealCheck.png', height: 80, width: 80),
             const SizedBox(height: 16),
             Text(
-              'Your \nrequest was sent',
+              'Booking request\nsent',
               textAlign: TextAlign.center,
               style: GoogleFonts.roboto(
                 color: Colors.black,
-                fontSize: 18,
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             const Text(
               'We will notify your booking status \nwithin 24 Hours',
               textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14),
+            ),
+            SizedBox(height: 10),
+            SizedBox(
+              width: 160,
+              child: CustomButton(
+                verticalPadding: 8,
+                borderRadius: 20,
+                text: 'Review Booking',
+                textStyle: GoogleFonts.roboto(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+                onPressed: () async {
+                  Get.back();
+                  await Future.delayed(Duration(seconds: 1));
+                  Get.to(BookingDetailScreen(bookingId: bookingId));
+                },
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+               Get.back();
+              },
+              child: Text(
+                'Skip',
+                style: GoogleFonts.roboto(
+                  color: AppColors.primary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),

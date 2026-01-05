@@ -12,11 +12,12 @@ import '../controller/vehicle_tracking_controller.dart';
 
 class BookingDetailsScreen extends StatefulWidget {
   final String id; // API booking id
+   final String? hatcheryName;
 
   const BookingDetailsScreen({
     super.key,
     required this.id,
-    required String status,
+    required String status, this.hatcheryName,
   });
 
   @override
@@ -85,7 +86,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
       appBar: CustomAppBar(
     
         title: Text(
-          'Seven Star Hatchery',
+         widget.hatcheryName?? 'Seven Star Hatchery',
           style: GoogleFonts.roboto(
             color: Colors.white,
             fontWeight: FontWeight.w600,

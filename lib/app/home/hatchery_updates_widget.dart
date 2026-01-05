@@ -81,10 +81,12 @@ class HatcheryUpdatesWidget extends StatelessWidget {
                               0)
                         : 4,
                     itemBuilder: (context, index) {
+
                       final data = hatcheryController
                           .hatcheryHomeData
                           .value
                           ?.data[index];
+                        
                       return _buildHatcheryCard(
                         imagePath: data?.hatcheryLogo ?? '',
                         hatcheryName: data?.hatcheryName ?? '',

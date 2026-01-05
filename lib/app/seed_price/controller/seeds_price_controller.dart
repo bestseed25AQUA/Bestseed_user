@@ -34,16 +34,21 @@ class SeedsPriceController extends GetxController {
     print('=======hello==========');
     print('enter the data here');
     if (locations.isNotEmpty) {
+       final dummyCategory = <Location>[];
       try {
         bool isFound = false;
         for (var location in locations) {
-          if (location.title == "East Godavari" ||
-              location.title == "East Godawari") {
+          // if (location.title == "East Godavari" ||
+          //     location.title == "East Godawari")
+          if (location.title.toLowerCase() == "Andhra Pradesh".toLowerCase()) {
             selectedLocation.value = location;
             isFound = true;
+            locations = locations;
+            dummyCategory.add(location);
             break;
           }
         }
+        locations.value =  dummyCategory;
         if (!isFound) {
           selectedLocation.value = locations.first;
         }
@@ -54,15 +59,18 @@ class SeedsPriceController extends GetxController {
 
     /// for default category
     if (categories.isNotEmpty) {
+      final dummyCategory = <Category>[];
       try {
         bool isFound = false;
         for (var category in categories) {
-          if (category.categoryName == "Vannamei") {
+          if (category.categoryName.toLowerCase() == "Vannamei".toLowerCase() ||
+              category.categoryName.toLowerCase() == "tiger".toLowerCase()) {
             selectedCategory.value = category;
             isFound = true;
-            break;
+            dummyCategory.add(category);
           }
         }
+        categories.value = dummyCategory;
         if (!isFound) {
           selectedCategory.value = categories.first;
         }
@@ -85,10 +93,12 @@ class SeedsPriceController extends GetxController {
         final data = jsonDecode(response.body);
         print('=======================');
         print(data.toString());
-        try{
+        try {
           final List<dynamic> locList = data['locations'];
-        locations.assignAll(locList.map((e) => Location.fromJson(e)).toList());
-        }catch(e){
+          locations.assignAll(
+            locList.map((e) => Location.fromJson(e)).toList(),
+          );
+        } catch (e) {
           print(e.toString());
         }
         print('===========length===========');

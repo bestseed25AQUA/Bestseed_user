@@ -8,6 +8,7 @@ class CustomDropdown<T> extends StatefulWidget {
   final String Function(T) itemLabel;
   final Function(T) onChanged;
   final String hintText;
+  final Color? backgroundColor;
 
   const CustomDropdown({
     super.key,
@@ -16,6 +17,7 @@ class CustomDropdown<T> extends StatefulWidget {
     required this.itemLabel,
     required this.onChanged,
     required this.hintText,
+    this.backgroundColor,
   });
 
   @override
@@ -62,7 +64,6 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
               height: double.infinity,
             ),
           ),
-
           // Dropdown UI
           Positioned(
             left: offset.dx,
@@ -72,7 +73,9 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
               elevation: 6,
               borderRadius: BorderRadius.circular(10),
               child: Container(
-                height: widget.items.length > 5 ? 300 : widget.items.length * 60,
+                height: widget.items.length > 5
+                    ? 300
+                    : widget.items.length * 60,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(10),
@@ -90,7 +93,9 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
                       },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 14),
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
                         child: Text(
                           _getSafeLabel(item),
                           style: GoogleFonts.roboto(fontSize: 14),
@@ -139,9 +144,9 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
       child: InkWell(
         onTap: _toggleDropdown,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: widget.backgroundColor ?? Colors.white,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: Colors.grey.shade300),
           ),

@@ -7,6 +7,7 @@ import 'package:seedsuser/app/common/custom_icon_appbar.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
 import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/common/media_carousel_widget.dart';
+import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
@@ -42,15 +43,23 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
     }
   }
 
+  final dashboardCtrl = Get.find<DashboardController>();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomIconAppbar(title: 'Updates'),
+      appBar: CustomIconAppbar(
+        title: 'Updates',
+        ontapBack: () {
+          dashboardCtrl.changeIndex(0);
+        },
+      ),
       backgroundColor: Colors.white,
       body: CustomRefereshIndicator(
         onRefresh: () async {
           await hatcheryUpdatesController.fetchHatcheryUpdates();
         },
+
         child: SingleChildScrollView(
           physics: AlwaysScrollableScrollPhysics(),
           child: Column(
@@ -168,108 +177,116 @@ class _PostWidgetState extends State<PostWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Post Header
-          InkWell(
-            onTap: widget.ontap,
-            child: Padding(
-              padding: const EdgeInsets.all(6.0),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: Image.network(
-                        widget.postData?.profileImage ?? "",
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey.shade300,
-                            child: const Icon(Icons.person),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      (widget.postData?.hatcheryName?.isEmpty ?? true)
-                          ? Container(
-                              height: 15,
-                              width: 100,
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(.1),
-                              ),
-                            )
-                          : Text(
-                              widget.postData?.hatcheryName ?? '',
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InkWell(
+                  onTap: widget.ontap,
+                  child: Padding(
+                    padding: const EdgeInsets.all(6.0),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: Image.network(
+                              widget.postData?.profileImage ?? "",
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey.shade300,
+                                  child: const Icon(Icons.person),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            (widget.postData?.hatcheryName?.isEmpty ?? true)
+                                ? Container(
+                                    height: 15,
+                                    width: 100,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(.1),
+                                    ),
+                                  )
+                                : Text(
+                                    widget.postData?.hatcheryName ?? '',
+                                    style: GoogleFonts.roboto(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                            Text(
+                              widget.postData?.postedOn ?? '',
                               style: GoogleFonts.roboto(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                                color: Colors.grey,
+                                fontSize: 14,
                               ),
                             ),
-                      Text(
-                        widget.postData?.postedOn ?? '',
-                        style: GoogleFonts.roboto(
-                          color: Colors.grey,
-                          fontSize: 12,
+                          ],
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ],
-              ),
-            ),
-          ),
-          // Post Text
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: ReadMoreText(
-              widget.postData?.caption ?? '',
-              trimLines: 2,
-              colorClickableText: Colors.blue,
-              trimMode: TrimMode.Line,
-              trimCollapsedText: ' View More',
-              trimExpandedText: ' View Less',
-              style: GoogleFonts.roboto(fontSize: 14),
-              moreStyle: GoogleFonts.roboto(
-                fontSize: 14,
-                color: Colors.blue,
-                fontWeight: FontWeight.w500,
-              ),
-              lessStyle: GoogleFonts.roboto(
-                fontSize: 14,
-                color: Colors.blue,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: Builder(
-              builder: (context) {
-                final tags = widget.postData?.hashtags ?? [];
-                final formatted = tags.toString();
-                return Text(
-                  formatted.replaceAll('[', '').replaceAll(']', ''),
-                  style: GoogleFonts.roboto(
-                    fontSize: 14,
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
+                ),
+                // Post Text
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: ReadMoreText(
+                    widget.postData?.caption ?? '',
+                    trimLines: 2,
+                    colorClickableText: Colors.blue,
+                    trimMode: TrimMode.Line,
+                    trimCollapsedText: ' View More',
+                    trimExpandedText: ' View Less',
+                    style: GoogleFonts.roboto(fontSize: 14),
+                    moreStyle: GoogleFonts.roboto(
+                      fontSize: 14,
+                      color: Colors.blue,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    lessStyle: GoogleFonts.roboto(
+                      fontSize: 14,
+                      color: Colors.blue,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                );
-              },
+                ),
+                SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: Builder(
+                    builder: (context) {
+                      final tags = widget.postData?.hashtags ?? [];
+                      final formatted = tags.toString();
+                      return Text(
+                        formatted.replaceAll('[', '').replaceAll(']', ''),
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
+          // Post Header
           // Media Carousel
           Stack(
             alignment: Alignment.bottomCenter,
@@ -281,13 +298,12 @@ class _PostWidgetState extends State<PostWidget> {
                 decoration: BoxDecoration(color: Colors.black.withOpacity(.1)),
                 child: Builder(
                   builder: (context) {
-                    final urls =
-                        widget.postData?.mediaFiles
+                    final urls = widget.postData?.mediaFiles
                             ?.map((e) => e.toString())
-                            .toList() ??
-                        [];
+                            .toList() ?? [];
                     print(urls);
                     return MediaCarouselWidget(
+                      title: widget.postData?.hatcheryName??'',
                       mediaUrls: urls,
                       mediaType: widget.postData?.mediaType ?? "",
                       height: 350,

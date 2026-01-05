@@ -4,7 +4,8 @@ import 'package:video_player/video_player.dart';
 
 class FullScreenVideoPlayer extends StatefulWidget {
   final String videoUrl;
-  const FullScreenVideoPlayer({super.key, required this.videoUrl});
+  final String? title;
+  const FullScreenVideoPlayer({super.key, required this.videoUrl, this.title});
 
   @override
   State<FullScreenVideoPlayer> createState() => _FullScreenVideoPlayerState();
@@ -80,7 +81,7 @@ class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer> {
         : Duration.zero;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.black, 
       body: Stack(
         children: [
           Center(
@@ -122,6 +123,13 @@ class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer> {
                   size: 28,
                 ),
               ),
+            ),
+          ),
+
+            Positioned(
+            top: 50,
+            left: 80,right: 30,
+            child:Text(widget.title??'',style: TextStyle(color: Colors.white,fontSize: 17)
             ),
           ),
 

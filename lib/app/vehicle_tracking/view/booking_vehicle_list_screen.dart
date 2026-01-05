@@ -71,6 +71,7 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
           }
           return ListView.builder(
             itemCount: controller.vehicleList.length,
+            padding: EdgeInsets.symmetric(horizontal: 7),
             itemBuilder: (context, index) {
               final item = controller.vehicleList[index];
               return VehicleAvaibalityCard(
@@ -79,7 +80,6 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
                     : (item.status.toLowerCase() == 'cancelled')
                     ? Colors.red
                     : Colors.green,
-        
                 ontapViewDetails: () {
                   Navigator.push(
                     context,
@@ -87,6 +87,7 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
                       builder: (context) => BookingDetailsScreen(
                         status: item.status.toLowerCase(),
                         id: item.id,
+                        hatcheryName: item.hatcheryName
                       ),
                     ),
                   );

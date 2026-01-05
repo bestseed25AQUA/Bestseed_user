@@ -3,6 +3,7 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/full_image_screen.dart';
 import 'package:seedsuser/app/home/booking_hatchery_widget.dart';
 import 'package:seedsuser/app/home/controller/hatchery_category_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -19,7 +20,8 @@ class HatcheryCategoryDetailScreen extends StatefulWidget {
     super.key,
     required this.videoUrl,
     required this.hatcheryId,
-    required this.categoryId, required this.hatcheryName,
+    required this.categoryId,
+    required this.hatcheryName,
   });
 
   @override
@@ -40,7 +42,7 @@ class _HatcheryCategoryDetailScreenState
 
     hatcheryCategoryController.getHatcheryCategoryDetail(
       widget.hatcheryId,
-      widget.categoryId
+      widget.categoryId,
       // '50',
       // '1',
     );
@@ -60,16 +62,10 @@ class _HatcheryCategoryDetailScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: CustomAppBar(
-    
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
         title: Text(
-          "${widget.hatcheryName}",
+          widget.hatcheryName,
           style: GoogleFonts.roboto(
             color: Colors.white,
             fontSize: 20,
@@ -96,26 +92,54 @@ class _HatcheryCategoryDetailScreenState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 8),
-              HatcheryGalleryCarousel(
-                images:
-                    hatcheryCategoryController
-                        .hatcheryCategoryDetailData
-                        .value
-                        .data
-                        ?.images ??
-                    [
-                      // "https://aliceblue-wallaby-326294.hostingersite.com/uploads/hatcheries/1763032370_freshwater-crayfish-4494383_1280.jpg",
-                    ],
-              ),
+              if (detail.images != null && detail.images!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      onTap: () {
+                         Get.to(FullImageScreen(imageUrl:detail.images![0],title:  detail.hatcheryName,));
+                      },
+                      child: Image.network(
+                        detail.images![0],
+                        height: 140,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 140,
+                            width: double.infinity,
+                            color: Colors.grey.withOpacity(.3),
+                            child: const Center(
+                              child: Icon(Icons.broken_image, size: 50),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              // HatcheryGalleryCarousel(
+              //   images:
+              //       hatcheryCategoryController
+              //           .hatcheryCategoryDetailData
+              //           .value
+              //           .data
+              //           ?.images ??
+              //       [
+              //         // "https://aliceblue-wallaby-326294.hostingersite.com/uploads/hatcheries/1763032370_freshwater-crayfish-4494383_1280.jpg",
+              //       ],
+              // ),
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(20.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       detail.hatcheryName ?? "",
                       style: GoogleFonts.roboto(
-                        fontSize: 24,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -123,7 +147,7 @@ class _HatcheryCategoryDetailScreenState
                     const SizedBox(height: 10),
                     Text(
                       detail.category?.description ?? "",
-                      style: GoogleFonts.roboto(fontSize: 15, height: 1.4),
+                      style: GoogleFonts.roboto(fontSize: 14, height: 1.4),
                     ),
 
                     const SizedBox(height: 20),
@@ -164,7 +188,7 @@ class _HatcheryCategoryDetailScreenState
                             _buildInfoRow(
                               Icons.water_drop_outlined,
                               "Broodstock",
-                              "${detail.broodstock??0} Pieces",
+                              "${detail.broodstock ?? 0} Pieces",
                             ),
 
                             _buildInfoRow(
@@ -194,7 +218,7 @@ class _HatcheryCategoryDetailScreenState
                     Text(
                       "Gallery",
                       style: GoogleFonts.roboto(
-                        fontSize: 20,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -219,8 +243,9 @@ class _HatcheryCategoryDetailScreenState
                                 errorBuilder: (context, error, stackTrace) {
                                   return Container(
                                     color: Colors.grey.withOpacity(.3),
-                                     height: 108,
-                                width: 104,);
+                                    height: 108,
+                                    width: 104,
+                                  );
                                 },
                               ),
                             ),
@@ -228,10 +253,7 @@ class _HatcheryCategoryDetailScreenState
                         },
                       ),
                     ),
-
-                    const SizedBox(height: 30),
-
-                    // ⭐ Action Buttons
+ 
                     const SizedBox(height: 20),
                     Row(
                       children: [
@@ -278,7 +300,7 @@ class _HatcheryCategoryDetailScreenState
                                     ),
                                   ),
                                   child: BookingBottomSheet(
-                                    price: detail.price?.toString()??'',
+                                    price: detail.price?.toString() ?? '',
                                     categoryId: widget.categoryId,
                                     hatcheryId: detail.id.toString(),
                                     hatcheryName: detail.hatcheryName ?? '',
@@ -290,6 +312,7 @@ class _HatcheryCategoryDetailScreenState
                         ),
                       ],
                     ),
+                    SizedBox(height: 20,)
                   ],
                 ),
               ),
@@ -298,36 +321,36 @@ class _HatcheryCategoryDetailScreenState
         );
       }),
     );
-    
   }
-  
-Widget _buildInfoRow(IconData icon, String label, String value) {
-  return Row(
-    children: [
-      Icon(icon, size: 18, color: AppColors.primary),
-      const SizedBox(width: 8),
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[600]),
-          ),
-          SizedBox(
-            width: MediaQuery.of(context).size.width*.3,
-            child: Text(
-              value,
-              style: GoogleFonts.roboto(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),overflow: TextOverflow.ellipsis,
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.primary),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.roboto(fontSize: 14, color: Colors.grey[600]),
             ),
-          ),
-        ],
-      ),
-    ],
-  );
-}
+            SizedBox(
+              width: MediaQuery.of(context).size.width * .3,
+              child: Text(
+                value,
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 
   Widget _actionButton({
     required String label,
@@ -342,7 +365,7 @@ Widget _buildInfoRow(IconData icon, String label, String value) {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          height: 48,
+          height: 37,
           decoration: BoxDecoration(
             color: color,
             borderRadius: borderRadius,
@@ -359,7 +382,7 @@ Widget _buildInfoRow(IconData icon, String label, String value) {
                 label,
                 style: GoogleFonts.roboto(
                   color: textColor ?? Colors.white,
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -442,7 +465,6 @@ Future<void> _makePhoneCall(String phoneNumber) async {
     // );
   }
 }
-
 
 Widget _buildGalleryImage({required String imageUrl}) {
   return ClipRRect(

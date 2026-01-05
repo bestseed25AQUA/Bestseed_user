@@ -236,77 +236,145 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
-        titleWidget: Text(
+        automaticallyImplyLeading: true,
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: Icon(Icons.arrow_back),
+        ),
+        iconTheme: IconThemeData(color: Colors.black),
+        title: Text(
           widget.title ?? ((widget.title?.isEmpty ?? true) ? "Hatcheries" : ''),
         ),
-        backgroundColorActual: AppColors.primary,
+        backgroundColorActual: Colors.white,
         foregroundColor: Colors.white,
       ),
       body: Builder(
         builder: (contxt) {
           return Column(
             children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(height: 50, color: AppColors.primary),
-                  Positioned(
-                    bottom: -28,
-                    left: 16,
-                    right: 16,
-                    child: Material(
-                      elevation: 6,
+              // Stack(
+              //   clipBehavior: Clip.none,
+              //   children: [
+              //     Container(height: 50, color: Colors.white),
+              //     Positioned(
+              //       bottom: -28,
+              //       left: 16,
+              //       right: 16,
+              //       child: SizedBox(
+              //         height: 37,
+              //         child: Material(
+              //           elevation: 6,
+              //           borderRadius: BorderRadius.circular(12),
+              //           child: TextField(
+              //             focusNode: _focusNode,
+              //             onTapOutside: (event) {
+              //               _focusNode.unfocus();
+              //             },
+              //             onChanged: (value) {
+              //               filterHatcheryController.query = value;
+              //               filterHatcheryController.applyFilter();
+              //             },
+              //             onSubmitted: (value) {},
+              //             controller: _searchController,
+              //             decoration: InputDecoration(
+              //               filled: true,
+              //               fillColor: Colors.white,
+              //               hintText: "Search...",
+              //               prefixIcon: const Icon(Icons.search),
+              //               suffixIcon: Row(
+              //                 mainAxisSize: MainAxisSize.min,
+              //                 children: [
+              //                   if (_searchController.text.isNotEmpty)
+              //                     IconButton(
+              //                       icon: const Icon(Icons.clear),
+              //                       onPressed: () {
+              //                         setState(() => _searchController.clear());
+              //                       },
+              //                     ),
+
+              //                   VoiceMicButton(onStart: startRecording),
+              //                 ],
+              //               ),
+              //               border: OutlineInputBorder(
+              //                 borderRadius: BorderRadius.circular(12),
+              //                 borderSide: BorderSide.none,
+              //               ),
+              //             ),
+              //           ),
+              //         ),
+              //       ),
+              //     ),
+              //   ],
+              // ),
+              Container(
+                margin: const EdgeInsets.only(top: 6), // ⭐ space for top shadow
+                height: 37,
+                width: MediaQuery.of(context).size.width * .9,
+                decoration: BoxDecoration(
+                  color: Colors.white, // ⭐ MUST
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.15),
+                      offset: const Offset(0, -2), // 🔥 TOP shadow
+                      blurRadius: 6,
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.15),
+                      offset: const Offset(0, 2), // bottom shadow
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  focusNode: _focusNode,
+                  onTapOutside: (event) {
+                    _focusNode.unfocus();
+                  },
+
+                  onChanged: (value) {
+                    filterHatcheryController.query = value;
+                    filterHatcheryController.applyFilter();
+                  },
+                  onSubmitted: (value) {},
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    contentPadding: EdgeInsets.only(top: 5),
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: "Search...",
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_searchController.text.isNotEmpty)
+                          IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              setState(() => _searchController.clear());
+                            },
+                          ),
+
+                        VoiceMicButton(onStart: startRecording),
+                      ],
+                    ),
+                    border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      child: TextField(
-                        focusNode: _focusNode,
-                        onTapOutside: (event) {
-                          _focusNode.unfocus();
-                        },
-                        onChanged: (value) {
-                          filterHatcheryController.query = value;
-                          filterHatcheryController.applyFilter();
-                        },
-                        onSubmitted: (value) {},
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          hintText: "Search...",
-                          prefixIcon: const Icon(Icons.search),
-
-                          suffixIcon: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_searchController.text.isNotEmpty)
-                                IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    setState(() => _searchController.clear());
-                                  },
-                                ),
-
-                              VoiceMicButton(onStart: startRecording),
-                            ],
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
+                      borderSide: BorderSide.none,
                     ),
                   ),
-                ],
+                ),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 10),
               Obx(() {
                 if (controller.isLoading.value) {
                   return Expanded(
                     child: GridView.builder(
                       shrinkWrap: true,
-
-                      padding: const EdgeInsets.only(left: 10, right: 10),
+                      padding: const EdgeInsets.only(left: 20, right: 20),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
@@ -317,7 +385,9 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                           ),
                       itemCount: 10,
                       itemBuilder: (context, index) {
-                        return AnimatedAppearance(child: hatcheryCardGridShimmer(cardHeight));
+                        return AnimatedAppearance(
+                          child: hatcheryCardGridShimmer(cardHeight),
+                        );
                       },
                     ),
                   );
@@ -336,12 +406,19 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                   );
                 }
 
-                final list =controller.hatcherFilteredData.value.data;// filterByName();
+                final list = controller
+                    .hatcherFilteredData
+                    .value
+                    .data; // filterByName();
                 return Expanded(
                   child: AnimatedAppearance(
                     child: GridView.builder(
                       shrinkWrap: true,
-                      padding: const EdgeInsets.only(left: 10, right: 10),
+                      padding: const EdgeInsets.only(
+                        left: 20,
+                        right: 20,
+                        top: 10,
+                      ),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
@@ -460,31 +537,31 @@ Widget hatcheryCardGridShimmer(double height) {
             ],
           ),
 
-          const SizedBox(height: 10),
+          // const SizedBox(height: 10),
 
           // 🔵 TYPE ROW
-          Row(
-            children: [
-              Container(
-                height: 14,
-                width: 14,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 164, 141, 141),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          // Row(
+          //   children: [
+          //     Container(
+          //       height: 14,
+          //       width: 14,
+          //       decoration: const BoxDecoration(
+          //         shape: BoxShape.circle,
+          //         color: Colors.white,
+          //       ),
+          //     ),
+          //     const SizedBox(width: 8),
+          //     Expanded(
+          //       child: Container(
+          //         height: 14,
+          //         decoration: BoxDecoration(
+          //           color: const Color.fromARGB(255, 164, 141, 141),
+          //           borderRadius: BorderRadius.circular(4),
+          //         ),
+          //       ),
+          //     ),
+          //   ],
+          // ),
         ],
       ),
     ),

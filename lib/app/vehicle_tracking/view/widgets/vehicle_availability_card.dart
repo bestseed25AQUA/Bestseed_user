@@ -46,7 +46,7 @@ class VehicleAvaibalityCard extends StatelessWidget {
         children: [
           /// ---- ID + Date-Time Row ----
            Text(
-                "ID:$id",
+                "ID : $id",
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
               ),
           Row(
@@ -58,18 +58,19 @@ class VehicleAvaibalityCard extends StatelessWidget {
                 children: [
                   Text(
                     time,
-                    style: TextStyle(fontSize: 12, color: Colors.black87),
+                    style: TextStyle(fontSize: 14, color: Colors.black87),
                   ),
+                  SizedBox(width: 5,),
                   Text(
                     date,
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                    style: TextStyle(fontSize: 14, color: Colors.black54),
                   ),
                 ],
               ),
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 2),
 
           /// ---- Title + SubTitle + Status ----
           Row(
@@ -83,14 +84,14 @@ class VehicleAvaibalityCard extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
-                      ),
+                      ),maxLines: 1
                     ),
                     SizedBox(height: 4),
                     Text(
                       subTitle,
-                      style: TextStyle(fontSize: 13, color: Colors.black54),
+                      style: TextStyle(fontSize: 14, color: Colors.black54),
                     ),
                   ],
                 ),
@@ -98,8 +99,7 @@ class VehicleAvaibalityCard extends StatelessWidget {
 
               /// Status Button
               Container(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 4,
+                padding: const EdgeInsets.symmetric( 
                   horizontal: 12,
                 ),
                 decoration: BoxDecoration(
@@ -109,7 +109,7 @@ class VehicleAvaibalityCard extends StatelessWidget {
                 child: Text(
                   status,
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Colors.white,fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -117,7 +117,7 @@ class VehicleAvaibalityCard extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 3),
 
           Row(
             children: [
@@ -162,19 +162,19 @@ class VehicleAvaibalityCard extends StatelessWidget {
                     children: [
                       Text(
                         "Pickup location",
-                        style: TextStyle(fontSize: 13, color: Colors.black54),
+                        style: TextStyle(fontSize: 14, color: Colors.black54),
                       ),
                       SizedBox(height: 3),
                       Text(pickupLocation, style: TextStyle(fontSize: 14)),
                     ],
                   ),
-                  SizedBox(height: 20),
+                  SizedBox(height: 5),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         "Drop location",
-                        style: TextStyle(fontSize: 13, color: Colors.black54),
+                        style: TextStyle(fontSize: 14, color: Colors.black54),
                       ),
                       SizedBox(height: 3),
                       Text(dropLocation, style: TextStyle(fontSize: 14)),
@@ -185,7 +185,7 @@ class VehicleAvaibalityCard extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 18),
+          const SizedBox(height:6),
 
           /// ---- Quantity ----
           Row(
@@ -206,7 +206,7 @@ class VehicleAvaibalityCard extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 18),
+          const SizedBox(height: 6),
 
           /// ---- View Details ----
           InkWell(
@@ -217,6 +217,7 @@ class VehicleAvaibalityCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color:   Color(0xffF2F2F2),
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(width: 1,color: Colors.grey)
               ),
               alignment: Alignment.center,
               child: Text(

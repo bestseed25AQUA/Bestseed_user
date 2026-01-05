@@ -573,7 +573,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                                     closedBuilder: (context, action) {
                                       return Image.asset(
                                         'assets/images/lan_image.png',
-                                        height: 32,
+                                        height: 25,
                                       );
                                     },
                                     openBuilder: (context, action) {
@@ -593,7 +593,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                                     closedBuilder: (context, action) {
                                       return Image.asset(
                                         'assets/images/notification.png',
-                                        height: 32,
+                                        height: 25,
                                       );
                                     },
                                     openBuilder: (context, action) {
@@ -613,7 +613,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                                     closedBuilder: (context, action) {
                                       return Image.asset(
                                         'assets/images/person.png',
-                                        height: 32,
+                                        height: 25,
                                       );
                                     },
                                     openBuilder: (context, action) {

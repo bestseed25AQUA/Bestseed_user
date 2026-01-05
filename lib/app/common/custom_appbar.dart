@@ -21,11 +21,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final double toolbarHeight;
   final IconThemeData? iconTheme;
   final TextTheme? textTheme;
-  final Brightness? brightness; 
+  final Brightness? brightness;
+  final double? titlePaddingFromTop;
 
   const CustomAppBar({
     super.key,
-    this.title,this.titleString,
+    this.title,
+    this.titleString,
     this.centerTitle = false,
     this.leading,
     this.actions,
@@ -40,7 +42,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.textTheme,
     this.foregroundColor,
     this.titleWidget,
-    this.brightness, this.backgroundColorActual,
+    this.brightness,
+    this.backgroundColorActual, this.titlePaddingFromTop,
   });
 
   @override
@@ -49,26 +52,33 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     return AppBar(
       title:
-          titleWidget ??
-          Text(
-           titleString?? myText,
-            style: GoogleFonts.roboto(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
+          Padding(
+            padding: EdgeInsetsGeometry.only(top:titlePaddingFromTop?? 0),
+            child: titleWidget ??
+            Text(
+              titleString ?? myText,
+              style: GoogleFonts.roboto(
+                color: Colors.black,fontSize:17,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
+      
+      leading:leading==null?null: Padding(
+            padding: EdgeInsetsGeometry.only(top:titlePaddingFromTop?? 0),child:  leading),
       centerTitle: centerTitle,
       // leading: leading,
       // leading: ,
       actions: actions,
       elevation: elevation,
-      backgroundColor: backgroundColorActual?? Colors.white,
+      
+      backgroundColor: backgroundColorActual ?? Colors.white,
       bottom: bottom,
       automaticallyImplyLeading: automaticallyImplyLeading,
       shape: shape,
-      titleSpacing: titleSpacing,
+      titleSpacing: titleSpacing??0,
       toolbarHeight: toolbarHeight,
-      iconTheme: iconTheme,
+      iconTheme: iconTheme??IconThemeData(color: Colors.black),
       foregroundColor: foregroundColor,
     );
   }

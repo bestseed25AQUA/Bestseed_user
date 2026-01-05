@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/animated_view_custom.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/controller/my_booking_controller.dart';
 import 'package:seedsuser/app/booking/view/booking_detail_screen.dart';
-import 'package:seedsuser/app/common/app_color.dart';
-import 'package:seedsuser/app/common/custom_network_image.dart';
 import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 import 'package:seedsuser/app/model/my_booking_model.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
-import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/vehicle_tracking_screen.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class MyBookingScreen extends StatefulWidget {
   const MyBookingScreen({super.key});
@@ -29,7 +26,186 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
   @override
   void initState() {
     super.initState();
+
+    _initSpeech();
     controller.fetchBookings();
+
+    _scrollController.addListener(() {
+      if (_scrollController.position.atEdge) {
+        if (_scrollController.position.pixels != 0) {
+          controller.loadMore();
+        }
+      }
+    });
+  }
+
+  final ScrollController _scrollController = ScrollController();
+
+  //// voice
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+
+  // 🎤 Speech
+  late stt.SpeechToText _speech;
+  bool _isAvailable = false;
+  String _speechStatus = "notListening";
+  String fullText = "";
+
+  BuildContext? dialogContext;
+  void Function(void Function())? dialogSetState;
+
+  Future<void> _initSpeech() async {
+    _speech = stt.SpeechToText();
+
+    try {
+      _isAvailable = await _speech.initialize(
+        onStatus: (status) {
+          print("STATUS: $status");
+          _speechStatus = status;
+          if (dialogSetState != null) {
+            dialogSetState!(() {}); // updates dialog immediately
+          }
+        },
+        onError: (error) {
+          print("ERROR: $error");
+        },
+      );
+      print("Mic available = $_isAvailable");
+    } catch (e) {
+      print("Speech init error: $e");
+    }
+  }
+
+  void startRecording() {
+    showVoiceDialog();
+  }
+
+  void startListening() {
+    if (!_isAvailable) {
+      print("Speech engine not available");
+      return;
+    }
+
+    fullText = "";
+    print("🎤 Listening started...");
+
+    _speech.listen(
+      listenMode: stt.ListenMode.dictation,
+      onResult: (result) {
+        fullText = result.recognizedWords;
+        print("Heard: $fullText");
+
+        if (fullText.isNotEmpty) {
+          stopListening(); // stop immediately when text detected
+
+          if (dialogContext != null && mounted && Navigator.canPop(context)) {
+            Navigator.pop(dialogContext!);
+          } // close dialog
+          _searchController.text = fullText;
+          _searchController.text = fullText;
+          setState(() {});
+          // _applyFilters();
+        }
+
+        // If you want live update uncomment below
+        // setState(() {});
+      },
+      listenOptions: stt.SpeechListenOptions(),
+    );
+  }
+
+  // it is for storing dialogSetState
+
+  void stopListening() {
+    print("🎤 Listening stopped.");
+    _speech.stop();
+  }
+
+  void showVoiceDialog() {
+    // start listening when dialog opens
+    startListening();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            dialogSetState = setState;
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(30),
+                width: 260,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Voice assistance",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    SizedBox(height: 25),
+
+                    // MIC UI
+                    Container(
+                      height: 110,
+                      width: 110,
+                      decoration: _speechStatus == "listening"
+                          ? BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.blue.shade100,
+                                  Colors.blue.shade300,
+                                ],
+                              ),
+                            )
+                          : BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.grey.shade300,
+                            ),
+                      child: InkWell(
+                        onTap: () {
+                          startListening();
+                          setState(() {});
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.all(15),
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.blue,
+                          ),
+                          child: const Icon(
+                            Icons.mic,
+                            size: 45,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: 20),
+
+                    Text(
+                      fullText.isEmpty ? "Listening..." : fullText,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void applyFilter(String filter) async {
@@ -393,21 +569,21 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
             ),
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: Size(double.infinity, 60),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-            child: Row(
-              children: [
-                buildFilterChip("All"),
-                const SizedBox(width: 10),
-                buildFilterChip("Hatchery"),
-                const SizedBox(width: 10),
-                buildFilterChip("Spot Hatchery"),
-              ],
-            ),
-          ),
-        ),
+        // bottom: PreferredSize(
+        //   preferredSize: Size(double.infinity, 60),
+        //   child: Padding(
+        //     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        //     child: Row(
+        //       children: [
+        //         buildFilterChip("All"),
+        //         const SizedBox(width: 10),
+        //         buildFilterChip("Hatchery"),
+        //         const SizedBox(width: 10),
+        //         buildFilterChip("Spot Hatchery"),
+        //       ],
+        //     ),
+        //   ),
+        // ),
       ),
       body: Builder(
         builder: (context) {
@@ -442,48 +618,141 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                   ),
                 );
               }
-              return ListView.builder(
-                shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 15,
-                ),
-                itemCount: controller.bookingList.length,
-                itemBuilder: (context, index) {
-                  final booking = controller.bookingList[index];
-                  return _buildBookingCard(
-                    booking,
-                    () {
-                      Get.to(
-                        BookingDetailScreen(
-                          bookingId: booking.bookingId.toString(),
-                        ),
-                      );
-                    },
-                    () {
-                      Navigator.push(
-                        context,
-                        PageRouteBuilder(
-                          transitionDuration: const Duration(
-                            milliseconds: 600,
-                          ), // smooth
-                          reverseTransitionDuration: const Duration(
-                            milliseconds: 600,
+
+              final query = _searchController.text.trim().toLowerCase();
+
+              final filteredList = controller.bookingList.where((item) {
+                return query.isEmpty ||
+                    item.hatcheryName.toString().toLowerCase().contains(query);
+              }).toList();
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: _buildSearchBar(
+                      focusNode: _focusNode,
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_searchController.text.isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                setState(() => _searchController.clear());
+                              },
+                            ),
+
+                          Container(
+                            padding: EdgeInsets.only(
+                              left: 3,
+                              right: 3,
+                              bottom: 0,
+                              top: 0,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.blue),
+                            ),
+                            child: InkWell(
+                              onTap: startRecording,
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                  left: 3,
+                                  right: 3,
+                                  bottom: 3,
+                                  top: 3,
+                                ),
+                                child: Icon(
+                                  Icons.mic,
+                                  color: Colors.blue,
+                                  size: 30,
+                                ),
+                              ),
+                            ),
                           ),
-                          pageBuilder: (_, __, ___) => HatcheryCateogryScreen(
-                            hatcheryId: booking.hatcheryId.toString(),
-                            hatcheryName: booking.hatcheryName.toString(),
-                            tag: 'Booking$index',
-                          ),
-                        ),
+                        ],
+                      ),
+                      controller: _searchController,
+                      onMicTap: showVoiceDialog,
+                      onChanged: (_) {
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: Obx(() {
+                      return ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount:
+                            controller.bookingList.length +
+                            (controller.hasMore ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index < controller.bookingList.length) {
+                            final booking = controller.bookingList[index];
+                            return _buildBookingCard(booking, () {
+                              Get.to(
+                                BookingDetailScreen(
+                                  hatcheryName: booking.hatcheryName,
+                                  bookingId: booking.bookingId.toString(),
+                                ),
+                              );
+                            }, () {});
+                          } else {
+                            // LOAD MORE LOADER
+                            if (index == controller.bookingList.length) {
+                              return const Padding(
+                                padding: EdgeInsets.all(16),
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            }
+                          }
+                        },
                       );
-                    },
-                  );
-                },
+                    }),
+                  ),
+                ],
               );
             }),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSearchBar({
+    required VoidCallback onMicTap,
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required ValueChanged<String> onChanged,
+    required Widget suffixIcon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEEEEE),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(width: 1, color: Color(0xffE5E7EB)),
+      ),
+      child: SizedBox(
+        height: 43,
+        child: TextField(
+          focusNode: focusNode,
+          controller: controller,
+          onChanged: onChanged,
+          onTapOutside: (event) {
+            focusNode.unfocus();
+          },
+          decoration: InputDecoration(
+            icon: const Icon(Icons.search, color: Colors.grey),
+            hintText: 'Search for hatcherie...',
+            border: InputBorder.none,
+            isDense: true,
+            suffixIcon: suffixIcon,
+          ),
+        ),
       ),
     );
   }
@@ -555,11 +824,18 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                data.isSpot?.value == 1 ? "Spot Hatchery" : 'Hatchery',
-                style: GoogleFonts.roboto(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+              Container(
+                padding: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+                decoration: BoxDecoration(
+                  color: Color(0xffEEF2FF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  data.isSpot?.value == 1 ? "Spot Hatchery" : 'Hatchery',
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               // Status Badge
@@ -579,7 +855,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                   child: Text(
                     (status.toString()).capitalizeFirst ?? '',
                     style: GoogleFonts.roboto(
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: statusColor,
                     ),
@@ -627,7 +903,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                 child: Text(
                   data.deliveryDatetime,
                   style: GoogleFonts.roboto(
-                    fontSize: 13,
+                    fontSize: 14,
                     color: Colors.grey.shade700,
                     fontWeight: FontWeight.w500,
                   ),
@@ -642,7 +918,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
           Text(
             data.hatcheryName,
             style: GoogleFonts.roboto(
-              fontSize: 17,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -734,7 +1010,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                       ? "Try Again"
                       : "View Details",
                   style: GoogleFonts.roboto(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Colors.grey.shade800,
                   ),

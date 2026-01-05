@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
+import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/home/controller/hatchery_category_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/harchery_details_screen.dart';
@@ -39,7 +40,7 @@ class HatcheryWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(bottom: 0),
+            padding: const EdgeInsets.only(left: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -153,6 +154,7 @@ class HatcheryCard extends StatelessWidget {
       onTap:
           ontap ??
           () {
+             
             print('HatcheryCard$index');
             print('ontap ok');
             Navigator.push(
@@ -177,9 +179,15 @@ class HatcheryCard extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: const Color(0xff000000).withOpacity(.16),
-              blurRadius: 22,
+              blurRadius: 2,
               spreadRadius: 0,
-              offset: const Offset(0, 8),
+              offset: const Offset(0, 3),
+            ),
+             BoxShadow(
+              color: const Color(0xff000000).withOpacity(.16),
+              blurRadius: 2,
+              spreadRadius: 0,
+              offset: const Offset(0, -3),
             ),
           ],
         ),
@@ -200,7 +208,7 @@ class HatcheryCard extends StatelessWidget {
                     child: Image.network(
                       imagePath,
                       width: double.infinity,
-                      height: imgHeight,
+                      height: imgHeight-10,
                       fit: BoxFit.cover,
                       errorBuilder: (c, e, s) =>
                           SizedBox(height: imgHeight, child: CustomShimmer()),
@@ -253,12 +261,12 @@ class HatcheryCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.roboto(
-                fontSize: scaleText(15),
+                fontSize:14,
                 fontWeight: FontWeight.w600,
               ),
             ),
 
-            SizedBox(height: screenHeight * 0.006),
+            // SizedBox(height: screenHeight * 0.006),
 
             // Location Row
             Row(
@@ -284,7 +292,7 @@ class HatcheryCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.roboto(
-                      fontSize: scaleText(12),
+                      fontSize: 14,
                       color: Colors.grey,
                     ),
                   ),
@@ -292,7 +300,7 @@ class HatcheryCard extends StatelessWidget {
               ],
             ),
 
-            SizedBox(height: screenHeight * 0.006),
+            SizedBox(height: screenHeight * 0.004),
 
             // Type Row
             Row(
@@ -318,7 +326,7 @@ class HatcheryCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.roboto(
-                      fontSize: scaleText(12),
+                      fontSize: 14,
                       color: Colors.grey,
                     ),
                   ),

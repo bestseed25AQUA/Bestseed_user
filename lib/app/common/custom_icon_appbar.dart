@@ -12,25 +12,35 @@ class CustomIconAppbar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.title,
     this.bottom,
-    this.toolbarHeight = kToolbarHeight,
+    this.toolbarHeight = kToolbarHeight, this.ontapBack,
   });
 
   final String title;
 
   final PreferredSizeWidget? bottom;
   final double toolbarHeight;
+  final Function()? ontapBack;
 
   @override
   Widget build(BuildContext context) {
     return CustomAppBar(
       automaticallyImplyLeading: false,
-      title: Text(
+      leading: IconButton(icon: Icon(Icons.arrow_back,color: Colors.black,), onPressed: ontapBack,),
+      titleWidget: Text(
         title,
         style: GoogleFonts.roboto(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
+          color: Colors.black,
+          fontWeight: FontWeight.bold,fontSize: 17
         ),
       ),
+      titleSpacing: 0,
+      // titleWidget: Text(
+      //   title,
+      //   style: GoogleFonts.roboto(
+      //     color: Colors.white,
+      //     fontWeight: FontWeight.bold,fontSize: 15
+      //   ),
+      // ),
       actions: [
         OpenContainer(
           closedElevation: 0,
@@ -45,7 +55,7 @@ class CustomIconAppbar extends StatelessWidget implements PreferredSizeWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.grey),
               ),
-              child: Image.asset('assets/images/lan_image.png', height: 28),
+              child: Image.asset('assets/images/lan_image.png', height: 24),
             );
           },
           openBuilder: (context, action) {
@@ -66,7 +76,7 @@ class CustomIconAppbar extends StatelessWidget implements PreferredSizeWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.grey),
               ),
-              child: Image.asset('assets/images/notification.png', height: 28),
+              child: Image.asset('assets/images/notification.png', height: 24),
             );
           },
           openBuilder: (context, action) {
@@ -87,7 +97,7 @@ class CustomIconAppbar extends StatelessWidget implements PreferredSizeWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.grey),
               ),
-              child: Image.asset('assets/images/person.png', height: 28),
+              child: Image.asset('assets/images/person.png', height: 24),
             );
           },
           openBuilder: (context, action) {

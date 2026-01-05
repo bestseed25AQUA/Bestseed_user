@@ -84,6 +84,7 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final Widget gap = const SizedBox(height: 0);
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
@@ -91,7 +92,7 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -99,7 +100,7 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -108,17 +109,17 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
                 label: "Name",
                 hint: "Enter your name",
                 controller: _nameController,
-                icon: Icons.person_outline,
+                // icon: Icons.person_outline,
                 validator: (v) => v!.isEmpty ? "Please enter your name" : null,
               ),
-              const SizedBox(height: 16),
+              gap,
 
               // PHONE
               _buildTextFormField(
                 label: "Phone number",
                 hint: "Enter your Phone number",
                 controller: _phoneController,
-                icon: Icons.phone_android,
+                // icon: Icons.phone_android,
                 keyboardType: TextInputType.phone,
                 inputFormatters: [
                   LengthLimitingTextInputFormatter(10),
@@ -127,13 +128,13 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
                 validator: (v) =>
                     v!.isEmpty ? "Please enter phone number" : null,
               ),
-              const SizedBox(height: 16),
+              gap,
 
               // CATEGORY
               Text(
                 "Categories",
                 style: GoogleFonts.roboto(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -148,13 +149,14 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
                   setState(() => _selectedCategory = v);
                 },
               ),
-              const SizedBox(height: 16),
+              gap,
 
+              const SizedBox(height: 8),
               // BRANDS
               Text(
                 "Brands",
                 style: GoogleFonts.roboto(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -169,8 +171,9 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
                   setState(() => _selectedBrand = v);
                 },
               ),
-              const SizedBox(height: 16),
+              gap,
 
+              const SizedBox(height: 8),
               // PIECES
               _buildTextFormField(
                 label: "No.of Pieces",
@@ -181,19 +184,19 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
                 validator: (v) =>
                     v!.isEmpty ? "Please enter number of pieces" : null,
               ),
-              const SizedBox(height: 16),
+              gap,
 
+              const SizedBox(height: 8),
               // DROPPING LOCATION (TEXTFIELD ONLY)
               _buildTextFormField(
                 label: "Dropping location",
                 hint: "Enter your Dropping location",
                 controller: _deliveryController,
-                icon: Icons.location_on_outlined,
+                // icon: Icons.location_on_outlined,
                 validator: (v) =>
                     v!.isEmpty ? "Please enter dropping location" : null,
               ),
-              const SizedBox(height: 16),
-
+              gap,
               // PACKING DATE
               GestureDetector(
                 onTap: () => _selectDate(context),
@@ -202,32 +205,35 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
                     label: "Packing Date",
                     hint: _packingDate,
                     icon: Icons.calendar_today,
+                    vericalPadding: 0,
                     readOnly: true,
                   ),
                 ),
+              ), 
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: 16,right: 16,
+                  top: 10,bottom: 30
+                ),
+                child: Obx(() {
+                  return SizedBox(
+                    height: 40,
+                    child: CustomButton(
+                      verticalPadding: 0,
+                      text: controller.isBooking.value
+                          ? "Please wait..."
+                          : "Send request",
+                      isLoading: controller.isBooking.value,
+                      onPressed: controller.isBooking.value
+                          ? () {}
+                          : () => _submitForm(),
+                    ),
+                  );
+                }),
               ),
-              const SizedBox(height: 32),
             ],
           ),
         ),
-      ),
-
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Obx(() {
-          return SizedBox(
-            height: 50,
-            child: CustomButton(
-              text: controller.isBooking.value
-                  ? "Please wait..."
-                  : "Send request",
-              isLoading: controller.isBooking.value,
-              onPressed: controller.isBooking.value
-                  ? () {}
-                  : () => _submitForm(),
-            ),
-          );
-        }),
       ),
     );
   }
@@ -243,47 +249,57 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
     TextInputType keyboardType = TextInputType.text,
     List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
+    double? vericalPadding,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.bold),
+          style: GoogleFonts.roboto(fontSize: 14, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
 
         TextFormField(
           controller: controller,
           readOnly: readOnly,
-
           onTap: onTap,
           keyboardType: keyboardType,
           inputFormatters: inputFormatters,
           validator: validator,
+
           decoration: InputDecoration(
+            // IMPORTANT FOR HEIGHT + ERROR
+            isDense: true,
+            helperText: ' ', // reserves space for error
             hintText: hint,
             suffixIcon: icon != null ? Icon(icon, color: Colors.grey) : null,
             filled: true,
             fillColor: Colors.white,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: vericalPadding ?? 8, //  controls field height
+            ),
+
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(color: Colors.grey.withOpacity(.4)),
-              
-            ),
-            focusedBorder:OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.withOpacity(.4)),
-              
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(color: Colors.grey.withOpacity(.4)),
-              
             ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey.withOpacity(.6)),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.red),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.red),
             ),
           ),
         ),

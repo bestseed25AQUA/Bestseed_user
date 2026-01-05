@@ -5,10 +5,12 @@ import 'package:seedsuser/app/common/app_color.dart';
 
 class CustomButton extends StatelessWidget {
   final String text;
+  final TextStyle? textStyle;
   final VoidCallback onPressed;
   final bool isLoading;
   final double borderRadius;
   final Color backgroundColor;
+  final double? verticalPadding; 
 
   const CustomButton({
     super.key,
@@ -16,7 +18,8 @@ class CustomButton extends StatelessWidget {
     required this.onPressed,
     this.isLoading = false,
     this.borderRadius = 8.0,
-    this.backgroundColor = AppColors.primary,
+    this.backgroundColor = AppColors.primary, this.textStyle,
+    this.verticalPadding
   });
 
   @override
@@ -26,7 +29,7 @@ class CustomButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(borderRadius),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 15),
+        padding:  EdgeInsets.symmetric(vertical:verticalPadding?? 15),
         decoration: BoxDecoration(
           color: isLoading ? backgroundColor.withOpacity(0.6) : backgroundColor,
           borderRadius: BorderRadius.circular(borderRadius),
@@ -44,7 +47,7 @@ class CustomButton extends StatelessWidget {
             : Text(
                 text,
                 style: GoogleFonts.roboto(
-                  fontSize: 16,
+                  fontSize: 14,
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),

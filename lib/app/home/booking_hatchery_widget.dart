@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
+import 'package:seedsuser/app/common/custom_dropdown.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/home/booking_review_widget.dart';
 import 'package:seedsuser/app/home/map_search_screen.dart';
@@ -46,15 +47,16 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
   final TextEditingController _piecesController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
 
-  String? _selectedUnit;
-  String? _selectedPickupLocation;
+  // String? _selectedUnit;
+  // String? _selectedPickupLocation;
+  String? _selectedSalinity;
 
-  final List<String> _units = ["Unit 1", "Unit 2"];
-  final List<String> _locations = ["Location A", "Location B"];
+  // final List<String> _units = ["Unit 1", "Unit 2"];
+  // final List<String> _locations = ["Location A", "Location B"];
+  final List<String> _salinity = List.generate(41, (index) => '$index');
 
-  
   Position? currentPosition;
-   getCurrentLocation() async {
+  getCurrentLocation() async {
     currentPosition = await _getCurrentLocation();
   }
 
@@ -130,11 +132,14 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "Booking at Seven star\nHatcheries.",
-                  style: GoogleFonts.roboto(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+                SizedBox(
+                  width: MediaQuery.of(context).size.width*.7,
+                  child: Text(
+                    "Booking at \n${widget.hatcheryName}",
+                    style: GoogleFonts.roboto(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 IconButton(
@@ -148,9 +153,11 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               controller: _nameController,
               label: "Name",
               hint: "Enter your name",
+              isMendatory: true,
               icon: Icons.person,
             ),
             _buildTextField(
+              isMendatory: true,
               controller: _phoneController,
               label: "Phone number",
               hint: "Enter your Phone number",
@@ -174,6 +181,18 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               icon: Icons.format_list_numbered,
               keyboardType: TextInputType.name,
             ),
+            _buildDropdownField(
+              label: "Salinity",
+              hint: "Select salinity",
+              value: _selectedSalinity,
+              items: _salinity,
+              onChanged: (v) {
+                setState(() {
+                  _selectedSalinity = v;
+                });
+              },
+            ),
+
             _buildTextField(
               controller: _piecesController,
               label: "No.of Pieces",
@@ -205,20 +224,22 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
             ),
             _buildTextField(
               controller: _dropLocController,
+              iconColor: Colors.blue,
               label: "Dropping location",
               hint: "Enter your Dropping location",
-              icon: Icons.location_on,
+              icon: Icons.location_on_outlined,
               ontapSuffix: () async {
-                  print(currentPosition?.latitude);
-                  print(currentPosition?.longitude); 
-                  // return;
-                  if (currentPosition == null ||
-                      currentPosition?.latitude == null ||
-                      currentPosition?.longitude == null) {
-                    currentPosition = await getCurrentLocation();
-                  }
-                  if(currentPosition?.latitude != null && currentPosition?.longitude != null) {
-                    await Get.to(
+                print(currentPosition?.latitude);
+                print(currentPosition?.longitude);
+                // return;
+                if (currentPosition == null ||
+                    currentPosition?.latitude == null ||
+                    currentPosition?.longitude == null) {
+                  currentPosition = await getCurrentLocation();
+                }
+                if (currentPosition?.latitude != null &&
+                    currentPosition?.longitude != null) {
+                  await Get.to(
                     () => GoogleMapSearchPlacesScreen(
                       latitude: currentPosition!.latitude,
                       longitude: currentPosition!.longitude,
@@ -247,30 +268,27 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                       },
                     ),
                   );
-                  }
-                },
-              
+                }
+              },
             ),
-            // _buildDropdownField(
-            //   label: "Dropping location",
-            //   hint: "Select your pickup location",
-            //   value: _selectedPickupLocation,
-            //   items: _locations,
-            //   onChanged: (v) {
-            //     setState(() => _selectedPickupLocation = v);
-            //   },
-            // ),
+
             _buildDateField(
               controller: _dateController,
               label: "Preferred date",
               hint: "DD/MM/YYYY",
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 15),
             SizedBox(
               width: double.infinity,
-              height: 50,
+              height: 42,
               child: CustomButton(
-                onPressed: () {
+                verticalPadding: 0,
+                textStyle: GoogleFonts.roboto(
+                  fontSize: 14,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+                onPressed: () {  
                   if (kDebugMode) {
                     print('validation here');
                   }
@@ -318,6 +336,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                 text: "Confirm Booking",
               ),
             ),
+            const SizedBox(height: 15),
           ],
         ),
       ),
@@ -339,9 +358,9 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.9,
-          minChildSize: 0.9,
-          maxChildSize: 0.9,
+          initialChildSize: 0.8,
+          minChildSize: 0.8,
+          maxChildSize: 0.8,
           builder: (context, scrollController) {
             return Container(
               decoration: const BoxDecoration(
@@ -359,17 +378,18 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  Align(
-                    alignment: Alignment.topRight,
-                    child: IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
+                  // Align(
+                  //   alignment: Alignment.topRight,
+                  //   child: IconButton(
+                  //     icon: const Icon(Icons.close),
+                  //     onPressed: () => Navigator.pop(context),
+                  //   ),
+                  // ),
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
                       child: BookingReviewContent(
+                        bottomSheetContext: context,
                         estimatedPrice: estimatePrice ?? "",
                         categoryId: widget.categoryId,
                         isSpotHatchery: isSpotHatchery,
@@ -399,8 +419,10 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     required String label,
     required String hint,
     VoidCallback? ontapSuffix,
+    bool? isMendatory = false,
     required IconData icon,
-    
+    Color? iconColor,
+
     TextInputType keyboardType = TextInputType.text,
     int? maxLength,
   }) {
@@ -409,33 +431,61 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: GoogleFonts.roboto(
-              fontWeight: FontWeight.w500,
-              fontSize: 16,
+          RichText(
+            text: TextSpan(
+              text: label,
+              style: GoogleFonts.roboto(
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                color: Colors.black,
+              ),
+              children: (isMendatory ?? false)
+                  ? [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red, fontSize: 14),
+                      ),
+                    ]
+                  : [
+                      TextSpan(
+                        text: '',
+                        style: TextStyle(color: Colors.red, fontSize: 14),
+                      ),
+                    ],
             ),
           ),
-          const SizedBox(height: 8),
-          TextField(
-            maxLength: maxLength,
-            controller: controller,
-            keyboardType: keyboardType,
-            decoration: InputDecoration(
-              counter: SizedBox(),
-              hintText: hint,
-              suffixIcon: InkWell(
-                onTap: ontapSuffix,
-                child: Icon(icon, color: Colors.grey)),
-              filled: true,
-              fillColor: Colors.grey[100],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
+          // Text(
+          //   label,
+          //   style: GoogleFonts.roboto(
+          //     fontWeight: FontWeight.w500,
+          //     fontSize: 14,
+          //   ),
+          // ),
+          const SizedBox(height: 4),
+          SizedBox(
+            height: 35,
+            child: TextField(
+              maxLength: maxLength,
+              controller: controller,
+              keyboardType: keyboardType,
+              decoration: InputDecoration(
+                counter: SizedBox(),
+                hintText: hint,
+                hintStyle: TextStyle(fontSize: 14),
+                suffixIcon: InkWell(
+                  onTap: ontapSuffix,
+                  child: Icon(icon, color: iconColor ?? Colors.grey),
+                ),
+                filled: true,
+                fillColor: Colors.grey[100],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
@@ -451,6 +501,35 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     required List<String> items,
     required ValueChanged<String?> onChanged,
   }) {
+  
+  return  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Salinity",
+                        style: GoogleFonts.roboto(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 38, // 👈 exact height control
+                        child: CustomDropdown<String>(
+                          selectedValue: _selectedSalinity,
+                          items: _salinity,
+                          hintText: "Select salinity",
+                          backgroundColor: Colors.grey[100],
+                          itemLabel: (item) => item,
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedSalinity = value;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
@@ -460,26 +539,38 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
             label,
             style: GoogleFonts.roboto(
               fontWeight: FontWeight.w500,
-              fontSize: 16,
+              fontSize: 14,
             ),
           ),
           const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            height: 35,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
             decoration: BoxDecoration(
               color: Colors.grey[100],
               borderRadius: BorderRadius.circular(8),
             ),
-            child: DropdownButtonFormField<String>(
-              decoration: const InputDecoration(border: InputBorder.none),
-              hint: Text(hint),
-              value: value,
-              items: items
-                  .map(
-                    (item) => DropdownMenuItem(value: item, child: Text(item)),
-                  )
-                  .toList(),
-              onChanged: onChanged,
+            child:
+             Center(
+              child: DropdownButtonFormField<String>(
+                isDense: true, isExpanded: true,
+                padding: EdgeInsets.all(0),
+                initialValue: items.contains(value) ? value : null,
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                 contentPadding: EdgeInsets.only(bottom: 13),
+                ),
+                hint: Text(hint),
+                items: items
+                    .map(
+                      (item) => DropdownMenuItem<String>(
+                        value: item,
+                        child: Text(item),
+                      ),
+                    )
+                    .toList(),
+                onChanged: onChanged,
+              ),
             ),
           ),
         ],
@@ -501,36 +592,43 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
             label,
             style: GoogleFonts.roboto(
               fontWeight: FontWeight.w500,
-              fontSize: 16,
+              fontSize: 14,
             ),
           ),
           const SizedBox(height: 8),
-          TextField(
-            controller: controller,
-            readOnly: true,
-            onTap: () async {
-              DateTime? picked = await showDatePicker(
-                context: context,
-                initialDate: DateTime.now(),
-                firstDate: DateTime.now(),
-                lastDate: DateTime(2101),
-              );
-              if (picked != null)
-                controller.text =
-                    "${picked.day}/${picked.month}/${picked.year}";
-            },
-            decoration: InputDecoration(
-              hintText: hint,
-              suffixIcon: const Icon(Icons.calendar_today, color: Colors.grey),
-              filled: true,
-              fillColor: Colors.grey[100],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
+          SizedBox(
+            height: 35,
+            child: TextField(
+              controller: controller,
+              readOnly: true,
+              onTap: () async {
+                DateTime? picked = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime(2101),
+                );
+                if (picked != null)
+                  controller.text =
+                      "${picked.day}/${picked.month}/${picked.year}";
+              },
+              decoration: InputDecoration(
+                hintStyle: TextStyle(fontSize: 14),
+                hintText: hint,
+                suffixIcon: const Icon(
+                  Icons.calendar_today,
+                  color: Colors.grey,
+                ),
+                filled: true,
+                fillColor: Colors.grey[100],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ),

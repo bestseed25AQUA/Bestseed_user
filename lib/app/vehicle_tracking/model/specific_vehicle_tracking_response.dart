@@ -18,10 +18,10 @@ class SpecificVehicleTrackingResponse {
   }
 
   Map<String, dynamic> toJson() => {
-        "status": status,
-        "message": message,
-        "data": data?.toJson(),
-      };
+    "status": status,
+    "message": message,
+    "data": data?.toJson(),
+  };
 }
 
 // ------------------------------------------------------------
@@ -35,26 +35,31 @@ class TrackingData {
   final LocationPoint drop;
   final LocationPoint driverLocation;
 
-  final DriverDetails driverDetails;            // ✅ NEW
+  final DriverDetails driverDetails; // ✅ NEW
   final DeliveryUpdates deliveryUpdates;
 
   final List<TimelineItem> timeline;
 
-  TrackingData({
+  final String travelCost;
+  final String expectedDelivery;
+
+  TrackingData( {
     required this.vehicleId,
     required this.bookingId,
     required this.pickup,
     required this.drop,
     required this.driverLocation,
-    required this.driverDetails,               // ✅ NEW
+    required this.driverDetails, // ✅ NEW
     required this.deliveryUpdates,
-    required this.timeline,
+    required this.timeline,required this.travelCost,required this.expectedDelivery,
   });
 
   factory TrackingData.fromJson(Map<String, dynamic> json) {
     return TrackingData(
       vehicleId: json['vehicle_id'] ?? 0,
       bookingId: json['booking_id'] ?? 0,
+      travelCost: json['travel_cost']?.toString() ?? 'N/A',
+      expectedDelivery: json['expected_delivery']?.toString() ?? 'N/A',
 
       pickup: LocationPoint.fromJson(json['pickup']),
       drop: LocationPoint.fromJson(json['drop']),
@@ -71,15 +76,15 @@ class TrackingData {
   }
 
   Map<String, dynamic> toJson() => {
-        "vehicle_id": vehicleId,
-        "booking_id": bookingId,
-        "pickup": pickup.toJson(),
-        "drop": drop.toJson(),
-        "driver_location": driverLocation.toJson(),
-        "driver_details": driverDetails.toJson(),      // ✅ NEW
-        "delivery_updates": deliveryUpdates.toJson(),
-        "timeline": timeline.map((e) => e.toJson()).toList(),
-      };
+    "vehicle_id": vehicleId,
+    "booking_id": bookingId,
+    "pickup": pickup.toJson(),
+    "drop": drop.toJson(),
+    "driver_location": driverLocation.toJson(),
+    "driver_details": driverDetails.toJson(), // ✅ NEW
+    "delivery_updates": deliveryUpdates.toJson(),
+    "timeline": timeline.map((e) => e.toJson()).toList(),
+  };
 }
 
 // ------------------------------------------------------------
@@ -90,11 +95,7 @@ class LocationPoint {
   final double lat;
   final double lng;
 
-  LocationPoint({
-    required this.name,
-    required this.lat,
-    required this.lng,
-  });
+  LocationPoint({required this.name, required this.lat, required this.lng});
 
   factory LocationPoint.fromJson(Map<String, dynamic> json) {
     return LocationPoint(
@@ -104,11 +105,7 @@ class LocationPoint {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        "name": name,
-        "lat": lat,
-        "lng": lng,
-      };
+  Map<String, dynamic> toJson() => {"name": name, "lat": lat, "lng": lng};
 }
 
 // ------------------------------------------------------------
@@ -137,11 +134,11 @@ class DriverDetails {
   }
 
   Map<String, dynamic> toJson() => {
-        "driver_name": driverName,
-        "driver_phone": driverPhone,
-        "vehicle_number": vehicleNumber,
-        "driver_image": driverImage,
-      };
+    "driver_name": driverName,
+    "driver_phone": driverPhone,
+    "vehicle_number": vehicleNumber,
+    "driver_image": driverImage,
+  };
 }
 
 // ------------------------------------------------------------
@@ -151,10 +148,7 @@ class DeliveryUpdates {
   final String deliveryExpected;
   final String note;
 
-  DeliveryUpdates({
-    required this.deliveryExpected,
-    required this.note,
-  });
+  DeliveryUpdates({required this.deliveryExpected, required this.note});
 
   factory DeliveryUpdates.fromJson(Map<String, dynamic> json) {
     return DeliveryUpdates(
@@ -164,9 +158,9 @@ class DeliveryUpdates {
   }
 
   Map<String, dynamic> toJson() => {
-        "delivery_expected": deliveryExpected,
-        "note": note,
-      };
+    "delivery_expected": deliveryExpected,
+    "note": note,
+  };
 }
 
 // ------------------------------------------------------------
@@ -198,10 +192,10 @@ class TimelineItem {
   }
 
   Map<String, dynamic> toJson() => {
-        "title": title,
-        "subtitle": subtitle,
-        "time": time,
-        "date": date,
-        "status": status,
-      };
+    "title": title,
+    "subtitle": subtitle,
+    "time": time,
+    "date": date,
+    "status": status,
+  };
 }

@@ -35,7 +35,7 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
     super.initState();
 
     // Load banners
-    controller.fetchWantedBanners();
+    // controller.fetchWantedBanners();
 
     // Load crops default
     controller.getDefaultCrops();
@@ -51,29 +51,28 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              Obx(() {
-                return Container(
-                  decoration: BoxDecoration(
-                    // ignore: deprecated_member_use
-                    color: Colors.grey.withOpacity(.3),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: MediaCarouselWidget(
-                    borderRadius: 12,
-                    mediaUrls: List.generate(
-                      controller.bannerList.length,
-                      (index) => controller.bannerList[index].url,
-                    ),
-                    mediaTypes: List.generate(
-                      controller.bannerList.length,
-                      (index) => controller.bannerList[index].type,
-                    ),
-                  ),
-                );
-              }),
-              const SizedBox(height: 16),
+            children: [ 
+              // Obx(() {
+              //   return Container(
+              //     decoration: BoxDecoration(
+              //       // ignore: deprecated_member_use
+              //       color: Colors.grey.withOpacity(.3),
+              //       borderRadius: BorderRadius.circular(12),
+              //     ),
+              //     child: MediaCarouselWidget(
+              //       borderRadius: 12,
+              //       mediaUrls: List.generate(
+              //         controller.bannerList.length,
+              //         (index) => controller.bannerList[index].url,
+              //       ),
+              //       mediaTypes: List.generate(
+              //         controller.bannerList.length,
+              //         (index) => controller.bannerList[index].type,
+              //       ),
+              //     ),
+              //   );
+              // }),
+              const SizedBox(height: 15),
               Row(
                 children: [
                   Expanded(
@@ -85,6 +84,8 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
                         selectedValue: controller.selectedLocation.value,
                         items: seedController.locations,
                         itemLabel: (loc) => loc.title,
+                        
+                                 backgroundColor: Color(0xffF3F4F6),
                         hintText: "Select Location",
                         onChanged: (loc) {
                           controller.selectedLocation.value = loc;
@@ -99,11 +100,11 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
                       if (seedController.categories.isEmpty) {
                         return const SizedBox();
                       }
-
                       return CustomDropdown<Category>(
                         selectedValue:  controller.selectedCategory.value,
                         items: seedController.categories,
                         itemLabel: (cat) => cat.categoryName,
+                        backgroundColor: Color(0xffF3F4F6),
                         hintText: "Select Category",
                         onChanged: (cat) {
                           controller.selectedCategory.value = cat;
@@ -125,7 +126,10 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
                       padding: EdgeInsets.only(
                         top: MediaQuery.of(context).size.height * .2,
                       ),
-                      child: Text("No wanted crops found."),
+                      child: Text("Now wanted crops available now.", style: GoogleFonts.roboto(
+                                fontSize: 14, 
+                                color: Colors.black,
+                              ),),
                     ),
                   );
                 }

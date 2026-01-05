@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_best_seed_background.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/vehicle_tracking/controller/vehicle_tracking_controller.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/full_map_screen.dart';
@@ -125,7 +126,6 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
-    
         title: Text(
           'Vehicle tracking',
           style: GoogleFonts.roboto(
@@ -135,7 +135,7 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
         ),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
-      body: Obx((){
+      body: Obx(() {
         final loading = controller.specificLoading.value;
         final res = controller.specificVehicle.value;
 
@@ -207,6 +207,8 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
               ),
 
               DeliveryUpdateWidget(
+                travelCost: d.travelCost,
+                expectedDelivery: d.expectedDelivery,
                 expected: d.deliveryUpdates.deliveryExpected,
                 note: d.deliveryUpdates.note,
               ),
@@ -214,6 +216,29 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
               TimelineSectionWidget(items: d.timeline),
 
               const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  SizedBox(width: 20,),
+                  Text(
+                    "Have a question? ",
+                    style: GoogleFonts.poppins(fontSize: 14),
+                  ),
+                  Text(
+                    "Contact us",
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.blue,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 30),
+              Padding(
+                padding: EdgeInsetsGeometry.symmetric(horizontal: 30),
+                child: CustomBestSeedBackground()),
+              const SizedBox(height: 40),
             ],
           ),
         );

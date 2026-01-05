@@ -18,7 +18,11 @@ class TodayPricesWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(14),
+       margin:  const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 0,
+                    ),
+      padding: EdgeInsets.symmetric(horizontal: 14,vertical: 0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -31,7 +35,7 @@ class TodayPricesWidget extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+           padding: EdgeInsets.only(left:  12,right:  12,top:  12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -42,7 +46,7 @@ class TodayPricesWidget extends StatelessWidget {
                 Text(
                   "Today's Prices",
                   style: GoogleFonts.roboto(
-                    fontSize: 20,
+                    fontSize: 17,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -62,7 +66,7 @@ class TodayPricesWidget extends StatelessWidget {
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Color(0xFFF6F6F6),
+                      color: Color(0xffDCEEF8),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -70,7 +74,7 @@ class TodayPricesWidget extends StatelessWidget {
                         Text(
                           controller.homePriceData.value.category,
                           style: GoogleFonts.roboto(
-                            color: Colors.black,
+                            color: Colors.black,fontSize: 14,
                             fontWeight: FontWeight.w400,
                           ),
                         ),
@@ -137,7 +141,7 @@ class TodayPricesWidget extends StatelessWidget {
           Text(
             title,
             style: GoogleFonts.roboto(
-              fontSize: 18,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -174,7 +178,7 @@ class TodayPricesWidget extends StatelessWidget {
           Text(
             priceItem.price,
             style: GoogleFonts.roboto(
-              color: AppColors.primary,
+              color: AppColors.primary,fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
           ),

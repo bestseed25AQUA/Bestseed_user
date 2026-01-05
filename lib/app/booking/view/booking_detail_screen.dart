@@ -5,13 +5,19 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/model/booking_detail_model.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_best_seed_background.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/vehicle_tracking_screen.dart';
 import '../controller/my_booking_controller.dart';
 
 class BookingDetailScreen extends StatefulWidget {
   final String bookingId;
+  final String? hatcheryName;
 
-  const BookingDetailScreen({super.key, required this.bookingId});
+  const BookingDetailScreen({
+    super.key,
+    required this.bookingId,
+    this.hatcheryName,
+  });
 
   @override
   State<BookingDetailScreen> createState() => _BookingDetailScreenState();
@@ -71,7 +77,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
         title: Text(
-          'Detail',
+          widget.hatcheryName ?? 'Detail',
           style: GoogleFonts.roboto(
             color: Colors.white,
             fontWeight: FontWeight.w600,
@@ -106,7 +112,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               Text(
                 "Booking Details",
                 style: GoogleFonts.poppins(
-                  fontSize: w * 0.045,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -117,9 +123,16 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               _detail("No. of pieces", data.pieces, w),
               _detail("Estimated Price", data.estimatedPrice, w),
               _detail("Dropping location", data.droppingLocation, w),
-              _detail("Preferred Date", data.preferredDate, w),
-              _detail("Note", data.note, w),
-
+              _detail("Preferred Date", data.preferredDate, w), 
+              SizedBox(height: 10,),
+              Text(
+                "Note : ${data.note}",
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.grey,
+                ),
+              ),
               const SizedBox(height: 20),
               if (isPending(data.statusValue))
                 Center(
@@ -135,7 +148,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                       child: const Center(
                         child: Text(
                           "Cancel Booking",
-                          style: TextStyle(color: Colors.red, fontSize: 16),
+                          style: TextStyle(color: Colors.red, fontSize: 14),
                         ),
                       ),
                     ),
@@ -165,6 +178,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                 }),
               const SizedBox(height: 20),
               _helpSection(w),
+              SizedBox(height: 30,),
+              CustomBestSeedBackground(),
               const SizedBox(height: 40),
             ],
           ),
@@ -182,16 +197,14 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
           Text(
             key,
             style: GoogleFonts.poppins(
-              fontSize: w * 0.035,
+              fontSize: 14,
               fontWeight: FontWeight.w500,
+              color: AppColors.grey,
             ),
           ),
           Text(
             value,
-            style: GoogleFonts.poppins(
-              fontSize: w * 0.035,
-              color: Colors.black87,
-            ),
+            style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87,fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -216,7 +229,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             status,
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.w700,
-              fontSize: w * 0.047,
+              fontSize: 14,
               color: isCancelled(value)
                   ? Colors.red.withOpacity(.9)
                   : isPending(value)
@@ -229,7 +242,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             description,
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
-              fontSize: w * 0.033,
+              fontSize: 14,
               color: isCancelled(value)
                   ? Colors.red.withOpacity(1)
                   : isPending(value)
@@ -252,15 +265,12 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       children: [
         Text(
           "Booking Status",
-          style: GoogleFonts.poppins(
-            fontSize: w * 0.04,
-            fontWeight: FontWeight.w600,
-          ),
+          style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         Text(
           "We've received your booking. Within a few days, we will assign your vehicle.",
-          style: GoogleFonts.poppins(fontSize: w * 0.032, color: Colors.grey),
+          style: GoogleFonts.poppins(fontSize: 14, color: Colors.black),
         ),
 
         const SizedBox(height: 20),
@@ -292,32 +302,38 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        getTime(s.label),
-                        style: GoogleFonts.poppins(
-                          fontSize: w * 0.038,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        s.time,
-                        style: GoogleFonts.poppins(
-                          fontSize: w * 0.033,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      if (s.label.toLowerCase() == "In Progress".toLowerCase())
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            getTime(s.label),
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (s.label.toLowerCase() == "In Progress".toLowerCase())
                         InkWell(
                           onTap: ontapCheckVehicleStatus,
                           child: Text(
                             "Check vehicle status",
                             style: GoogleFonts.roboto(
                               color: Colors.blue,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                              fontWeight:done? FontWeight.bold:null,
+                              fontSize: 14,
                             ),
                           ),
                         ),
+                        ],
+                      ),
+                      Text(
+                        s.time,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      
                     ],
                   ),
                 ),
@@ -363,16 +379,13 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
 
   Widget _helpSection(double w) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        Text(
-          "Have a question? ",
-          style: GoogleFonts.poppins(fontSize: w * 0.035),
-        ),
+        Text("Have a question? ", style: GoogleFonts.poppins(fontSize: 14)),
         Text(
           "Contact us",
           style: GoogleFonts.poppins(
-            fontSize: w * 0.035,
+            fontSize: 14,
             color: Colors.blue,
             fontWeight: FontWeight.w600,
           ),
@@ -412,7 +425,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                     const Text(
                       "Reason for cancel",
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -423,14 +436,15 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 5),
 
                 ...reasons.asMap().entries.map((entry) {
                   int index = entry.key;
                   String r = entry.value;
                   return ListTile(
+                    contentPadding: EdgeInsets.zero,
                     dense: true,
-                    title: Text(r, style: const TextStyle(fontSize: 15)),
+                    title: Text(r, style: const TextStyle(fontSize: 14)),
                     trailing: Container(
                       width: 18,
                       height: 18,
@@ -476,7 +490,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                     child: const Center(
                       child: Text(
                         "Cancel",
-                        style: TextStyle(color: Colors.red, fontSize: 16),
+                        style: TextStyle(color: Colors.red, fontSize: 14),
                       ),
                     ),
                   ),

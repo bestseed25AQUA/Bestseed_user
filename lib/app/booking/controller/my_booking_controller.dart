@@ -42,60 +42,75 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 //   ],
 // };
 
+
 class MyBookingController extends GetxController {
-  var isLoading = true.obs;
+  var isLoading = false.obs;
+  var isLoadMore = false.obs;
+
   var bookingList = <BookingData>[].obs;
+
   var selectedMonth = ''.obs;
   var selectedYear = ''.obs;
   var selectedDate = ''.obs;
   var filterType = ''.obs;
-  Future<void> fetchBookings() async {
-    try {
-      isLoading.value = true;
 
-      // Build Query
-      String query = "";
-      if (filterType.value.isNotEmpty) {
-        query += "?type=${filterType.value}";
+  int currentPage = 1;
+  int lastPage = 1;
+
+  bool get hasMore => currentPage < lastPage;
+
+  /// INITIAL / REFRESH LOAD
+  Future<void> fetchBookings({bool refresh = true}) async {
+    try {
+      if (refresh) {
+        currentPage = 1;
+        bookingList.clear();
+        isLoading.value = true;
       }
-      if (selectedMonth.value.isNotEmpty) {
-        query += "?month=${selectedMonth.value}";
-      }
-      if (selectedYear.value.isNotEmpty) {
-        query += query.isEmpty
-            ? "?year=${selectedYear.value}"
-            : "&year=${selectedYear.value}";
-      }
-      if (selectedDate.value.isNotEmpty) {
-        query += query.isEmpty
-            ? "?date=${selectedDate.value}"
-            : "&date=${selectedDate.value}";
-      }
+
+      final uri = Uri.parse(
+        "${NetworkConfig.baseURL}/farmer/my-bookings",
+      ).replace(queryParameters: {
+        "page": currentPage.toString(),
+        if (filterType.value.isNotEmpty) "type": filterType.value,
+        if (selectedMonth.value.isNotEmpty) "month": selectedMonth.value,
+        if (selectedYear.value.isNotEmpty) "year": selectedYear.value,
+        if (selectedDate.value.isNotEmpty) "date": selectedDate.value,
+      });
 
       final response = await getRequest(
-        endPoint: "${NetworkConfig.baseURL}/farmer/my-bookings$query",
+        endPoint: uri.toString(),
         headers: await buildHeader(),
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
-        if (data['status'] == true && data['bookings'] != null) {
-          bookingList.assignAll(
-            (data['bookings'] as List)
+        lastPage = data["pagination"]["last_page"];
+
+        final List<BookingData> newItems =
+            (data["bookings"] as List)
                 .map((e) => BookingData.fromJson(e))
-                .toList(),
-          );
-        }
+                .toList();
+
+        bookingList.addAll(newItems);
       }
-    } catch (e, s) {
-      print('============error========');
-      print(e.toString());
-      print(s.toString());
+    } catch (e) {
       CustomToast.error("Something went wrong");
     } finally {
       isLoading.value = false;
+      isLoadMore.value = false;
     }
+  }
+
+  /// LOAD NEXT PAGE
+  Future<void> loadMore() async {
+    if (isLoadMore.value) return;
+    if (!hasMore) return;
+
+    isLoadMore.value = true;
+    currentPage++; // ✅ INCREMENT FIRST
+    await fetchBookings(refresh: false);
   }
 
   RxBool isDetailLoading = false.obs;
@@ -174,7 +189,7 @@ class MyBookingController extends GetxController {
 
   var isCreateLoading = false.obs;
 
-  Future<bool> createHatcheryBooking({
+  Future<String?> createHatcheryBooking({
     required String hatcheryId,
     required String categoryId,
     required String hatcheryName,
@@ -224,7 +239,7 @@ class MyBookingController extends GetxController {
           CustomToast.success(
             data['message'] ?? "Booking created successfully",
           );
-          return true;
+          return data['data']?['booking_id']?.toString();
         } else {
           CustomToast.error(data['message'] ?? "Booking failed");
         }
@@ -235,8 +250,7 @@ class MyBookingController extends GetxController {
       CustomToast.error("Something went wrong");
     } finally {
       isCreateLoading.value = false;
-    }
-    return false;
+    } 
   }
 }
 

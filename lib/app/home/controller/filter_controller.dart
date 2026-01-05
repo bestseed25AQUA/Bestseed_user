@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/home/model/hatchery_filter_model.dart';
 import 'package:seedsuser/app/model/category_model.dart';
 import 'package:seedsuser/app/model/location_model.dart';
 import 'package:seedsuser/app/model/price_model.dart';
@@ -100,6 +101,7 @@ class FilterController extends GetxController {
       isLoading.value = false;
     }
   }
+
 
   void onLocationChanged(Location? loc) {
     selectedLocation.value = loc;

@@ -89,11 +89,11 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                           widget.imageUrl, // <<< USE THE SAME IMAGE
                           fit: BoxFit.cover,
                           width: MediaQuery.of(context).size.width * .9,
-                          height: MediaQuery.of(context).size.height * .3,
+                          height: MediaQuery.of(context).size.height * .2,
                           errorBuilder: (context, error, stackTrace) {
                             return SizedBox(
                               width: MediaQuery.of(context).size.width * .9,
-                              height: MediaQuery.of(context).size.height * .3,
+                              height: MediaQuery.of(context).size.height * .2,
                             );
                           },
                         ),
@@ -106,7 +106,7 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                     Text(
                       widget.title,
                       style: GoogleFonts.roboto(
-                        fontSize: 24,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -114,7 +114,7 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                     Text(
                       widget.subtitle,
                       style: GoogleFonts.roboto(
-                        fontSize: 16,
+                        fontSize: 14,
                         color: Colors.grey,
                       ),
                     ),
@@ -129,7 +129,7 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                         return Text(
                           data?.data?.description ?? '',
                           style: GoogleFonts.roboto(
-                            fontSize: 12,
+                            fontSize: 14,
                             color: Colors.grey,
                             fontWeight: FontWeight.w600,
                           ),
@@ -144,70 +144,63 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
         ],
       ),
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(12.0),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 5,
-              offset: Offset(0, -2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: <Widget>[
-            // Call Now Button
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  // Logic for calling
-                  _makePhoneCall('tel:+918977778784');
-                },
-                icon: const Icon(Icons.call, color: Colors.white),
-                label: Text(
-                  'Call Now',
-                  style: GoogleFonts.roboto(color: Colors.white, fontSize: 16),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+        // padding: const EdgeInsets.all(12.0),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 13,vertical: 30),
+          child: Row(
+            children: <Widget>[
+              // Call Now Button
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    // Logic for calling
+                    _makePhoneCall('tel:+918977778784');
+                  },
+                  icon: const Icon(Icons.call, color: Colors.white),
+                  label: Text(
+                    'Call Now',
+                    style: GoogleFonts.roboto(color: Colors.white, fontSize: 14),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                   padding: const EdgeInsets.symmetric(vertical: 5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
-
-            // WhatsApp Button
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  _launchWhatsApp();
-                },
-                icon: Image.asset(
-                  'assets/images/whatsApp.png',
-                  height: 20,
-                  width: 20,
-                ),
-                label: Text(
-                  'WhatsApp',
-                  style: GoogleFonts.roboto(color: Colors.green, fontSize: 16),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.green),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              const SizedBox(width: 10),
+          
+              // WhatsApp Button
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    _launchWhatsApp();
+                  },
+                  icon: Image.asset(
+                    'assets/images/whatsApp.png',
+                    height: 20,
+                    width: 20,
                   ),
-                  // The image's WhatsApp button looks like a light green background,
-                  // so we'll adjust the style slightly.
-                  backgroundColor: Colors.white, // Or a very light green
+                  label: Text(
+                    'WhatsApp',
+                    style: GoogleFonts.roboto(color: Colors.green, fontSize: 14),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.green),
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    // The image's WhatsApp button looks like a light green background,
+                    // so we'll adjust the style slightly.
+                    backgroundColor: Colors.white, // Or a very light green
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

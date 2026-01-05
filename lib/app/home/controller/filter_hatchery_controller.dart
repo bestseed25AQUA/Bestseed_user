@@ -17,6 +17,7 @@ class FilterHatcheryController extends GetxController {
   RxSet<String> selectedCategoryIds = <String>{}.obs;
   RxSet<String> selectedBrandIds = <String>{}.obs;
   RxSet<String> selectedLocationIds = <String>{}.obs;
+  RxSet<String> selectedNames = <String>{}.obs;
 
   String query = '';
   int page = 1;
@@ -25,6 +26,37 @@ class FilterHatcheryController extends GetxController {
   void onInit() {
     super.onInit();
     fetchFilterOptions();
+    getHatcheriesNames();
+  }
+
+  List<String> hatcheryNames = [''].obs as List<String>;
+
+  var isHatcheryNameLoading = false.obs;
+
+  Future<void> getHatcheriesNames() async {
+    try {
+      isHatcheryNameLoading.value = true;
+      final response = await getRequest(
+        endPoint:
+            "${NetworkConfig.baseURL}/farmer/hatcheries", //&location_id=${selectedLocation.value!.id
+        headers: await buildHeader(),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final modelData = HatcheryFilterResponse.fromJson(data);
+        hatcheryNames = List.generate(
+          modelData.data.length,
+          (index) => modelData.data[index].hatcheryName,
+        );
+      } else {
+        CustomToast.error("Failed to fetch prices ");
+      }
+    } catch (e) {
+      CustomToast.error("Something went wrong  ");
+    } finally {
+      isHatcheryNameLoading.value = false;
+    }
   }
 
   Future<void> fetchFilterOptions() async {

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
-import 'package:get_storage/get_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -13,21 +11,17 @@ import 'package:seedsuser/app/home/contact_us.dart';
 import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
-import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/hatchery_suppliers_widget.dart';
 import 'package:seedsuser/app/home/hatchery_updates_widget.dart';
 import 'package:seedsuser/app/home/view/hatchery_filter_screen.dart';
 import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
 import 'package:seedsuser/app/home/widget/hatchery_widgets.dart';
-import 'package:seedsuser/app/news%20&%20ads/controller/news_ads_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
-import 'package:seedsuser/app/news%20&%20ads/view/medicine_news_screen.dart';
 import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
 import 'package:seedsuser/app/spot_hatchery/view/spot_hatchery_screen.dart';
 import 'package:seedsuser/app/home/today_price_widget.dart';
-import 'package:seedsuser/app/home/widget/home_banner_carousel.dart';
 import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
 import 'package:seedsuser/app/utils/app_animations.dart';
 import 'package:seedsuser/app/utils/app_size.dart';
@@ -297,7 +291,6 @@ class _HomePageState extends State<HomePage>
                 );
               },
             ),
-
             Container(
               padding: const EdgeInsets.only(left: 16.0, bottom: 0, right: 16),
               // height: 32,
@@ -309,7 +302,6 @@ class _HomePageState extends State<HomePage>
               ),
               child: ContactUsPage(),
             ),
-
             // Hatcheries Section
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -371,6 +363,7 @@ class _HomePageState extends State<HomePage>
                       filterHatcheryController.selectedCategoryIds.add(
                         _homeController.selectedCategoryId.value,
                       );
+                      filterHatcheryController.query = '';
                       filterHatcheryController.applyFilter();
                       Navigator.push(
                         context,
@@ -389,63 +382,59 @@ class _HomePageState extends State<HomePage>
                     },
                   ),
                   SizedBox(height: 20),
-                  Material(
-                    elevation: 4,
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            offset: Offset(1, 2),
-                            spreadRadius: 1,
-                            blurRadius: 0,
-                            color: Colors.white,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 13,
+                      vertical: 0,
+                    ),
+                    margin:  const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 0,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          offset: Offset(1, 2),
+                          spreadRadius: 1,
+                          blurRadius: 3,
+                          color: Colors.grey.withOpacity(.4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Seed Request',
+                          style: GoogleFonts.roboto(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 17,
                           ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 5,
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Seed Request',
-                              style: GoogleFonts.roboto(
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 17,
+                        IconButton(
+                          padding: EdgeInsets.all(0),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              AppAnimations.slideLeftToRight(
+                                SeedRequestsFormScreen(),
                               ),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  AppAnimations.slideLeftToRight(
-                                    SeedRequestsFormScreen(),
-                                  ),
-                                );
-                              },
-                              icon: Icon(
-                                Icons.arrow_forward,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
+                            );
+                          },
+                          icon: Icon(
+                            Icons.arrow_forward,
+                            color: AppColors.primary,
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                   SizedBox(height: 20),
-                  TodayPricesWidget(),
-                  SizedBox(height: 16),
+                  TodayPricesWidget(), 
                   HatcherySuppliersWidget(),
-                  SizedBox(height: 16),
                   Obx(() {
                     return Column(
                       children: [
@@ -636,7 +625,7 @@ class _HomePageState extends State<HomePage>
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.roboto(
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.start,
@@ -705,7 +694,7 @@ class _HomePageState extends State<HomePage>
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.roboto(
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
                 textAlign: TextAlign.start,
@@ -752,7 +741,7 @@ class _HomePageState extends State<HomePage>
       children: [
         Text(
           title,
-          style: GoogleFonts.roboto(fontSize: 18, fontWeight: FontWeight.bold),
+          style: GoogleFonts.roboto(fontSize: 17, fontWeight: FontWeight.bold),
         ),
 
         TextButton(
@@ -762,6 +751,7 @@ class _HomePageState extends State<HomePage>
             style: GoogleFonts.roboto(
               color: AppColors.primary,
               fontWeight: FontWeight.w600,
+              fontSize: 14,
             ),
           ),
         ),
@@ -832,7 +822,7 @@ class _HomePageState extends State<HomePage>
                   Text(
                     subtitle,
                     style: GoogleFonts.roboto(
-                      fontSize: 12,
+                      fontSize: 14,
                       color: Color(0xff7D7272),
                     ),
                     maxLines: 1,

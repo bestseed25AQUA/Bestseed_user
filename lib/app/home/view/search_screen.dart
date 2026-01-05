@@ -239,7 +239,7 @@ class _SearchScreenState extends State<SearchScreen> {
   List<Map<String, String>> filterItemsWithIds(
     List<String> names,
     List<String> ids,
-    String query
+    String query,
   ) {
     List<Map<String, String>> combined = [];
 
@@ -285,12 +285,6 @@ class _SearchScreenState extends State<SearchScreen> {
       },
       child: Scaffold(
         backgroundColor: Colors.white,
-        appBar: CustomAppBar(
-          toolbarHeight: 30,
-          backgroundColorActual: AppColors.primary,
-          foregroundColor: Colors.white,
-          titleWidget: Text("Search",style: GoogleFonts.roboto(color: Colors.white),),
-        ),
         body: Obx(() {
           // if (filterHatcheryController.isLoading.value &&
           //     (filterHatcheryController.categories.isEmpty ||
@@ -301,129 +295,210 @@ class _SearchScreenState extends State<SearchScreen> {
           if (filterHatcheryController.brands.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Search bar
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(height: 60, color: AppColors.primary),
-                    Positioned(
-                      bottom: -28,
-                      left: 16,
-                      right: 16,
-                      child: Material(
-                        color: Colors.transparent,
-                        child: Hero(
-                          tag: 'homeAppBarSearch',
-                          child: Material(
-                            color: Colors.transparent,
-                            child: TextField(
-                              focusNode: _focusNode,
-                              onTapOutside: (event) {
-                                _focusNode.unfocus();
-                              },
-                              onChanged: (value) {
-                                // setState(() {});
-                                filterHatcheryController.query = value;
-                                if (_skipTextDebounce) {
-                                  // Reset flag so next user typing will work
-                                  _skipTextDebounce = false;
-                                  return;
-                                }
-                                doAfterDelay();
-                              },
-                              controller: _searchController,
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: Colors.white,
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                    width: .1,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                    width: .1,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                                hintText: "Search...",
-                                prefixIcon: const Icon(Icons.search),
-                                suffixIcon: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (_searchController.text.isNotEmpty)
-                                      IconButton(
-                                        icon: const Icon(Icons.clear),
-                                        onPressed: () {
-                                          filterHatcheryController.query = '';
-                                          setState(
-                                            () => _searchController.clear(),
-                                          );
-                                        },
-                                      ),
-                                    // IconButton(
-                                    //   icon: Icon(
-                                    //     _isListening ? Icons.mic_none : Icons.mic,
-                                    //     color: _isListening
-                                    //         ? Colors.red
-                                    //         : Colors.grey,
-                                    //   ),
-                                    //   onPressed: _toggleVoiceInput,
-                                    // ),
-                                    VoiceMicButton(onStart: startRecording),
-                                  ],
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: 40),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    icon: Icon(Icons.arrow_back),
+                  ),
+                  Text(
+                    "Search",
+                    style: GoogleFonts.roboto(
+                      color: Colors.black,
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 17),
+                child: Container(
+                  margin: const EdgeInsets.only(
+                    top: 6,
+                  ), // ⭐ space for top shadow
+                  height: 37,
+                  width: MediaQuery.of(context).size.width * .9,
+                  decoration: BoxDecoration(
+                    color: Colors.white, // ⭐ MUST
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        offset: const Offset(0, -2), // 🔥 TOP shadow
+                        blurRadius: 6,
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        offset: const Offset(0, 2), // bottom shadow
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                  child: Hero(
+                    tag: 'homeAppBarSearch',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: SizedBox(
+                        height: 40,
+                        child: TextField(
+                          focusNode: _focusNode,
+                          onTapOutside: (event) {
+                            _focusNode.unfocus();
+                          },
+                          
+                          onChanged: (value) {
+                            // setState(() {});
+                            filterHatcheryController.query = value;
+                            if (_skipTextDebounce) {
+                              // Reset flag so next user typing will work
+                              _skipTextDebounce = false;
+                              return;
+                            }
+                            doAfterDelay();
+                          },
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: EdgeInsets.only(top: 5),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                width: .1,
+                                color: Colors.grey,
                               ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                width: .1,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            hintText: "Search...",
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_searchController.text.isNotEmpty)
+                                  IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      filterHatcheryController.query = '';
+                                      setState(() => _searchController.clear());
+                                    },
+                                  ),
+                                // IconButton(
+                                //   icon: Icon(
+                                //     _isListening ? Icons.mic_none : Icons.mic,
+                                //     color: _isListening
+                                //         ? Colors.red
+                                //         : Colors.grey,
+                                //   ),
+                                //   onPressed: _toggleVoiceInput,
+                                // ),
+                                VoiceMicButton(onStart: startRecording),
+                              ],
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
+              ),
 
-                const SizedBox(height: 40),
-
-                // ⭐ CATEGORY SECTION
-                _buildDynamicSection(
-                  title: "",
-                  items: categoryList.map((e) => e["name"]!).toList(),
-                  ids: categoryList.map((e) => e["id"]!).toList(),
-                  selectedIds: filterHatcheryController.selectedCategoryIds,
-                  sectionKey: 'category',
+              // const SizedBox(height: 40),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // ⭐ CATEGORY SECTION
+                      _buildDynamicSection(
+                        title: "",
+                        items: categoryList.map((e) => e["name"]!).toList(),
+                        ids: categoryList.map((e) => e["id"]!).toList(),
+                        selectedIds:
+                            filterHatcheryController.selectedCategoryIds,
+                        sectionKey: 'category',
+                      ),
+                      SizedBox(height: 40),
+                      // ⭐ Hatchery Name
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 17),
+                        child: Wrap(
+                          spacing: 10,
+                          runSpacing: 8,
+                          children: List.generate(
+                            filterHatcheryController.hatcheryNames.length,
+                            (index) {
+                              return FilterChip(
+                                label: Text(
+                                  filterHatcheryController.hatcheryNames[index],
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                                color: WidgetStateProperty.all(Colors.white),
+                                // selected: selectedIds.contains(id),
+                                onSelected: (bool selected) {
+                                  filterHatcheryController.query =
+                                      filterHatcheryController
+                                          .hatcheryNames[index];
+                                  _applyFilters();
+                                },
+                                selectedColor: Colors.blue.shade100,
+                                checkmarkColor: Colors.blue,
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 40),
+                      // _buildDynamicSection(
+                      //   title: "Hatchery Names",
+                      //   items: filterHatcheryController.hatcheryNames,
+                      //   ids: filterHatcheryController.hatcheryNames
+                      //       .map((e) => e)
+                      //       .toList(),
+                      //   selectedIds:
+                      //       filterHatcheryController.selectedCategoryIds,
+                      //   sectionKey: 'hatcheryNames',
+                      // ),
+                    ],
+                  ),
                 ),
+              ),
 
-                // // ⭐ BRAND SECTION
-                _buildDynamicSection(
-                  title: "",
-                  items: brandList.map((e) => e["name"]!).toList(),
-                  ids: brandList.map((e) => e["id"]!).toList(),
-                  selectedIds: filterHatcheryController.selectedBrandIds,
-                  sectionKey: 'brand',
-                ),
+              // // ⭐ BRAND SECTION
+              // _buildDynamicSection(
+              //   title: "",
+              //   items: brandList.map((e) => e["name"]!).toList(),
+              //   ids: brandList.map((e) => e["id"]!).toList(),
+              //   selectedIds: filterHatcheryController.selectedBrandIds,
+              //   sectionKey: 'brand',
+              // ),
 
-                // // ⭐ LOCATION SECTION
-                // _buildDynamicSection(
-                //   title: "Location",
-                //   items: locationList.map((e) => e["name"]!).toList(),
-                //   ids: locationList.map((e) => e["id"]!).toList(),
-                //   selectedIds: filterHatcheryController.selectedLocationIds,
-                //   sectionKey: 'location',
-                // ),
-                const SizedBox(height: 80),
-              ],
-            ),
+              // // ⭐ LOCATION SECTION
+              // _buildDynamicSection(
+              //   title: "Location",
+              //   items: locationList.map((e) => e["name"]!).toList(),
+              //   ids: locationList.map((e) => e["id"]!).toList(),
+              //   selectedIds: filterHatcheryController.selectedLocationIds,
+              //   sectionKey: 'location',
+              // ),
+            ],
           );
         }),
         // floatingActionButton: FloatingActionButton.extended(
@@ -456,11 +531,12 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 0),
       child: Obx(() {
         // FIX: display only filtered list, not based on original
         int total = items.length;
-        int displayCount = showAllFlag.value ? total : (total > 4 ? 4 : total);
+        int displayCount =
+            total; // showAllFlag.value ? total : (total > 4 ? 4 : total);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -473,40 +549,40 @@ class _SearchScreenState extends State<SearchScreen> {
                   Text(
                     title,
                     style: GoogleFonts.roboto(
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
 
-                  if (total > 4)
-                    TextButton(
-                      onPressed: () {
-                        showAllFlag.value = !showAllFlag.value;
-                      },
-                      child: Text(
-                        showAllFlag.value ? "View less" : "View all",
-                        style: GoogleFonts.roboto(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+                  // if (total > 4)
+                  //   TextButton(
+                  //     onPressed: () {
+                  //       showAllFlag.value = !showAllFlag.value;
+                  //     },
+                  //     child: Text(
+                  //       showAllFlag.value ? "View less" : "View all",
+                  //       style: GoogleFonts.roboto(
+                  //         color: AppColors.primary,
+                  //         fontWeight: FontWeight.w600,
+                  //       ),
+                  //     ),
+                  //   ),
                 ],
               ),
-            if (total > 4) const SizedBox(height: 8),
 
             Wrap(
-              spacing: 8,
+              spacing: 10,
               runSpacing: 8,
               children: List.generate(displayCount, (index) {
                 final id = ids[index];
                 final name = items[index];
 
                 return FilterChip(
-                  label: Text(name),
+                  label: Text(name, style: TextStyle(fontSize: 14)),
                   color: WidgetStateProperty.all(Colors.white),
                   selected: selectedIds.contains(id),
                   onSelected: (bool selected) {
+                    filterHatcheryController.query = '';
                     // Only controller handles state changes
                     if (sectionKey == 'category') {
                       filterHatcheryController.toggleCategory(id);

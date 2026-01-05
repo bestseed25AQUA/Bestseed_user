@@ -46,8 +46,10 @@ class HomeController extends GetxController {
 
     //brood stocks api
     await _broodStockController.getBroodStockForHome(
-      categoryId: categoryId,
-      locationId: locationId,
+      // categoryId: categoryId,
+      // locationId: locationId,
+      categoryId: '',
+      locationId: '',
     );
     // medicine home api
     await _newsSpecificController.fetch(

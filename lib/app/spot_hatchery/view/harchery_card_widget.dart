@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/booking_hatchery_widget.dart';
+import 'package:seedsuser/app/home/booking_review_widget.dart';
 import 'package:seedsuser/app/home/hatchery_category_detail_screen.dart';
 import 'package:seedsuser/app/model/location_model.dart';
 import 'package:seedsuser/app/model/spot_hatchery_model.dart';
@@ -66,7 +68,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeInOut,
-        margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 2.0),
+        margin: const EdgeInsets.symmetric(horizontal:14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16.0),
@@ -75,9 +77,9 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
             BoxShadow(
               // ignore: deprecated_member_use
               color: Colors.black.withOpacity(0.2),
-              blurRadius: 2,
-              spreadRadius: 3,
-              offset: const Offset(0, 6),
+              blurRadius: 3,
+              spreadRadius: 1,
+              offset: const Offset(1, 1),
             ),
           ],
         ),
@@ -85,20 +87,20 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12.0),
-                topRight: Radius.circular(12.0),
-              ),
-              child: Image.network(
-                (hatchery.images.isNotEmpty) ? hatchery.images.first : '',
-                width: double.infinity,
-                height: 160,
-                fit: BoxFit.cover,
-                errorBuilder: (context, _, __) => Container(
-                  color: Colors.grey.withOpacity(.2),
-                  height: 160,
-                  width: MediaQuery.of(context).size.width * .9,
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: ClipRRect(
+                borderRadius:   BorderRadius.circular(14),
+                child: Image.network(
+                  (hatchery.images.isNotEmpty) ? hatchery.images.first : '',
+                  width: double.infinity,
+                  height: 110,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, _, __) => Container(
+                    color: Colors.grey.withOpacity(.2),
+                    height: 160,
+                    width: MediaQuery.of(context).size.width * .9,
+                  ),
                 ),
               ),
             ),
@@ -190,7 +192,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
 
             // ✅ Details Section
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding:  EdgeInsets.symmetric(horizontal: 16,vertical: 5),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -205,7 +207,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                         child: Text(
                           hatchery.hatcheryName,
                           style: GoogleFonts.roboto(
-                            fontSize: 18,
+                            fontSize: 14,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -213,12 +215,12 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                       SizedBox(width: 16),
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.green,
+                          color: Color(0xff3A7D51),
                           borderRadius: BorderRadius.circular(30.0),
                         ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 4,
-                          vertical: 6,
+                          vertical: 2,
                         ),
                         child: Row(
                           children: [
@@ -231,10 +233,10 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                             SizedBox(
                               width: MediaQuery.of(context).size.width * .4,
                               child: Text(
-                                "Available on ${hatchery.availableOn}",
+                              "Available on ${formatDate(hatchery.availableOn??'')}",
                                 style: GoogleFonts.roboto(
                                   color: Colors.white,
-                                  fontSize: 12,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                 ),
                                 overflow: TextOverflow.ellipsis,
@@ -246,17 +248,17 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                     ],
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
 
                   Text(
                     hatchery.categoryName,
                     style: GoogleFonts.roboto(
-                      fontSize: 16,
+                      fontSize: 14,
                       color: Colors.grey[700],
                     ),
                   ),
 
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 3),
 
                   // // Location
                   // if (hatchery.locationName?.isNotEmpty ?? false)
@@ -277,7 +279,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                     },
                   ),
                   // if (hatchery.locationName?.isNotEmpty ?? false)
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 5),
                   Row(
                     children: [
                       _actionButton(
@@ -310,6 +312,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                           bottomRight: Radius.circular(16),
                         ),
                         onTap: () {
+                          
                           showModalBottomSheet(
                             context: context,
                             isScrollControlled: true,
@@ -373,7 +376,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          height: 48,
+          height: 40,
           decoration: BoxDecoration(
             color: color,
             borderRadius: borderRadius,
@@ -390,7 +393,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                 label,
                 style: GoogleFonts.roboto(
                   color: textColor ?? Colors.white,
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -418,5 +421,15 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
         context,
       ).showSnackBar(const SnackBar(content: Text("Cannot launch URL")));
     }
+  }
+}
+
+
+String formatDate(String dateString) {
+  try {
+    DateTime date = DateFormat("yyyy-MM-dd").parse(dateString);
+    return DateFormat("dd MMM").format(date);
+  } catch (e) {
+    return dateString; // fallback (no crash)
   }
 }

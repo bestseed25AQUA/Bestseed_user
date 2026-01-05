@@ -19,7 +19,7 @@ class HatcherySuppliersWidget extends StatelessWidget {
     final broodStockController = Get.put(BroodStockController());
     return Obx(() {
       return Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.only(top: 8,bottom: 8,right: 10,left: 10),
         child: Column(
           children: [
             Row(
@@ -28,7 +28,7 @@ class HatcherySuppliersWidget extends StatelessWidget {
                 Text(
                   "Hatchery / Broodstock",
                   style: GoogleFonts.roboto(
-                    fontSize: 20,
+                    fontSize: 17,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -41,22 +41,22 @@ class HatcherySuppliersWidget extends StatelessWidget {
                     "View all",
                     style: GoogleFonts.roboto(
                       color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w600,fontSize: 14
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            // const SizedBox(height: 10),
             // ignore: prefer_is_empty
             (broodStockController.homeBroodStocks.length) == 0
                 ? Align(
                     alignment: Alignment.centerLeft,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.only(left: 4,right: 8),
                       child: Text(
                         'No hatchery / broodstock found',
-                        style: TextStyle(fontSize: 13),
+                        style: TextStyle(fontSize: 14),
                       ),
                     ),
                   )
@@ -66,14 +66,17 @@ class HatcherySuppliersWidget extends StatelessWidget {
                       (index) {
                         final data =
                             broodStockController.homeBroodStocks[index];
-                        return InkWell(
-                          onTap: () {
-                            if (kDebugMode) {
-                              print('working');
-                            }
-                            dashboardCtrl.changeIndex(2);
-                          },
-                          child: _buildHatcheryCard(data,context),
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: InkWell(
+                            onTap: () {
+                              if (kDebugMode) {
+                                print('working');
+                              }
+                              dashboardCtrl.changeIndex(2);
+                            },
+                            child: _buildHatcheryCard(data,context),
+                          ),
                         );
                       },
                     ),
@@ -230,7 +233,7 @@ class HatcherySuppliersWidget extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -242,7 +245,7 @@ class HatcherySuppliersWidget extends StatelessWidget {
                     child: Text(
                       data.hatcheryName,
                       style: GoogleFonts.roboto(
-                        fontSize: 18,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: Colors.black,
                       ),
@@ -282,7 +285,7 @@ class HatcherySuppliersWidget extends StatelessWidget {
                   Text(
                     data.availableQuantity,
                     style: GoogleFonts.roboto(
-                      fontSize: 17,
+                      fontSize: 14,
                       color: Colors.black,
                       fontWeight: FontWeight.bold,
                     ),
@@ -362,7 +365,7 @@ class HatcherySuppliersWidget extends StatelessWidget {
           child: Text(
             label,
             style: GoogleFonts.roboto(
-              fontSize: 12,
+              fontSize: 14,
               color: textColor,
               fontWeight: FontWeight.w500,
             ),

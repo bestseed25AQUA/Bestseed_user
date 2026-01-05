@@ -47,7 +47,7 @@ class MapSectionWidget extends StatelessWidget {
     return Stack(
       children: [
         Container(
-          height: 260,
+          height: 170,
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
