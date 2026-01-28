@@ -32,10 +32,11 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _piecesController = TextEditingController();
   final TextEditingController _deliveryController = TextEditingController();
+  final TextEditingController _hatcheryNameController = TextEditingController();
 
   // Dropdown selections
   Category? _selectedCategory;
-  HatcheryFilterItem? _selectedHatchery;
+  BrandModel? _selectedBrand;
 
   String _packingDate = 'DD/MM/YYYY';
 
@@ -62,8 +63,8 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
         CustomToast.error("Please select category");
         return;
       }
-      if (_selectedHatchery == null) {
-        CustomToast.error("Please select Hatchery");
+      if (_selectedBrand == null) {
+        CustomToast.error("Please select brand");
         return;
       }
       if (_packingDate == "DD/MM/YYYY") {
@@ -73,7 +74,7 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
 
       controller.sendSeedRequest(
         categoryId: _selectedCategory!.id,
-        hatcheryId: _selectedHatchery!.id,
+        brandId: _selectedBrand!.id,
         name: _nameController.text.trim(),
         mobile: _phoneController.text.trim(),
         pieces: int.parse(_piecesController.text.trim()),
@@ -153,9 +154,9 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
               gap,
 
               const SizedBox(height: 8),
-              // Hatchery
+              // BRANDS
               Text(
-                "Hatcheries",
+                "Brands",
                 style: GoogleFonts.roboto(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -163,13 +164,13 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
               ),
               const SizedBox(height: 8),
 
-              CustomDropdown<HatcheryFilterItem>(
-                selectedValue: _selectedHatchery,
-                items: filterHatcheryController.allHatcheries,
-                hintText: "Select hatcheries",
-                itemLabel: (b) => b.hatcheryName,
+              CustomDropdown<BrandModel>(
+                selectedValue: _selectedBrand,
+                items: homeController.brands,
+                hintText: "Select brands",
+                itemLabel: (b) => b.brandName,
                 onChanged: (v) {
-                  setState(() => _selectedHatchery = v);
+                  setState(() => _selectedBrand = v);
                 },
               ),
               gap,

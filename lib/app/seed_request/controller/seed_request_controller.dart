@@ -6,15 +6,16 @@ import 'dart:convert';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
+import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 
 class SeedRequestController extends GetxController {
   var isLoading = false.obs;
-  var isBooking = false.obs; // 👈 Booking loader
+  var isBooking = false.obs;
 
   /// 🚚 Send Seed Request API
-  Future<void> sendSeedRequest({ 
+  Future<void> sendSeedRequest({
     required int categoryId,
-    required int hatcheryId,
+    required int brandId,
     required String name,
     required String mobile,
     required int pieces,
@@ -24,14 +25,24 @@ class SeedRequestController extends GetxController {
     try {
       isBooking.value = true;
 
-      final body = { 
+      // Get farmer_id from profile
+      int? farmerId;
+      try {
+        final profileController = Get.find<ProfileController>();
+        farmerId = profileController.profile.value?.id;
+      } catch (e) {
+        print("ProfileController not found: $e");
+      }
+
+      final body = {
         "category_id": categoryId,
-        "hatchery_id": hatcheryId,
+        "brand_id": brandId,
         "name": name,
         "mobile": mobile,
-        "pieces": pieces,
+        "quantity": pieces,
         "dropping_location": droppingLocation,
         "packing_date": packingDate,
+        if (farmerId != null) "farmer_id": farmerId,
       };
       print(body);
 
