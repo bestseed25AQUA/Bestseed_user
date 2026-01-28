@@ -94,18 +94,20 @@ class LocationPoint {
   final String name;
   final double lat;
   final double lng;
+  final String? updatedAt;
 
-  LocationPoint({required this.name, required this.lat, required this.lng});
+  LocationPoint({required this.name, required this.lat, required this.lng, this.updatedAt,});
 
   factory LocationPoint.fromJson(Map<String, dynamic> json) {
     return LocationPoint(
       name: json['name'] ?? '',
       lat: (json['lat'] ?? 0).toDouble(),
       lng: (json['lng'] ?? 0).toDouble(),
+      updatedAt: json['updated_at'],
     );
   }
 
-  Map<String, dynamic> toJson() => {"name": name, "lat": lat, "lng": lng};
+  Map<String, dynamic> toJson() => {"name": name, "lat": lat, "lng": lng, "updated_at": updatedAt, };
 }
 
 // ------------------------------------------------------------

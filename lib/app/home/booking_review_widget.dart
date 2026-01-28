@@ -21,6 +21,7 @@ class BookingReviewContent extends StatelessWidget {
       estimatedPrice;
   final BuildContext bottomSheetContext;
   final bool isSpotHatchery;
+  final bool isVehicleHatchery;
   const BookingReviewContent({
     super.key,
     required this.name,
@@ -33,6 +34,7 @@ class BookingReviewContent extends StatelessWidget {
     required this.hatcheryName,
     required this.locationId,
     required this.isSpotHatchery,
+    required this.isVehicleHatchery,
     required this.categoryId,
     required this.estimatedPrice,
     required this.bottomSheetContext,
@@ -134,12 +136,14 @@ class BookingReviewContent extends StatelessWidget {
                           .createHatcheryBooking(
                             categoryId: categoryId,
                             isSpotHatchery: isSpotHatchery,
+                            isVehicleHatchery: isVehicleHatchery,
                             hatcheryId: hatcheryId,
                             hatcheryName: hatcheryName,
                             customerName: name,
                             customerMobile: phone,
                             unit: unit,
                             noOfPieces: pieces,
+                            price: estimatedPrice,
                             droppingLocation: location,
                             packingDate: date,
                             locationId: '3', // locationId,
@@ -158,6 +162,7 @@ class BookingReviewContent extends StatelessWidget {
               text: controller.isCreateLoading.value ? "Loading..." : "Proceed",
             ),
           ),
+          const SizedBox(height: 20),
         ],
       ),
     );
@@ -264,7 +269,7 @@ void showSuccess(BuildContext context, String bookingId) {
             ),
             TextButton(
               onPressed: () {
-               Get.back();
+                Get.back();
               },
               child: Text(
                 'Skip',

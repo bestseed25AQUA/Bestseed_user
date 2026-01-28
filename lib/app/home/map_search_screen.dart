@@ -20,7 +20,7 @@ class GoogleMapSearchPlacesScreen extends StatefulWidget {
 
   final double latitude;
   final double longitude;
-  final Function(LatLng latLong) ontapSelectLocation;
+  final Function(LatLng latLong, String fullAddress) ontapSelectLocation;
   @override
   // ignore: library_private_types_in_public_api
   _GoogleMapSearchPlacesScreenState createState() =>
@@ -41,15 +41,14 @@ class _GoogleMapSearchPlacesScreenState
   void initState() {
     super.initState();
     _selectedLocation = LatLng(widget.latitude, widget.longitude);
-    // _textController.addListener(() {
-    //   _onChanged();
-    // });
+    
   }
 
   @override
   void dispose() {
-    _mapController!.dispose();
-    // TODO: implement dispose
+    _mapController?.dispose();
+    _textController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -66,12 +65,6 @@ class _GoogleMapSearchPlacesScreenState
     if (_sessionToken == '') {
       _sessionToken = uuid.v4();
     }
-    // const String PLACES_API_KEY = "AIzaSyCkJAN-adqehEBHP4McDbwZlFJ4yqI4A0M";
-    // const String PLACES_API_KEY = "AIzaSyBCOw0Ds4dQ3KuD-ab0pOoLP_AyFChamms";
-    // const String PLACES_API_KEY = "AIzaSyAatarUnfCi0opdn9JPy6GNuwf0q3r6RBg";
-    // const String PLACES_API_KEY = "AIzaSyDQ2c_p0S0FYSjxGMwkFvCVWKjY0M9siow";
-    // const String PLACES_API_KEY = "AIzaSyCkJAN-adqehEBHP4McDbwZlFJ4yqI4A0M";
-
     try {
       String baseURL =
           'https://maps.googleapis.com/maps/api/place/autocomplete/json';
@@ -122,12 +115,6 @@ class _GoogleMapSearchPlacesScreenState
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
-        // appBar: CustomAppBar(
-        //   elevation: 0,
-        //   title: const Text(
-        //     'Search places Api',
-        //   ),
-        // ),
         body: Stack(
           children: [
             GoogleMap(
@@ -305,25 +292,55 @@ class _GoogleMapSearchPlacesScreenState
                       _selectedLocation!.longitude,
                     );
                     Placemark place = placemarks.first;
-                    // String fullAddress =
-                    //     "${place.street ?? ''}, ${place.subLocality ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}";
-                    String fullAddress =
-                        "${place.subLocality ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}";
-                    fullAddress = fullAddress
-                        .replaceAll(RegExp(r', ,'), ',')
-                        .replaceAll(RegExp(r',,'), ',')
-                        .trim();
-                    if (fullAddress.endsWith(',')) {
-                      fullAddress = fullAddress.substring(
-                        0,
-                        fullAddress.length - 1,
-                      );
+
+                    // Build full address with all available components
+                    List<String> addressParts = [];
+
+                    // Add street/name if available
+                    if (place.name != null && place.name!.isNotEmpty && place.name != place.subLocality) {
+                      addressParts.add(place.name!);
                     }
+                    if (place.street != null && place.street!.isNotEmpty && place.street != place.name) {
+                      addressParts.add(place.street!);
+                    }
+                    if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+                      addressParts.add(place.subLocality!);
+                    }
+                    if (place.locality != null && place.locality!.isNotEmpty) {
+                      addressParts.add(place.locality!);
+                    }
+                    if (place.subAdministrativeArea != null && place.subAdministrativeArea!.isNotEmpty) {
+                      addressParts.add(place.subAdministrativeArea!);
+                    }
+                    if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+                      addressParts.add(place.administrativeArea!);
+                    }
+                    if (place.postalCode != null && place.postalCode!.isNotEmpty) {
+                      addressParts.add(place.postalCode!);
+                    }
+                    if (place.country != null && place.country!.isNotEmpty) {
+                      addressParts.add(place.country!);
+                    }
+
+                    // Remove duplicates while preserving order
+                    List<String> uniqueParts = [];
+                    for (var part in addressParts) {
+                      if (!uniqueParts.contains(part)) {
+                        uniqueParts.add(part);
+                      }
+                    }
+
+                    String fullAddress = uniqueParts.join(', ');
+
+                    print('Full Address Components: $place');
+                    print('Built Full Address: $fullAddress');
+
                     showSelectedLocationPopup(
                       location: fullAddress,
                       onConfirm: () {
-                        Navigator.pop(context);
-                        widget.ontapSelectLocation(_selectedLocation!);
+                        // Call the callback first, then close the map screen
+                        widget.ontapSelectLocation(_selectedLocation!, fullAddress);
+                        Navigator.of(context).pop(true);
                       },
                     );
                   }
@@ -352,7 +369,7 @@ class _GoogleMapSearchPlacesScreenState
   }) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return Stack(
           clipBehavior: Clip.none,
           alignment: Alignment.center,
@@ -406,8 +423,8 @@ class _GoogleMapSearchPlacesScreenState
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     onPressed: () {
-                      Navigator.pop(context);
-                      onConfirm();
+                      Navigator.pop(dialogContext);  // Close the dialog
+                      onConfirm();  // Close map screen and callback
                     },
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -430,11 +447,11 @@ class _GoogleMapSearchPlacesScreenState
 
             Positioned(
               top:
-                  MediaQuery.of(context).size.height *
+                  MediaQuery.of(dialogContext).size.height *
                   0.27, // adjust for perfect position
               right: 35,
               child: GestureDetector(
-                onTap: () => Navigator.pop(context),
+                onTap: () => Navigator.pop(dialogContext),
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,

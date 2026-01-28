@@ -35,9 +35,9 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   String getStatusString(int status) {
     final statusStrings = {
       1: 'Pending',
-      2: 'In Progress',
-      3: 'Confirmed',
-      4: 'Driver Assigned',
+      2: 'Confirmed',
+      3: 'Driver Assigned',
+      4: 'In Progress',
       5: 'Delivered',
       6: 'Cancelled',
     };
@@ -49,15 +49,15 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     return status == 1;
   }
 
-  bool isInProgress(int status) {
+  bool isConfirmed(int status) {
     return status == 2;
   }
 
-  bool isConfirmed(int status) {
+  bool isDriverAssigned(int status) {
     return status == 3;
   }
 
-  bool isDriverAssigned(int status) {
+  bool isInProgress(int status) {
     return status == 4;
   }
 
@@ -108,32 +108,6 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               ),
 
               const SizedBox(height: 20),
-
-              Text(
-                "Booking Details",
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-
-              _detail("ID", data.bookingUId, w),
-              _detail("Date & Time", data.bookingDateTime, w),
-              _detail("Unit location", data.unitLocation, w),
-              _detail("No. of pieces", data.pieces, w),
-              _detail("Estimated Price", data.estimatedPrice, w),
-              _detail("Dropping location", data.droppingLocation, w),
-              _detail("Preferred Date", data.preferredDate, w), 
-              SizedBox(height: 10,),
-              Text(
-                "Note : ${data.note}",
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.grey,
-                ),
-              ),
-              const SizedBox(height: 20),
               if (isPending(data.statusValue))
                 Center(
                   child: InkWell(
@@ -176,9 +150,37 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                     VehicleTrackingScreen(bookingId: data.bookingId.toString()),
                   );
                 }),
+
+              const SizedBox(height: 20),
+
+              Text(
+                "Booking Details",
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+
+              _detail("ID", data.bookingId.toString(), w),
+              _detail("Date & Time", data.bookingDateTime, w),
+              _detail("Unit location", data.unitLocation, w),
+              _detail("No. of pieces", data.pieces, w),
+              _detail("Estimated Price", data.estimatedPrice, w),
+              _detail("Dropping location", data.droppingLocation, w),
+              _detail("Preferred Date", data.preferredDate, w),
+              SizedBox(height: 10),
+              Text(
+                "Note : ${data.note}",
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.grey,
+                ),
+              ),
+
               const SizedBox(height: 20),
               _helpSection(w),
-              SizedBox(height: 30,),
+              SizedBox(height: 30),
               CustomBestSeedBackground(),
               const SizedBox(height: 40),
             ],
@@ -204,7 +206,11 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
           ),
           Text(
             value,
-            style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87,fontWeight: FontWeight.w500),
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: Colors.black87,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -312,18 +318,19 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          if (s.label.toLowerCase() == "In Progress".toLowerCase())
-                        InkWell(
-                          onTap: ontapCheckVehicleStatus,
-                          child: Text(
-                            "Check vehicle status",
-                            style: GoogleFonts.roboto(
-                              color: Colors.blue,
-                              fontWeight:done? FontWeight.bold:null,
-                              fontSize: 14,
+                          if (s.label.toLowerCase() ==
+                              "In Progress".toLowerCase())
+                            InkWell(
+                              onTap: ontapCheckVehicleStatus,
+                              child: Text(
+                                "Check vehicle status",
+                                style: GoogleFonts.roboto(
+                                  color: Colors.blue,
+                                  fontWeight: done ? FontWeight.bold : null,
+                                  fontSize: 14,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
                         ],
                       ),
                       Text(
@@ -333,7 +340,6 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                           color: Colors.grey,
                         ),
                       ),
-                      
                     ],
                   ),
                 ),

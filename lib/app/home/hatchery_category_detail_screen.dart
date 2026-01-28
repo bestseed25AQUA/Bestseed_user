@@ -6,6 +6,8 @@ import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/full_image_screen.dart';
 import 'package:seedsuser/app/home/booking_hatchery_widget.dart';
 import 'package:seedsuser/app/home/controller/hatchery_category_controller.dart';
+import 'package:seedsuser/app/utils/network_config.dart';
+import 'package:seedsuser/app/utils/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:carousel_slider/carousel_slider.dart';
@@ -31,8 +33,20 @@ class HatcheryCategoryDetailScreen extends StatefulWidget {
 
 class _HatcheryCategoryDetailScreenState
     extends State<HatcheryCategoryDetailScreen> {
-  late VideoPlayerController _controller;
+  // late VideoPlayerController _controller;
   bool videoStarted = false;
+  late PageController _pageController;
+  late ScrollController _unitScrollController;
+  int _currentPage = 0;
+  bool _isVideo(String url) {
+    final lower = url.toLowerCase();
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.m3u8') ||
+        lower.endsWith('.wmv') ||
+        lower.endsWith('.flv') ||
+        lower.endsWith('.mkv');
+  }
 
   final hatcheryCategoryController = Get.put(HatcheryCategoryController());
 
@@ -40,22 +54,24 @@ class _HatcheryCategoryDetailScreenState
   void initState() {
     super.initState();
 
+    _pageController = PageController();
+    _unitScrollController = ScrollController();
+
     hatcheryCategoryController.getHatcheryCategoryDetail(
       widget.hatcheryId,
       widget.categoryId,
-      // '50',
-      // '1',
     );
 
-    _controller = VideoPlayerController.asset(widget.videoUrl)
-      ..initialize().then((_) {
-        setState(() {});
-      });
+    // _controller = VideoPlayerController.asset(widget.videoUrl)
+    //   ..initialize().then((_) {
+    //     setState(() {});
+    //   });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _pageController.dispose();
+    _unitScrollController.dispose();
     super.dispose();
   }
 
@@ -87,50 +103,119 @@ class _HatcheryCategoryDetailScreenState
           return const Center(child: Text("No data found"));
         }
 
+        final List<String> validImages = detail.images ?? [];
+
         return SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 8),
-              if (detail.images != null && detail.images!.isNotEmpty)
+              if (validImages.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      onTap: () {
-                         Get.to(FullImageScreen(imageUrl:detail.images![0],title:  detail.hatcheryName,));
-                      },
-                      child: Image.network(
-                        detail.images![0],
-                        height: 140,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            height: 140,
-                            width: double.infinity,
-                            color: Colors.grey.withOpacity(.3),
-                            child: const Center(
-                              child: Icon(Icons.broken_image, size: 50),
-                            ),
-                          );
-                        },
+                  padding: const EdgeInsets.all(8.0),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: SizedBox(
+                          height: 110,
+                          width: double.infinity,
+                          child: validImages.isEmpty
+                              ? Container(color: Colors.grey.withOpacity(.2))
+                              : validImages.length == 1
+                              ? (_isVideo(validImages.first))
+                                    ? InlineVideoPlayer(
+                                        url: validImages.first,
+                                        title: widget.hatcheryName,
+                                      )
+                                    : Image.network(
+                                        validImages.first,
+                                        width: double.infinity,
+                                        height: 110,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, _, __) =>
+                                            Container(
+                                              color: Colors.grey.withOpacity(
+                                                .2,
+                                              ),
+                                            ),
+                                      )
+                              : PageView.builder(
+                                  controller: _pageController,
+                                  onPageChanged: (index) {
+                                    setState(() {
+                                      _currentPage = index;
+                                    });
+                                  },
+                                  itemCount: validImages.length,
+                                  itemBuilder: (context, index) {
+                                    final url = validImages[index];
+                                    if (_isVideo(url)) {
+                                      return InlineVideoPlayer(
+                                        url: url,
+                                        title: widget.hatcheryName,
+                                      );
+                                    }
+
+                                    return Image.network(
+                                      url,
+                                      width: double.infinity,
+                                      height: 110,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder:
+                                          (context, child, loadingProgress) {
+                                            if (loadingProgress == null)
+                                              return child;
+
+                                            return Container(
+                                              color: Colors.grey.withOpacity(
+                                                .15,
+                                              ),
+                                              child: const Center(
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                              ),
+                                            );
+                                          },
+                                      errorBuilder: (_, __, ___) => Container(
+                                        color: Colors.grey.withOpacity(.2),
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
                       ),
-                    ),
+                      // Image indicator dots
+                      if (validImages.length > 1)
+                        Positioned(
+                          bottom: 8,
+                          left: 0,
+                          right: 0,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(
+                              validImages.length,
+                              (index) => Container(
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 3,
+                                ),
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _currentPage == index
+                                      ? Colors.white
+                                      : Colors.white.withOpacity(0.5),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-              // HatcheryGalleryCarousel(
-              //   images:
-              //       hatcheryCategoryController
-              //           .hatcheryCategoryDetailData
-              //           .value
-              //           .data
-              //           ?.images ??
-              //       [
-              //         // "https://aliceblue-wallaby-326294.hostingersite.com/uploads/hatcheries/1763032370_freshwater-crayfish-4494383_1280.jpg",
-              //       ],
-              // ),
               Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Column(
@@ -145,43 +230,169 @@ class _HatcheryCategoryDetailScreenState
                     ),
 
                     const SizedBox(height: 10),
-                    Text(
-                      detail.category?.description ?? "",
-                      style: GoogleFonts.roboto(fontSize: 14, height: 1.4),
-                    ),
-
+                    if (detail.description != null &&
+                        detail.description!.isNotEmpty)
+                      Text(
+                        detail.description ?? "",
+                        style: GoogleFonts.roboto(fontSize: 14, height: 1.4),
+                      ),
                     const SizedBox(height: 20),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            SizedBox(
-                              width: MediaQuery.of(context).size.width * .4,
-                              child: _buildInfoRow(
-                                Icons.location_on,
-                                "Unit-1",
-                                ((detail.units?.length ?? 0) >= 1)
-                                    ? (detail.units?.first.branchName ?? '')
-                                    : '',
-                              ),
-                            ),
 
-                            SizedBox(
-                              width: MediaQuery.of(context).size.width * .4,
-                              child: _buildInfoRow(
-                                Icons.location_on,
-                                "Unit-2",
-                                ((detail.units?.length ?? 0) >= 2)
-                                    ? (detail.units?[1].branchName ?? '')
-                                    : '',
-                              ),
-                            ),
-                          ],
+                    if (detail.category != null) ...[
+                      /// 🏷️ Category Name
+                      Text(
+                        detail.category!.name ?? "",
+                        style: GoogleFonts.roboto(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      /// 📝 Category Description
+                      if (detail.category!.description != null &&
+                          detail.category!.description!.isNotEmpty)
+                        Text(
+                          detail.category!.description ?? "",
+                          style: GoogleFonts.roboto(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+
+                      const SizedBox(height: 16),
+
+                      /// 🖼️ Category Gallery
+                      if ((detail.category!.gallery ?? []).isNotEmpty) ...[
+                        Text(
+                          "Category Images",
+                          style: GoogleFonts.roboto(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
 
                         const SizedBox(height: 12),
+
+                        SizedBox(
+                          height: 108,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: detail.category!.gallery!.length,
+                            itemBuilder: (_, index) {
+                              final url = detail.category!.gallery![index];
+
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    url,
+                                    height: 108,
+                                    width: 104,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      height: 108,
+                                      width: 104,
+                                      color: Colors.grey.withOpacity(.3),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+                      ],
+
+                      /// 📄 Category Report
+                      if (detail.category!.report != null &&
+                          detail.category!.report!.isNotEmpty) ...[
+                        Text(
+                          "Category Report",
+                          style: GoogleFonts.roboto(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        InkWell(
+                          onTap: () {
+                            final reportUrl =
+                                "${NetworkConfig.baseURL}${detail.category!.report}";
+                            _launchUrl(reportUrl, context);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 16,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(Icons.picture_as_pdf, color: Colors.red),
+                                SizedBox(width: 8),
+                                Text(
+                                  "View Report",
+                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                    SizedBox(height: 10),
+
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if ((detail.units?.isNotEmpty ?? false))
+                          ShaderMask(
+                            shaderCallback: (bounds) {
+                              return const LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [Colors.black, Colors.transparent],
+                                stops: [0.9, 1.0],
+                              ).createShader(bounds);
+                            },
+                            blendMode: BlendMode.dstIn,
+                            child: SizedBox(
+                              height: 50,
+                              width: double.infinity,
+                              child: SingleChildScrollView(
+                                controller: _unitScrollController,
+                                scrollDirection: Axis.horizontal,
+                                physics: const NeverScrollableScrollPhysics(),
+                                child: Padding(
+                                  padding: EdgeInsets.only(right: 16),
+                                  child: _buildInfoUnitRow(
+                                    "assets/images/unit_icon.png",
+                                    "Units",
+                                    detail.units!
+                                        .where(
+                                          (u) => (u.branch!.name!.isNotEmpty),
+                                        )
+                                        .map((u) => u.branch!.name ?? '')
+                                        .toList(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -210,50 +421,6 @@ class _HatcheryCategoryDetailScreenState
                       ],
                     ),
 
-                    const SizedBox(width: 12),
-
-                    const SizedBox(height: 30),
-
-                    // ⭐ Gallery
-                    Text(
-                      "Gallery",
-                      style: GoogleFonts.roboto(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    SizedBox(
-                      height: 108,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: detail.images?.length ?? 0,
-                        itemBuilder: (_, index) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 12),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                detail.images![index],
-                                height: 108,
-                                width: 104,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: Colors.grey.withOpacity(.3),
-                                    height: 108,
-                                    width: 104,
-                                  );
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
- 
                     const SizedBox(height: 20),
                     Row(
                       children: [
@@ -312,7 +479,7 @@ class _HatcheryCategoryDetailScreenState
                         ),
                       ],
                     ),
-                    SizedBox(height: 20,)
+                    SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -320,6 +487,49 @@ class _HatcheryCategoryDetailScreenState
           ),
         );
       }),
+    );
+  }
+
+  Widget _buildInfoUnitRow(
+    String assetPath,
+    String label,
+    List<String> branches,
+  ) {
+    if (branches.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.roboto(fontSize: 14, color: Colors.grey[600]),
+        ),
+
+        const SizedBox(height: 4),
+
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              assetPath,
+              width: 16,
+              height: 16,
+              color: Colors.grey, // optional
+            ),
+            const SizedBox(width: 6),
+            Text(
+              branches.join(', '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.roboto(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

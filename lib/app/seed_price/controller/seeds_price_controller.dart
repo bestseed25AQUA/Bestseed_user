@@ -33,6 +33,10 @@ class SeedsPriceController extends GetxController {
     /// for default location
     print('=======hello==========');
     print('enter the data here');
+    print('===== LOCATIONS BEFORE FILTER =====');
+for (var loc in locations) {
+  print(loc.title);
+}
     if (locations.isNotEmpty) {
        final dummyCategory = <Location>[];
       try {
@@ -40,7 +44,7 @@ class SeedsPriceController extends GetxController {
         for (var location in locations) {
           // if (location.title == "East Godavari" ||
           //     location.title == "East Godawari")
-          if (location.title.toLowerCase() == "Andhra Pradesh".toLowerCase()) {
+          if (location.title.toLowerCase() == "India".toLowerCase()) {
             selectedLocation.value = location;
             isFound = true;
             locations = locations;

@@ -37,6 +37,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
     otpController.phoneNumber.value = widget.phoneNumber;
     // otpController.otp.value = widget.otp; // set OTP in controller
+
+    // Start the 2-minute timer since OTP was just sent
+    otpController.startResendTimer();
   }
 
   // @override
@@ -55,10 +58,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         title: Text(
           "OTP Verification",
           style: GoogleFonts.roboto(color: Colors.white, fontSize: 18),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Padding(
@@ -106,14 +105,18 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
             // Confirm Button
             Obx(() {
+              final bool isOtpComplete = otpController.otp.value.length == 6;
               return otpController.isLoading.value
                   ? Center(child: CircularProgressIndicator())
                   : CustomButton(
                       text: "Confirm",
                       isLoading: otpController.isLoading.value,
                       borderRadius: 16,
+                      backgroundColor: isOtpComplete
+                          ? const Color(0xFF0076BE)
+                          : const Color(0xFF0076BE).withValues(alpha: 0.5),
                       onPressed: () async {
-                        if (otpController.otp.value.length == 6) {
+                        if (isOtpComplete) {
                           await otpController.verifyOtp();
                         } else {
                           CustomToast.error("Please enter a valid 6-digit OTP");
@@ -124,22 +127,41 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
             const SizedBox(height: 20),
 
-            // Resend Code
+            // Resend Code with Timer
             Obx(() {
+              final canResend = otpController.canResend;
+              final isResending = otpController.isResending.value;
+              final timer = otpController.formattedTimer;
+
               return Center(
-                child: GestureDetector(
-                  onTap: otpController.isResending.value
-                      ? null
-                      : () => otpController.resendOtp(),
-                  child: Text(
-                    otpController.isResending.value
-                        ? "Resending..."
-                        : "Didn’t receive the code? Resend code",
-                    style: GoogleFonts.roboto(
-                      color: const Color(0xFF0076BE),
-                      fontWeight: FontWeight.bold,
+                child: Column(
+                  children: [
+                    if (!canResend && !isResending)
+                      Text(
+                        "Resend code in $timer",
+                        style: GoogleFonts.roboto(
+                          color: Colors.grey,
+                          fontSize: 14,
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: (isResending || !canResend)
+                          ? null
+                          : () => otpController.resendOtp(),
+                      child: Text(
+                        isResending
+                            ? "Resending..."
+                            : "Didn't receive the code? Resend code",
+                        style: GoogleFonts.roboto(
+                          color: (canResend && !isResending)
+                              ? const Color(0xFF0076BE)
+                              : Colors.grey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               );
             }),

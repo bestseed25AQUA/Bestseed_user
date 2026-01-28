@@ -171,17 +171,42 @@ class HatcheryLocation {
 
 class UnitModel {
   final int id;
-  final String branchName;
+  final BranchModel branch;
 
-  UnitModel({required this.id, required this.branchName});
+  UnitModel({required this.id, required this.branch});
 
   factory UnitModel.fromJson(Map<String, dynamic> json) {
     return UnitModel(
       id: json["id"] is int ? json["id"] : int.tryParse("${json["id"]}") ?? 0,
-      branchName: json["branch_name"]?.toString() ?? "",
+      branch: BranchModel.fromJson(json["branch"]),
     );
   }
 }
+
+class BranchModel {
+  final int id;
+  final String name;
+  final String? address;
+
+  BranchModel({
+    required this.id,
+    required this.name,
+    this.address,
+  });
+
+  factory BranchModel.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return BranchModel(id: 0, name: "", address: null);
+    }
+
+    return BranchModel(
+      id: json["id"] is int ? json["id"] : int.tryParse("${json["id"]}") ?? 0,
+      name: json["name"]?.toString() ?? "",
+      address: json["address"]?.toString(),
+    );
+  }
+}
+
 
 class SimilarHatchery {
   final int id;

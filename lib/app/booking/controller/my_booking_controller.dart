@@ -42,7 +42,6 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 //   ],
 // };
 
-
 class MyBookingController extends GetxController {
   var isLoading = false.obs;
   var isLoadMore = false.obs;
@@ -59,6 +58,12 @@ class MyBookingController extends GetxController {
 
   bool get hasMore => currentPage < lastPage;
 
+  @override
+  void onInit() {
+    super.onInit();
+    fetchBookings();
+  }
+
   /// INITIAL / REFRESH LOAD
   Future<void> fetchBookings({bool refresh = true}) async {
     try {
@@ -68,15 +73,16 @@ class MyBookingController extends GetxController {
         isLoading.value = true;
       }
 
-      final uri = Uri.parse(
-        "${NetworkConfig.baseURL}/farmer/my-bookings",
-      ).replace(queryParameters: {
-        "page": currentPage.toString(),
-        if (filterType.value.isNotEmpty) "type": filterType.value,
-        if (selectedMonth.value.isNotEmpty) "month": selectedMonth.value,
-        if (selectedYear.value.isNotEmpty) "year": selectedYear.value,
-        if (selectedDate.value.isNotEmpty) "date": selectedDate.value,
-      });
+      final uri = Uri.parse("${NetworkConfig.baseURL}/farmer/my-bookings")
+          .replace(
+            queryParameters: {
+              "page": currentPage.toString(),
+              if (filterType.value.isNotEmpty) "type": filterType.value,
+              if (selectedMonth.value.isNotEmpty) "month": selectedMonth.value,
+              if (selectedYear.value.isNotEmpty) "year": selectedYear.value,
+              if (selectedDate.value.isNotEmpty) "date": selectedDate.value,
+            },
+          );
 
       final response = await getRequest(
         endPoint: uri.toString(),
@@ -88,10 +94,9 @@ class MyBookingController extends GetxController {
 
         lastPage = data["pagination"]["last_page"];
 
-        final List<BookingData> newItems =
-            (data["bookings"] as List)
-                .map((e) => BookingData.fromJson(e))
-                .toList();
+        final List<BookingData> newItems = (data["bookings"] as List)
+            .map((e) => BookingData.fromJson(e))
+            .toList();
 
         bookingList.addAll(newItems);
       }
@@ -148,6 +153,10 @@ class MyBookingController extends GetxController {
     }
   }
 
+  bool get hasInProgressBooking {
+    return bookingList.any((booking) => booking.status == "in_progress");
+  }
+
   Future<void> cancelBooking(String bookingId, String reason) async {
     try {
       // isDetailLoading(true);
@@ -197,14 +206,26 @@ class MyBookingController extends GetxController {
     required String customerMobile,
     required String unit,
     required String noOfPieces,
+    required String price,
     required String droppingLocation,
     required String packingDate,
     required String locationId,
     required bool isSpotHatchery,
+    required bool isVehicleHatchery,
   }) async {
     try {
+      String endpoint;
+
+      if (isVehicleHatchery) {
+        endpoint = 'book-vehicle-hatchery';
+      } else if (isSpotHatchery) {
+        endpoint = 'book-spot-hatchery';
+      } else {
+        endpoint = 'book-hatchery';
+      }
       print('====is spot hatchery $isSpotHatchery========');
-      print("${NetworkConfig.baseURL}/farmer/${isSpotHatchery ? 'book-spot-hatchery' : 'book-hatchery'}");
+      print("API ENDPOINT: ${NetworkConfig.baseURL}/farmer/$endpoint");
+      final normalizedDate = normalizeDate(packingDate);
       Map<String, String> body = {
         "hatchery_id": hatcheryId.toString(),
         "hatchery_name": hatcheryName,
@@ -213,11 +234,14 @@ class MyBookingController extends GetxController {
         "unit": unit,
         "no_of_pieces": noOfPieces.toString(),
         "dropping_location": droppingLocation,
-        "packing_date": normalizeDate(packingDate),
+        // "packing_date": normalizeDate(packingDate),
         "category_id": categoryId,
+        "price": price,
         // "location_id": locationId.toString(),
       };
-
+      if (normalizedDate != null) {
+        body["packing_date"] = normalizedDate;
+      }
       print('second map');
       print(body);
       print('===============++++++++++=================');
@@ -226,8 +250,7 @@ class MyBookingController extends GetxController {
       isCreateLoading.value = true;
 
       final response = await postRequest(
-        endPoint:
-            "${NetworkConfig.baseURL}/farmer/${isSpotHatchery ? 'book-spot-hatchery' : 'book-hatchery'}",
+        endPoint: "${NetworkConfig.baseURL}/farmer/$endpoint",
         headers: await buildHeader(),
         body: body,
       );
@@ -250,42 +273,37 @@ class MyBookingController extends GetxController {
       CustomToast.error("Something went wrong");
     } finally {
       isCreateLoading.value = false;
-    } 
+    }
   }
 }
 
-String normalizeDate(String input) {
+String? normalizeDate(String input) {
   try {
     input = input.trim();
-
-    // Replace all separators with a single dash.
     input = input.replaceAll("/", "-").replaceAll(".", "-");
 
-    // If already in yyyy-MM-dd format, return directly
     final isoMatch = RegExp(r'^\d{4}-\d{2}-\d{2}$');
     if (isoMatch.hasMatch(input)) {
       return input;
     }
 
-    // For dd-MM-yyyy format → convert to yyyy-MM-dd
-    final dmyMatch = RegExp(r'^(\d{2})-(\d{2})-(\d{4})$');
+    final dmyMatch = RegExp(r'^(\d{1,2})-(\d{1,2})-(\d{4})$');
     final dmy = dmyMatch.firstMatch(input);
     if (dmy != null) {
-      final day = dmy.group(1);
-      final month = dmy.group(2);
+      final day = dmy.group(1)!.padLeft(2, '0');
+      final month = dmy.group(2)!.padLeft(2, '0');
       final year = dmy.group(3);
       return "$year-$month-$day";
     }
 
-    // For MM-dd-yyyy or other formats, try auto parse
     final autoParsed = DateTime.tryParse(input);
     if (autoParsed != null) {
       return DateFormat("yyyy-MM-dd").format(autoParsed);
     }
 
-    return "";
-  } catch (e) {
-    return "";
+    return null;
+  } catch (_) {
+    return null;
   }
 }
 

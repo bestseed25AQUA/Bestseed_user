@@ -7,6 +7,7 @@ class VehicleTrackingModel {
   String hatcheryName;
   String categoryName;
   String status;
+  int isSpot;
 
   String pickupLocation;
   String dropLocation;
@@ -21,6 +22,7 @@ class VehicleTrackingModel {
     required this.hatcheryName,
     required this.categoryName,
     required this.status,
+    required this.isSpot,
     required this.pickupLocation,
     required this.dropLocation,
     required this.quantity,
@@ -35,6 +37,7 @@ class VehicleTrackingModel {
       hatcheryName: json['hatchery_name'] ?? "",
       categoryName: json['category_name'] ?? "",
       status: json['status']?['label']?.toString() ?? "",
+      isSpot: int.tryParse(json['is_spot']?.toString() ?? '0') ?? 0,
       pickupLocation: json['pickup_location'] ?? "",
       dropLocation: json['drop_location'] ?? "",
       quantity: json['quantity'] ?? "",
@@ -50,13 +53,13 @@ class VehicleTrackingModel {
       "hatchery_name": hatcheryName,
       "category_name": categoryName,
       "status": status,
+      "is_spot": isSpot,
       "pickup_location": pickupLocation,
       "drop_location": dropLocation,
       "quantity": quantity,
     };
   }
 }
-
 
 class VehicleTrackingResponse {
   bool success;
@@ -75,7 +78,8 @@ class VehicleTrackingResponse {
       message: json["message"] ?? "",
       data: json["data"] != null
           ? List<VehicleTrackingModel>.from(
-              json["data"].map((x) => VehicleTrackingModel.fromJson(x)))
+              json["data"].map((x) => VehicleTrackingModel.fromJson(x)),
+            )
           : [],
     );
   }

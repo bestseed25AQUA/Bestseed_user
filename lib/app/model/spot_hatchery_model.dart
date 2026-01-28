@@ -36,7 +36,9 @@ class SpotHatchery {
   final int categoryId;
   final int locationId; // ✅ changed to int
   final String categoryName;
+  final String? price;
   final String? locationName; // ✅ nullable
+   final int? broodstock;
   final bool isSpot; // ✅ added
   final String? availableOn;
   final List<String> images;
@@ -49,7 +51,9 @@ class SpotHatchery {
     required this.categoryId,
     required this.locationId,
     required this.categoryName,
+    this.price,
     required this.locationName,
+    this.broodstock,
     required this.isSpot,
     this.availableOn,
     required this.images,
@@ -63,9 +67,13 @@ class SpotHatchery {
     categoryId: json["category_id"] ?? 0,
     locationId: json["location_id"] ?? 0,
     categoryName: json["category_name"] ?? "",
+    price: json['price']?.toString(),
     locationName: json["location_name"], // ✅ nullable
     isSpot: json["is_spot"] ?? false, // ✅ added
     availableOn: json["available_on"],
+    broodstock: json["broodstock"] is int
+            ? json["broodstock"]
+            : int.tryParse(json["broodstock"]?.toString() ?? ''),
     images: json["images"] == null
         ? []
         : List<String>.from(json["images"].map((x) => x)),
@@ -79,6 +87,7 @@ class SpotHatchery {
     "category_id": categoryId,
     "location_id": locationId,
     "category_name": categoryName,
+    "price": price,
     "location_name": locationName,
     "is_spot": isSpot,
     "available_on": availableOn,

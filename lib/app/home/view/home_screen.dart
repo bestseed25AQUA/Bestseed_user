@@ -60,6 +60,15 @@ class _HomeScreenState extends State<HomeScreen>
     await _locationController.fetchDefaultLocation(
       profileController.profile.value?.id.toString() ?? '',
     );
+
+    // If no default location found, auto-detect current location
+    if (_locationController.selectedLocationId.value.isEmpty) {
+      final farmerId = profileController.profile.value?.id.toString() ?? '';
+      if (farmerId.isNotEmpty) {
+        await _locationController.autoDetectCurrentLocation(farmerId: farmerId);
+      }
+    }
+
     _homeController.changeHomeData(
       '',
       _locationController.selectedLocationId.value,
@@ -73,14 +82,14 @@ class _HomeScreenState extends State<HomeScreen>
       await _homeController.getCategories();
     }
     print('+++++2+++++');
-    if (_homeController.categories.isNotEmpty){
+    if (_homeController.categories.isNotEmpty) {
       print('+++++3+ is not empty++++');
       _tabController?.dispose();
       _tabController = TabController(
-        length: 4 + 1, //
+        length: _homeController.categories.length + 1, // All + categories
         vsync: this,
       );
-      _tabController?.addListener((){
+      _tabController?.addListener(() {
         currentTabIndex = (_tabController?.index ?? 0);
         print('++++++++tab controller index ${_tabController?.index}');
         print('++++++++currentTabIndex ${_tabController?.index}');
@@ -108,10 +117,6 @@ class _HomeScreenState extends State<HomeScreen>
         if (kDebugMode) {
           print(_homeController.selectedCateogryName.value);
         }
-        // _homeController.changeHomeData(
-        //   _homeController.selectedCategoryId.value,
-        //   _locationController.selectedLocationId.value,
-        // );
       });
       if (mounted) {
         setState(() {});
@@ -134,39 +139,6 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  //  SliverToBoxAdapter(
-  //           child: Container(
-  //             decoration: const BoxDecoration(
-  //               image: DecorationImage(
-  //                 image: AssetImage(
-  //                   "assets/images/background_animation.png",
-  //                 ),
-  //                 fit: BoxFit.cover,
-  //               ),
-  //             ),
-  //             child: Column(
-  //               children: [
-  //                 Obx((){
-  //                   final categories = _homeController.categories;
-  //                   return TabBar(
-  //                     controller: _tabController,
-  //                     isScrollable: true,
-  //                     labelColor: Colors.white,
-  //                     unselectedLabelColor: Colors.white70,
-  //                     indicatorColor: Colors.white,
-  //                     tabs: [
-  //                       const Tab(text: "All"),
-  //                       ...categories
-  //                           .take(4)
-  //                           .map((e) => Tab(text: e.categoryName)),
-  //                     ],
-  //                   );
-  //                 }),
-  //               ],
-  //             ),
-  //           ),
-  //         ),
-
   final _locationController = Get.put(LocationController());
   @override
   Widget build(BuildContext context) {
@@ -179,11 +151,8 @@ class _HomeScreenState extends State<HomeScreen>
               builder: (context) {
                 final categories = _homeController.categories;
                 if (categories.isEmpty || _tabController == null) {
-                  // return Row(children: [
-                  //  Text((_tabController == null).toString())
-                  // ],);
                   return DefaultTabController(
-                    length: 5,
+                    length: categories.length,
                     child: TabBar(
                       tabAlignment: TabAlignment.start,
                       isScrollable: true,
@@ -202,7 +171,6 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   );
                 }
-                // return Text('All');
                 return TabBar(
                   tabAlignment: TabAlignment.start,
                   controller: _tabController,
@@ -211,9 +179,10 @@ class _HomeScreenState extends State<HomeScreen>
                   unselectedLabelColor: Colors.black,
                   indicatorColor: AppColors.primary,
                   padding: EdgeInsets.zero,
-                  onTap: (index){ 
+                  onTap: (index) {
                     _tabController?.index = 0;
-                    String catName = categories[index - 1].categoryName.toString(); 
+                    String catName = categories[index - 1].categoryName
+                        .toString();
                     filterHatcheryController.selectedCategoryIds.clear();
                     filterHatcheryController.query = catName;
                     filterHatcheryController.applyFilter();
@@ -226,9 +195,7 @@ class _HomeScreenState extends State<HomeScreen>
                       ? [SizedBox()]
                       : [
                           const Tab(text: "All", iconMargin: EdgeInsets.only()),
-                          ...categories
-                              .take(4)
-                              .map((e) => Tab(text: e.categoryName)),
+                          ...categories.map((e) => Tab(text: e.categoryName)),
                         ],
                 );
               },

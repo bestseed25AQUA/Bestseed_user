@@ -59,8 +59,6 @@ class _HomeAppBarState extends State<HomeAppBar> {
     });
   }
 
-  // Remove didUpdateWidget since we're not using widget parameters anymore
-
   /// 🌤️ Fetch weather based on city name
   Future<void> fetchWeather(String cityName) async {
     print('===========fetchWeather==========');
@@ -95,219 +93,9 @@ class _HomeAppBarState extends State<HomeAppBar> {
       toolbarHeight: 0,
       expandedHeight: 160,
       automaticallyImplyLeading: false,
-      // backgroundColor: AppColors.primary,
       backgroundColor: Colors.transparent,
-
-      // bottom: PreferredSize(`      //   preferredSize: Size(double.infinity, 100),
-      //   child: Container(
-      //     color: Colors.black
-      //   ),
-      // ),
-      // title: Column(
-      //   children: [
-      //     const SizedBox(height: 12),
-      //     Row(
-      //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      //       children: [
-      //         Expanded(
-      //           child: Row(
-      //             crossAxisAlignment: CrossAxisAlignment.center,
-      //             children: [
-      //               // 🌦️ Weather section
-      //               if (temperature != null && weatherIconUrl != null)
-      //                 Stack(
-      //                   alignment: Alignment.center,
-      //                   children: [
-      //                     // Weather icon (from OpenWeatherMap)
-      //                     InkWell(
-      //                       onTap: () async {
-      //                         print(_homeController.selectedCateogryName.value);
-      //                         return;
-      //                         print(_locationController.selectedLocationId);
-      //                         print(_locationController.selectedLatiude.value);
-      //                         final _hatcheryController = Get.put(
-      //                           HatcheryUpdatesController(),
-      //                         );
-      //                         return;
-      //                         await _hatcheryController.fetchHatcheryHomeUpdate(
-      //                           // categoryId: categoryId,
-      //                           // locationId: locationId
-      //                           categoryId: '25',
-      //                           locationId: '191',
-      //                         );
-      //                         // print(
-      //                         //   _locationController.selectedLongitude.value,
-      //                         // );
-      //                         // _locationController.fetchDefaultLocation( profileController.profile.value?.id.toString() ?? '',);
-      //                       },
-      //                       child: Image.network(
-      //                         weatherIconUrl!,
-      //                         height: 60,
-      //                         width: 60,
-      //                         fit: BoxFit.contain,
-      //                         colorBlendMode: BlendMode.modulate,
-      //                       ),
-      //                     ),
-
-      //                     // Temperature text overlay
-      //                     Positioned(
-      //                       bottom: 6,
-      //                       child: Text(
-      //                         "$temperature°C",
-      //                         style: GoogleFonts.roboto(
-      //                           color: Colors.black,
-      //                           fontSize: 14,
-      //                           fontWeight: FontWeight.bold,
-      //                           shadows: [
-      //                             Shadow(
-      //                               blurRadius: 4,
-      //                               color: Colors.black.withOpacity(0.3),
-      //                               offset: const Offset(1, 1),
-      //                             ),
-      //                           ],
-      //                         ),
-      //                       ),
-      //                     ),
-      //                   ],
-      //                 )
-      //               else
-      //                 InkWell(
-      //                   onTap: () {
-      //                     print('=================');
-      //                     print(
-      //                       'location id = ${_locationController.selectedLocationId}',
-      //                     );
-      //                     print(
-      //                       'category id = ${_homeController.selectedCategoryId.value}',
-      //                     );
-      //                     print(
-      //                       'farmer id = ${_profileController.profile.value?.id.toString() ?? ''}',
-      //                     );
-      //                   },
-      //                   child: Image.asset(
-      //                     'assets/images/wheather.png',
-      //                     height: 40,
-      //                     width: 47,
-      //                   ),
-      //                 ),
-
-      //               const SizedBox(width: 4),
-      //               Obx(() {
-      //                 String? raw = _locationController.selectedCity.value;
-
-      //                 // Default fallback when null or empty
-      //                 if (raw == null || raw.trim().isEmpty) {
-      //                   raw = "Select Location";
-      //                 }
-
-      //                 // Safe split without crash
-      //                 List<String> parts = raw
-      //                     .split(",")
-      //                     .map((e) => e.trim())
-      //                     .where((e) => e.isNotEmpty)
-      //                     .toList();
-      //                 String line1 = parts.isNotEmpty ? parts[0] : raw;
-      //                 String line2 = parts.length > 1 ? parts[1] : "";
-
-      //                 return Expanded(
-      //                   child: InkWell(
-      //                     onTap: () async {
-      //                       await Get.to(() => const LocationSelectionScreen());
-
-      //                       //  Safe API call
-      //                       if (_locationController.selectedCity.value
-      //                           .trim()
-      //                           .isNotEmpty) {
-      //                         fetchWeather(
-      //                           _locationController.selectedCity.value,
-      //                         );
-      //                       }
-      //                     },
-      //                     child: Column(
-      //                       crossAxisAlignment: CrossAxisAlignment.start,
-      //                       children: [
-      //                         Row(
-      //                           children: [
-      //                             const Icon(
-      //                               Icons.location_on_outlined,
-      //                               color: Colors.black,
-      //                               size: 15,
-      //                             ),
-      //                             const SizedBox(width: 4),
-
-      //                             //  Two line safe text
-      //                             Expanded(
-      //                               child: Column(
-      //                                 crossAxisAlignment:
-      //                                     CrossAxisAlignment.start,
-      //                                 children: [
-      //                                   Text(
-      //                                     line1,
-      //                                     style: GoogleFonts.roboto(
-      //                                       color: Colors.black,
-      //                                       fontSize: 16,
-      //                                       fontWeight: FontWeight.bold,
-      //                                     ),
-      //                                     maxLines: 1,
-      //                                     overflow: TextOverflow.ellipsis,
-      //                                   ),
-
-      //                                   if (line2.isNotEmpty)
-      //                                     Text(
-      //                                       line2,
-      //                                       style: GoogleFonts.roboto(
-      //                                         color: Colors.black,
-      //                                         fontSize: 14,
-      //                                         fontWeight: FontWeight.w500,
-      //                                       ),
-      //                                       maxLines: 1,
-      //                                       overflow: TextOverflow.ellipsis,
-      //                                     ),
-      //                                 ],
-      //                               ),
-      //                             ),
-      //                           ],
-      //                         ),
-      //                       ],
-      //                     ),
-      //                   ),
-      //                 );
-      //               }),
-      //             ],
-      //           ),
-      //         ),
-      //         Row(
-      //           children: [
-      //             InkWell(
-      //               onTap: () => Get.to(() => LanguageSelectionScreen()),
-      //               child: Image.asset(
-      //                 'assets/images/lan_image.png',
-      //                 height: 32,
-      //               ),
-      //             ),
-      //             const SizedBox(width: 16),
-      //             InkWell(
-      //               onTap: () => Get.to(() => const NotificationsScreen()),
-      //               child: Image.asset(
-      //                 'assets/images/notification.png',
-      //                 height: 32,
-      //               ),
-      //             ),
-      //             const SizedBox(width: 16),
-      //             InkWell(
-      //               onTap: () => Get.to(() => const ProfileScreen()),
-      //               child: Image.asset('assets/images/person.png', height: 32),
-      //             ),
-      //             const SizedBox(width: 16),
-      //           ],
-      //         ),
-      //       ],
-      //     ),
-      //   ],
-      // ),
       flexibleSpace: LayoutBuilder(
         builder: (context, constraints) {
-          // final maxHeight = constraints.biggest.height;
           return Stack(
             fit: StackFit.expand,
             children: [
@@ -317,9 +105,6 @@ class _HomeAppBarState extends State<HomeAppBar> {
                     : _homeBannerController.bannersTop[0].url;
                 return Image.network(
                   _homeBannerController.bannersTop.isEmpty ? image : image,
-                  // _homeBannerController.bannersTop.isEmpty
-                  //     ? ''
-                  //     : _homeBannerController.bannersTop[0].url,
                   fit: BoxFit.cover,
                   loadingBuilder: (context, child, loadingProgress) {
                     return Image.asset(
@@ -335,10 +120,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                   },
                 );
               }),
-              // Image.asset("assets/images/home_top.png", fit: BoxFit.cover),
               FlexibleSpaceBar(
-                // titlePadding: EdgeInsets.only(top: 100),
-                // title: widget.bottom,
                 background: Container(
                   padding: EdgeInsets.only(top: 5, left: 16, right: 16),
                   alignment: Alignment.bottomCenter,
@@ -369,31 +151,6 @@ class _HomeAppBarState extends State<HomeAppBar> {
                                                     .value,
                                               );
                                               return;
-                                              // print(
-                                              //   _locationController
-                                              //       .selectedLocationId,
-                                              // );
-                                              // print(
-                                              //   _locationController
-                                              //       .selectedLatiude
-                                              //       .value,
-                                              // );
-                                              // final _hatcheryController =
-                                              //     Get.put(
-                                              //       HatcheryUpdatesController(),
-                                              //     );
-                                              // return;
-                                              // await _hatcheryController
-                                              //     .fetchHatcheryHomeUpdate(
-                                              //       // categoryId: categoryId,
-                                              //       // locationId: locationId
-                                              //       categoryId: '25',
-                                              //       locationId: '191',
-                                              //     );
-                                              // print(
-                                              //   _locationController.selectedLongitude.value,
-                                              // );
-                                              // _locationController.fetchDefaultLocation( profileController.profile.value?.id.toString() ?? '',);
                                             },
                                             child: Image.network(
                                               weatherIconUrl!,

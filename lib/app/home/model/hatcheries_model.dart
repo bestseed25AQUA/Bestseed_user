@@ -1,9 +1,12 @@
+import 'package:seedsuser/app/utils/network_config.dart';
+
 class HatcheryHomeModel {
   final int id;
   final String imagePath;
   final String title;
   final String location;
   final String type;
+  final int statusCode;
   final String status;
   final String? availableUntil;
   final int categoryId;
@@ -15,6 +18,7 @@ class HatcheryHomeModel {
     required this.title,
     required this.location,
     required this.type,
+    required this.statusCode,
     required this.status,
     this.availableUntil,
     required this.categoryId,
@@ -22,13 +26,42 @@ class HatcheryHomeModel {
   });
 
   factory HatcheryHomeModel.fromJson(Map<String, dynamic> json) {
+    final rawStatusCode = json["status_code"];
+    final rawStatus = json["status"]?.toString().trim() ?? '';
+
+    // ✅ Normalize status
+    int resolvedStatusCode;
+    String resolvedStatus;
+
+    if (rawStatusCode == null && (rawStatus == '-' || rawStatus.isEmpty)) {
+      // BUSINESS RULE
+      resolvedStatusCode = 2; // Coming Soon
+      resolvedStatus = 'Coming Soon';
+    } else {
+      resolvedStatusCode = rawStatusCode is int
+          ? rawStatusCode
+          : int.tryParse(rawStatusCode?.toString() ?? '') ?? 5;
+
+      resolvedStatus = rawStatus.isNotEmpty && rawStatus != '-'
+          ? rawStatus
+          : 'Closed';
+    }
+
+    final rawImage = json["image"]?.toString() ?? "";
+    final resolvedImage = rawImage.isEmpty
+        ? ""
+        : (rawImage.startsWith('http')
+              ? rawImage
+              : '${NetworkConfig.imageURL}/$rawImage');
+
     return HatcheryHomeModel(
       id: json["id"] ?? 0,
-      imagePath: json["image"] ?? "",
+      imagePath: resolvedImage,
       title: json["hatchery_name"] ?? "",
       location: json["location"] ?? "Unknown",
       type: json["category"] ?? "",
-      status: json["status"] ?? "",
+      statusCode: resolvedStatusCode,
+      status: resolvedStatus,
       availableUntil: json["available_on"], // nullable
       categoryId: json["category_id"] ?? 0,
       locationId: json["location_id"] ?? 0,

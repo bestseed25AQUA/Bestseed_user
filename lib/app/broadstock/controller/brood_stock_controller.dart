@@ -199,8 +199,28 @@ class BroodStockController extends GetxController {
 
   /// Handle month-year dropdown updates
   void onMonthYearChanged(String month, String year) {
-    selectedMonth.value = month;
+    // Convert month name (Jan, Feb, etc.) to numeric (01, 02, etc.)
+    selectedMonth.value = _convertMonthNameToNumber(month);
     selectedYear.value = year;
     getBroodStock();
+  }
+
+  /// Convert month name to numeric format
+  String _convertMonthNameToNumber(String monthName) {
+    const monthMap = {
+      'jan': '01',
+      'feb': '02',
+      'mar': '03',
+      'apr': '04',
+      'may': '05',
+      'jun': '06',
+      'jul': '07',
+      'aug': '08',
+      'sep': '09',
+      'oct': '10',
+      'nov': '11',
+      'dec': '12',
+    };
+    return monthMap[monthName.toLowerCase()] ?? monthName;
   }
 }

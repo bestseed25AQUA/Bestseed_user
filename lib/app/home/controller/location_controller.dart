@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
@@ -8,6 +10,7 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 class LocationController extends GetxController {
 
   var allLocationLoading = false.obs;
+  var isAutoDetectingLocation = false.obs;
 
   /// Store all locations list
   var allLocations = <Map<String, dynamic>>[].obs;
@@ -241,6 +244,97 @@ class LocationController extends GetxController {
       CustomToast.error("Failed to fetch default location");
     } catch (e) {
       CustomToast.error("Failed to fetch default location");
+    }
+  }
+
+  /// ✅ Auto-detect current location and save to database
+  Future<Map<String, dynamic>?> autoDetectCurrentLocation({
+    required String farmerId,
+  }) async {
+    try {
+      isAutoDetectingLocation.value = true;
+
+      // Check if location services are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        print('Location services are disabled');
+        return null;
+      }
+
+      // Check location permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          print('Location permission denied');
+          return null;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        print('Location permission permanently denied');
+        return null;
+      }
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // Get address from coordinates
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isEmpty) {
+        return null;
+      }
+
+      Placemark place = placemarks.first;
+      String locationName = '${place.subLocality ?? ''}, ${place.locality ?? ''}';
+      String fullAddress =
+          "${place.subLocality ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}";
+
+      // Clean up the address
+      fullAddress = fullAddress
+          .replaceAll(RegExp(r', ,'), ',')
+          .replaceAll(RegExp(r',,'), ',')
+          .trim();
+      if (fullAddress.endsWith(',')) {
+        fullAddress = fullAddress.substring(0, fullAddress.length - 1);
+      }
+      if (locationName.startsWith(',')) {
+        locationName = locationName.substring(1).trim();
+      }
+
+      // Save location to database
+      Map? response = await addLocation(
+        latitude: position.latitude.toString(),
+        longitude: position.longitude.toString(),
+        locationName: locationName,
+        fullAddress: fullAddress,
+        farmerId: farmerId,
+      );
+
+      if (response != null && response['data'] != null) {
+        // Update selected location
+        selectedLocationId.value = response['data']['id']?.toString() ?? '';
+        selectedCity.value = response['data']['title']?.toString() ?? locationName;
+        selectedLatiude.value = position.latitude.toString();
+        selectedLongitude.value = position.longitude.toString();
+        selectedFullAddress.value = fullAddress;
+
+        print('Auto-detected location saved: $locationName');
+        return response['data'];
+      }
+
+      return null;
+    } catch (e) {
+      print('Error auto-detecting location: $e');
+      return null;
+    } finally {
+      isAutoDetectingLocation.value = false;
     }
   }
 }

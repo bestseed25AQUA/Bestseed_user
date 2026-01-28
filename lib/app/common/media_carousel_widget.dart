@@ -43,29 +43,35 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
     return Stack(
       alignment: Alignment.bottomCenter,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(widget.borderRadius ?? 0),
-          child: CarouselSlider.builder(
-            itemCount: widget.mediaUrls.length,
-            carouselController: _carouselController,
-            itemBuilder: (context, index, realIndex) {
-              final type = widget.mediaTypes?[index] ?? widget.mediaType;
-              final url = widget.mediaUrls[index];
-              // print('object');
-              // print(url);
-              return type == "image"
-                  ? _buildImage(url, widget.borderRadius ?? 12,title: widget.title)
-                  : _buildVideo(url, widget.borderRadius ?? 12, widget.height,widget.title);
+        CarouselSlider.builder(
+          itemCount: widget.mediaUrls.length,
+          carouselController: _carouselController,
+          itemBuilder: (context, index, realIndex) {
+            final type = widget.mediaTypes?[index] ?? widget.mediaType;
+            final url = widget.mediaUrls[index];
+            // print('object');
+            // print(url);
+            return type == "image"
+                ? _buildImage(
+                    url,
+                    widget.borderRadius ?? 12,
+                    title: widget.title,
+                  )
+                : _buildVideo(
+                    url,
+                    widget.borderRadius ?? 12,
+                    widget.height,
+                    widget.title,
+                  );
+          },
+          options: CarouselOptions(
+            height: widget.height,
+            enlargeCenterPage: true,
+            viewportFraction:
+                (MediaQuery.of(context).size.width) / (widget.height ?? 180),
+            onPageChanged: (index, reason) {
+              setState(() => currentIndex = index);
             },
-            options: CarouselOptions(
-              height: widget.height,
-              enlargeCenterPage: true,
-              viewportFraction:
-                  (MediaQuery.of(context).size.width) / (widget.height ?? 180),
-              onPageChanged: (index, reason) {
-                setState(() => currentIndex = index);
-              },
-            ),
           ),
         ),
 
@@ -121,10 +127,15 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
   }
 
   /// ---------------- VIDEO VIEW ----------------
-  Widget _buildVideo(String url, double borderRadius, double? aspectRatio, String? title) {
+  Widget _buildVideo(
+    String url,
+    double borderRadius,
+    double? aspectRatio,
+    String? title,
+  ) {
     return GestureDetector(
       onTap: () {
-        Get.to(() => FullScreenVideoPlayer(videoUrl: url,title: title,));
+        Get.to(() => FullScreenVideoPlayer(videoUrl: url, title: title));
       },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),

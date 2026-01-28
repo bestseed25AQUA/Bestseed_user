@@ -14,7 +14,7 @@ class SeedRequestController extends GetxController {
   /// 🚚 Send Seed Request API
   Future<void> sendSeedRequest({ 
     required int categoryId,
-    required int brandId,
+    required int hatcheryId,
     required String name,
     required String mobile,
     required int pieces,
@@ -26,7 +26,7 @@ class SeedRequestController extends GetxController {
 
       final body = { 
         "category_id": categoryId,
-        "brand_id": brandId,
+        "hatchery_id": hatcheryId,
         "name": name,
         "mobile": mobile,
         "pieces": pieces,

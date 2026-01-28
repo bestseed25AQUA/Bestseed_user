@@ -33,6 +33,9 @@ class FilterHatcheryController extends GetxController {
 
   var isHatcheryNameLoading = false.obs;
 
+  // All hatcheries list for dropdowns
+  RxList<HatcheryFilterItem> allHatcheries = <HatcheryFilterItem>[].obs;
+
   Future<void> getHatcheriesNames() async {
     try {
       isHatcheryNameLoading.value = true;
@@ -49,6 +52,8 @@ class FilterHatcheryController extends GetxController {
           modelData.data.length,
           (index) => modelData.data[index].hatcheryName,
         );
+        // Store all hatcheries for dropdown usage
+        allHatcheries.assignAll(modelData.data);
       } else {
         CustomToast.error("Failed to fetch prices ");
       }

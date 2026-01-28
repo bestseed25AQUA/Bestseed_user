@@ -218,6 +218,7 @@ class HatcherySuppliersWidget extends StatelessWidget {
   // }
 
     Widget _buildHatcheryCard(BroodstockData data,BuildContext context) {
+      print("checking for data availability ${data.availableOn}");
     return Ink(
       // elevation: 3,
       decoration: BoxDecoration(

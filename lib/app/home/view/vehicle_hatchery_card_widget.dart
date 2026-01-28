@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
@@ -11,20 +10,25 @@ import 'package:seedsuser/app/home/booking_review_widget.dart';
 import 'package:seedsuser/app/home/hatchery_category_detail_screen.dart';
 import 'package:seedsuser/app/model/location_model.dart';
 import 'package:seedsuser/app/model/spot_hatchery_model.dart';
+import 'package:seedsuser/app/model/vehicle_available_model.dart';
 import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
-class HarcheryCardWidget extends StatefulWidget {
-  const HarcheryCardWidget({super.key, required this.spotHatchery});
+class VehicleHatcheryCardWidget extends StatefulWidget {
+  const VehicleHatcheryCardWidget({
+    super.key,
+    required this.vehicleAvailability,
+  });
 
-  final SpotHatchery spotHatchery;
+  final VehicleAvailability vehicleAvailability;
 
   @override
-  State<HarcheryCardWidget> createState() => _HarcheryCardWidgetState();
+  State<VehicleHatcheryCardWidget> createState() =>
+      _VehicleHatcheryCardWidgetState();
 }
 
-class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
+class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
   VideoPlayerController? _controller;
   bool videoStarted = false;
   bool isPressed = false;
@@ -36,21 +40,17 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
   void initState() {
     super.initState();
     _pageController = PageController();
-    if (widget.spotHatchery.images.length > 1) {
+    if (widget.vehicleAvailability.images.length > 1) {
       _startAutoScroll();
     }
   }
 
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
-
   void _startAutoScroll() {
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (_pageController.hasClients && widget.spotHatchery.images.isNotEmpty) {
-        final nextPage = (_currentPage + 1) % widget.spotHatchery.images.length;
+      if (_pageController.hasClients &&
+          widget.vehicleAvailability.images.isNotEmpty) {
+        final nextPage =
+            (_currentPage + 1) % widget.vehicleAvailability.images.length;
         _pageController.animateToPage(
           nextPage,
           duration: const Duration(milliseconds: 400),
@@ -60,14 +60,21 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
     });
   }
 
+  @override
+  void dispose() {
+    _autoScrollTimer?.cancel();
+    _pageController.dispose();
+    _controller?.dispose();
+    super.dispose();
+  }
+
   final SeedsPriceController controller = Get.put(SeedsPriceController());
+
   @override
   Widget build(BuildContext context) {
-    final hatchery = widget.spotHatchery;
-    final validImages = hatchery.images;
-    final bool hasLocation = hatchery.locationName?.isNotEmpty ?? false;
-    final bool hasStock =
-        hatchery.broodstock != null && hatchery.broodstock! > 0;
+    final hatchery = widget.vehicleAvailability;
+    final validImages =
+        hatchery.images; // Images are already filtered in the model
 
     return GestureDetector(
       onTapDown: (_) {
@@ -118,6 +125,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Image carousel with auto-scroll
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Stack(
@@ -147,6 +155,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                               },
                               itemCount: validImages.length,
                               itemBuilder: (context, index) {
+                               
                                 return Image.network(
                                   validImages[index],
                                   width: double.infinity,
@@ -189,13 +198,20 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                 ],
               ),
             ),
-
             // ✅ Details Section
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 5),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Location routing visualization for vehicle
+                  if (hatchery.locations.isNotEmpty)
+                    _buildLocationRouting(
+                      hatchery.locations.cast<VehicleLocation>(),
+                    ),
+
+                  const SizedBox(height: 8),
+
                   // Header Row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -247,70 +263,103 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 4),
-
-                  Text(
-                    hatchery.categoryName!,
-                    style: GoogleFonts.roboto(
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 8),
 
                   // // Location
-                  if (hasLocation || hasStock)
+                  if (hatchery.locationName?.isNotEmpty ?? false)
+                    Builder(
+                      builder: (context) {
+                        Location? location;
+                        try {
+                          location = controller.locations.firstWhere(
+                            (e) =>
+                                e.id.toString() ==
+                                hatchery.locationId.toString(),
+                          );
+                        } catch (e) {}
+
+                        return _buildInfoRow(
+                          Icons.location_on,
+                          location != null ? location.title : '',
+                        );
+                      },
+                    ),
+                  const SizedBox(height: 8),
+
+                  if (hatchery.availableSpace != null)
+                    _buildAvailableSpace(hatchery.availableSpace),
+                  const SizedBox(height: 8),
+                  if (hatchery.availableOn != null) ...[
+                    const SizedBox(height: 4),
+
                     LayoutBuilder(
                       builder: (context, constraints) {
+                        final screenWidth = MediaQuery.of(context).size.width;
+                        final fontScale = screenWidth < 360 ? 11.0 : 12.5;
+
                         return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 📍 Location
-                            if (hasLocation)
-                              Expanded(
-                                flex: 3,
-                                child: Builder(
-                                  builder: (context) {
-                                    Location? location;
-                                    try {
-                                      location = controller.locations
-                                          .firstWhere(
-                                            (e) =>
-                                                e.id.toString() ==
-                                                hatchery.locationId.toString(),
-                                          );
-                                    } catch (_) {}
-
-                                    return _buildCompactInfoRow(
-                                      Icons.location_on,
-                                      location?.title ?? '',
-                                    );
-                                  },
+                            // START DATE (no border)
+                            SizedBox(
+                              width: constraints.maxWidth * 0.49,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  "Start Date ${_getStartDate(hatchery.availableOn)}",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.roboto(
+                                    fontSize: fontScale,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey[800],
+                                  ),
                                 ),
                               ),
+                            ),
 
-                            // spacing only when both exist
-                            if (hasLocation && hasStock)
-                              const SizedBox(width: 8),
+                            const SizedBox(width: 6),
 
-                            // 📦 Broodstock
-                            if (hasStock)
-                              Expanded(
-                                flex: 2,
-                                child: _buildCompactInfoRow(
-                                  Icons.inventory_2,
-                                  'Stock: ${hatchery.broodstock}',
+                            // END DATE (with border)
+                            SizedBox(
+                              width: constraints.maxWidth * 0.48,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  "End Date ${_getEndDate(hatchery.availableOn, days: 3)}",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.roboto(
+                                    fontSize: fontScale - 0.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
                                 ),
                               ),
+                            ),
                           ],
                         );
                       },
                     ),
-
-                  // if (hatchery.locationName?.isNotEmpty ?? false)
-                  const SizedBox(height: 5),
+                  ],
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       _actionButton(
@@ -356,10 +405,13 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                                   ),
                                 ),
                                 child: BookingBottomSheet(
-                                  price: widget.spotHatchery.price ?? '',
-                                  categoryId: widget.spotHatchery.categoryId
+                                  price: hatchery.price ?? '',
+                                  categoryId: widget
+                                      .vehicleAvailability
+                                      .categoryId
                                       .toString(),
-                                  isSpotHatchery: true,
+                                  isSpotHatchery: false,
+                                  isVehicleHatchery: true,
                                   hatcheryId: hatchery.hatcheryId.toString(),
                                   hatcheryName: hatchery.hatcheryName,
                                 ),
@@ -379,23 +431,127 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
     );
   }
 
-  Widget _buildCompactInfoRow(IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+  DateTime? _parseDate(String? date) {
+    if (date == null || date.isEmpty) return null;
+    try {
+      return DateTime.parse(date);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _getStartDate(String? availableOn) {
+    final date = _parseDate(availableOn);
+    if (date == null) return '';
+    return DateFormat('dd/MM/yyyy').format(date);
+  }
+
+  String _getEndDate(String? availableOn, {int days = 3}) {
+    final date = _parseDate(availableOn);
+    if (date == null) return '';
+    final endDate = date.add(Duration(days: days));
+    return DateFormat('dd/MM/yyyy').format(endDate);
+  }
+
+  Widget _buildLocationRouting(List<VehicleLocation> locations) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 14, color: Colors.grey),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Text(
-            text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis, // ✅ NO OVERFLOW EVER
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
-            ),
-          ),
+        // Build rows dynamically based on how locations wrap
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return Wrap(
+              spacing: 6,
+              runSpacing: 8,
+              children: [
+                // Truck icon at the start
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.local_shipping,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ),
+                ),
+                // Generate location chips with arrows
+                ...List.generate(locations.length, (index) {
+                  final location = locations[index];
+                  final isLast = index == locations.length - 1;
+
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Arrow before location (except for first one)
+                      if (index > 0)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(
+                            Icons.arrow_forward,
+                            size: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      // Location chip
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isLast
+                              ? AppColors.primary.withOpacity(0.1)
+                              : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isLast
+                                ? AppColors.primary.withOpacity(0.3)
+                                : Colors.grey[300]!,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              size: 14,
+                              color: isLast
+                                  ? AppColors.primary
+                                  : Colors.grey[600],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              location.name,
+                              style: GoogleFonts.roboto(
+                                fontSize: 11,
+                                fontWeight: isLast
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                                color: isLast
+                                    ? AppColors.primary
+                                    : Colors.grey[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ],
+            );
+          },
         ),
       ],
     );
@@ -459,6 +615,59 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
         context,
       ).showSnackBar(const SnackBar(content: Text("Cannot launch URL")));
     }
+  }
+
+  Widget _buildInfoRow(IconData icon, String label) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.primary),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            label,
+            style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[600]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAvailableSpace(int? space) {
+    if (space == null || space <= 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.inventory_2, size: 18, color: Colors.green),
+          const SizedBox(width: 6),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "$space seeds",
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                "No. of Space available",
+                style: GoogleFonts.roboto(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

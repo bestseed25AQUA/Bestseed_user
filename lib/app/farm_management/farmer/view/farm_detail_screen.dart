@@ -173,12 +173,13 @@ class FeedStoreCard extends StatelessWidget {
                     "Total feed used",
                     style: GoogleFonts.roboto(
                       color: Colors.white,
-                      fontSize: 14,fontWeight: FontWeight.bold
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    data?.totalFeedUsed.toString()??"0",
+                    data?.totalFeedUsed.toString() ?? "0",
                     style: GoogleFonts.roboto(
                       color: Colors.white,
                       fontSize: 24,
@@ -207,14 +208,14 @@ class FeedStoreCard extends StatelessWidget {
                   Text(
                     "Store",
                     style: GoogleFonts.roboto(
-
-                      color: Colors.white,fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    data?.feedStore.toString()??"0",
+                    data?.feedStore.toString() ?? "0",
                     style: GoogleFonts.roboto(
                       color: Colors.white,
                       fontSize: 24,
@@ -337,62 +338,134 @@ class TankStatusCard extends StatelessWidget {
                 ),
 
                 // switch
-                Switch(
-                  value: isActive,
-                  activeThumbColor: Colors.green,
-                  inactiveThumbColor: Colors.red,
-                  activeTrackColor: Colors.green.withOpacity(.5),
-                  inactiveTrackColor: Colors.red.withOpacity(.5),
-                  onChanged: (value) async {
-                    if (value) {
-                      controller.updateTankStatus(
-                        status: 1,
-                        tankId: tank.id.toString(),
-                        farmId: farmId,
-                      );
-                    } else {
-                      bool isUpdated = false;
+                // Switch(
+                //   value: isActive,
+                //   activeThumbColor: Colors.green,
+                //   inactiveThumbColor: Colors.red,
+                //   activeTrackColor: Colors.green.withOpacity(.5),
+                //   inactiveTrackColor: Colors.red.withOpacity(.5),
+                //   onChanged: (value) async {
+                //     if (value) {
+                //       controller.updateTankStatus(
+                //         status: 1,
+                //         tankId: tank.id.toString(),
+                //         farmId: farmId,
+                //       );
+                //     } else {
+                //       bool isUpdated = false;
 
-                      await showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => HarvestBottomSheet(
-                          tank: tank,
-                          statusToUpdate: value ? 1 : 0,
-                          onSubmit: () async {
-                            isUpdated = await controller.updateTankStatus(
-                              status: 0,
-                              tankId: tank.id.toString(),
-                              farmId: farmId,
-                            );
-                            Get.back();
-                          },
-                        ),
-                      );
+                //       await showModalBottomSheet(
+                //         context: context,
+                //         isScrollControlled: true,
+                //         backgroundColor: Colors.transparent,
+                //         builder: (_) => HarvestBottomSheet(
+                //           tank: tank,
+                //           statusToUpdate: value ? 1 : 0,
+                //           onSubmit: () async {
+                //             isUpdated = await controller.updateTankStatus(
+                //               status: 0,
+                //               tankId: tank.id.toString(),
+                //               farmId: farmId,
+                //             );
+                //             Get.back();
+                //           },
+                //         ),
+                //       );
 
-                      await Future.delayed(Duration(seconds: 2));
+                //       await Future.delayed(Duration(seconds: 2));
 
-                      if (isUpdated) {
-                        String? report = await controller.getReport(
-                          tankId: tank.id.toString(),
-                        );
+                //       if (isUpdated) {
+                //         String? report = await controller.getReport(
+                //           tankId: tank.id.toString(),
+                //         );
 
-                        // ✅ Use global safe context (never disposed)
-                        final safeContext = navigatorKey.currentContext!;
+                //         // ✅ Use global safe context (never disposed)
+                //         final safeContext = navigatorKey.currentContext!;
 
-                        showReportPopup(
-                          safeContext,
-                          () async {
-                            downloadReport(report ?? '');
-                          },
-                          () {
-                            shareReport(report ?? '');
-                          },
-                        );
+                //         showReportPopup(
+                //           safeContext,
+                //           () async {
+                //             downloadReport(report ?? '');
+                //           },
+                //           () {
+                //             shareReport(report ?? '');
+                //           },
+                //         );
+                //       }
+                //     }
+                //   },
+                // ),
+                SwitchTheme(
+                  data: SwitchThemeData(
+                    thumbColor: MaterialStateProperty.resolveWith<Color?>((
+                      states,
+                    ) {
+                      if (states.contains(MaterialState.selected)) {
+                        return Colors.green;
                       }
-                    }
-                  },
+                      return Colors.red;
+                    }),
+                    trackColor: MaterialStateProperty.resolveWith<Color?>((
+                      states,
+                    ) {
+                      if (states.contains(MaterialState.selected)) {
+                        return Colors.green.withOpacity(.5);
+                      }
+                      return Colors.red.withOpacity(.5);
+                    }),
+                  ),
+                  child: Switch(
+                    value: isActive,
+                    onChanged: (value) async {
+                      if (value) {
+                        controller.updateTankStatus(
+                          status: 1,
+                          tankId: tank.id.toString(),
+                          farmId: farmId,
+                        );
+                      } else {
+                        bool isUpdated = false;
+
+                        await showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => HarvestBottomSheet(
+                            tank: tank,
+                            statusToUpdate: value ? 1 : 0,
+                            onSubmit: () async {
+                              isUpdated = await controller.updateTankStatus(
+                                status: 0,
+                                tankId: tank.id.toString(),
+                                farmId: farmId,
+                              );
+                              Get.back();
+                            },
+                          ),
+                        );
+
+                        await Future.delayed(const Duration(seconds: 2));
+
+                        if (isUpdated) {
+                          String? report = await controller.getReport(
+                            tankId: tank.id.toString(),
+                          );
+
+                          final safeContext = navigatorKey.currentContext!;
+
+                          showReportPopup(
+                            safeContext,
+                            () async {
+                              downloadReport(report ?? '');
+                            },
+                            () {
+                              shareReport(report ?? '');
+                            },
+                          );
+                        }
+                      }
+                    },
+                  ),
                 ),
               ],
             ),
@@ -715,9 +788,7 @@ void showEditFeedBottomSheet(String farmId) {
                 if (ok) {
                   Get.back();
                   print('++++++++++++++loading the data+++++++++++++=');
-                  controller.getFeedStore(
-                    farmId
-                  );
+                  controller.getFeedStore(farmId);
                   storeController.text = storeController.text.trim();
                 }
               },

@@ -26,12 +26,14 @@ class BookingBottomSheet extends StatefulWidget {
     required this.hatcheryId,
     required this.hatcheryName,
     this.isSpotHatchery,
+    this.isVehicleHatchery,
     required this.categoryId,
     required this.price,
   });
   final String hatcheryId;
   final String hatcheryName;
   final bool? isSpotHatchery;
+  final bool? isVehicleHatchery;
   final String categoryId;
   final String price;
 
@@ -56,8 +58,9 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
   final List<String> _salinity = List.generate(41, (index) => '$index');
 
   Position? currentPosition;
-  getCurrentLocation() async {
+  Future<Position?> getCurrentLocation() async {
     currentPosition = await _getCurrentLocation();
+    return currentPosition;
   }
 
   Future<Position?> _getCurrentLocation() async {
@@ -97,6 +100,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     _piecesController.dispose();
     _dateController.dispose();
     _unitController.dispose();
+    _dropLocController.dispose();
     super.dispose();
   }
 
@@ -133,13 +137,14 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 SizedBox(
-                  width: MediaQuery.of(context).size.width*.7,
+                  width: MediaQuery.of(context).size.width * .7,
                   child: Text(
-                    "Booking at \n${widget.hatcheryName}",
+                    "Booking at ${widget.hatcheryName}",
                     style: GoogleFonts.roboto(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
-                    ),overflow: TextOverflow.ellipsis,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 IconButton(
@@ -148,7 +153,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
             _buildTextField(
               controller: _nameController,
               label: "Name",
@@ -199,76 +204,127 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               hint: "Enter no.of pieces",
               icon: Icons.format_list_numbered,
               keyboardType: TextInputType.number,
+              onChanged: (value) {
+                setState(() {}); // Rebuild to update estimated price
+              },
             ),
-            Row(
-              children: [
-                Text(
-                  'Estimated Price',
-                  style: GoogleFonts.roboto(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppColors.primary.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Estimated Price:',
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
                   ),
-                ),
-                Builder(
-                  builder: (context) {
-                    return Text(
-                      calculatePrice(_phoneController.text, widget.price),
-                      style: GoogleFonts.roboto(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    );
-                  },
-                ),
-              ],
+                  Text(
+                    _piecesController.text.isNotEmpty && widget.price.isNotEmpty
+                        ? '₹${calculatePrice(_piecesController.text, widget.price)}'
+                        : '₹0',
+                    style: GoogleFonts.roboto(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(height: 8),
             _buildTextField(
               controller: _dropLocController,
               iconColor: Colors.blue,
               label: "Dropping location",
-              hint: "Enter your Dropping location",
+              hint: "Tap to select location from map",
               icon: Icons.location_on_outlined,
+              readOnly: true,
               ontapSuffix: () async {
-                print(currentPosition?.latitude);
-                print(currentPosition?.longitude);
-                // return;
-                if (currentPosition == null ||
-                    currentPosition?.latitude == null ||
-                    currentPosition?.longitude == null) {
+                print('--- DROP LOCATION TAPPED ---');
+                print('BottomSheet mounted: $mounted');
+
+                // Capture navigator before async gap
+                final navigator = Navigator.of(context);
+
+                // Always try to get fresh location if current position is null
+                if (currentPosition == null) {
+                  print('Getting fresh location...');
                   currentPosition = await getCurrentLocation();
                 }
-                if (currentPosition?.latitude != null &&
-                    currentPosition?.longitude != null) {
-                  await Get.to(
-                    () => GoogleMapSearchPlacesScreen(
-                      latitude: currentPosition!.latitude,
-                      longitude: currentPosition!.longitude,
-                      ontapSelectLocation: (location) async {
-                        List<Placemark> placemarks =
-                            await placemarkFromCoordinates(
-                              location.latitude,
-                              location.longitude,
+
+                print(
+                  'Opening map - Current position: ${currentPosition?.latitude}, ${currentPosition?.longitude}',
+                );
+
+                // If still no location, show error and return
+                if (currentPosition == null) {
+                  CustomToast.show(
+                    message:
+                        'Unable to get current location. Please enable location services.',
+                  );
+                  return;
+                }
+
+                // Store coordinates before navigation
+                final double lat = currentPosition!.latitude;
+                final double lng = currentPosition!.longitude;
+
+                // Check if widget is still mounted before navigation
+                if (!mounted) return;
+
+                // Navigate to map screen using Navigator.push
+                final result = await navigator.push<bool>(
+                  MaterialPageRoute(
+                    builder: (ctx) => GoogleMapSearchPlacesScreen(
+                      latitude: lat,
+                      longitude: lng,
+                      ontapSelectLocation: (location, fullAddress) async {
+                        print('CALLBACK RECEIVED LOCATION: $location');
+                        try {
+                          List<Placemark> placemarks =
+                              await placemarkFromCoordinates(
+                                location.latitude,
+                                location.longitude,
+                              );
+                          Placemark place = placemarks.first;
+                          String fullAddress =
+                              "${place.subLocality ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}";
+                          fullAddress = fullAddress
+                              .replaceAll(RegExp(r', ,'), ',')
+                              .replaceAll(RegExp(r',,'), ',')
+                              .trim();
+                          if (fullAddress.endsWith(',')) {
+                            fullAddress = fullAddress.substring(
+                              0,
+                              fullAddress.length - 1,
                             );
-                        Placemark place = placemarks.first;
-                        String fullAddress =
-                            "${place.subLocality ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}";
-                        fullAddress = fullAddress
-                            .replaceAll(RegExp(r', ,'), ',')
-                            .replaceAll(RegExp(r',,'), ',')
-                            .trim();
-                        if (fullAddress.endsWith(',')) {
-                          fullAddress = fullAddress.substring(
-                            0,
-                            fullAddress.length - 1,
-                          );
+                          }
+                          if (mounted) {
+                            setState(() {
+                              _dropLocController.text = fullAddress;
+                            });
+                          }
+                        } catch (e) {
+                          print('Error getting address: $e');
                         }
-                        setState(() {
-                          _dropLocController.text = fullAddress;
-                        });
                       },
                     ),
-                  );
-                }
+                  ),
+                );
+                print('Map closed with result: $result');
+                print('--- END DROP LOCATION FLOW ---');
               },
             ),
 
@@ -288,7 +344,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
-                onPressed: () {  
+                onPressed: () {
                   if (kDebugMode) {
                     print('validation here');
                   }
@@ -303,12 +359,16 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     return;
                   }
 
-                  if (_phoneController.text.trim().length != 10) {
-                    _showError("Enter valid 10 digit phone number");
+                  final phone = _phoneController.text.trim();
+
+                  if (!RegExp(r'^[0-9]{10}$').hasMatch(phone)) {
+                    _showError("Enter a valid 10 digit phone number");
                     return;
                   }
-                  if (_unitController.text.isEmpty) {
-                    _showError("Please select unit");
+
+                  // Reject all-same digits like 0000000000, 1111111111
+                  if (RegExp(r'^(\d)\1{9}$').hasMatch(phone)) {
+                    _showError("Enter a valid phone number");
                     return;
                   }
 
@@ -322,14 +382,12 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     _showError("Enter valid number of pieces");
                     return;
                   }
-                  if (_dateController.text.trim().isEmpty) {
-                    _showError("Please select date");
-                    return;
-                  }
+
                   Navigator.pop(context);
                   _showBookingReviewSheet(
                     context,
                     widget.isSpotHatchery ?? false,
+                    widget.isVehicleHatchery ?? false,
                     calculatePrice(_piecesController.text, widget.price),
                   );
                 },
@@ -350,6 +408,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
   void _showBookingReviewSheet(
     BuildContext context,
     bool isSpotHatchery,
+    bool isVehicleHatchery,
     String? estimatePrice,
   ) {
     showModalBottomSheet(
@@ -393,6 +452,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                         estimatedPrice: estimatePrice ?? "",
                         categoryId: widget.categoryId,
                         isSpotHatchery: isSpotHatchery,
+                        isVehicleHatchery: isVehicleHatchery,
                         name: _nameController.text,
                         phone: _phoneController.text,
                         unit: _unitController.text,
@@ -422,9 +482,10 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     bool? isMendatory = false,
     required IconData icon,
     Color? iconColor,
-
     TextInputType keyboardType = TextInputType.text,
     int? maxLength,
+    ValueChanged<String>? onChanged,
+    bool readOnly = false,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -454,37 +515,39 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     ],
             ),
           ),
-          // Text(
-          //   label,
-          //   style: GoogleFonts.roboto(
-          //     fontWeight: FontWeight.w500,
-          //     fontSize: 14,
-          //   ),
-          // ),
           const SizedBox(height: 4),
-          SizedBox(
-            height: 35,
-            child: TextField(
-              maxLength: maxLength,
-              controller: controller,
-              keyboardType: keyboardType,
-              decoration: InputDecoration(
-                counter: SizedBox(),
-                hintText: hint,
-                hintStyle: TextStyle(fontSize: 14),
-                suffixIcon: InkWell(
-                  onTap: ontapSuffix,
-                  child: Icon(icon, color: iconColor ?? Colors.grey),
-                ),
-                filled: true,
-                fillColor: Colors.grey[100],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+          GestureDetector(
+            onTap: readOnly && ontapSuffix != null ? ontapSuffix : null,
+            child: AbsorbPointer(
+              absorbing: readOnly && ontapSuffix != null,
+              child: TextField(
+                maxLength: maxLength,
+                controller: controller,
+                keyboardType: keyboardType,
+                readOnly: readOnly,
+                onChanged: onChanged,
+                maxLines: readOnly ? 2 : 1,
+                minLines: 1,
+                style: TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  counter: SizedBox(),
+                  hintText: hint,
+                  hintStyle: TextStyle(fontSize: 13),
+                  suffixIcon: Icon(
+                    icon,
+                    size: 20,
+                    color: iconColor ?? Colors.grey,
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                 ),
               ),
             ),
@@ -501,37 +564,8 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     required List<String> items,
     required ValueChanged<String?> onChanged,
   }) {
-  
-  return  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Salinity",
-                        style: GoogleFonts.roboto(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 38, // 👈 exact height control
-                        child: CustomDropdown<String>(
-                          selectedValue: _selectedSalinity,
-                          items: _salinity,
-                          hintText: "Select salinity",
-                          backgroundColor: Colors.grey[100],
-                          itemLabel: (item) => item,
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedSalinity = value;
-                            });
-                          },
-                        ),
-                      ),
-                    ],
-                  );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -542,35 +576,19 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               fontSize: 14,
             ),
           ),
-          const SizedBox(height: 8),
-          Container(
-            height: 35,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child:
-             Center(
-              child: DropdownButtonFormField<String>(
-                isDense: true, isExpanded: true,
-                padding: EdgeInsets.all(0),
-                initialValue: items.contains(value) ? value : null,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                 contentPadding: EdgeInsets.only(bottom: 13),
-                ),
-                hint: Text(hint),
-                items: items
-                    .map(
-                      (item) => DropdownMenuItem<String>(
-                        value: item,
-                        child: Text(item),
-                      ),
-                    )
-                    .toList(),
-                onChanged: onChanged,
-              ),
+          const SizedBox(height: 4),
+          SizedBox(
+            child: CustomDropdown<String>(
+              selectedValue: _selectedSalinity,
+              items: _salinity,
+              hintText: hint,
+              backgroundColor: Colors.grey[100],
+              itemLabel: (item) => item,
+              onChanged: (value) {
+                setState(() {
+                  _selectedSalinity = value;
+                });
+              },
             ),
           ),
         ],
@@ -584,7 +602,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     required String hint,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -595,12 +613,12 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               fontSize: 14,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           SizedBox(
-            height: 35,
             child: TextField(
               controller: controller,
               readOnly: true,
+              style: TextStyle(fontSize: 13),
               onTap: () async {
                 DateTime? picked = await showDatePicker(
                   context: context,
@@ -613,10 +631,11 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                       "${picked.day}/${picked.month}/${picked.year}";
               },
               decoration: InputDecoration(
-                hintStyle: TextStyle(fontSize: 14),
+                hintStyle: TextStyle(fontSize: 13),
                 hintText: hint,
                 suffixIcon: const Icon(
                   Icons.calendar_today,
+                  size: 20,
                   color: Colors.grey,
                 ),
                 filled: true,
@@ -627,7 +646,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 12,
+                  vertical: 10,
                 ),
               ),
             ),

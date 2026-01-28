@@ -303,35 +303,6 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
     );
   }
 
-  Widget _buildDropdownButton(
-    String value,
-    List<String> items,
-    Function(String?) onChanged,
-  ) {
-    return Container(
-      height: 46,
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2.0),
-      decoration: BoxDecoration(
-        color: const Color(0xFFDCEEF8),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black),
-          items: items
-              .map(
-                (item) =>
-                    DropdownMenuItem<String>(value: item, child: Text(item)),
-              )
-              .toList(),
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-
   Widget _buildHatcheryListHeader() {
     return Text(
       'Hatchery & Suppliers',
@@ -440,18 +411,18 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                 ],
               ),
 
+              const SizedBox(height: 8),
+
+              if ((data.description ?? '').isNotEmpty)
+                ExpandableDescription(text: data.description!),
+
               const SizedBox(height: 12),
 
               // Chips Row → Available + Packing (conditional)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (data.availableOn.isNotEmpty)
-                    _buildChip(
-                      label: data.availableOn.replaceAll(" on", ''),
-                      bgColor: Colors.green.withOpacity(0.15),
-                      textColor: Colors.green[800]!,
-                    ),
+                  buildStatusChip(data),
 
                   // if (data.availableOn.isNotEmpty && data.packingStart.isNotEmpty)
                   //   const SizedBox(width: 10),
@@ -498,6 +469,62 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
         ),
       ),
     );
+  }
+
+  Widget buildStatusChip(BroodstockData data) {
+    switch (data.status) {
+      case BroodstockStatus.available:
+        // Show "Available" with date if available
+        String availableLabel = 'Available';
+        if (data.availableOn.isNotEmpty) {
+          // Extract just the date part from availableOn
+          String dateStr = data.availableOn
+              .replaceAll('Available on ', '')
+              .replaceAll('Available ', '')
+              .trim();
+          availableLabel = 'Available $dateStr';
+        }
+        return _buildChip(
+          label: availableLabel,
+          bgColor: Colors.green.withOpacity(0.15),
+          textColor: Colors.green[800]!,
+        );
+
+      case BroodstockStatus.upcoming:
+        return _buildChip(
+          label: 'Upcoming',
+          bgColor: Colors.blue.withOpacity(0.15),
+          textColor: Colors.blue[700]!,
+        );
+
+      case BroodstockStatus.shortlyAvailable:
+        // Show "Shortly Available" with date if available
+        String shortlyLabel = 'Shortly Available';
+        if (data.availableOn.isNotEmpty) {
+          String dateStr = data.availableOn
+              .replaceAll('Shortly Available on ', '')
+              .replaceAll('Shortly Available ', '')
+              .replaceAll('Available on ', '')
+              .replaceAll('Available ', '')
+              .trim();
+          shortlyLabel = 'Shortly Available $dateStr';
+        }
+        return _buildChip(
+          label: shortlyLabel,
+          bgColor: Colors.orange.withOpacity(0.15),
+          textColor: Colors.orange[800]!,
+        );
+
+      case BroodstockStatus.closed:
+        return _buildChip(
+          label: 'Closed',
+          bgColor: Colors.grey.withOpacity(0.2),
+          textColor: Colors.grey[800]!,
+        );
+
+      default:
+        return const SizedBox.shrink();
+    }
   }
 }
 
@@ -633,4 +660,43 @@ Widget hatcheryCardShimmer() {
       ),
     ),
   );
+}
+
+class ExpandableDescription extends StatefulWidget {
+  final String text;
+
+  const ExpandableDescription({Key? key, required this.text}) : super(key: key);
+
+  @override
+  State<ExpandableDescription> createState() => _ExpandableDescriptionState();
+}
+
+class _ExpandableDescriptionState extends State<ExpandableDescription>
+    with TickerProviderStateMixin {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _expanded = !_expanded;
+        });
+      },
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        child: Text(
+          widget.text,
+          maxLines: _expanded ? null : 2,
+          overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+          style: GoogleFonts.roboto(
+            fontSize: 14,
+            color: Colors.black,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ),
+    );
+  }
 }

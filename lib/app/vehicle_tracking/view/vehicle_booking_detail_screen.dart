@@ -5,6 +5,7 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/vehicle_tracking/model/vehicle_booking_detail_model.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/vehicle_tracking_screen.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/widgets/booking_detail_shimmer.dart';
@@ -12,12 +13,13 @@ import '../controller/vehicle_tracking_controller.dart';
 
 class BookingDetailsScreen extends StatefulWidget {
   final String id; // API booking id
-   final String? hatcheryName;
+  final String? hatcheryName;
 
   const BookingDetailsScreen({
     super.key,
     required this.id,
-    required String status, this.hatcheryName,
+    required String status,
+    this.hatcheryName,
   });
 
   @override
@@ -36,15 +38,15 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
   String getStatusString(String status) {
     final statusStrings = {
       "1": 'Pending',
-      "2": 'In Progress',
-      "3": 'Confirmed',
-      "4": 'Driver Assigned',
+      "2": 'Confirmed',
+      "3": 'Driver Assigned',
+      "4": 'In Progress',
       "5": 'Delivered',
       "6": 'Cancelled',
       "Pending": 'Pending',
-      "In_progress": 'In Progress',
       "Confirmed": 'Confirmed',
       "Driver_assigned": 'Driver Assigned',
+      "In_progress": 'In Progress',
       "Delivered": 'Delivered',
       "Cancelled": 'Cancelled',
     };
@@ -56,15 +58,15 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
     return status == "1";
   }
 
-  bool isInProgress(String status) {
+  bool isConfirmed(String status) {
     return status == "2";
   }
 
-  bool isConfirmed(String status) {
+  bool isDriverAssigned(String status) {
     return status == "3";
   }
 
-  bool isDriverAssigned(String status) {
+  bool isInProgress(String status) {
     return status == "4";
   }
 
@@ -76,6 +78,10 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
     return status == "6";
   }
 
+  Future<void> _onRefresh() async {
+    await controller.fetchVehicleBookingDetail(widget.id);
+  }
+
   @override
   Widget build(BuildContext context) {
     final h = MediaQuery.sizeOf(context).height;
@@ -84,9 +90,8 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
-    
         title: Text(
-         widget.hatcheryName?? 'Seven Star Hatchery',
+          widget.hatcheryName ?? 'Seven Star Hatchery',
           style: GoogleFonts.roboto(
             color: Colors.white,
             fontWeight: FontWeight.w600,
@@ -107,69 +112,74 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
 
         final status = data.status.toLowerCase();
 
-        return SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: w * 0.06),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: h * 0.01),
-              _buildStatusBox(
-                getStatusString(data.status),
-                data.status,
-                data.statusDescription,
-                w,
-                h,
-              ),
-              SizedBox(height: h * 0.02),
-              _buildLocationCard(data, w),
-
-              SizedBox(height: 25),
-
-              _title("Vehicle Booking Details", w),
-
-              _detail("Hatchery Name", data.vehicleDetails.hatchery, w),
-              _detail("Brand type", data.vehicleDetails.brand, w),
-              _detail("Seed Qty", data.vehicleDetails.qty, w),
-              _detail(
-                "Booking Date & time",
-                "${data.vehicleDetails.bookingDate}, ${data.vehicleDetails.bookingTime}",
-                w,
-              ),
-              SizedBox(height: 20),
-
-              if (status == "pending" || status == '1') ...[
+        return CustomRefereshIndicator(
+          onRefresh: _onRefresh,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(horizontal: w * 0.06),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: h * 0.01),
+                _buildStatusBox(
+                  getStatusString(data.status),
+                  data.status,
+                  data.statusDescription,
+                  w,
+                  h,
+                ),
                 SizedBox(height: 20),
-                Center(
-                  child: InkWell(
-                    onTap: () => _openCancelReasonSheet(widget.id),
-                    child: Container(
-                      width: w * 0.9,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.red),
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          "Cancel Booking",
-                          style: TextStyle(color: Colors.red, fontSize: 16),
+
+                if (status == "pending" || status == '1') ...[
+                  SizedBox(height: 20),
+                  Center(
+                    child: InkWell(
+                      onTap: () => _openCancelReasonSheet(widget.id),
+                      child: Container(
+                        width: w * 0.9,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.red),
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            "Cancel Booking",
+                            style: TextStyle(color: Colors.red, fontSize: 16),
+                          ),
                         ),
                       ),
                     ),
                   ),
+                ] else
+                  _bookingStatusTimeline(data.bookingStatus, w, () {
+                    Get.to(
+                      VehicleTrackingScreen(
+                        bookingId: data.bookingId.toString(),
+                      ),
+                    );
+                  }),
+                SizedBox(height: h * 0.02),
+                _buildLocationCard(data, w),
+
+                SizedBox(height: 25),
+
+                _title("Vehicle Booking Details", w),
+
+                _detail("Hatchery Name", data.vehicleDetails.hatchery, w),
+                _detail("Brand type", data.vehicleDetails.brand, w),
+                _detail("Seed Qty", data.vehicleDetails.qty, w),
+                _detail(
+                  "Booking Date & time",
+                  "${data.vehicleDetails.bookingDate}, ${data.vehicleDetails.bookingTime}",
+                  w,
                 ),
-              ] else
-                _bookingStatusTimeline(data.bookingStatus, w, () {
-                  Get.to(
-                    VehicleTrackingScreen(bookingId: data.bookingId.toString()),
-                  );
-                }),
-              SizedBox(height: 40),
+                SizedBox(height: 40),
 
-              _helpSection(w),
+                _helpSection(w),
 
-              SizedBox(height: 50),
-            ],
+                SizedBox(height: 50),
+              ],
+            ),
           ),
         );
       }),
@@ -251,6 +261,133 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
     );
   }
 
+  // Widget _buildLocationCard(VehicleBookingDetailModel data, double w) {
+  //   return Container(
+  //     width: MediaQuery.of(context).size.width * .9,
+  //     padding: EdgeInsets.all(w * 0.04),
+  //     decoration: BoxDecoration(
+  //       color: Colors.white,
+  //       borderRadius: BorderRadius.circular(14),
+  //       boxShadow: [
+  //         BoxShadow(
+  //           blurRadius: 6,
+  //           offset: Offset(0, 3),
+  //           color: Colors.grey.shade300,
+  //         ),
+  //       ],
+  //     ),
+  //     child: Row(
+  //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //       children: [
+  //         Builder(
+  //           builder: (context) {
+  //             double height = 14;
+  //             double width = 2;
+  //             double gap = 3;
+  //             return Column(
+  //               children: [
+  //                 Icon(Icons.circle, color: Colors.green, size: 12),
+  //                 SizedBox(height: gap),
+  //                 Container(height: height, color: Colors.black, width: width),
+  //                 SizedBox(height: gap),
+  //                 Container(
+  //                   height: height + 15,
+  //                   color: Colors.black,
+  //                   width: width,
+  //                 ),
+  //                 SizedBox(height: gap),
+  //                 Container(height: height, color: Colors.black, width: width),
+  //                 SizedBox(height: gap),
+  //                 Icon(Icons.circle, color: Colors.red, size: 12),
+  //               ],
+  //             );
+  //           },
+  //         ),
+  //         SizedBox(width: 20),
+  //         SizedBox(
+  //           width: MediaQuery.of(context).size.width * .7,
+  //           child: Column(
+  //             crossAxisAlignment: CrossAxisAlignment.start,
+  //             children: [
+  //               Row(
+  //                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //                 children: [
+  //                   Column(
+  //                     crossAxisAlignment: CrossAxisAlignment.start,
+  //                     children: [
+  //                       Text(
+  //                         "Pickup location",
+  //                         style: GoogleFonts.poppins(fontSize: w * 0.035),
+  //                       ),
+  //                       SizedBox(
+  //                         width: MediaQuery.of(context).size.width * .4,
+  //                         child: Text(
+  //                           data.pickupDetails.location,
+  //                           style: GoogleFonts.poppins(
+  //                             fontSize: w * 0.035,
+  //                             fontWeight: FontWeight.w600,
+  //                           ),
+  //                         ),
+  //                       ),
+  //                     ],
+  //                   ),
+  //                   SizedBox(
+  //                     width: MediaQuery.of(context).size.width * .25,
+  //                     child: Text(
+  //                       "${data.pickupDetails.date}, ${data.pickupDetails.time}",
+  //                       style: GoogleFonts.poppins(
+  //                         color: Colors.black,
+  //                         fontWeight: FontWeight.w200,
+  //                         fontSize: w * 0.033,
+  //                       ),
+  //                     ),
+  //                   ),
+  //                 ],
+  //               ),
+  //               SizedBox(height: 15),
+  //               Row(
+  //                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //                 children: [
+  //                   Column(
+  //                     crossAxisAlignment: CrossAxisAlignment.start,
+  //                     children: [
+  //                       Text(
+  //                         "Drop location",
+  //                         style: GoogleFonts.poppins(fontSize: w * 0.035),
+  //                       ),
+  //                       SizedBox(
+  //                         width: MediaQuery.of(context).size.width * .4,
+  //                         child: Text(
+  //                           data.dropDetails.location,
+  //                           style: GoogleFonts.poppins(
+  //                             fontSize: w * 0.035,
+  //                             fontWeight: FontWeight.w600,
+  //                           ),
+  //                         ),
+  //                       ),
+  //                     ],
+  //                   ),
+  //                   SizedBox(
+  //                     width: MediaQuery.of(context).size.width * .25,
+  //                     child: Text(
+  //                       "${data.dropDetails.date}, ${data.dropDetails.time}",
+  //                       style: GoogleFonts.poppins(
+  //                         fontSize: w * 0.033,
+  //                         color: Colors.black,
+  //                         fontWeight: FontWeight.w200,
+  //                       ),
+  //                     ),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ],
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
   Widget _buildLocationCard(VehicleBookingDetailModel data, double w) {
     return Container(
       width: MediaQuery.of(context).size.width * .9,
@@ -261,116 +398,84 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
         boxShadow: [
           BoxShadow(
             blurRadius: 6,
-            offset: Offset(0, 3),
+            offset: const Offset(0, 3),
             color: Colors.grey.shade300,
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 6,
+        runSpacing: 8,
         children: [
-          Builder(
-            builder: (context) {
-              double height = 14;
-              double width = 2;
-              double gap = 3;
-              return Column(
-                children: [
-                  Icon(Icons.circle, color: Colors.green, size: 12),
-                  SizedBox(height: gap),
-                  Container(height: height, color: Colors.black, width: width),
-                  SizedBox(height: gap),
-                  Container(
-                    height: height + 15,
-                    color: Colors.black,
-                    width: width,
-                  ),
-                  SizedBox(height: gap),
-                  Container(height: height, color: Colors.black, width: width),
-                  SizedBox(height: gap),
-                  Icon(Icons.circle, color: Colors.red, size: 12),
-                ],
-              );
-            },
+          // 🚚 Vehicle icon
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(
+              Icons.local_shipping,
+              size: 18,
+              color: Colors.green,
+            ),
           ),
-          SizedBox(width: 20),
-          SizedBox(
-            width: MediaQuery.of(context).size.width * .7,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Pickup location",
-                          style: GoogleFonts.poppins(fontSize: w * 0.035),
-                        ),
-                        SizedBox(
-                          width: MediaQuery.of(context).size.width * .4,
-                          child: Text(
-                            data.pickupDetails.location,
-                            style: GoogleFonts.poppins(
-                              fontSize: w * 0.035,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(
-                      width: MediaQuery.of(context).size.width * .25,
-                      child: Text(
-                        "${data.pickupDetails.date}, ${data.pickupDetails.time}",
-                        style: GoogleFonts.poppins(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w200,
-                          fontSize: w * 0.033,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 15),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Drop location",
-                          style: GoogleFonts.poppins(fontSize: w * 0.035),
-                        ),
-                        SizedBox(
-                          width: MediaQuery.of(context).size.width * .4,
-                          child: Text(
-                            data.dropDetails.location,
-                            style: GoogleFonts.poppins(
-                              fontSize: w * 0.035,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(
-                      width: MediaQuery.of(context).size.width * .25,
-                      child: Text(
-                        "${data.dropDetails.date}, ${data.dropDetails.time}",
-                        style: GoogleFonts.poppins(
-                          fontSize: w * 0.033,
-                          color: Colors.black,
-                          fontWeight: FontWeight.w200,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+
+          // 📍 Pickup location
+          _locationChip(
+            iconColor: Colors.green,
+            text: data.pickupDetails.location,
+            w: w,
+          ),
+
+          Icon(Icons.arrow_forward, size: 16, color: Colors.grey[600]),
+          // 📍 Drop location
+          _locationChip(
+            iconColor: Colors.red,
+            text: data.dropDetails.location,
+            w: w,
+            highlight: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _locationChip({
+    required String text,
+    required Color iconColor,
+    required double w,
+    bool highlight = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: highlight ? iconColor.withOpacity(0.1) : Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: iconColor.withOpacity(0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.location_on, size: 14, color: iconColor),
+          const SizedBox(width: 4),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth:
+                  MediaQueryData.fromWindow(
+                    WidgetsBinding.instance.window,
+                  ).size.width *
+                  0.4,
+            ),
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.poppins(
+                fontSize: w * 0.032,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
             ),
           ),
         ],
@@ -442,7 +547,8 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
                           'Check vehicle status',
                           style: GoogleFonts.roboto(
                             fontSize: 12,
-                            color: Color(0xff3B82F6),fontWeight: FontWeight.bold
+                            color: Color(0xff3B82F6),
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),

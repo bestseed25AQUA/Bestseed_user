@@ -25,7 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final ProfileController profileController = Get.put(ProfileController());
   @override
   Widget build(BuildContext context) {
-    Widget divider = Divider(height: 1,);
+    Widget divider = Divider(height: 1);
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
@@ -62,11 +62,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // ),
         ),
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey.shade100,
       body: SingleChildScrollView(
         child: Column(
           children: [
             SizedBox(height: 5),
+
             // / Collapsible SliverAppBar
             // SliverAppBar(
             //   pinned: true,
@@ -97,11 +98,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
             //   ),
             // ),
             // ProfileHeader(),
+            SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10, left: 15, right: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _menuItem(
+                    'assets/images/booking_icon.png',
+                    'Bookings',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => MyBookingScreen()),
+                      );
+                    },
+                  ),
+                  _menuItem(
+                    'assets/images/vehicle_icon.png',
+                    'Vehicle Tracking',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => VehicleTrackingPage()),
+                      );
+                    },
+                  ),
+                  _menuItem(
+                    'assets/images/help_icon.png',
+                    'Help',
+                    onTap: () {},
+                  ),
+                ],
+              ),
+            ),
+
+            SizedBox(height: 16),
 
             /// Body List
             Container(
               margin: EdgeInsets.symmetric(horizontal: 20),
-              padding: EdgeInsets.only(bottom: 10,left: 15,right: 10),
+              padding: EdgeInsets.only(bottom: 10, left: 15, right: 10),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 color: Colors.white,
@@ -127,56 +164,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title: AppLocalizations.of(context).notifications,
                     onTap: () {
                       Get.to(() => NotificationsScreen());
-                    },
-                  ),
-                  Divider(height: 1,),
-                  ProfileMenuItem(
-                    icon: Icons.fire_truck_outlined,
-                    title: AppLocalizations.of(context).tracking,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => VehicleTrackingPage(),
-                        ),
-                      );
-                    },
-                  ),
-                  divider,
-                  ProfileMenuItem(
-                    icon: Icons.menu,
-                    title: AppLocalizations.of(context).my_bookings,
-                    onTap: () {
-                      print('ontap');
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => MyBookingScreen(),
-                        ),
-                      );
-                      // Get.to(() => MyBookingScreen());
-                    },
-                  ),
-                  divider,
-                  // ProfileMenuItem(
-                  //   icon: Icons.menu,
-                  //   title: "Vehicle availability",
-                  //   onTap: () {
-                  //     Get.to(() => VehicleAvailabilityScreen());
-                  //   },
-                  // ),
-                  // ProfileMenuItem(
-                  //   icon: Icons.menu,
-                  //   title: "Vehicle tracking",
-                  //   onTap: () {
-                  //     Get.to(() => VehicleTrackingPage());
-                  //   },
-                  // ),
-                  ProfileMenuItem(
-                    icon: Icons.headset_mic_outlined,
-                    title: AppLocalizations.of(context).customer_support,
-                    onTap: () {
-                      // Navigator.push(context, MaterialPageRoute(builder: (context)=>VehicleTrackingPage()));
                     },
                   ),
                   divider,
@@ -217,7 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             SizedBox(height: 10),
-            Container( 
+            Container(
               margin: EdgeInsets.symmetric(horizontal: 20),
               padding: EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
@@ -447,6 +434,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
         //     }),
         //   ]),
         // ),  G
+      ),
+    );
+  }
+
+  Widget _menuItem(String image, String label, {required VoidCallback onTap}) {
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          margin: EdgeInsets.symmetric(horizontal: 6),
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(image, width: 43, height: 43, fit: BoxFit.contain),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

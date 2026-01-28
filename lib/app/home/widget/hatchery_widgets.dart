@@ -90,11 +90,7 @@ class HatcheryWidget extends StatelessWidget {
                 type: item.type,
                 id: item.id.toString(),
                 status: item.status,
-                statusColor: item.status.toLowerCase() == "open"
-                    ? const Color(0xff25A652)
-                    : item.status.toLowerCase() == "coming soon"
-                    ? const Color(0xff007DFE)
-                    : const Color(0xffE31B1B),
+                statusColor: getHatcheryStatusColor(item.statusCode),
                 availableUntil: item.availableUntil,
               );
             },
@@ -102,6 +98,21 @@ class HatcheryWidget extends StatelessWidget {
         ],
       );
     });
+  }
+
+  Color getHatcheryStatusColor(int statusCode) {
+    switch (statusCode) {
+      case 1:
+        return const Color(0xff25A652); // Available
+      case 2:
+        return const Color(0xff007DFE); // Coming Soon
+      case 3:
+        return const Color(0xff6F42C1); // Upcoming
+      case 4:
+        return const Color(0xffF4A100); // Shortly Available
+      default:
+        return const Color(0xffE31B1B); // Closed
+    }
   }
 }
 
@@ -140,21 +151,12 @@ class HatcheryCard extends StatelessWidget {
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // Responsive image height based on screen size
-    final imgHeight = (height * 0.45).clamp(90.0, screenHeight * 0.22);
-
-    // Text font dynamic scaling
-    double scaleText(double size) {
-      return size * (screenWidth / 390); // 390 = base width (iPhone 12)
-    }
-
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       // onTap: () => Get.to(() => HatcheryDetailScreen()),
       onTap:
           ontap ??
           () {
-             
             print('HatcheryCard$index');
             print('ontap ok');
             Navigator.push(
@@ -183,7 +185,7 @@ class HatcheryCard extends StatelessWidget {
               spreadRadius: 0,
               offset: const Offset(0, 3),
             ),
-             BoxShadow(
+            BoxShadow(
               color: const Color(0xff000000).withOpacity(.16),
               blurRadius: 2,
               spreadRadius: 0,
@@ -193,45 +195,76 @@ class HatcheryCard extends StatelessWidget {
         ),
 
         // ⭐ FULL RESPONSIVE PADDING
-        padding: EdgeInsets.all(screenWidth * 0.025),
+        padding: EdgeInsets.all(screenWidth * 0.02),
 
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image
-            Stack(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Calculate available height for content
+            final availableHeight = constraints.maxHeight;
+            final imageHeight = (availableHeight * 0.55).clamp(80.0, 120.0);
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Hero(
-                    tag: 'HatcheryCard$id$index',
-                    child: Image.network(
-                      imagePath,
-                      width: double.infinity,
-                      height: imgHeight-10,
-                      fit: BoxFit.cover,
-                      errorBuilder: (c, e, s) =>
-                          SizedBox(height: imgHeight, child: CustomShimmer()),
-                    ),
-                  ),
-                ),
+                // Image
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Hero(
+                        tag: 'HatcheryCard$id$index',
+                        child: Image.network(
+                          imagePath,
+                          width: double.infinity,
+                          height: imageHeight,
+                          fit: BoxFit.cover,
+                          errorBuilder: (c, e, s) {
+                            // 🔁 fallback from category_media → hatcheries
+                            final fallbackPath =
+                                imagePath.contains('category_media')
+                                ? imagePath.replaceFirst(
+                                    'category_media',
+                                    'hatcheries',
+                                  )
+                                : imagePath;
 
-                // STATUS BADGE
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: Container(
-                    height: screenHeight * 0.027,
-                    decoration: BoxDecoration(
-                      color: statusColor,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: screenWidth * 0.015,
+                            // Prevent infinite loop
+                            if (fallbackPath == imagePath) {
+                              return SizedBox(
+                                height: imageHeight,
+                                child: CustomShimmer(),
+                              );
+                            }
+
+                            return Image.network(
+                              fallbackPath,
+                              width: double.infinity,
+                              height: imageHeight,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => SizedBox(
+                                height: imageHeight,
+                                child: CustomShimmer(),
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                      child: Center(
+                    ),
+
+                    // STATUS BADGE
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: screenWidth * 0.015,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.white, width: 0.5),
+                        ),
                         child: Text(
                           status.isEmpty
                               ? 'closed'
@@ -241,99 +274,91 @@ class HatcheryCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.roboto(
-                            fontSize: scaleText(13),
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
 
-            SizedBox(height: screenHeight * 0.012),
+                SizedBox(height: screenHeight * 0.008),
 
-            // Title
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.roboto(
-                fontSize:14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-
-            // SizedBox(height: screenHeight * 0.006),
-
-            // Location Row
-            Row(
-              children: [
-                Image.asset(
-                  'assets/images/location_icon.png',
-                  height: scaleText(16),
-                  width: scaleText(16),
-                  color: const Color(0xff525050),
-                  errorBuilder: (context, error, stackTrace) {
-                    return Icon(
-                      Icons.location_on,
-                      size: scaleText(14),
-                      color: Colors.grey,
-                    );
-                  },
-                ),
-                SizedBox(width: screenWidth * 0.015),
-
+                // Content area with flexible height
                 Expanded(
-                  child: Text(
-                    location,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.roboto(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Title
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+
+                      SizedBox(height: screenHeight * 0.004),
+
+                      // Location Row
+                      if (location.isNotEmpty)
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              size: 14,
+                              color: const Color(0xff525050),
+                            ),
+                            SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                location,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.roboto(
+                                  fontSize: 13,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                      SizedBox(height: screenHeight * 0.003),
+
+                      // Type Row
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.shopping_bag,
+                            size: 14,
+                            color: const Color(0xff525050),
+                          ),
+                          SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              type,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.roboto(
+                                fontSize: 13,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
-
-            SizedBox(height: screenHeight * 0.004),
-
-            // Type Row
-            Row(
-              children: [
-                Image.asset(
-                  'assets/images/category_icon.png',
-                  height: scaleText(16),
-                  width: scaleText(16),
-                  color: const Color(0xff525050),
-                  errorBuilder: (context, error, stackTrace) {
-                    return Icon(
-                      Icons.shopping_bag,
-                      size: scaleText(14),
-                      color: Colors.grey,
-                    );
-                  },
-                ),
-                SizedBox(width: screenWidth * 0.015),
-
-                Expanded(
-                  child: Text(
-                    type,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.roboto(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+            );
+          },
         ),
       ),
     );

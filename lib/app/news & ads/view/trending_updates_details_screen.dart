@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/media_carousel_widget.dart';
 import 'package:seedsuser/app/news & ads/controller/single_new_detail_controller.dart';
-import 'package:shimmer/shimmer.dart'; 
+import 'package:shimmer/shimmer.dart';
 
 class TrendingUpdatesDetailsScreen extends StatefulWidget {
   final String id;
@@ -30,24 +30,19 @@ class _TrendingUpdatesDetailsScreenState
   void initState() {
     super.initState();
 
-    controller.fetch(
-      type: "trending updates",
-      id: widget.id,
-    );
+    controller.fetch(type: "trending update", id: widget.id);
   }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-       if (controller.isLoading.value) {
-    return trendingUpdatesShimmer();
-  }
+      if (controller.isLoading.value) {
+        return trendingUpdatesShimmer();
+      }
       final data = controller.singleDetailData.value?.data;
 
       if (data == null) {
-        return const Scaffold(
-          body: Center(child: Text("No Data Found")),
-        );
+        return const Scaffold(body: Center(child: Text("No Data Found")));
       }
 
       // PREPARE LISTS FOR CAROUSEL
@@ -62,8 +57,11 @@ class _TrendingUpdatesDetailsScreenState
             child: CircleAvatar(
               backgroundColor: Colors.white,
               child: IconButton(
-                icon: const Icon(Icons.arrow_back,
-                    color: Colors.black, size: 20),
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color: Colors.black,
+                  size: 20,
+                ),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
@@ -79,10 +77,17 @@ class _TrendingUpdatesDetailsScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(height: 20,),
-              MediaCarouselWidget(
-                mediaUrls: mediaUrls,
-                mediaTypes: mediaTypes,
+              SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: MediaCarouselWidget(
+                    mediaUrls: mediaUrls,
+                    mediaTypes: mediaTypes,
+                    borderRadius: 12, // optional, but keep consistent
+                  ),
+                ),
               ),
 
               const SizedBox(height: 16),
@@ -118,8 +123,6 @@ class _TrendingUpdatesDetailsScreenState
     });
   }
 }
-
-
 
 Widget trendingUpdatesShimmer() {
   return Scaffold(

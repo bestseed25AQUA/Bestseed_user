@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
@@ -16,6 +18,7 @@ import 'package:seedsuser/app/home/widget/hachery_category_banner_widget.dart';
 import 'package:seedsuser/app/home/widget/hatchery_widgets.dart';
 import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 import 'package:seedsuser/app/spot_hatchery/view/spot_hatchery_screen.dart';
+import 'package:seedsuser/app/utils/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:video_player/video_player.dart';
@@ -91,7 +94,6 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
           return SingleChildScrollView(
             child: Column(
               children: [
-
                 Obx(() {
                   if (hatcheryCategoryController.isLoading.value) {
                     return ListView.builder(
@@ -102,21 +104,105 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                           hatcheryCardFullShimmer(),
                     );
                   }
-                  if (hatcheryCategoryController
+
+                  // Check if there are no categories but there are similar hatcheries
+                  final hasNoCategories = hatcheryCategoryController
                       .hatcheryCateogoryData
                       .value
                       .data
-                      .isEmpty) {
+                      .isEmpty;
+
+                  final hasSimilarHatcheries = hatcheryCategoryController
+                      .hatcheryCateogoryData
+                      .value
+                      .similarHatcheries
+                      .isNotEmpty;
+
+                  if (hasNoCategories && !hasSimilarHatcheries) {
+                    // Only show "no categories" if there are also no similar hatcheries
                     return SizedBox(
-                      height: MediaQuery.of(context).size.height*.7,
-                      child: const Center(
-                        child: Text('No categories for this hatchery'),
+                      height: MediaQuery.of(context).size.height * .7,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.category_outlined,
+                              size: 64,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No categories available',
+                              style: GoogleFonts.roboto(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'This hatchery has no categories at the moment',
+                              style: GoogleFonts.roboto(
+                                fontSize: 14,
+                                color: Colors.grey.shade500,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                       ),
+                    );
+                  }
+
+                  if (hasNoCategories && hasSimilarHatcheries) {
+                    // If no direct categories but there are similar hatcheries, show a message
+                    return Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.blue.shade200,
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.blue.shade700,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'This hatchery has no direct categories available. Check out similar hatcheries below.',
+                                    style: GoogleFonts.roboto(
+                                      fontSize: 14,
+                                      color: Colors.blue.shade900,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     );
                   }
                   return AnimatedAppearance(
                     child: Padding(
-                      padding: const EdgeInsets.only(bottom: 6, top: 0,left: 2,right: 2),
+                      padding: const EdgeInsets.only(
+                        bottom: 6,
+                        top: 0,
+                        left: 2,
+                        right: 2,
+                      ),
                       child: Column(
                         children: List.generate(
                           hatcheryCategoryController
@@ -158,32 +244,9 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                                               .categories
                                               .id
                                               .toString(),
-                                          // hatcheryId: widget.hatcheryId,
-                                          // categoryId: hatcheryCategoryController
-                                          // .hatcheryCateogoryData
-                                          // .value.id.toString(),
                                         ),
                                   ),
                                 );
-                                // Get.to(
-                                //   () => HatcheryCategoryDetailScreen(
-                                //     videoUrl: 'assets/videos/sample.mp4',
-                                //     hatcheryId: widget.hatcheryId,
-                                //     categoryId:
-                                //         hatcheryCategoryController
-                                //             .hatcheryCateogoryData
-                                //             .value
-                                //             .data[index]
-                                //             .categories
-                                //             .id
-                                //             .toString() ??
-                                //         '',
-                                //     // hatcheryId: widget.hatcheryId,
-                                //     // categoryId: hatcheryCategoryController
-                                //     // .hatcheryCateogoryData
-                                //     // .value.id.toString(),
-                                //   ),
-                                // );
                               },
 
                               child: Padding(
@@ -196,19 +259,10 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                                       item.category?.id.toString() ?? "",
                                   hatcheryName: item.hatcheryName,
                                   categoryName: item.category?.name ?? "",
-                                  imageUrl: (item.images.isEmpty)
-                                      ? ""
-                                      : item.images.first,
+                                  imageUrl: item.images,
 
                                   /// units safe parsing
-                                  unit1Location: item.units.isNotEmpty
-                                      ? item.units[0].branchName
-                                      : "",
-                                  unit2Location: item.units.length > 1
-                                      ? item.units[1].branchName
-                                      : "",
-
-                                  /// broodstock safe
+                                  units: item.units,
                                   broodstockCount: item.broodstock.toString(),
 
                                   price: item.price,
@@ -226,14 +280,6 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                   );
                 }),
                 SizedBox(height: 20),
-                // ignore: prefer_is_empty
-
-                //  Text(( hatcheryCategoryController
-                //                 .hatcheryCateogoryData
-                //                 .value
-                //                 .similarHatcheries
-                //                 ?.length ??
-                //             0).toString()),
                 Obx(() {
                   final similarList = hatcheryCategoryController
                       .hatcheryCateogoryData
@@ -252,7 +298,7 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                             'Similar Hatcheries',
                             style: GoogleFonts.roboto(
                               fontWeight: FontWeight.bold,
-                               fontSize: 14,
+                              fontSize: 14,
                             ),
                           ),
                         ),
@@ -350,9 +396,8 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
 class HarcheryCardWidget extends StatefulWidget {
   final String hatcheryName;
   final String categoryName;
-  final String unit1Location;
-  final String unit2Location;
-  final String imageUrl;
+  final List<UnitModel> units;
+  final List<String> imageUrl;
   final String categoryId;
 
   final String? availableDate;
@@ -366,8 +411,7 @@ class HarcheryCardWidget extends StatefulWidget {
     super.key,
     required this.hatcheryName,
     required this.categoryName,
-    required this.unit1Location,
-    required this.unit2Location,
+    required this.units,
     required this.imageUrl,
     required this.broodstockCount,
     required this.price,
@@ -386,9 +430,35 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
   VideoPlayerController? _controller;
   bool videoStarted = false;
   bool isPressed = false;
+  late PageController _pageController;
+  int _currentPage = 0;
+  late ScrollController _unitScrollController;
+
+  bool _isVideo(String url) {
+    final lower = url.toLowerCase();
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.m3u8') ||
+        lower.endsWith('.wmv') ||
+        lower.endsWith('.flv') ||
+        lower.endsWith('.mkv');
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+    _unitScrollController = ScrollController();
+
+    debugPrint('Hatchery Image URLs:');
+    for (int i = 0; i < widget.imageUrl.length; i++) {
+      debugPrint('checking fir image url [$i] ${widget.imageUrl[i]}');
+    }
+  }
 
   @override
   void dispose() {
+    _pageController.dispose();
     _controller?.dispose();
     super.dispose();
   }
@@ -396,6 +466,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
   // final SeedsPriceController controller = Get.put(SeedsPriceController());
   @override
   Widget build(BuildContext context) {
+    final validImages = widget.imageUrl;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       curve: Curves.easeInOut,
@@ -417,35 +488,105 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // IMAGE
           Padding(
-            padding: EdgeInsetsGeometry.all(9),
-            child: InkWell(
-              onTap: () {
-                Get.to(FullImageScreen(imageUrl: widget.imageUrl,title: widget.hatcheryName,));
-              },
-              child: Hero(
-                tag:  widget.imageUrl,
-                child: ClipRRect(
-                  borderRadius:   BorderRadius.circular(12),
-                  child: Image.network(
-                    widget.imageUrl,
+            padding: const EdgeInsets.all(8.0),
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: SizedBox(
+                    height: 110,
                     width: double.infinity,
-                    height: 130,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, _, __) => Container(
-                      color: Colors.grey.withOpacity(.2),
-                      height: 130,
-                      width: double.infinity,
-                    ),
+                    child: validImages.isEmpty
+                        ? Container(color: Colors.grey.withOpacity(.2))
+                        : validImages.length == 1
+                        ? (_isVideo(validImages.first))
+                              ? InlineVideoPlayer(
+                                  url: validImages.first,
+                                  title: widget.hatcheryName,
+                                )
+                              : Image.network(
+                                  validImages.first,
+                                  width: double.infinity,
+                                  height: 110,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, _, __) => Container(
+                                    color: Colors.grey.withOpacity(.2),
+                                  ),
+                                )
+                        : PageView.builder(
+                            controller: _pageController,
+                            onPageChanged: (index) {
+                              setState(() {
+                                _currentPage = index;
+                              });
+                            },
+                            itemCount: validImages.length,
+                            itemBuilder: (context, index) {
+                              final url = validImages[index];
+                              if (_isVideo(url)) {
+                                return InlineVideoPlayer(
+                                  url: url,
+                                  title: widget.hatcheryName,
+                                );
+                              }
+
+                              return Image.network(
+                                url,
+                                width: double.infinity,
+                                height: 110,
+                                fit: BoxFit.cover,
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+
+                                      return Container(
+                                        color: Colors.grey.withOpacity(.15),
+                                        child: const Center(
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: Colors.grey.withOpacity(.2),
+                                ),
+                              );
+                            },
+                          ),
                   ),
                 ),
-              ),
+                // Image indicator dots
+                if (validImages.length > 1)
+                  Positioned(
+                    bottom: 8,
+                    left: 0,
+                    right: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        validImages.length,
+                        (index) => Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _currentPage == index
+                                ? Colors.white
+                                : Colors.white.withOpacity(0.5),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
 
           Padding(
-            padding: const EdgeInsets.all(2.0),
+            padding: const EdgeInsets.all(8.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -456,7 +597,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                       child: Text(
                         widget.hatcheryName,
                         style: GoogleFonts.roboto(
-                          fontSize: 14,
+                          fontSize: 20,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -467,53 +608,40 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                 const SizedBox(height: 2),
 
                 // CATEGORY NAME
-                Text(
-                  widget.categoryName,
-                  style: GoogleFonts.roboto(
-                  fontSize: 14,
-                    color: Colors.grey[700],
-                  ),
-                ),
-
-                const SizedBox(height: 2),
-
-                // LOCATION ROWS
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    SizedBox(
-                      width: MediaQuery.of(context).size.width * .4,
-                      child: _buildInfoRow(
-                        Icons.location_on,
-                        "Unit-1",
-                        widget.unit1Location,
+                    Text(
+                      widget.categoryName,
+                      style: GoogleFonts.roboto(
+                        fontSize: 16,
+                        color: Colors.grey[900],
                       ),
                     ),
-                    SizedBox(
-                      width: MediaQuery.of(context).size.width * .4,
-                      child: _buildInfoRow(
-                        Icons.location_on,
-                        "Unit-2",
-                        widget.unit2Location,
-                      ),
+
+                    _buildInfoRow(
+                      "assets/images/MoneyWavy.png",
+                      "Price",
+                      "₹ ${widget.price}",
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
 
                 // BROODSTOCK + DATE
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _buildInfoRow(
-                      Icons.water_drop_outlined,
-                      "${widget.broodstockCount} Pieces",
+                      "assets/images/broadstock.png",
                       "Broodstock",
+                      "${widget.broodstockCount} Pieces",
                     ),
 
                     if (widget.availableDate != null)
                       _buildInfoRow(
-                        Icons.calendar_today,
+                        "assets/images/CalendarBlank.png",
                         "Available Date",
                         widget.availableDate!,
                       ),
@@ -523,18 +651,47 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                 const SizedBox(height: 3),
 
                 // PRICE
-                Row(
-                  children: [
-                    _buildInfoRow(Icons.timer, "Price", "₹ ${widget.price}"),
-                  ],
-                ),
+                const SizedBox(height: 3),
+
+                // LOCATION ROWS
+                if (widget.units.isNotEmpty)
+                  ShaderMask(
+                    shaderCallback: (bounds) {
+                      return const LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [Colors.black, Colors.transparent],
+                        stops: [0.9, 1.0],
+                      ).createShader(bounds);
+                    },
+                    blendMode: BlendMode.dstIn,
+                    child: SizedBox(
+                      height: 50,
+                      width: double.infinity, // ✅ important
+                      child: SingleChildScrollView(
+                        controller: _unitScrollController,
+                        scrollDirection: Axis.horizontal,
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 16),
+                          child: _buildInfoUnitRow(
+                            "assets/images/unit_icon.png",
+                            "Unit",
+                            widget.units
+                                .where((u) => u.branch.name.isNotEmpty)
+                                .map((u) => u.branch.name)
+                                .toList(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
 
                 const SizedBox(height: 5),
 
                 // ACTION BUTTONS
                 Row(
                   children: [
-                    SizedBox(width: 5,),
                     _actionButton(
                       label: "Call Now",
                       icon: "assets/images/phone.png",
@@ -591,10 +748,11 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                           },
                         );
                       },
-                    ), SizedBox(width: 5,),
+                    ),
+                    SizedBox(width: 5),
                   ],
                 ),
-                SizedBox(height: 5,)
+                SizedBox(height: 5),
               ],
             ),
           ),
@@ -603,26 +761,41 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Row(
+  Widget _buildInfoUnitRow(
+    String assetPath,
+    String label,
+    List<String> branches,
+  ) {
+    if (branches.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 18, color: AppColors.primary),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        Text(
+          label,
+          style: GoogleFonts.roboto(fontSize: 14, color: Colors.grey[600]),
+        ),
+
+        const SizedBox(height: 4),
+
+        Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              label,
-              style: GoogleFonts.roboto( fontSize: 14, color: Colors.grey[600]),
+            Image.asset(
+              assetPath,
+              width: 16,
+              height: 16,
+              color: Colors.grey, // optional
             ),
-            SizedBox(
-              width: MediaQuery.of(context).size.width * .3,
-              child: Text(
-                value,
-                style: GoogleFonts.roboto(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
+            const SizedBox(width: 6),
+            Text(
+              branches.join(', '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.roboto(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -631,20 +804,44 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
     );
   }
 
-  // Widget _buildInfoRow(IconData icon, String label) {
-  //   return Row(
-  //     children: [
-  //       Icon(icon, size: 18, color: AppColors.primary),
-  //       const SizedBox(width: 8),
-  //       Flexible(
-  //         child: Text(
-  //           label,
-  //           style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[600]),
-  //         ),
-  //       ),
-  //     ],
-  //   );
-  // }
+  Widget _buildInfoRow(String assetPath, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.roboto(fontSize: 14, color: Colors.grey[600]),
+            ),
+            Row(
+              children: [
+                Image.asset(
+                  assetPath,
+                  width: 18,
+                  height: 18,
+                  color: AppColors.primary, // remove if image already colored
+                ),
+                const SizedBox(width: 8),
+
+                SizedBox(
+                  width: MediaQuery.of(context).size.width * .3,
+                  child: Text(
+                    value,
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 
   Widget _actionButton({
     required String label,
@@ -728,4 +925,208 @@ String formatDate(DateTime date) {
   String year = date.year.toString();
 
   return "$day $month $year";
+}
+
+class _InlineVideoPlayer extends StatefulWidget {
+  final String url;
+  final String hatcheryName;
+
+  const _InlineVideoPlayer({required this.url, required this.hatcheryName});
+
+  @override
+  State<_InlineVideoPlayer> createState() => _InlineVideoPlayerState();
+}
+
+class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
+  late VideoPlayerController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize().then((_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _openFullscreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _FullScreenVideo(
+          url: widget.url,
+          hatcheryName: widget.hatcheryName,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_controller.value.isInitialized) {
+      return Container(
+        color: Colors.black,
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        VideoPlayer(_controller),
+
+        // 🔹 Center Play / Pause
+        Center(
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _controller.value.isPlaying
+                    ? _controller.pause()
+                    : _controller.play();
+              });
+            },
+            child: Icon(
+              _controller.value.isPlaying
+                  ? Icons.pause_circle_filled
+                  : Icons.play_circle_fill,
+              size: 48,
+              color: Colors.white,
+            ),
+          ),
+        ),
+
+        // 🔹 Bottom-right Fullscreen icon
+        Positioned(
+          bottom: 6,
+          right: 6,
+          child: IconButton(
+            icon: const Icon(Icons.fullscreen, color: Colors.white, size: 22),
+            onPressed: _openFullscreen,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FullScreenVideo extends StatefulWidget {
+  final String url;
+  final String hatcheryName;
+
+  const _FullScreenVideo({required this.url, required this.hatcheryName});
+
+  @override
+  State<_FullScreenVideo> createState() => _FullScreenVideoState();
+}
+
+class _FullScreenVideoState extends State<_FullScreenVideo> {
+  late VideoPlayerController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize().then((_) {
+        setState(() {});
+        controller.play();
+      });
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  void _togglePlay() {
+    setState(() {
+      controller.value.isPlaying ? controller.pause() : controller.play();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: controller.value.isInitialized
+          ? Stack(
+              children: [
+                // 🔹 Video
+                GestureDetector(
+                  onTap: _togglePlay,
+                  child: Center(
+                    child: AspectRatio(
+                      aspectRatio: controller.value.aspectRatio,
+                      child: VideoPlayer(controller),
+                    ),
+                  ),
+                ),
+
+                // 🔹 Center Play / Pause Icon
+                Center(
+                  child: GestureDetector(
+                    onTap: _togglePlay,
+                    child: Icon(
+                      controller.value.isPlaying
+                          ? Icons.pause_circle_filled
+                          : Icons.play_circle_fill,
+                      size: 56,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+
+                // 🔹 Top Bar: Back + Hatchery Name
+                Positioned(
+                  top: 40,
+                  left: 12,
+                  right: 12,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          widget.hatcheryName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // 🔹 Bottom Progress Bar
+                Positioned(
+                  bottom: 16,
+                  left: 12,
+                  right: 12,
+                  child: VideoProgressIndicator(
+                    controller,
+                    allowScrubbing: true,
+                    colors: const VideoProgressColors(
+                      playedColor: Colors.red,
+                      bufferedColor: Colors.white54,
+                      backgroundColor: Colors.white24,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : const Center(child: CircularProgressIndicator(color: Colors.white)),
+    );
+  }
 }

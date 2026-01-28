@@ -80,7 +80,7 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
 
         if (fullText.isNotEmpty) {
           stopListening(); // stop immediately when text detected
-          if (dialogContext != null&&mounted && Navigator.canPop(context)) {
+          if (dialogContext != null && mounted && Navigator.canPop(context)) {
             Navigator.pop(dialogContext!);
           } // close dialog
           _searchController.text = fullText;
@@ -210,45 +210,6 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
       ),
       body: Column(
         children: [
-          /// 🔍 SEARCH BAR
-          // Padding(
-          //   padding: const EdgeInsets.all(16),
-          //   child: Material(
-          //     elevation: 5,
-          //     borderRadius: BorderRadius.circular(12),
-          //     child: TextField(
-          //       controller: _searchController,
-          //       focusNode: _focusNode,
-          //       onChanged: (_) => setState(() {}),
-          //       decoration: InputDecoration(
-          //         hintText: "Search hatchery...",
-          //         prefixIcon: const Icon(Icons.search),
-          //         suffixIcon: Row(
-          //           mainAxisSize: MainAxisSize.min,
-          //           children: [
-          //             if (_searchController.text.isNotEmpty)
-          //               IconButton(
-          //                 icon: const Icon(Icons.clear),
-          //                 onPressed: () {
-          //                   setState(() => _searchController.clear());
-          //                 },
-          //               ),
-          //             IconButton(
-          //               icon: const Icon(Icons.mic),
-          //               onPressed: showVoiceDialog,
-          //             ),
-          //           ],
-          //         ),
-          //         filled: true,
-          //         fillColor: Colors.white,
-          //         border: OutlineInputBorder(
-          //           borderRadius: BorderRadius.circular(12),
-          //           borderSide: BorderSide.none,
-          //         ),
-          //       ),
-          //     ),
-          //   ),
-          // ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: _buildSearchBar(
@@ -276,14 +237,7 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
                     ),
                     child: InkWell(
                       onTap: startRecording,
-                      child: Padding(
-                        padding:  EdgeInsets.only(
-                      left: 3,
-                      right: 3,
-                      bottom: 3,
-                      top: 3,
-                    ),
-                        child: Icon(Icons.mic, color: Colors.blue, size: 30)),
+                      child: Icon(Icons.mic, color: Colors.blue, size: 30),
                     ),
                   ),
                 ],
@@ -305,7 +259,7 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
                   itemBuilder: (_, __) => hatcheryCardFullShimmer(),
                 );
               }
-              
+
               final query = _searchController.text.trim().toLowerCase();
 
               final filteredList = controller.spotHatchery.where((item) {
@@ -354,25 +308,25 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
     required Widget suffixIcon,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 3),
       decoration: BoxDecoration(
         color: const Color(0xFFEEEEEE),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(width: 1,color: Color(0xffE5E7EB)),
+        border: Border.all(width: 1, color: Color(0xffE5E7EB)),
       ),
       child: SizedBox(
-        height: 43,
+        height: 40,
         child: TextField(
           controller: controller,
           onChanged: onChanged,
 
+          textAlignVertical: TextAlignVertical.center,
           decoration: InputDecoration(
-            icon: const Icon(Icons.search, color: Colors.grey),
-            hintText: 'Search for hatcherie...',
-
-            border: InputBorder.none,
-            isDense: true,
+            prefixIcon: const Icon(Icons.search, color: Colors.grey),
             suffixIcon: suffixIcon,
+            hintText: 'Search for hatcherie...',
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 11),
           ),
         ),
       ),

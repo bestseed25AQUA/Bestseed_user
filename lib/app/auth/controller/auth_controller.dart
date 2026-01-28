@@ -30,8 +30,9 @@ class AuthController extends GetxController {
 
       debugPrint("Send OTP Response: ${response.body}");
 
+      final data = jsonDecode(response.body);
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
         Get.to(
           () => OtpVerificationScreen(
             phoneNumber: phoneNumber.value,
@@ -42,7 +43,9 @@ class AuthController extends GetxController {
         isOtpSent.value = true;
         CustomToast.success("OTP sent successfully!");
       } else {
-        CustomToast.error("Server error ");
+        // Show the error message from API response
+        final errorMessage = data['message'] ?? "Failed to send OTP. Please try again.";
+        CustomToast.error(errorMessage);
       }
     } catch (e, s) {
       debugPrint("Send OTP Error  ");

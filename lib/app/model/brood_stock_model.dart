@@ -1,3 +1,11 @@
+enum BroodstockStatus {
+  available,
+  upcoming,
+  closed,
+  shortlyAvailable,
+  unknown,
+}
+
 class BroodstockModel {
   final bool status;
   final String message;
@@ -34,6 +42,7 @@ class BroodstockData {
   final String hatcheryName;
   final String supplierName;
   final String categoryName;
+  final String description;
   final String availableQuantity;
   final String availableOn;
   final String packingStart;
@@ -44,6 +53,7 @@ class BroodstockData {
   final String image;
   final String importedDate;
   final List<String> images;
+  final BroodstockStatus status;
 
   BroodstockData({
     required this.id,
@@ -51,6 +61,7 @@ class BroodstockData {
     required this.hatcheryName,
     required this.supplierName,
     required this.categoryName,
+    required this.description,
     required this.availableQuantity,
     required this.availableOn,
     required this.packingStart,
@@ -61,6 +72,7 @@ class BroodstockData {
     required this.image,
     required this.importedDate,
     required this.images,
+    required this.status,
   });
 
   factory BroodstockData.fromJson(Map<String, dynamic> json) {
@@ -70,6 +82,7 @@ class BroodstockData {
       hatcheryName: json['hatchery_name'] ?? '',
       supplierName: json['supplier_name'] ?? '',
       categoryName: json['category']?['category_name'] ?? '',
+      description: json['description'] ?? '',
       availableQuantity: json['available_quantity'] ?? '',
       availableOn: json['available_on'] ?? '',
       packingStart: json['packing_start'] ?? '',
@@ -85,6 +98,7 @@ class BroodstockData {
             : 0,
         (index) => json['images'][index].toString(),
       ),
+      status: broodstockStatusFromString(json['status']),
     );
   }
 
@@ -93,6 +107,7 @@ class BroodstockData {
     'hatchery_id': hatcheryId,
     'hatchery_name': hatcheryName,
     'supplier_name': supplierName,
+    'description' : description,
     'imported_date': importedDate,
     'category': {'category_name': categoryName},
     'available_quantity': availableQuantity,
@@ -107,3 +122,19 @@ class BroodstockData {
     'images': image,
   };
 }
+
+BroodstockStatus broodstockStatusFromString(String? value) {
+  switch (value?.toLowerCase()) {
+    case 'available':
+      return BroodstockStatus.available;
+    case 'upcoming':
+      return BroodstockStatus.upcoming;
+    case 'closed':
+      return BroodstockStatus.closed;
+    case 'shortly_available':
+      return BroodstockStatus.shortlyAvailable;
+    default:
+      return BroodstockStatus.unknown;
+  }
+}
+

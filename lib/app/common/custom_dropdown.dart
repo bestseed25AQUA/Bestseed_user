@@ -28,6 +28,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
   bool isOpen = false;
+  final ScrollController _scrollController = ScrollController();
 
   void _closeDropdown() {
     if (isOpen) {
@@ -81,28 +82,35 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
-                child: ListView.builder(
-                  padding: EdgeInsets.zero,
-                  itemCount: widget.items.length,
-                  itemBuilder: (context, index) {
-                    final item = widget.items[index];
-                    return InkWell(
-                      onTap: () {
-                        widget.onChanged(item);
-                        _closeDropdown();
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 14,
+                child: Scrollbar(
+                  controller: _scrollController,
+                  thumbVisibility: true, // 👈 forces visible scrollbar
+                  thickness: 4,
+                  radius: const Radius.circular(8),
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    padding: EdgeInsets.zero,
+                    itemCount: widget.items.length,
+                    itemBuilder: (context, index) {
+                      final item = widget.items[index];
+                      return InkWell(
+                        onTap: () {
+                          widget.onChanged(item);
+                          _closeDropdown();
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
+                          ),
+                          child: Text(
+                            _getSafeLabel(item),
+                            style: GoogleFonts.roboto(fontSize: 14),
+                          ),
                         ),
-                        child: Text(
-                          _getSafeLabel(item),
-                          style: GoogleFonts.roboto(fontSize: 14),
-                        ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -128,6 +136,7 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _overlayEntry?.remove();
     _overlayEntry?.dispose();
     super.dispose();

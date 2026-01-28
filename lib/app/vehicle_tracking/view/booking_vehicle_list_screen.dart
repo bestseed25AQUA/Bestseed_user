@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
-import 'package:seedsuser/app/common/app_color.dart';
-import 'package:seedsuser/app/common/custom_button.dart';
 import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/vehicle_tracking/controller/vehicle_tracking_controller.dart';
 import 'package:seedsuser/app/vehicle_tracking/model/vehicle_tracking_model.dart';
-import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking_bottom_sheet.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/widgets/vehicle_availability_card.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_booking_detail_screen.dart';
+import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking_map_screen.dart';
 import 'package:shimmer/shimmer.dart';
 
 class VehicleTrackingPage extends StatefulWidget {
@@ -24,12 +22,33 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
     VehicleTrackingController(),
   );
 
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await controller.fetchVehicleList();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  List<VehicleTrackingModel> _getFilteredList() {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) {
+      return controller.vehicleList;
+    }
+    return controller.vehicleList.where((item) {
+      return item.hatcheryName.toLowerCase().contains(query) ||
+          item.bookingId.toLowerCase().contains(query);
+    }).toList();
   }
 
   @override
@@ -46,66 +65,119 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
         ),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
-      body: CustomRefereshIndicator(
-          onRefresh: () async {
-            await controller.fetchVehicleList();
-          },
-        child: Obx(() {
-          if (controller.isLoading.value) {
-            return ListView.builder(
-              shrinkWrap: true,
-             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-              itemCount: 3,
-              itemBuilder: (context, index) {
-                return vehicleAvailabilityCardShimmer();
-              },
-            );
-          }
-          if (controller.vehicleList.isEmpty) {
-            return Center(
-              child: Text(
-                "No vehicle data found",
-                style: GoogleFonts.roboto(fontSize: 16),
+      body: Column(
+        children: [
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
               ),
-            );
-          }
-          return ListView.builder(
-            itemCount: controller.vehicleList.length,
-            padding: EdgeInsets.symmetric(horizontal: 7),
-            itemBuilder: (context, index) {
-              final item = controller.vehicleList[index];
-              return VehicleAvaibalityCard(
-                statusColor: (item.status.toLowerCase() == 'pending')
-                    ? Colors.orange
-                    : (item.status.toLowerCase() == 'cancelled')
-                    ? Colors.red
-                    : Colors.green,
-                ontapViewDetails: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => BookingDetailsScreen(
-                        status: item.status.toLowerCase(),
-                        id: item.id,
-                        hatcheryName: item.hatcheryName
-                      ),
+              child: TextField(
+                controller: _searchController,
+                focusNode: _focusNode,
+                onTapOutside: (event) => _focusNode.unfocus(),
+                onChanged: (value) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: 'Search for hatcherie...',
+                  hintStyle: GoogleFonts.roboto(
+                    color: Colors.grey.shade500,
+                    fontSize: 14,
+                  ),
+                  prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // List
+          Expanded(
+            child: CustomRefereshIndicator(
+              onRefresh: () async {
+                await controller.fetchVehicleList();
+              },
+              child: Obx(() {
+                if (controller.isLoading.value) {
+                  return ListView.builder(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    itemCount: 3,
+                    itemBuilder: (context, index) {
+                      return vehicleAvailabilityCardShimmer();
+                    },
+                  );
+                }
+
+                final filteredList = _getFilteredList();
+
+                if (filteredList.isEmpty) {
+                  return Center(
+                    child: Text(
+                      "No vehicle data found",
+                      style: GoogleFonts.roboto(fontSize: 16),
                     ),
                   );
-                },
-        
-                id: item.bookingId?.toString() ?? "",
-                time: item.time?.toString() ?? "",
-                date: item.date?.toString() ?? "",
-                title: item.hatcheryName?.toString() ?? "",
-                subTitle: item.categoryName?.toString() ?? "",
-                status: item.status?.toString() ?? "",
-                pickupLocation: item.pickupLocation?.toString() ?? "",
-                dropLocation: item.dropLocation?.toString() ?? "",
-                quantity: item.quantity?.toString() ?? "",
-              );
-            },
-          );
-        }),
+                }
+
+                return ListView.builder(
+                  itemCount: filteredList.length,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemBuilder: (context, index) {
+                    final item = filteredList[index];
+                    return VehicleAvaibalityCard(
+                      statusColor: (item.status.toLowerCase() == 'pending')
+                          ? Colors.orange
+                          : (item.status.toLowerCase() == 'cancelled')
+                          ? Colors.red
+                          : const Color(0xff25A652),
+                      ontapViewDetails: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BookingDetailsScreen(
+                              status: item.status.toLowerCase(),
+                              id: item.id,
+                              hatcheryName: item.hatcheryName
+                            ),
+                          ),
+                        );
+                      },
+                      onTapTracking: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => VehicleTrackingMapScreen(
+                              bookingId: item.id,
+                            ),
+                          ),
+                        );
+                      },
+                      id: item.id,
+                      bookingId: item.id,
+                      time: item.time,
+                      date: item.date,
+                      title: item.hatcheryName,
+                      subTitle: item.categoryName,
+                      status: item.status,
+                      isSpot: item.isSpot,
+                      pickupLocation: item.pickupLocation,
+                      dropLocation: item.dropLocation,
+                      quantity: item.quantity,
+                    );
+                  },
+                );
+              }),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -116,104 +188,94 @@ Widget vehicleAvailabilityCardShimmer() {
     baseColor: Colors.grey.shade300,
     highlightColor: Colors.grey.shade100,
     child: Container(
-      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration( 
-        borderRadius: BorderRadius.circular(14),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
-        border: Border.all(width: 1)
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // -------- ID ----------
-          _shimmerBox(width: 100, height: 14),
+          // Spot Hatchery Label
+          _shimmerBox(width: 100, height: 26, radius: 8),
 
-          const SizedBox(height: 6),
+          const SizedBox(height: 12),
 
-          // -------- TIME + DATE ----------
+          // ID + Status Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _shimmerBox(width: 80, height: 16),
+              _shimmerBox(width: 90, height: 28, radius: 20),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Time and Date
           Align(
             alignment: Alignment.centerRight,
-            child: _shimmerBox(width: 120, height: 12),
+            child: _shimmerBox(width: 120, height: 14),
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
-          // -------- TITLE + STATUS ----------
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _shimmerBox(width: double.infinity, height: 16),
-                    const SizedBox(height: 6),
-                    _shimmerBox(width: 140, height: 13),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              _shimmerBox(width: 70, height: 26, radius: 20),
-            ],
-          ),
+          // Hatchery Name
+          _shimmerBox(width: double.infinity, height: 18),
 
-          const SizedBox(height: 18),
+          const SizedBox(height: 8),
 
-          // -------- PICKUP / DROP ----------
+          // Category
+          _shimmerBox(width: 100, height: 14),
+
+          const SizedBox(height: 12),
+
+          // Pieces Row
           Row(
             children: [
-              Column(
-                children: [
-                  _shimmerCircle(size: 12),
-                  const SizedBox(height: 4),
-                  _shimmerLine(height: 14),
-                  const SizedBox(height: 4),
-                  _shimmerLine(height: 28),
-                  const SizedBox(height: 4),
-                  _shimmerLine(height: 14),
-                  const SizedBox(height: 4),
-                  _shimmerCircle(size: 12),
-                ],
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _shimmerBox(width: 120, height: 12),
-                    const SizedBox(height: 6),
-                    _shimmerBox(width: double.infinity, height: 14),
-                    const SizedBox(height: 22),
-                    _shimmerBox(width: 120, height: 12),
-                    const SizedBox(height: 6),
-                    _shimmerBox(width: double.infinity, height: 14),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 18),
-
-          // -------- QUANTITY ----------
-          Row(
-            children: [
-              _shimmerCircle(size: 20),
+              _shimmerCircle(size: 22),
               const SizedBox(width: 8),
               _shimmerBox(width: 80, height: 14),
             ],
           ),
 
-          const SizedBox(height: 18),
+          const SizedBox(height: 8),
 
-          // -------- VIEW DETAILS BUTTON ----------
+          // Date Row
+          Row(
+            children: [
+              _shimmerCircle(size: 18),
+              const SizedBox(width: 8),
+              _shimmerBox(width: 100, height: 14),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Location Row
+          Row(
+            children: [
+              _shimmerCircle(size: 20),
+              const SizedBox(width: 8),
+              Expanded(child: _shimmerBox(height: 14)),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Tracking Button
           _shimmerBox(
             width: double.infinity,
-            height: 40,
-            radius: 20,
+            height: 46,
+            radius: 25,
           ),
         ],
       ),
@@ -243,13 +305,5 @@ Widget _shimmerCircle({double size = 16}) {
       color: Colors.white,
       shape: BoxShape.circle,
     ),
-  );
-}
-
-Widget _shimmerLine({double height = 16}) {
-  return Container(
-    width: 2,
-    height: height,
-    color: Colors.white,
   );
 }

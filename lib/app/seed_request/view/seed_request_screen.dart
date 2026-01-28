@@ -6,12 +6,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
+import 'package:seedsuser/app/home/model/hatchery_filter_model.dart';
 import 'package:seedsuser/app/model/category_model.dart';
 import 'package:seedsuser/app/seed_request/controller/seed_request_controller.dart';
 import 'package:seedsuser/app/common/custom_dropdown.dart';
-
-import '../../home/model/brand_model.dart' show BrandModel;
 
 class SeedRequestsFormScreen extends StatefulWidget {
   const SeedRequestsFormScreen({super.key});
@@ -23,6 +23,7 @@ class SeedRequestsFormScreen extends StatefulWidget {
 class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
   final SeedRequestController controller = Get.put(SeedRequestController());
   final HomeController homeController = Get.find();
+  final FilterHatcheryController filterHatcheryController = Get.find();
 
   final _formKey = GlobalKey<FormState>();
 
@@ -34,7 +35,7 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
 
   // Dropdown selections
   Category? _selectedCategory;
-  BrandModel? _selectedBrand;
+  HatcheryFilterItem? _selectedHatchery;
 
   String _packingDate = 'DD/MM/YYYY';
 
@@ -61,8 +62,8 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
         CustomToast.error("Please select category");
         return;
       }
-      if (_selectedBrand == null) {
-        CustomToast.error("Please select brand");
+      if (_selectedHatchery == null) {
+        CustomToast.error("Please select Hatchery");
         return;
       }
       if (_packingDate == "DD/MM/YYYY") {
@@ -72,7 +73,7 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
 
       controller.sendSeedRequest(
         categoryId: _selectedCategory!.id,
-        brandId: _selectedBrand!.id,
+        hatcheryId: _selectedHatchery!.id,
         name: _nameController.text.trim(),
         mobile: _phoneController.text.trim(),
         pieces: int.parse(_piecesController.text.trim()),
@@ -152,9 +153,9 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
               gap,
 
               const SizedBox(height: 8),
-              // BRANDS
+              // Hatchery
               Text(
-                "Brands",
+                "Hatcheries",
                 style: GoogleFonts.roboto(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -162,13 +163,13 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
               ),
               const SizedBox(height: 8),
 
-              CustomDropdown<BrandModel>(
-                selectedValue: _selectedBrand,
-                items: homeController.brands,
-                hintText: "Select brands",
-                itemLabel: (b) => b.brandName,
+              CustomDropdown<HatcheryFilterItem>(
+                selectedValue: _selectedHatchery,
+                items: filterHatcheryController.allHatcheries,
+                hintText: "Select hatcheries",
+                itemLabel: (b) => b.hatcheryName,
                 onChanged: (v) {
-                  setState(() => _selectedBrand = v);
+                  setState(() => _selectedHatchery = v);
                 },
               ),
               gap,

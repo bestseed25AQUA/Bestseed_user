@@ -22,11 +22,17 @@ class HatcheryCategoryController extends GetxController {
   Future<void> fetchHetcheryCategory(String id) async {
     try {
       isLoading.value = true;
+      final endpoint = '${NetworkConfig.baseURL}/farmer/hatchery-all-category/$id';
+      print('🔍 Fetching hatchery categories for ID: $id');
+      print('📍 Endpoint: $endpoint');
+
       final response = await getRequest(
-        endPoint: '${NetworkConfig.baseURL}/farmer/hatchery-all-category/$id',
+        endPoint: endpoint,
         headers: await buildHeader(),
       );
-      print(response.body.toString());
+
+      print('📦 Response Status: ${response.statusCode}');
+      print('📦 Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         try {
@@ -34,13 +40,19 @@ class HatcheryCategoryController extends GetxController {
           hatcheryCateogoryData.value = HatcheryDetailsResponse.fromJson(
             dataResponse
           );
+
+          print('✅ Categories fetched: ${hatcheryCateogoryData.value.data.length}');
+          print('✅ Similar hatcheries: ${hatcheryCateogoryData.value.similarHatcheries.length}');
         } catch (e) {
-          print(e.toString());
+          print('❌ JSON parsing error: $e');
         }
+      } else {
+        print('❌ API returned status code: ${response.statusCode}');
       }
     } catch (e, s){
-      print(s.toString());
-      CustomToast.error("Something went wrong fetching hatcgery data");
+      print('❌ Error fetching hatchery data: $e');
+      print('Stack trace: $s');
+      CustomToast.error("Something went wrong fetching hatchery data");
     } finally {
       isLoading.value = false;
     }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
@@ -17,13 +18,43 @@ class OtpVerifyController extends GetxController {
   RxString phoneNumber = ''.obs;
   RxString otp = ''.obs;
 
+  // Timer for resend OTP (2 minutes = 120 seconds)
+  RxInt resendTimer = 0.obs;
+  Timer? _timer;
+
+  bool get canResend => resendTimer.value == 0;
+
+  void startResendTimer() {
+    resendTimer.value = 120; // 2 minutes
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (resendTimer.value > 0) {
+        resendTimer.value--;
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  String get formattedTimer {
+    final minutes = (resendTimer.value ~/ 60).toString().padLeft(2, '0');
+    final seconds = (resendTimer.value % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  @override
+  void onClose() {
+    _timer?.cancel();
+    super.onClose();
+  }
+
   // Resend OTP
   Future<void> resendOtp() async {
     try {
       isResending.value = true;
 
       final body = {
-        "phone": phoneNumber.value, // change key as per your API
+        "mobile": phoneNumber.value,
       };
 
       http.Response response = await postRequest(
@@ -34,15 +65,19 @@ class OtpVerifyController extends GetxController {
 
       debugPrint("Resend OTP Response: ${response.body}");
 
+      final data = jsonDecode(response.body);
+
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data["status"] == true) {
-          CustomToast.success("OTP resent successfully");
-        } else {
-          CustomToast.error(data["message"] ?? "Unable to resend OTP");
-        }
+        CustomToast.success(data["message"] ?? "OTP resent successfully");
+        startResendTimer(); // Start 2-minute countdown
+      } else if (response.statusCode == 429) {
+        // Rate limited - start timer to show remaining time
+        startResendTimer();
+        CustomToast.error(data['message'] ?? "Please wait before requesting a new OTP.");
       } else {
-        CustomToast.error("Server error ");
+        // Show the error message from API response
+        final errorMessage = data['message'] ?? "Failed to resend OTP. Please try again.";
+        CustomToast.error(errorMessage);
       }
     } catch (e) {
       debugPrint("Resend OTP Error  ");
@@ -68,8 +103,9 @@ class OtpVerifyController extends GetxController {
       debugPrint("Verify OTP Response: ${response.body}");
        
 
+      final data = jsonDecode(response.body);
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
         print("=======token at login time=========");
         print('=====${data['token'].toString()}====');
         // Save token & mobile locally
@@ -84,7 +120,9 @@ class OtpVerifyController extends GetxController {
 
         Get.offAll(() => DashboardScreen());
       } else {
-        CustomToast.error("Server error ");
+        // Show the error message from API response
+        final errorMessage = data['message'] ?? "Invalid OTP. Please try again.";
+        CustomToast.error(errorMessage);
       }
     } catch (e) {
       debugPrint("Verify OTP Error  ");

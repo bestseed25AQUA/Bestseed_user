@@ -16,11 +16,7 @@ class HatcherCategoryDetailModel {
   String? message;
   Data? data;
 
-  HatcherCategoryDetailModel({
-    this.status,
-    this.message,
-    this.data,
-  });
+  HatcherCategoryDetailModel({this.status, this.message, this.data});
 
   factory HatcherCategoryDetailModel.fromJson(Map<String, dynamic> json) {
     try {
@@ -44,8 +40,9 @@ class HatcherCategoryDetailModel {
 class Data {
   int? id;
   String? hatcheryName;
+  String? description;
   List<String>? images;
-  String? status;
+  int? status;
   DateTime? availableOn;
   int? isSpot;
   Category? category;
@@ -59,6 +56,7 @@ class Data {
   Data({
     this.id,
     this.hatcheryName,
+    this.description,
     this.images,
     this.status,
     this.availableOn,
@@ -77,10 +75,11 @@ class Data {
       return Data(
         id: json["id"] as int?,
         hatcheryName: json["hatchery_name"] as String?,
+        description: json["description"] as String?,
         images: json["images"] == null
             ? []
             : List<String>.from(json["images"] ?? []),
-        status: json["status"] as String?,
+        status: json["status"] as int?,
         availableOn: json["available_on"] == null
             ? null
             : DateTime.tryParse(json["available_on"]),
@@ -94,7 +93,8 @@ class Data {
         units: json["units"] == null
             ? []
             : List<Unit>.from(
-                json["units"]!.map((x) => Unit.fromJson(x)) ?? []),
+                json["units"]!.map((x) => Unit.fromJson(x)) ?? [],
+              ),
         broodstock: json["broodstock"] as int?,
         price: json["price"] as String?,
         callUrl: json["call_url"] as String?,
@@ -108,6 +108,7 @@ class Data {
   Map<String, dynamic> toJson() => {
     "id": id,
     "hatchery_name": hatcheryName,
+    "description": description,
     "images": images ?? [],
     "status": status,
     "available_on": availableOn?.toIso8601String().split('T')[0],
@@ -129,13 +130,7 @@ class Category {
   List<String>? gallery;
   String? report;
 
-  Category({
-    this.id,
-    this.name,
-    this.description,
-    this.gallery,
-    this.report,
-  });
+  Category({this.id, this.name, this.description, this.gallery, this.report});
 
   factory Category.fromJson(Map<String, dynamic> json) {
     try {
@@ -170,10 +165,7 @@ class Location {
 
   factory Location.fromJson(Map<String, dynamic> json) {
     try {
-      return Location(
-        id: json["id"] as int?,
-        name: json["name"] as String?,
-      );
+      return Location(id: json["id"] as int?, name: json["name"] as String?);
     } catch (e) {
       throw FormatException('Error parsing Location: $e');
     }
@@ -184,20 +176,34 @@ class Location {
 
 class Unit {
   int? id;
-  String? branchName;
+  Branch? branch;
 
-  Unit({this.id, this.branchName});
+  Unit({this.id, this.branch});
 
   factory Unit.fromJson(Map<String, dynamic> json) {
-    try {
-      return Unit(
-        id: json["id"] as int?,
-        branchName: json["branch_name"] as String?,
-      );
-    } catch (e) {
-      throw FormatException('Error parsing Unit: $e');
-    }
+    return Unit(
+      id: json["id"] as int?,
+      branch: json["branch"] == null ? null : Branch.fromJson(json["branch"]),
+    );
   }
 
-  Map<String, dynamic> toJson() => {"id": id, "branch_name": branchName};
+  Map<String, dynamic> toJson() => {"id": id, "branch": branch?.toJson()};
+}
+
+class Branch {
+  int? id;
+  String? name;
+  String? address;
+
+  Branch({this.id, this.name, this.address});
+
+  factory Branch.fromJson(Map<String, dynamic> json) {
+    return Branch(
+      id: json["id"] as int?,
+      name: json["name"] as String?,
+      address: json["address"] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {"id": id, "name": name, "address": address};
 }

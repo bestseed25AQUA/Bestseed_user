@@ -831,7 +831,11 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  data.isSpot?.value == 1 ? "Spot Hatchery" : 'Hatchery',
+                  data.isSpot?.value == 1
+                      ? "Spot Hatchery"
+                      : data.isSpot?.value == 2
+                      ? "Vehicle Availability"
+                      : 'Hatchery',
                   style: GoogleFonts.roboto(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -894,7 +898,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  "ID: ${data.bookingUid}",
+                  "ID: ${data.bookingId}",
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                 ),
               ),

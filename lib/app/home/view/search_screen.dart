@@ -397,15 +397,6 @@ class _SearchScreenState extends State<SearchScreen> {
                                       setState(() => _searchController.clear());
                                     },
                                   ),
-                                // IconButton(
-                                //   icon: Icon(
-                                //     _isListening ? Icons.mic_none : Icons.mic,
-                                //     color: _isListening
-                                //         ? Colors.red
-                                //         : Colors.grey,
-                                //   ),
-                                //   onPressed: _toggleVoiceInput,
-                                // ),
                                 VoiceMicButton(onStart: startRecording),
                               ],
                             ),
@@ -466,16 +457,6 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                       ),
                       SizedBox(height: 40),
-                      // _buildDynamicSection(
-                      //   title: "Hatchery Names",
-                      //   items: filterHatcheryController.hatcheryNames,
-                      //   ids: filterHatcheryController.hatcheryNames
-                      //       .map((e) => e)
-                      //       .toList(),
-                      //   selectedIds:
-                      //       filterHatcheryController.selectedCategoryIds,
-                      //   sectionKey: 'hatcheryNames',
-                      // ),
                     ],
                   ),
                 ),
@@ -582,14 +563,22 @@ class _SearchScreenState extends State<SearchScreen> {
                   color: WidgetStateProperty.all(Colors.white),
                   selected: selectedIds.contains(id),
                   onSelected: (bool selected) {
-                    filterHatcheryController.query = '';
                     // Only controller handles state changes
                     if (sectionKey == 'category') {
-                      filterHatcheryController.toggleCategory(id);
+                      // Clear all previous category selections and select only this one
+                      filterHatcheryController.selectedCategoryIds.clear();
+                      if (selected) {
+                        filterHatcheryController.selectedCategoryIds.add(id);
+                        filterHatcheryController.query = name;
+                      } else {
+                        filterHatcheryController.query = '';
+                      }
                     } else if (sectionKey == 'brand') {
                       filterHatcheryController.toggleBrand(id);
+                      filterHatcheryController.query = '';
                     } else {
                       filterHatcheryController.toggleLocation(id);
+                      filterHatcheryController.query = '';
                     }
                     _skipTextDebounce = true;
                     doAfterDelay();

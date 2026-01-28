@@ -1,106 +1,74 @@
 import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class VehicleAvaibalityCard extends StatelessWidget {
   final String id;
+  final String bookingId;
   final String time;
   final String date;
   final String title;
   final String subTitle;
   final String status;
+  final int isSpot;
   final String pickupLocation;
   final String dropLocation;
   final String quantity;
-  final Color statusColor ;
+  final Color statusColor;
   final VoidCallback ontapViewDetails;
+  final VoidCallback? onTapTracking;
 
   const VehicleAvaibalityCard({
     super.key,
     required this.id,
+    this.bookingId = '',
     required this.time,
     required this.date,
     required this.title,
     required this.subTitle,
     required this.status,
+    required this.isSpot,
     required this.pickupLocation,
     required this.dropLocation,
     required this.quantity,
     required this.ontapViewDetails,
-    required this.statusColor
+    required this.statusColor,
+    this.onTapTracking,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// ---- ID + Date-Time Row ----
-           Text(
-                "ID : $id",
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-              ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-             Spacer(),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    time,
-                    style: TextStyle(fontSize: 14, color: Colors.black87),
-                  ),
-                  SizedBox(width: 5,),
-                  Text(
-                    date,
-                    style: TextStyle(fontSize: 14, color: Colors.black54),
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 2),
-
-          /// ---- Title + SubTitle + Status ----
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              /// 1 Column (Title + Subtitle)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),maxLines: 1
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      subTitle,
-                      style: TextStyle(fontSize: 14, color: Colors.black54),
-                    ),
-                  ],
+              Text(
+                getBookingTypeLabel(isSpot),
+                style: GoogleFonts.roboto(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
                 ),
               ),
-
-              /// Status Button
               Container(
-                padding: const EdgeInsets.symmetric( 
-                  horizontal: 12,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
                 ),
                 decoration: BoxDecoration(
                   color: statusColor,
@@ -108,8 +76,9 @@ class VehicleAvaibalityCard extends StatelessWidget {
                 ),
                 child: Text(
                   status,
-                  style: TextStyle(
-                    color: Colors.white,fontSize: 14,
+                  style: GoogleFonts.roboto(
+                    color: Colors.white,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -117,116 +86,167 @@ class VehicleAvaibalityCard extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 3),
+          const SizedBox(height: 12),
+
+          // ID and Status Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'ID : $id',
+                style: GoogleFonts.roboto(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  '$time, $date',
+                  style: GoogleFonts.roboto(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // Date and Time
+          const SizedBox(height: 12),
+
+          // Hatchery Name
+          Text(
+            title,
+            style: GoogleFonts.roboto(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+
+          const SizedBox(height: 4),
+
+          // Category Name
+          Text(
+            subTitle,
+            style: GoogleFonts.roboto(
+              fontSize: 14,
+              color: Colors.grey.shade600,
+            ),
+          ),
+
+          const SizedBox(height: 12),
 
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Builder(
-                builder: (context) {
-                  double height = 14;
-                  double width = 2;
-                  double gap = 3;
-                  return Column(
-                    children: [
-                      Icon(Icons.circle, color: Colors.green, size: 12),
-                      SizedBox(height: gap),
-                      Container(
-                        height: height,
-                        color: Colors.black,
-                        width: width,
-                      ),
-                      SizedBox(height: gap),
-                      Container(
-                        height: height + 15,
-                        color: Colors.black,
-                        width: width,
-                      ),
-                      SizedBox(height: gap),
-                      Container(
-                        height: height,
-                        color: Colors.black,
-                        width: width,
-                      ),
-                      SizedBox(height: gap),
-                      Icon(Icons.circle, color: Colors.red, size: 12),
-                    ],
-                  );
-                },
-              ),
-              SizedBox(width: 20),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // Pieces Row
+              Row(
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Pickup location",
-                        style: TextStyle(fontSize: 14, color: Colors.black54),
-                      ),
-                      SizedBox(height: 3),
-                      Text(pickupLocation, style: TextStyle(fontSize: 14)),
-                    ],
+                  Image.asset(
+                    'assets/images/pieces_icon.png',
+                    height: 22,
+                    width: 22,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(
+                        Icons.shopping_bag,
+                        size: 22,
+                        color: Colors.grey,
+                      );
+                    },
                   ),
-                  SizedBox(height: 5),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Drop location",
-                        style: TextStyle(fontSize: 14, color: Colors.black54),
-                      ),
-                      SizedBox(height: 3),
-                      Text(dropLocation, style: TextStyle(fontSize: 14)),
-                    ],
+                  const SizedBox(width: 8),
+                  Text(
+                    quantity,
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 6),
+
+              // Date Row
+              Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    size: 18,
+                    color: Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    date,
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
                   ),
                 ],
               ),
             ],
           ),
 
-          const SizedBox(height:6),
+          const SizedBox(height: 12),
 
-          /// ---- Quantity ----
+          // Location Row
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Image.asset(
-                'assets/images/pieces_icon.png',
-                height: 20,
-                width: 20,
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(Icons.shopping_bag, size: 18);
-                },
-              ),
-              SizedBox(width: 8),
-              Text(
-                quantity,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              Icon(Icons.location_on, size: 20, color: Colors.grey.shade600),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  dropLocation,
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    color: Colors.black87,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
 
-          const SizedBox(height: 6),
+          const SizedBox(height: 16),
 
-          /// ---- View Details ----
+          // Tracking Button
           InkWell(
-            onTap:ontapViewDetails,
+            onTap: onTapTracking ?? ontapViewDetails,
+            borderRadius: BorderRadius.circular(25),
             child: Container(
               width: double.infinity,
-              padding: EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(vertical: 13),
               decoration: BoxDecoration(
-                color:   Color(0xffF2F2F2),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(width: 1,color: Colors.grey)
+                color: const Color(0xff007DFE),
+                borderRadius: BorderRadius.circular(25),
               ),
-              alignment: Alignment.center,
-              child: Text(
-                "View Details",
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Tracking your vehicle',
+                    style: GoogleFonts.roboto(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.arrow_forward,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ],
               ),
             ),
           ),
@@ -234,5 +254,16 @@ class VehicleAvaibalityCard extends StatelessWidget {
       ),
     );
   }
-}
 
+  String getBookingTypeLabel(int isSpot) {
+    switch (isSpot) {
+      case 1:
+        return 'Spot Hatchery';
+      case 2:
+        return 'Vehicle Availability';
+      case 0:
+      default:
+        return 'Hatchery';
+    }
+  }
+}

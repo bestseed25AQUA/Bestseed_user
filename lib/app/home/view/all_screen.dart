@@ -35,6 +35,10 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
+  // final MyBookingController bookingController = Get.put(
+  //   MyBookingController(),
+  //   permanent: true,
+  // );
   late AnimationController _controller;
   late Animation<Offset> _leftAnimation;
   late Animation<Offset> _rightAnimation;
@@ -87,6 +91,20 @@ class _HomePageState extends State<HomePage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      // floatingActionButton: Obx(() {
+      //   if (!bookingController.hasInProgressBooking) {
+      //     return const SizedBox.shrink();
+      //   }
+
+      //   return FloatingActionButton.extended(
+      //     onPressed: () {
+      //       Get.to(() => const MyBookingScreen());
+      //     },
+      //     backgroundColor: Colors.green,
+      //     icon: const Icon(Icons.local_shipping),
+      //     label: const Text("Pickup Started"),
+      //   );
+      // }),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,61 +112,6 @@ class _HomePageState extends State<HomePage>
             // Header Section
             Column(
               children: [
-                // Padding(
-                //   padding: const EdgeInsets.symmetric(
-                //     horizontal: .0,
-                //     vertical: 8,
-                //   ),
-                //   child: Row(
-                //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                //     children: [
-                //       Expanded(
-                //         child: SlideTransition(
-                //           position: _leftAnimation,
-                //           child: Image.asset(
-                //             'assets/images/fish_icon.png',
-                //             height: 50,
-                //           ),
-                //         ),
-                //       ),
-
-                //       // Center text
-                //       SizedBox(
-                //         width: 240,
-                //         child: Column(
-                //           children: [
-                //             Text(
-                //               '"Grow More with the Best Seeds –\nQuality, Variety, and Trust"',
-                //               style: TextStyle(
-                //                 color: Colors.white,
-                //                 fontSize: 15,
-                //                 fontWeight: FontWeight.bold,
-                //               ),
-                //               textAlign: TextAlign.center,
-                //             ),
-                //           ],
-                //         ),
-                //       ),
-
-                //       // 👉 Right image moves right→left
-                //       Expanded(
-                //         child: SlideTransition(
-                //           position: _rightAnimation,
-                //           child: Image.asset(
-                //             'assets/images/roya.png',
-                //             height: 50,
-                //           ),
-                //         ),
-                //       ),
-                //     ],
-                //   ),
-                // ),
-                // Image.asset(
-                //   'assets/images/best_seed_bottom.png',
-                //   width: double.infinity,
-                //   fit: BoxFit.cover,
-                //   height: AppSize.height * .08,
-                // ),
                 Obx(() {
                   return Image.network(
                     _homeBannerController.bannersBackGround.isEmpty
@@ -276,16 +239,6 @@ class _HomePageState extends State<HomePage>
                           ],
                         ),
                       ),
-                      // SizedBox(width: 8),
-                      // Expanded(
-                      //   child: _buildMenuItem(
-                      //     'Seeds Requests',
-                      //     'assets/images/seeds.png',
-                      //     () {
-                      //       Get.to(() => const SeedRequestsFormScreen());
-                      //     },
-                      //   ),
-                      // ),
                     ],
                   ),
                 );
@@ -293,7 +246,6 @@ class _HomePageState extends State<HomePage>
             ),
             Container(
               padding: const EdgeInsets.only(left: 16.0, bottom: 0, right: 16),
-              // height: 32,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(16),
@@ -308,55 +260,6 @@ class _HomePageState extends State<HomePage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Row(
-                  //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  //   children: [
-                  //     Image.asset(
-                  //       "assets/images/seeds.png",
-                  //       width: MediaQuery.of(context).size.width * .17,
-                  //     ),
-                  //     SizedBox(
-                  //       width: MediaQuery.of(context).size.width * .5,
-                  //       child: Column(
-                  //         crossAxisAlignment: CrossAxisAlignment.center,
-                  //         children: [
-                  //           // SlideTransition(
-                  //           //   position: _fishAnimation,
-                  //           //   child: Image.asset("assets/images/fish.png", height: 50),
-                  //           // ),
-                  //           Text(
-                  //             'Hatcheries',
-                  //             style: GoogleFonts.roboto(
-                  //               fontSize: 20,
-                  //               fontWeight: FontWeight.bold,
-                  //               color: Color(0xFF0076BE),
-                  //             ),
-                  //           ),
-                  //           SizedBox(height: 10),
-                  //           Image.asset(
-                  //             "assets/images/redline.png",
-                  //             width: MediaQuery.of(context).size.width * .3,
-                  //           ),
-                  //           Text(
-                  //             'Find nearby hatcheries for fish or shrimp seeds.',
-                  //             textAlign: TextAlign.center,
-                  //             style: GoogleFonts.roboto(
-                  //               fontSize: 14,
-                  //               color: Colors.grey,
-                  //             ),
-                  //             maxLines: 2,
-                  //           ),
-                  //         ],
-                  //       ),
-                  //     ),
-
-                  //     Image.asset(
-                  //       "assets/images/fish.png",
-                  //       width: MediaQuery.of(context).size.width * .17,
-                  //     ),
-                  //   ],
-                  // ),
-                  // const SizedBox(height: 16),
                   HatcheryWidget(
                     onViewAllTap: () {
                       filterHatcheryController.selectedCategoryIds.clear();
@@ -387,7 +290,7 @@ class _HomePageState extends State<HomePage>
                       horizontal: 13,
                       vertical: 0,
                     ),
-                    margin:  const EdgeInsets.symmetric(
+                    margin: const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 0,
                     ),
@@ -433,7 +336,7 @@ class _HomePageState extends State<HomePage>
                     ),
                   ),
                   SizedBox(height: 20),
-                  TodayPricesWidget(), 
+                  TodayPricesWidget(),
                   HatcherySuppliersWidget(),
                   Obx(() {
                     return Column(

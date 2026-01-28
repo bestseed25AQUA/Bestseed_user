@@ -216,18 +216,6 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
     super.dispose();
   }
 
-  // List<HatcheryFilterItem> filterByName() {
-  //   final query = _searchController.text.trim().toLowerCase();
-
-  //   if (query.isEmpty) {
-  //     return controller.hatcherFilteredData.value.data;
-  //   }
-
-  //   return controller.hatcherFilteredData.value.data
-  //       .where((item) => item.hatcheryName.toLowerCase().contains(query))
-  //       .toList();
-  // }
-
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -254,60 +242,6 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
         builder: (contxt) {
           return Column(
             children: [
-              // Stack(
-              //   clipBehavior: Clip.none,
-              //   children: [
-              //     Container(height: 50, color: Colors.white),
-              //     Positioned(
-              //       bottom: -28,
-              //       left: 16,
-              //       right: 16,
-              //       child: SizedBox(
-              //         height: 37,
-              //         child: Material(
-              //           elevation: 6,
-              //           borderRadius: BorderRadius.circular(12),
-              //           child: TextField(
-              //             focusNode: _focusNode,
-              //             onTapOutside: (event) {
-              //               _focusNode.unfocus();
-              //             },
-              //             onChanged: (value) {
-              //               filterHatcheryController.query = value;
-              //               filterHatcheryController.applyFilter();
-              //             },
-              //             onSubmitted: (value) {},
-              //             controller: _searchController,
-              //             decoration: InputDecoration(
-              //               filled: true,
-              //               fillColor: Colors.white,
-              //               hintText: "Search...",
-              //               prefixIcon: const Icon(Icons.search),
-              //               suffixIcon: Row(
-              //                 mainAxisSize: MainAxisSize.min,
-              //                 children: [
-              //                   if (_searchController.text.isNotEmpty)
-              //                     IconButton(
-              //                       icon: const Icon(Icons.clear),
-              //                       onPressed: () {
-              //                         setState(() => _searchController.clear());
-              //                       },
-              //                     ),
-
-              //                   VoiceMicButton(onStart: startRecording),
-              //                 ],
-              //               ),
-              //               border: OutlineInputBorder(
-              //                 borderRadius: BorderRadius.circular(12),
-              //                 borderSide: BorderSide.none,
-              //               ),
-              //             ),
-              //           ),
-              //         ),
-              //       ),
-              //     ),
-              //   ],
-              // ),
               Container(
                 margin: const EdgeInsets.only(top: 6), // ⭐ space for top shadow
                 height: 37,
@@ -354,6 +288,8 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                             icon: const Icon(Icons.clear),
                             onPressed: () {
                               setState(() => _searchController.clear());
+                              filterHatcheryController.query = '';
+                              filterHatcheryController.applyFilter();
                             },
                           ),
 
@@ -440,10 +376,17 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                           type: item.category,
                           status: item.status,
                           availableUntil: item.availableOn,
-                          statusColor: item.status.toLowerCase() == "open"
+                          statusColor: item.status.toLowerCase() == "available"
                               ? const Color(0xff25A652)
-                              : item.status.toLowerCase() == "coming soon"
+                              : item.status.toLowerCase() == "coming soon" ||
+                                    item.status.toLowerCase() == "-"
                               ? const Color(0xff007DFE)
+                              : item.status.toLowerCase() == "upcoming"
+                              ? const Color(0xff6F42C1)
+                              : item.status.toLowerCase() == "shortly available"
+                              ? const Color(0xffF4A100)
+                              : item.status.toLowerCase() == "closed"
+                              ? const Color(0xffE31B1B)
                               : const Color(0xffE31B1B),
                           ontap: () {
                             Navigator.push(

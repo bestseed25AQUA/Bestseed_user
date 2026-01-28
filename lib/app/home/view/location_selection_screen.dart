@@ -3,7 +3,6 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
@@ -100,33 +99,12 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
     currentPosition = await _getCurrentLocation();
   }
 
-  void showDeleteConfirmation(String locationId) {
-    Get.dialog(
-      AlertDialog(
-        title: Text("Delete Location"),
-        content: Text("Are you sure you want to remove this location?"),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: Text("Cancel")),
-          TextButton(
-            onPressed: () {
-              Get.back();
-              _locationController.deleteLocation(locationId);
-            },
-            child: Text("Delete", style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   void initState() {
     super.initState();
     getCurrentLocation();
-    _locationController.getAllLocation();
   }
 
-  TextEditingController textEditingController = TextEditingController();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -137,10 +115,6 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
         centerTitle: true,
       ),
       body: Obx(() {
-        final list = _locationController.isSearching.value
-            ? _locationController.searchedLocations
-            : _locationController.allLocations;
-
         return Column(
           children: [
             SizedBox(height: 16),
@@ -293,83 +267,108 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                       currentPosition?.longitude == null) {
                     currentPosition = await getCurrentLocation();
                   }
-                  if(currentPosition?.latitude != null && currentPosition?.longitude != null) {
+
+                  if (currentPosition?.latitude != null &&
+                      currentPosition?.longitude != null) {
                     await Get.to(
-                    () => GoogleMapSearchPlacesScreen(
-                      latitude: currentPosition!.latitude,
-                      longitude: currentPosition!.longitude,
-                      ontapSelectLocation: (location) async {
-                        List<Placemark> placemarks =
-                            await placemarkFromCoordinates(
-                              location.latitude,
-                              location.longitude,
+                      () => GoogleMapSearchPlacesScreen(
+                        latitude: currentPosition!.latitude,
+                        longitude: currentPosition!.longitude,
+                        ontapSelectLocation: (location, fullAddress) async {
+                          List<Placemark> placemarks =
+                              await placemarkFromCoordinates(
+                                location.latitude,
+                                location.longitude,
+                              );
+                          Placemark place = placemarks.first;
+                          List<String> parts = [];
+
+                          if (place.name != null && place.name!.isNotEmpty) {
+                            parts.add(place.name!);
+                          }
+
+                          if (place.street != null &&
+                              place.street!.isNotEmpty &&
+                              place.street != place.name) {
+                            parts.add(place.street!);
+                          }
+
+                          if (place.subLocality != null &&
+                              place.subLocality!.isNotEmpty) {
+                            parts.add(place.subLocality!);
+                          }
+
+                          if (place.locality != null &&
+                              place.locality!.isNotEmpty) {
+                            parts.add(place.locality!);
+                          }
+
+                          if (place.subAdministrativeArea != null &&
+                              place.subAdministrativeArea!.isNotEmpty) {
+                            parts.add(place.subAdministrativeArea!);
+                          }
+
+                          if (place.administrativeArea != null &&
+                              place.administrativeArea!.isNotEmpty) {
+                            parts.add(place.administrativeArea!);
+                          }
+
+                          if (place.postalCode != null &&
+                              place.postalCode!.isNotEmpty) {
+                            parts.add(place.postalCode!);
+                          }
+
+                          if (place.country != null &&
+                              place.country!.isNotEmpty) {
+                            parts.add(place.country!);
+                          }
+
+                          String fullAddress = parts.toSet().join(', ');
+
+                          fullAddress = fullAddress
+                              .replaceAll(RegExp(r', ,'), ',')
+                              .replaceAll(RegExp(r',,'), ',')
+                              .trim();
+                          if (fullAddress.endsWith(',')) {
+                            fullAddress = fullAddress.substring(
+                              0,
+                              fullAddress.length - 1,
                             );
-                        Placemark place = placemarks.first;
-                        String fullAddress =
-                            "${place.subLocality ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}";
-                        fullAddress = fullAddress
-                            .replaceAll(RegExp(r', ,'), ',')
-                            .replaceAll(RegExp(r',,'), ',')
-                            .trim();
-                        if (fullAddress.endsWith(',')) {
-                          fullAddress = fullAddress.substring(
-                            0,
-                            fullAddress.length - 1,
+                          }
+                          setState(() {
+                            addLocationLoading = true;
+                          });
+                          Map response = await _locationController.addLocation(
+                            latitude: location.latitude.toString(),
+                            longitude: location.longitude.toString(),
+                            locationName:
+                                '${place.subLocality ?? ''}, ${place.locality ?? ''}',
+                            fullAddress: fullAddress,
+                            farmerId:
+                                _profileController.profile.value?.id
+                                    .toString() ??
+                                "",
                           );
-                        }
-                        setState(() {
-                          addLocationLoading = true;
-                        });
-                        Map response = await _locationController.addLocation(
-                          latitude: location.latitude.toString(),
-                          longitude: location.longitude.toString(),
-                          locationName:
-                              '${place.subLocality ?? ''}, ${place.locality ?? ''}',
-                          fullAddress: fullAddress,
-                          farmerId:
-                              _profileController.profile.value?.id.toString() ??
-                              "",
-                        );
-                        // Map response = {
-                        //   "status": true,
-                        //   "message": "Location added successfully",
-                        //   "data": {
-                        //     "id": 95,
-                        //     "title": "Andhra Pradesh",
-                        //     "subtitle": "Andhra Pradesh, India",
-                        //     "latitude": 15.9129,
-                        //     "longitude": 79.74,
-                        //     "is_default": false,
-                        //   },
-                        // };
-                        print('==============done===================');
-                        print('after fetch succssfully');
-                        try {
-                          _locationController.selectedLocationId.value =
-                              response['data']["id"]?.toString() ?? '';
-                          print(_locationController.selectedLocationId.value);
-                          _locationController.selectedCity.value =
-                              response['data']["title"]?.toString() ?? '';
+                          try {
+                            _locationController.selectedLocationId.value =
+                                response['data']["id"]?.toString() ?? '';
+                            _locationController.selectedCity.value =
+                                response['data']["title"]?.toString() ?? '';
+                          } catch (e) {
+                            print(e.toString());
+                          }
+                          _homeController.changeHomeData(
+                            _homeController.selectedCategoryId.value,
+                            _locationController.selectedLocationId.value,
+                          );
 
-                          print('location selected successfully');
-                          print(_locationController.selectedCity.value);
-                        } catch (e) {
-                          print('error at select');
-                          print(e.toString());
-                        }
-                        _homeController.changeHomeData(
-                          _homeController.selectedCategoryId.value,
-                          _locationController.selectedLocationId.value,
-                        );
-
-                        setState(() {
-                          addLocationLoading = false;
-                        });
-                        Get.back();
-                        // await _locationController.getAllLocation();
-                      },
-                    ),
-                  );
+                          setState(() {
+                            addLocationLoading = false;
+                          });
+                          Get.back();
+                        },
+                      ),
+                    );
                   }
                 },
                 child: Container(
@@ -393,16 +392,19 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                       children: [
                         isCurrentLocationLoading
                             ? Icon(Icons.add_location, color: Colors.white)
-                            :( addLocationLoading
-                            ? SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Icon(Icons.add_location, color: Colors.white)),
+                            : (addLocationLoading
+                                  ? SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Icon(
+                                      Icons.add_location,
+                                      color: Colors.white,
+                                    )),
                         SizedBox(width: 10),
                         Text(
                           "Add New Location",
@@ -414,217 +416,49 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                 ),
               ),
             ),
-            Padding(
-              padding: EdgeInsets.all(12),
-              child: SizedBox(
-                height: 43,
-                child: TextField(
-                  controller: textEditingController,
-                  onChanged: (v) => _locationController.searchLocation(v),
-                  decoration: InputDecoration(
-                    suffixIcon: InkWell(
-                      onTap: () {
-                        textEditingController.clear();
-                        _locationController.isSearching.value = false;
-                        _locationController.searchedLocations.clear();
-                      },
-                      child: Icon(Icons.close),
-                    ),
-                    hintText: "Search location...",
-                    prefixIcon: Icon(Icons.search),
-                    filled: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
+            // Show current selected location if available
+            if (_locationController.selectedCity.value.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primary, width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.location_on, color: AppColors.primary),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Current Location",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              _locationController.selectedCity.value,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ),
-            Expanded(
-              child: _locationController.allLocationLoading.value
-                  ? Center(child: CircularProgressIndicator())
-                  : list.isEmpty
-                  ? Padding(
-                      padding: EdgeInsets.only(
-                        top: MediaQuery.of(context).size.height * .2,
-                      ),
-                      child: Text('Location not found'),
-                    )
-                  : ListView.builder(
-                      padding: EdgeInsets.only(top: 0, bottom: 30),
-                      itemCount: list.length,
-                      itemBuilder: (_, i) {
-                        final item = list[i];
-                        return Container(
-                          margin: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            border: item["is_default"] == true
-                                ? Border.all(color: AppColors.primary, width: 2)
-                                : Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(12),
-                            color: item["is_default"] == 1
-                                ? AppColors.primary.withOpacity(.1)
-                                : Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                // ignore: deprecated_member_use
-                                color: Colors.grey.withOpacity(0.1),
-                                spreadRadius: 1,
-                                blurRadius: 2,
-                                offset: Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                          child: InkWell(
-                            onTap: () {
-                              _locationController.selectedCity.value =
-                                  item["title"]?.toString() ?? '';
-                              _locationController.selectedLocationId.value =
-                                  item["id"]?.toString() ?? '';
-                              _homeController.changeHomeData(
-                                _homeController.selectedCategoryId.value,
-                                _locationController.selectedLocationId.value,
-                              );
-                              Get.back();
-                            },
-                            onLongPress: () {
-                              _locationController.setDefaultLocation(
-                                item["id"].toString(),
-                              );
-                            },
-                            child: Padding(
-                              padding: EdgeInsets.all(12),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.location_on_outlined,
-                                    color: AppColors.primary,
-                                    size: 24,
-                                  ),
-                                  SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      item["subtitle"].toString(),
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                  InkWell(
-                                    onTap: () async {
-                                      Get.to(
-                                        () => GoogleMapSearchPlacesScreen(
-                                          latitude: double.parse(
-                                            item["latitude"],
-                                          ),
-                                          longitude: double.parse(
-                                            item["longitude"],
-                                          ),
-                                          ontapSelectLocation: (location) async {
-                                            List<Placemark> placemarks =
-                                                await placemarkFromCoordinates(
-                                                  location.latitude,
-                                                  location.longitude,
-                                                );
-                                            Placemark place = placemarks.first;
-                                            String fullAddress =
-                                                "${place.subLocality ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}";
-                                            fullAddress = fullAddress
-                                                .replaceAll(RegExp(r', ,'), ',')
-                                                .replaceAll(RegExp(r',,'), ',')
-                                                .trim();
-                                            if (fullAddress.endsWith(',')) {
-                                              fullAddress = fullAddress
-                                                  .substring(
-                                                    0,
-                                                    fullAddress.length - 1,
-                                                  );
-                                            }
-                                            await _locationController
-                                                .updateLocation(
-                                                  fullAddress: fullAddress,
-                                                  id: item["id"].toString(),
-                                                  latitude: location.latitude
-                                                      .toString(),
-                                                  longitude: location.longitude
-                                                      .toString(),
-                                                  locationName:
-                                                      '${placemarks.first.subLocality ?? "Unknown"}, ${placemarks.first.locality ?? "Unknown"}',
-                                                );
-                                            await _locationController
-                                                .getAllLocation();
-                                          },
-                                        ),
-                                      );
-                                    },
-
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          width: 1,
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(4.0),
-                                        child: Icon(
-                                          Icons.edit,
-                                          color: AppColors.primary,
-                                          size: 20,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(width: 10),
-                                  // IconButton(
-                                  // icon: Icon(
-                                  //   Icons.star,
-                                  //   color: item["is_default"] == 1
-                                  //     ? Colors.orange
-                                  //     : Colors.grey,
-                                  //   size: 20,
-                                  // ),
-                                  // onPressed: () => _locationController
-                                  //   .setDefaultLocation(item["id"].toString()),
-                                  // ),
-                                  InkWell(
-                                    onTap: () {
-                                      showDeleteConfirmation(
-                                        item["id"].toString(),
-                                      );
-                                    },
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          width: 1,
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(4.0),
-                                        child: Icon(
-                                          Icons.delete,
-                                          color: Colors.red,
-                                          size: 20,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
           ],
         );
       }),
