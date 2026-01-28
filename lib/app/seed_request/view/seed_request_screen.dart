@@ -11,8 +11,6 @@ import 'package:seedsuser/app/model/category_model.dart';
 import 'package:seedsuser/app/seed_request/controller/seed_request_controller.dart';
 import 'package:seedsuser/app/common/custom_dropdown.dart';
 
-import '../../home/model/brand_model.dart' show BrandModel;
-
 class SeedRequestsFormScreen extends StatefulWidget {
   const SeedRequestsFormScreen({super.key});
 
@@ -31,10 +29,10 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _piecesController = TextEditingController();
   final TextEditingController _deliveryController = TextEditingController();
+  final TextEditingController _hatcheryNameController = TextEditingController();
 
   // Dropdown selections
   Category? _selectedCategory;
-  BrandModel? _selectedBrand;
 
   String _packingDate = 'DD/MM/YYYY';
 
@@ -61,10 +59,6 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
         CustomToast.error("Please select category");
         return;
       }
-      if (_selectedBrand == null) {
-        CustomToast.error("Please select brand");
-        return;
-      }
       if (_packingDate == "DD/MM/YYYY") {
         CustomToast.error("Please select packing date");
         return;
@@ -72,7 +66,7 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
 
       controller.sendSeedRequest(
         categoryId: _selectedCategory!.id,
-        brandId: _selectedBrand!.id,
+        hatcheryName: _hatcheryNameController.text.trim(),
         name: _nameController.text.trim(),
         mobile: _phoneController.text.trim(),
         pieces: int.parse(_piecesController.text.trim()),
@@ -152,24 +146,11 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
               gap,
 
               const SizedBox(height: 8),
-              // BRANDS
-              Text(
-                "Brands",
-                style: GoogleFonts.roboto(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              CustomDropdown<BrandModel>(
-                selectedValue: _selectedBrand,
-                items: homeController.brands,
-                hintText: "Select brands",
-                itemLabel: (b) => b.brandName,
-                onChanged: (v) {
-                  setState(() => _selectedBrand = v);
-                },
+              // HATCHERY NAME
+              _buildTextFormField(
+                label: "Hatchery Name",
+                hint: "Enter hatchery name (optional)",
+                controller: _hatcheryNameController,
               ),
               gap,
 
