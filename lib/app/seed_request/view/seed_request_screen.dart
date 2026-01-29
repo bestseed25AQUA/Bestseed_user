@@ -12,6 +12,7 @@ import 'package:seedsuser/app/home/model/hatchery_filter_model.dart';
 import 'package:seedsuser/app/model/category_model.dart';
 import 'package:seedsuser/app/seed_request/controller/seed_request_controller.dart';
 import 'package:seedsuser/app/common/custom_dropdown.dart';
+import '../../home/model/brand_model.dart' show BrandModel;
 
 class SeedRequestsFormScreen extends StatefulWidget {
   const SeedRequestsFormScreen({super.key});
@@ -36,9 +37,9 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
 
   // Dropdown selections
   Category? _selectedCategory;
-  BrandModel? _selectedBrand;
 
   String _packingDate = 'DD/MM/YYYY';
+  String _packingDateForApi = ''; // Store date in YYYY-MM-DD format for API
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -50,8 +51,12 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
 
     if (picked != null) {
       setState(() {
+        // Display format for user
         _packingDate =
             "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
+        // API format (YYYY-MM-DD)
+        _packingDateForApi =
+            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
       });
     }
   }
@@ -63,23 +68,19 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
         CustomToast.error("Please select category");
         return;
       }
-      if (_selectedBrand == null) {
-        CustomToast.error("Please select brand");
-        return;
-      }
-      if (_packingDate == "DD/MM/YYYY") {
+      if (_packingDateForApi.isEmpty) {
         CustomToast.error("Please select packing date");
         return;
       }
 
       controller.sendSeedRequest(
         categoryId: _selectedCategory!.id,
-        brandId: _selectedBrand!.id,
+        hatcheryName: _hatcheryNameController.text.trim(),
         name: _nameController.text.trim(),
         mobile: _phoneController.text.trim(),
         pieces: int.parse(_piecesController.text.trim()),
         droppingLocation: _deliveryController.text.trim(),
-        packingDate: _packingDate,
+        packingDate: _packingDateForApi,
       );
     }
   }
@@ -155,23 +156,10 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
 
               const SizedBox(height: 8),
               // BRANDS
-              Text(
-                "Brands",
-                style: GoogleFonts.roboto(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              CustomDropdown<BrandModel>(
-                selectedValue: _selectedBrand,
-                items: homeController.brands,
-                hintText: "Select brands",
-                itemLabel: (b) => b.brandName,
-                onChanged: (v) {
-                  setState(() => _selectedBrand = v);
-                },
+              _buildTextFormField(
+                label: "Hatchery Name",
+                hint: "Enter hatchery name (optional)",
+                controller: _hatcheryNameController,
               ),
               gap,
 
@@ -211,11 +199,13 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
                     readOnly: true,
                   ),
                 ),
-              ), 
+              ),
               Padding(
                 padding: const EdgeInsets.only(
-                  left: 16,right: 16,
-                  top: 10,bottom: 30
+                  left: 16,
+                  right: 16,
+                  top: 10,
+                  bottom: 30,
                 ),
                 child: Obx(() {
                   return SizedBox(

@@ -91,9 +91,6 @@ class _HomeScreenState extends State<HomeScreen>
       );
       _tabController?.addListener(() {
         currentTabIndex = (_tabController?.index ?? 0);
-        print('++++++++tab controller index ${_tabController?.index}');
-        print('++++++++currentTabIndex ${_tabController?.index}');
-        print('${(currentTabIndex == 0)}=====');
         _homeController.selectedCategoryId.value = (currentTabIndex == 0)
             ? ''
             : _homeController.categories[currentTabIndex - 1].id.toString();
@@ -103,19 +100,8 @@ class _HomeScreenState extends State<HomeScreen>
             : _homeController.categories[currentTabIndex - 1].categoryName
                   .toString();
 
-        print('current tab is ${_tabController?.index}');
-        print('category selected ${_homeController.selectedCategoryId.value}');
         if ((_tabController?.index ?? 0) == 0) {
-          if (kDebugMode) {
-            print('=======++++===========');
-          }
           _homeController.selectedCateogryName.value = '';
-        }
-        if (kDebugMode) {
-          print('============category name=====${currentTabIndex}====');
-        }
-        if (kDebugMode) {
-          print(_homeController.selectedCateogryName.value);
         }
       });
       if (mounted) {
@@ -162,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen>
                       indicatorColor: Colors.black,
                       padding: EdgeInsets.zero,
                       labelPadding: EdgeInsets.symmetric(
-                        horizontal: 5,
+                        horizontal: 0,
                         vertical: 0,
                       ),
                       tabs: buildLoadingTabs(5),

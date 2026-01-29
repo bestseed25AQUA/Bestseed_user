@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
-import 'package:seedsuser/app/profile/controller/profile_controller.dart';
+import 'package:seedsuser/app/profile/controller/profile_controller.dart';  
 
 class SeedRequestController extends GetxController {
   var isLoading = false.obs;
@@ -15,7 +15,7 @@ class SeedRequestController extends GetxController {
   /// 🚚 Send Seed Request API
   Future<void> sendSeedRequest({
     required int categoryId,
-    required int brandId,
+    required String hatcheryName,
     required String name,
     required String mobile,
     required int pieces,
@@ -25,7 +25,6 @@ class SeedRequestController extends GetxController {
     try {
       isBooking.value = true;
 
-      // Get farmer_id from profile
       int? farmerId;
       try {
         final profileController = Get.find<ProfileController>();
@@ -36,7 +35,7 @@ class SeedRequestController extends GetxController {
 
       final body = {
         "category_id": categoryId,
-        "brand_id": brandId,
+        "hatchery_name": hatcheryName,
         "name": name,
         "mobile": mobile,
         "quantity": pieces,
@@ -52,6 +51,8 @@ class SeedRequestController extends GetxController {
         headers: await buildHeader(),
       );
 
+print("Seed Request Response: ${response.body}");
+print("Status Code: ${response.statusCode}");
       if (response.statusCode == 200 || response.statusCode == 201) {
         final result = json.decode(response.body);
         Get.back();
@@ -92,9 +93,11 @@ class SeedRequestController extends GetxController {
         CustomToast.success(result["message"] ?? "Request sent successfully!");
       } else {
         CustomToast.error("Booking failed ");
+        print("Booking failed: ${response.body}");
       }
     } catch (e) {
       CustomToast.error("Something went wrong  ");
+      print("Send Seed Request Error: $e");
     } finally {
       isBooking.value = false;
     }

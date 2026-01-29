@@ -25,6 +25,7 @@ import 'package:seedsuser/app/home/today_price_widget.dart';
 import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
 import 'package:seedsuser/app/utils/app_animations.dart';
 import 'package:seedsuser/app/utils/app_size.dart';
+import 'package:video_player/video_player.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -110,59 +111,78 @@ class _HomePageState extends State<HomePage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header Section
-            Column(
-              children: [
-                Obx(() {
-                  return Image.network(
-                    _homeBannerController.bannersBackGround.isEmpty
-                        ? ''
-                        : _homeBannerController.bannersBackGround[0].url,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    height: AppSize.height * .08,
-                    errorBuilder: (context, error, stackTrace) {
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Obx(() {
+                    if (_homeBannerController.bannersBackGround.isEmpty) {
                       return Image.asset(
                         'assets/images/best_seed_bottom.png',
                         width: double.infinity,
                         fit: BoxFit.cover,
                         height: AppSize.height * .08,
                       );
-                    },
-                  );
-                }),
-                const SizedBox(height: 24),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        AppAnimations.fade(VehicleAvailabilityScreen()),
+                    }
+                    final banner = _homeBannerController.bannersBackGround[0];
+                    if (banner.type == 'video') {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: _AutoLoopBannerVideo(
+                          url: banner.url,
+                          height: 73,
+                        ),
                       );
-                    },
-                    child: ClipRRect(
+                    }
+                    return Image.network(
+                      banner.url,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      height: AppSize.height * .08,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Image.asset(
+                          'assets/images/best_seed_bottom.png',
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          height: AppSize.height * .08,
+                        );
+                      },
+                    );
+                  }),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        'assets/images/home_banner.jpeg',
-                        width: AppSize.width * .9,
-                        height: AppSize.height * .15,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            // ignore: deprecated_member_use
-                            Container(
-                              width: AppSize.width * .9,
-                              height: AppSize.height * .15,
-                              color: Colors.grey.withOpacity(.1),
-                            ),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          AppAnimations.fade(VehicleAvailabilityScreen()),
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.asset(
+                          'assets/images/home_banner.jpeg',
+                          width: AppSize.width * .9,
+                          height: AppSize.height * .15,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              // ignore: deprecated_member_use
+                              Container(
+                                width: AppSize.width * .9,
+                                height: AppSize.height * .15,
+                                color: Colors.grey.withOpacity(.1),
+                              ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             // Menu Items Section
             Builder(
@@ -170,7 +190,7 @@ class _HomePageState extends State<HomePage>
                 final double boxesHeight = AppSize.height * .19;
                 return Container(
                   // color: AppColors.primary,
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.only(left: 16.0, right: 16, bottom: 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
@@ -736,6 +756,69 @@ class _HomePageState extends State<HomePage>
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Auto-looping video widget that plays like a GIF (muted, looping, no controls)
+class _AutoLoopBannerVideo extends StatefulWidget {
+  final String url;
+  final double height;
+
+  const _AutoLoopBannerVideo({
+    required this.url,
+    required this.height,
+  });
+
+  @override
+  State<_AutoLoopBannerVideo> createState() => _AutoLoopBannerVideoState();
+}
+
+class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo> {
+  late VideoPlayerController _videoController;
+  bool _isInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeVideo();
+  }
+
+  void _initializeVideo() {
+    _videoController = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..setLooping(true)
+      ..setVolume(0) // Muted like a GIF
+      ..initialize().then((_) {
+        if (mounted) {
+          setState(() {
+            _isInitialized = true;
+          });
+          _videoController.play();
+        }
+      });
+  }
+
+  @override
+  void dispose() {
+    _videoController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isInitialized) {
+      return Image.asset(
+        'assets/images/best_seed_bottom.png',
+        width: double.infinity,
+        fit: BoxFit.cover,
+        height: widget.height,
+      );
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      height: widget.height,
+      child: VideoPlayer(_videoController),
     );
   }
 }

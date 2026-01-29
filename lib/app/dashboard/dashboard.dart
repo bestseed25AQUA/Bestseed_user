@@ -10,8 +10,11 @@ import 'package:seedsuser/app/broadstock/view/broad_stock_screen.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
+import 'package:seedsuser/app/home/controller/location_controller.dart';
 import 'package:seedsuser/app/home/view/home_screen.dart';
+import 'package:seedsuser/app/home/widget/location_permission_dialog.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/news_ads_screen.dart';
+import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/seed_price/view/seed_price_screen.dart';
 import 'package:seedsuser/app/updates/view/update_screen.dart';
 import 'package:seedsuser/l10n/app_localizations.dart';
@@ -28,6 +31,10 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final DashboardController controller = Get.put(DashboardController());
   final HomeController _homeController = Get.put(HomeController());
+  final LocationController _locationController = Get.put(LocationController());
+  final ProfileController _profileController = Get.put(ProfileController());
+
+  bool _isCheckingPermission = true;
 
   final List<Widget> pages = [
     HomeScreen(),
@@ -61,6 +68,305 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     getConnectivity();
+    _checkLocationPermission();
+  }
+
+  /// Check location permission on app start
+  Future<void> _checkLocationPermission() async {
+    setState(() {
+      _isCheckingPermission = true;
+    });
+
+    bool hasPermission =
+        await LocationPermissionService.isLocationPermissionGranted();
+    bool serviceEnabled =
+        await LocationPermissionService.isLocationServiceEnabled();
+
+    if (!hasPermission || !serviceEnabled) {
+      setState(() {
+        _isCheckingPermission = false;
+      });
+      // Show bottom sheet after frame is built
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showLocationBottomSheet();
+      });
+    } else {
+      setState(() {
+        _isCheckingPermission = false;
+      });
+      // Auto-detect current location
+      _autoDetectLocation();
+    }
+  }
+
+  /// Show location permission bottom sheet
+  void _showLocationBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return LocationPermissionDialog(
+          onEnable: () async {
+            Navigator.pop(context);
+            await _handleEnableLocation();
+          },
+        );
+      },
+    );
+  }
+
+  /// Handle enable location button press
+  Future<void> _handleEnableLocation() async {
+    final result = await LocationPermissionService.requestLocationPermission();
+
+    switch (result) {
+      case LocationPermissionResult.granted:
+        // Permission granted, fetch location immediately
+        _autoDetectLocation();
+        break;
+
+      case LocationPermissionResult.serviceDisabled:
+        // GPS/Location service is disabled, show dialog to enable
+        _showEnableGPSDialog();
+        break;
+
+      case LocationPermissionResult.deniedForever:
+        // Permission permanently denied, show dialog to open app settings
+        _showOpenSettingsDialog();
+        break;
+
+      case LocationPermissionResult.denied:
+        // Permission denied, show bottom sheet again
+        _showLocationBottomSheet();
+        break;
+    }
+  }
+
+  /// Show dialog when GPS/Location service is disabled
+  void _showEnableGPSDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.location_off,
+                size: 50,
+                color: AppColors.primary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Location Service Disabled',
+                style: GoogleFonts.roboto(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Please enable GPS/Location service on your device to continue.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[700],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[300],
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showLocationBottomSheet();
+                      },
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await LocationPermissionService.openLocationSettings();
+                        // Check again after user returns from settings
+                        await Future.delayed(const Duration(milliseconds: 500));
+                        _checkAndRetryPermission();
+                      },
+                      child: Text(
+                        'Open Settings',
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Show dialog when permission is permanently denied
+  void _showOpenSettingsDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.settings,
+                size: 50,
+                color: AppColors.primary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Permission Required',
+                style: GoogleFonts.roboto(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Location permission is required. Please enable it from app settings.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[700],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[300],
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showLocationBottomSheet();
+                      },
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await LocationPermissionService.openAppSettings();
+                        // Check again after user returns from settings
+                        await Future.delayed(const Duration(milliseconds: 500));
+                        _checkAndRetryPermission();
+                      },
+                      child: Text(
+                        'Open Settings',
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Check permission again after returning from settings
+  Future<void> _checkAndRetryPermission() async {
+    bool hasPermission =
+        await LocationPermissionService.isLocationPermissionGranted();
+    bool serviceEnabled =
+        await LocationPermissionService.isLocationServiceEnabled();
+
+    if (hasPermission && serviceEnabled) {
+      _autoDetectLocation();
+    } else {
+      _showLocationBottomSheet();
+    }
+  }
+
+  /// Auto-detect current location
+  Future<void> _autoDetectLocation() async {
+    await _profileController.getProfile();
+    final farmerId = _profileController.profile.value?.id.toString() ?? '';
+    if (farmerId.isNotEmpty) {
+      await _locationController.autoDetectCurrentLocation(farmerId: farmerId);
+    }
   }
 
   void getConnectivity() {

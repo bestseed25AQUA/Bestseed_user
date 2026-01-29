@@ -1,19 +1,15 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/booking_hatchery_widget.dart';
-import 'package:seedsuser/app/home/booking_review_widget.dart';
-import 'package:seedsuser/app/home/hatchery_category_detail_screen.dart';
+import 'package:seedsuser/app/home/view/vehicle_availability_detail_screen.dart';
 import 'package:seedsuser/app/model/location_model.dart';
-import 'package:seedsuser/app/model/spot_hatchery_model.dart';
 import 'package:seedsuser/app/model/vehicle_available_model.dart';
 import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
+import 'package:seedsuser/app/utils/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:video_player/video_player.dart';
 
 class VehicleHatcheryCardWidget extends StatefulWidget {
   const VehicleHatcheryCardWidget({
@@ -29,42 +25,29 @@ class VehicleHatcheryCardWidget extends StatefulWidget {
 }
 
 class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
-  VideoPlayerController? _controller;
-  bool videoStarted = false;
   bool isPressed = false;
   late PageController _pageController;
   int _currentPage = 0;
-  Timer? _autoScrollTimer;
+
+  bool _isVideo(String url) {
+    final lower = url.toLowerCase();
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.m3u8') ||
+        lower.endsWith('.wmv') ||
+        lower.endsWith('.flv') ||
+        lower.endsWith('.mkv');
+  }
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
-    if (widget.vehicleAvailability.images.length > 1) {
-      _startAutoScroll();
-    }
-  }
-
-  void _startAutoScroll() {
-    _autoScrollTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (_pageController.hasClients &&
-          widget.vehicleAvailability.images.isNotEmpty) {
-        final nextPage =
-            (_currentPage + 1) % widget.vehicleAvailability.images.length;
-        _pageController.animateToPage(
-          nextPage,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-        );
-      }
-    });
   }
 
   @override
   void dispose() {
-    _autoScrollTimer?.cancel();
     _pageController.dispose();
-    _controller?.dispose();
     super.dispose();
   }
 
@@ -75,6 +58,8 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
     final hatchery = widget.vehicleAvailability;
     final validImages =
         hatchery.images; // Images are already filtered in the model
+
+      print("Valid Images: $validImages");
 
     return GestureDetector(
       onTapDown: (_) {
@@ -94,12 +79,8 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
       },
       onTap: () {
         Get.to(
-          () => HatcheryCategoryDetailScreen(
-            hatcheryName: hatchery.hatcheryName,
-            videoUrl: '',
-            hatcheryId: hatchery.hatcheryId.toString(),
-
-            categoryId: hatchery.categoryId.toString(),
+          () => VehicleAvailabilityDetailScreen(
+            vehicleAvailability: hatchery,
           ),
         );
       },
@@ -138,14 +119,19 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
                       child: validImages.isEmpty
                           ? Container(color: Colors.grey.withOpacity(.2))
                           : validImages.length == 1
-                          ? Image.network(
-                              validImages.first,
-                              width: double.infinity,
-                              height: 110,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, _, __) =>
-                                  Container(color: Colors.grey.withOpacity(.2)),
-                            )
+                          ? (_isVideo(validImages.first))
+                              ? InlineVideoPlayer(
+                                  url: validImages.first,
+                                  title: hatchery.vehicleName,
+                                )
+                              : Image.network(
+                                  validImages.first,
+                                  width: double.infinity,
+                                  height: 110,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, _, __) =>
+                                      Container(color: Colors.grey.withOpacity(.2)),
+                                )
                           : PageView.builder(
                               controller: _pageController,
                               onPageChanged: (index) {
@@ -155,9 +141,15 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
                               },
                               itemCount: validImages.length,
                               itemBuilder: (context, index) {
-                               
+                                final url = validImages[index];
+                                if (_isVideo(url)) {
+                                  return InlineVideoPlayer(
+                                    url: url,
+                                    title: hatchery.vehicleName,
+                                  );
+                                }
                                 return Image.network(
-                                  validImages[index],
+                                  url,
                                   width: double.infinity,
                                   height: 110,
                                   fit: BoxFit.cover,

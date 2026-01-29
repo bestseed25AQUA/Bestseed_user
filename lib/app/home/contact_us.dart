@@ -1,9 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/home/controller/contact_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ContactUsPage extends StatefulWidget {
@@ -14,65 +12,92 @@ class ContactUsPage extends StatefulWidget {
 }
 
 class _ContactUsPageState extends State<ContactUsPage> {
+  final ContactController _contactController = Get.put(ContactController());
+
   @override
   Widget build(BuildContext context) {
-    final String phoneNumber =
-        "+918977778784"; // Replace with actual phone number
-    final String whatsappNumber = "+918977778784";
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Phone Call Card
-            Expanded(
-              child: buildContactCard(
-                title: "Call",
-                subtitle: phoneNumber,
-                imagePath: 'assets/images/phone.png',
-                background: Colors.blue,
-                onTap: () async {
-                  final Uri callUri = Uri(scheme: 'tel', path: phoneNumber);
-                  if (await canLaunchUrl(callUri)) {
-                    await launchUrl(callUri);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Cannot launch phone dialer"),
-                      ),
-                    );
-                  }
-                },
-              ),
+    return Obx(() {
+      if (_contactController.isLoading.value) {
+        return const SizedBox(
+          height: 50,
+          child: Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
-            SizedBox(width: 8),
+          ),
+        );
+      }
 
-            // WhatsApp Card
-            Expanded(
-              child: buildContactCard(
-                title: "WhatsApp",
-                subtitle: whatsappNumber,
-                imagePath: 'assets/images/whatsApp.png',
-                background: Colors.green,
-                onTap: () async {
-                  final whatsappUrl =
-                      "https://wa.me/${whatsappNumber.replaceAll('+', '')}";
-                  final Uri uri = Uri.parse(whatsappUrl);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Cannot launch WhatsApp")),
-                    );
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
+      // If no contacts available, show nothing
+      if (!_contactController.hasContacts) {
+        return const SizedBox.shrink();
+      }
+
+      final String phoneNumber = _contactController.phoneNumber;
+      final String whatsappNumber = _contactController.whatsappNumber;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Phone Call Card
+              if (phoneNumber.isNotEmpty)
+                Expanded(
+                  child: buildContactCard(
+                    title: "Call",
+                    subtitle: " +91${phoneNumber}",
+                    imagePath: 'assets/images/phone.png',
+                    background: Colors.blue,
+                    onTap: () async {
+                      final Uri callUri = Uri(scheme: 'tel', path: phoneNumber);
+                      if (await canLaunchUrl(callUri)) {
+                        await launchUrl(callUri);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Cannot launch phone dialer"),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              if (phoneNumber.isNotEmpty && whatsappNumber.isNotEmpty)
+                const SizedBox(width: 8),
+
+              // WhatsApp Card
+              if (whatsappNumber.isNotEmpty)
+                Expanded(
+                  child: buildContactCard(
+                    title: "WhatsApp",
+                    subtitle: " +91${whatsappNumber}",
+                    imagePath: 'assets/images/whatsApp.png',
+                    background: Colors.green,
+                    onTap: () async {
+                      final whatsappUrl =
+                          "https://wa.me/${whatsappNumber.replaceAll('+', '')}";
+                      final Uri uri = Uri.parse(whatsappUrl);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Cannot launch WhatsApp"),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ],
+      );
+    });
   }
 
   Widget buildContactCard({

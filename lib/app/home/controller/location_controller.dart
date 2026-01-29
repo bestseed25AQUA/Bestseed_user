@@ -230,13 +230,13 @@ class LocationController extends GetxController {
         selectedFullAddress.value = (data["subtitle"]?.toString() ?? "");
         selectedLocationId.value = data["id"]?.toString() ?? '';
       } else {
+        // No default location - keep empty until user enables location permission
         selectedLocation.assignAll({});
         selectedLatiude.value = "";
         selectedLongitude.value = "";
-        selectedCity.value = "Madhapur, Hydrabad";
-        selectedFullAddress.value = "Madhapur, Hydrabad, Telangana";
+        selectedCity.value = "";
+        selectedFullAddress.value = "";
         selectedLocationId.value = '';
-        //  CustomToast.error("Failed to fetch default location");
       }
     } on FormatException catch (e) {
       CustomToast.error("Failed to fetch default location");
