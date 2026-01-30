@@ -87,7 +87,8 @@ class HatcheryWidget extends StatelessWidget {
                 imagePath: item.imagePath,
                 title: item.title,
                 location: item.location,
-                type: item.type,
+                type: item.categoryNames, // Show all categories
+                categoryCount: item.categoryCount,
                 id: item.id.toString(),
                 status: item.status,
                 statusColor: getHatcheryStatusColor(item.statusCode),
@@ -123,6 +124,7 @@ class HatcheryCard extends StatelessWidget {
   final String title;
   final String location;
   final String type;
+  final int categoryCount;
   final String status;
   final Color statusColor;
   final String? availableUntil;
@@ -138,6 +140,7 @@ class HatcheryCard extends StatelessWidget {
     required this.title,
     required this.location,
     required this.type,
+    this.categoryCount = 1,
     required this.status,
     required this.statusColor,
     this.availableUntil,
@@ -331,23 +334,30 @@ class HatcheryCard extends StatelessWidget {
 
                       SizedBox(height: screenHeight * 0.003),
 
-                      // Type Row
+                      // Type/Categories Row
                       Row(
                         children: [
                           Icon(
-                            Icons.shopping_bag,
+                            Icons.category,
                             size: 14,
                             color: const Color(0xff525050),
                           ),
                           SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              type,
+                              categoryCount > 1
+                                  ? '$categoryCount Categories'
+                                  : type,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.roboto(
                                 fontSize: 13,
-                                color: Colors.grey,
+                                color: categoryCount > 1
+                                    ? const Color(0xff0076BE)
+                                    : Colors.grey,
+                                fontWeight: categoryCount > 1
+                                    ? FontWeight.w500
+                                    : FontWeight.normal,
                               ),
                             ),
                           ),
