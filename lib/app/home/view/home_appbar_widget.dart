@@ -44,34 +44,39 @@ class _HomeAppBarState extends State<HomeAppBar> {
   void initState() {
     super.initState();
 
-    // Listen for location changes
-    ever(_locationController.selectedCity, (city) {
-      if (city.isNotEmpty) {
-        fetchWeather(city);
+    // Listen for location changes (using coordinates for accurate weather)
+    ever(_locationController.selectedLatiude, (lat) {
+      if (lat.isNotEmpty && _locationController.selectedLongitude.value.isNotEmpty) {
+        fetchWeatherByCoordinates(lat, _locationController.selectedLongitude.value);
       }
     });
 
-    // Fetch weather for current city if available
+    // Fetch weather for current location if available
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_locationController.selectedCity.value.isNotEmpty) {
-        fetchWeather(_locationController.selectedCity.value);
+      if (_locationController.selectedLatiude.value.isNotEmpty &&
+          _locationController.selectedLongitude.value.isNotEmpty) {
+        fetchWeatherByCoordinates(
+          _locationController.selectedLatiude.value,
+          _locationController.selectedLongitude.value,
+        );
       }
     });
   }
 
-  /// 🌤️ Fetch weather based on city name
-  Future<void> fetchWeather(String cityName) async {
-    print('===========fetchWeather==========');
-    print(cityName);
+  /// 🌤️ Fetch weather based on coordinates (more accurate than city name)
+  Future<void> fetchWeatherByCoordinates(String lat, String lon) async {
+    print('===========fetchWeather by coordinates==========');
+    print('lat: $lat, lon: $lon');
     try {
       final url =
-          'https://api.openweathermap.org/data/2.5/weather?q=$cityName&appid=$apiKey&units=metric';
+          'https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$apiKey&units=metric';
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final temp = data["main"]["temp"].toStringAsFixed(1);
         final icon = data["weather"][0]["icon"];
+        print('Weather fetched: ${data["name"]} - $temp°C');
 
         setState(() {
           temperature = temp;
@@ -81,7 +86,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
         print("Weather fetch failed: ${response.body}");
       }
     } catch (e) {
-      print("Weather fetch error  ");
+      print("Weather fetch error: $e");
     }
   }
 
@@ -237,15 +242,21 @@ class _HomeAppBarState extends State<HomeAppBar> {
                                                   const LocationSelectionScreen(),
                                             );
 
-                                            //  Safe API call
+                                            //  Safe API call using coordinates for accurate weather
                                             if (_locationController
-                                                .selectedCity
-                                                .value
-                                                .trim()
-                                                .isNotEmpty) {
-                                              fetchWeather(
+                                                    .selectedLatiude
+                                                    .value
+                                                    .isNotEmpty &&
                                                 _locationController
-                                                    .selectedCity
+                                                    .selectedLongitude
+                                                    .value
+                                                    .isNotEmpty) {
+                                              fetchWeatherByCoordinates(
+                                                _locationController
+                                                    .selectedLatiude
+                                                    .value,
+                                                _locationController
+                                                    .selectedLongitude
                                                     .value,
                                               );
                                             }

@@ -22,13 +22,11 @@ import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_news_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/trending_updates_details_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/trending_updates_screen.dart';
-import 'package:seedsuser/app/news%20&%20ads/widget/news_banner_widget.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
 import 'package:seedsuser/app/utils/app_size.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:video_player/video_player.dart';
 
 class NewsAdsScreen extends StatefulWidget {
   const NewsAdsScreen({super.key});
@@ -120,7 +118,24 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                         .value
                                         ?.data
                                         ?.trendingUpdate?[index];
-                                    if (data?.mediaType == "image") {
+
+                                    // Check if media is video by file extension (more reliable than mediaType)
+                                    final mediaUrl = data?.mediaPath ?? '';
+                                    final lowerUrl = mediaUrl.toLowerCase();
+                                    bool isVideoMedia = lowerUrl.endsWith('.mp4') ||
+                                        lowerUrl.endsWith('.mov') ||
+                                        lowerUrl.endsWith('.m3u8') ||
+                                        lowerUrl.endsWith('.webm') ||
+                                        lowerUrl.endsWith('.avi');
+
+                                    // Only use mediaType if URL doesn't have a clear extension
+                                    if (!isVideoMedia && !lowerUrl.endsWith('.png') &&
+                                        !lowerUrl.endsWith('.jpg') && !lowerUrl.endsWith('.jpeg') &&
+                                        !lowerUrl.endsWith('.gif') && !lowerUrl.endsWith('.webp')) {
+                                      isVideoMedia = data?.mediaType == 'video';
+                                    }
+
+                                    if (!isVideoMedia) {
                                       return GestureDetector(
                                         onTap: () {},
                                         child: Container(
@@ -171,21 +186,66 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                           ),
                                         ),
                                       );
-                                    } else if (data?.mediaType == "video") {
+                                    } else {
+                                      // It's a video - show thumbnail with play icon, play on tap (fullscreen)
+                                      // DO NOT autoplay videos in carousel - causes lifecycle/surface conflicts
                                       return GestureDetector(
                                         onTap: () {
                                           Get.to(
                                             () => FullScreenVideoPlayer(
-                                              videoUrl: data?.mediaPath ?? "",
+                                              videoUrl: mediaUrl,
+                                              title: data?.title,
                                             ),
                                           );
                                         },
-                                        child: VideoPlayerBanner(
-                                          url: data?.mediaPath ?? "",
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(12),
+                                            color: Colors.black87,
+                                            border: Border.all(width: .1, color: Colors.grey),
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: Stack(
+                                              alignment: Alignment.center,
+                                              children: [
+                                                // Dark background for video thumbnail
+                                                Container(
+                                                  width: double.infinity,
+                                                  height: boxHeight,
+                                                  color: Colors.black87,
+                                                ),
+                                                // Play icon and title
+                                                Column(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.play_circle_fill,
+                                                      color: Colors.white,
+                                                      size: 60,
+                                                    ),
+                                                    SizedBox(height: 8),
+                                                    Padding(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                                      child: Text(
+                                                        data?.title ?? 'Video',
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 14,
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
+                                                        textAlign: TextAlign.center,
+                                                        maxLines: 2,
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
                                       );
-                                    } else {
-                                      return const SizedBox.shrink();
                                     }
                                   },
                                   options: CarouselOptions(
@@ -311,6 +371,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                       ),
                                     );
                                   },
+                                  mediaType: data?.mediaType,
                                 );
                               },
                             ),
@@ -343,7 +404,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                     ?.climateNews?[index];
                                 return _buildNewsCard(
                                   data?.title ?? "",
-                                  null,
+                                  data?.createdAt ?? "",
                                   data?.mediaPath ?? "",
                                   'climate$index',
                                   () {
@@ -359,14 +420,14 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                             ClimateDetailScreen(
                                               id: data?.id.toString() ?? '',
                                               title: data?.title ?? '',
-                                              subtitle: data?.title ?? '',
+                                              subtitle: data?.createdAt ?? '',
                                               imageUrl: data?.mediaPath ?? '',
                                               tag: 'climate$index',
-                                              // title: data?.n.toString() ?? '',
                                             ),
                                       ),
                                     );
                                   },
+                                  mediaType: data?.mediaType,
                                 );
                               },
                             ),
@@ -582,10 +643,26 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
   Widget _buildNewsCard(
     String title,
     String? subtitle,
-    String imageUrl,
+    String mediaUrl,
     String tag,
-    VoidCallback ontap,
-  ) {
+    VoidCallback ontap, {
+    String? mediaType,
+  }) {
+    // Check if media is video by file extension (more reliable than mediaType from API)
+    final lowerUrl = mediaUrl.toLowerCase();
+    bool isVideo = lowerUrl.endsWith('.mp4') ||
+        lowerUrl.endsWith('.mov') ||
+        lowerUrl.endsWith('.m3u8') ||
+        lowerUrl.endsWith('.webm') ||
+        lowerUrl.endsWith('.avi');
+
+    // Only use mediaType if URL doesn't have a clear extension
+    if (!isVideo && !lowerUrl.endsWith('.png') &&
+        !lowerUrl.endsWith('.jpg') && !lowerUrl.endsWith('.jpeg') &&
+        !lowerUrl.endsWith('.gif') && !lowerUrl.endsWith('.webp')) {
+      isVideo = mediaType == 'video';
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -615,47 +692,66 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                   color: Colors.white,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      imageUrl,
-                      height: 120,
-                      width: 150,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Shimmer.fromColors(
-                          baseColor: Colors.grey.shade300,
-                          highlightColor: Colors.grey.shade100,
-                          child: Container(
+                    child: isVideo
+                        ? Container(
                             height: 120,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
+                            width: 150,
+                            color: Colors.black87,
+                            child: Center(
+                              child: Icon(
+                                Icons.play_circle_fill,
+                                color: Colors.white,
+                                size: 50,
+                              ),
                             ),
+                          )
+                        : Image.network(
+                            mediaUrl,
+                            height: 120,
+                            width: 150,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Shimmer.fromColors(
+                                baseColor: Colors.grey.shade300,
+                                highlightColor: Colors.grey.shade100,
+                                child: Container(
+                                  height: 120,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
                   ),
                 ),
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              title,
-              style: GoogleFonts.roboto(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.left,
-              maxLines: subtitle == null ? 2 : 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (subtitle != null)
-              Text(
-                subtitle,
-                style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
-                maxLines: 1,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Text(
+                title,
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.left,
+                maxLines: subtitle == null ? 2 : 1,
                 overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (subtitle != null && subtitle.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Text(
+                  subtitle,
+                  style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
           ],
         ),

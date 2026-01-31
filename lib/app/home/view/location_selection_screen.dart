@@ -147,10 +147,6 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                     position.longitude,
                   );
 
-                  final locationName =
-                      (placemarks.first.subLocality ?? "Unknown") +
-                      ', ' +
-                      (placemarks.first.locality ?? "Unknown");
                   Placemark place = placemarks.first;
                   String fullAddress =
                       "${place.subLocality ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}";
@@ -168,11 +164,26 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                     addLocationLoading = true;
                   });
 
+                  // Build location name with proper context
+                  List<String> locationParts = [];
+                  if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+                    locationParts.add(place.subLocality!);
+                  }
+                  if (place.locality != null && place.locality!.isNotEmpty) {
+                    locationParts.add(place.locality!);
+                  }
+                  if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+                    locationParts.add(place.administrativeArea!);
+                  }
+                  String locationName = locationParts.toSet().join(', ');
+                  if (locationName.startsWith(', ')) {
+                    locationName = locationName.substring(2);
+                  }
+
                   Map response = await _locationController.addLocation(
                     latitude: position.latitude.toString(),
                     longitude: position.longitude.toString(),
-                    locationName:
-                        '${place.subLocality ?? ''}, ${place.locality ?? ''}',
+                    locationName: locationName,
                     fullAddress: fullAddress,
                     farmerId:
                         _profileController.profile.value?.id.toString() ?? "",
@@ -197,6 +208,11 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                     print(_locationController.selectedLocationId.value);
                     _locationController.selectedCity.value =
                         response['data']["title"]?.toString() ?? '';
+                    // Update coordinates for accurate weather
+                    _locationController.selectedLatiude.value =
+                        position.latitude.toString();
+                    _locationController.selectedLongitude.value =
+                        position.longitude.toString();
 
                     print('location selected successfully');
                     print(_locationController.selectedCity.value);
@@ -338,11 +354,27 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                           setState(() {
                             addLocationLoading = true;
                           });
+
+                          // Build location name with proper context
+                          List<String> locationParts = [];
+                          if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+                            locationParts.add(place.subLocality!);
+                          }
+                          if (place.locality != null && place.locality!.isNotEmpty) {
+                            locationParts.add(place.locality!);
+                          }
+                          if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+                            locationParts.add(place.administrativeArea!);
+                          }
+                          String locationName = locationParts.toSet().join(', ');
+                          if (locationName.startsWith(', ')) {
+                            locationName = locationName.substring(2);
+                          }
+
                           Map response = await _locationController.addLocation(
                             latitude: location.latitude.toString(),
                             longitude: location.longitude.toString(),
-                            locationName:
-                                '${place.subLocality ?? ''}, ${place.locality ?? ''}',
+                            locationName: locationName,
                             fullAddress: fullAddress,
                             farmerId:
                                 _profileController.profile.value?.id
@@ -354,6 +386,11 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                                 response['data']["id"]?.toString() ?? '';
                             _locationController.selectedCity.value =
                                 response['data']["title"]?.toString() ?? '';
+                            // Update coordinates for accurate weather
+                            _locationController.selectedLatiude.value =
+                                location.latitude.toString();
+                            _locationController.selectedLongitude.value =
+                                location.longitude.toString();
                           } catch (e) {
                             print(e.toString());
                           }

@@ -189,29 +189,99 @@ class VideoPlayerBanner extends StatefulWidget {
 }
 
 class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
-  late VideoPlayerController _controller;
+  VideoPlayerController? _controller;
+  bool _hasError = false;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    // ignore: deprecated_member_use
-    _controller = VideoPlayerController.network(widget.url)
-      ..initialize().then((_) {
-        setState(() {});
-        // _controller.play();
-        _controller.setLooping(true);
-      });
+    _initializeVideo();
+  }
+
+  Future<void> _initializeVideo() async {
+    final videoUrl = widget.url.trim();
+
+    if (videoUrl.isEmpty) {
+      print('VideoPlayerBanner: ERROR - Video URL is empty!');
+      if (mounted) setState(() => _hasError = true);
+      return;
+    }
+
+    Uri? uri;
+    try {
+      uri = Uri.parse(videoUrl);
+      if (!uri.hasScheme || !uri.scheme.startsWith('http')) {
+        throw FormatException('Invalid URL scheme');
+      }
+    } catch (e) {
+      print('VideoPlayerBanner: ERROR - Invalid URL: $videoUrl');
+      if (mounted) setState(() => _hasError = true);
+      return;
+    }
+
+    try {
+      print('VideoPlayerBanner: Initializing video: $videoUrl');
+      _controller = VideoPlayerController.networkUrl(
+        uri,
+        httpHeaders: {
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+          'Accept': '*/*',
+          'Accept-Encoding': 'identity',
+          'Connection': 'keep-alive',
+        },
+      );
+      await _controller!.initialize();
+      _controller!.setLooping(true);
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
+      print('VideoPlayerBanner: Video initialized successfully');
+    } catch (e) {
+      print('VideoPlayerBanner: Video initialization error!');
+      print('VideoPlayerBanner: URL = $videoUrl');
+      print('VideoPlayerBanner: Error = $e');
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return _controller.value.isInitialized
+    // Show error state with video thumbnail placeholder
+    if (_hasError) {
+      return Container(
+        height: widget.height,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.play_circle_fill, color: Colors.white, size: 60),
+              SizedBox(height: 8),
+              Text('Tap to play', style: TextStyle(color: Colors.white70, fontSize: 12)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return _isInitialized && _controller != null
         ? Stack(
             children: [
               SizedBox(
@@ -220,8 +290,8 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: AspectRatio(
-                    aspectRatio: _controller.value.aspectRatio,
-                    child: VideoPlayer(_controller),
+                    aspectRatio: _controller!.value.aspectRatio,
+                    child: VideoPlayer(_controller!),
                   ),
                 ),
               ),

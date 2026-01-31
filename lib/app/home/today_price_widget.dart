@@ -137,26 +137,52 @@ class TodayPricesWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Location Title
-          Text(
-            title,
-            style: GoogleFonts.roboto(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+          // Location Title with See all button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              InkWell(
+                onTap: () {
+                  dashboardCtrl.changeIndex(1);
+                },
+                child: Text(
+                  "See all",
+                  style: GoogleFonts.roboto(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
 
           // Horizontal Price Chips List
           SizedBox(
             height: 40,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: prices.length,
-              itemBuilder: (context, index) {
-                return _buildPriceChip(prices[index]);
-              },
-            ),
+            child: prices.isEmpty
+                ? Text(
+                    "Prices coming shortly",
+                    style: GoogleFonts.roboto(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
+                  )
+                : ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: prices.length,
+                    itemBuilder: (context, index) {
+                      return _buildPriceChip(prices[index]);
+                    },
+                  ),
           ),
         ],
       ),

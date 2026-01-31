@@ -19,24 +19,91 @@ class InlineVideoPlayer extends StatefulWidget {
 }
 
 class _InlineVideoPlayerState extends State<InlineVideoPlayer> {
-  late VideoPlayerController _controller;
+  VideoPlayerController? _controller;
+  bool _hasError = false;
+  String _errorMessage = '';
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
-      ..initialize().then((_) => setState(() {}));
+    _initializeVideo();
+  }
+
+  Future<void> _initializeVideo() async {
+    final videoUrl = widget.url.trim();
+
+    // Validate URL
+    if (videoUrl.isEmpty) {
+      print('InlineVideoPlayer: ERROR - Video URL is empty!');
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _errorMessage = 'Video URL is empty';
+        });
+      }
+      return;
+    }
+
+    Uri? uri;
+    try {
+      uri = Uri.parse(videoUrl);
+      if (!uri.hasScheme || !uri.scheme.startsWith('http')) {
+        throw FormatException('Invalid URL scheme');
+      }
+    } catch (e) {
+      print('InlineVideoPlayer: ERROR - Invalid URL: $videoUrl');
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _errorMessage = 'Invalid video URL';
+        });
+      }
+      return;
+    }
+
+    try {
+      print('InlineVideoPlayer: Initializing video: $videoUrl');
+      _controller = VideoPlayerController.networkUrl(
+        uri,
+        httpHeaders: {
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+          'Accept': '*/*',
+          'Accept-Encoding': 'identity',
+          'Connection': 'keep-alive',
+        },
+      );
+      await _controller!.initialize();
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
+      print('InlineVideoPlayer: Video initialized successfully');
+    } catch (e, stackTrace) {
+      print('InlineVideoPlayer: Video initialization error!');
+      print('InlineVideoPlayer: URL = $videoUrl');
+      print('InlineVideoPlayer: Error = $e');
+      print('InlineVideoPlayer: Stack = $stackTrace');
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _errorMessage = e.toString();
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   void _togglePlay() {
+    if (_controller == null) return;
     setState(() {
-      _controller.value.isPlaying ? _controller.pause() : _controller.play();
+      _controller!.value.isPlaying ? _controller!.pause() : _controller!.play();
     });
   }
 
@@ -52,7 +119,31 @@ class _InlineVideoPlayerState extends State<InlineVideoPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_controller.value.isInitialized) {
+    // Show error state with play button overlay (tap to open fullscreen)
+    if (_hasError) {
+      return GestureDetector(
+        onTap: _openFullscreen,
+        child: Container(
+          height: widget.height ?? 110,
+          color: Colors.black87,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.play_circle_outline, color: Colors.white, size: 40),
+                const SizedBox(height: 4),
+                Text(
+                  'Tap to play',
+                  style: TextStyle(color: Colors.white70, fontSize: 10),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (!_isInitialized || _controller == null) {
       return Container(
         height: widget.height ?? 110,
         color: Colors.black,
@@ -68,14 +159,14 @@ class _InlineVideoPlayerState extends State<InlineVideoPlayer> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          VideoPlayer(_controller),
+          VideoPlayer(_controller!),
 
           /// ▶️ Play / Pause (tap video)
           GestureDetector(
             onTap: _togglePlay,
             child: Center(
               child: Icon(
-                _controller.value.isPlaying
+                _controller!.value.isPlaying
                     ? Icons.pause_circle_filled
                     : Icons.play_circle_fill,
                 size: 48,

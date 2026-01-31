@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Trust all certificates for video streaming from Hostinger server -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <!-- Trust system CA certificates -->
+            <certificates src="system" />
+            <!-- Trust user-added CA certificates (for development/testing) -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Specific domain configuration for the video server -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">bestseedsonline.com</domain>
+        <domain includeSubdomains="true">hostinger.com</domain>
+        <domain includeSubdomains="true">hostingersite.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

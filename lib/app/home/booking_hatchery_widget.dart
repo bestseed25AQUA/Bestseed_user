@@ -9,7 +9,6 @@ import 'package:seedsuser/app/home/booking_review_widget.dart';
 import 'package:seedsuser/app/home/map_search_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -49,12 +48,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
   final TextEditingController _piecesController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
 
-  // String? _selectedUnit;
-  // String? _selectedPickupLocation;
   String? _selectedSalinity;
-
-  // final List<String> _units = ["Unit 1", "Unit 2"];
-  // final List<String> _locations = ["Location A", "Location B"];
   final List<String> _salinity = List.generate(41, (index) => '$index');
 
   Position? currentPosition;
@@ -292,32 +286,17 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                       longitude: lng,
                       ontapSelectLocation: (location, fullAddress) async {
                         print('CALLBACK RECEIVED LOCATION: $location');
+                        print('FULL ADDRESS: $fullAddress');
                         try {
-                          List<Placemark> placemarks =
-                              await placemarkFromCoordinates(
-                                location.latitude,
-                                location.longitude,
-                              );
-                          Placemark place = placemarks.first;
-                          String fullAddress =
-                              "${place.subLocality ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}";
-                          fullAddress = fullAddress
-                              .replaceAll(RegExp(r', ,'), ',')
-                              .replaceAll(RegExp(r',,'), ',')
-                              .trim();
-                          if (fullAddress.endsWith(',')) {
-                            fullAddress = fullAddress.substring(
-                              0,
-                              fullAddress.length - 1,
-                            );
-                          }
+                          // Use the full address directly from the map screen
+                          // It's already properly formatted with all components
                           if (mounted) {
                             setState(() {
                               _dropLocController.text = fullAddress;
                             });
                           }
                         } catch (e) {
-                          print('Error getting address: $e');
+                          print('Error setting address: $e');
                         }
                       },
                     ),
@@ -372,23 +351,18 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     return;
                   }
 
-                  if (_piecesController.text.trim().isEmpty) {
-                    _showError("Please enter number of pieces");
-                    return;
-                  }
-
-                  if (int.tryParse(_piecesController.text.trim()) == null ||
-                      int.parse(_piecesController.text.trim()) <= 0) {
-                    _showError("Enter valid number of pieces");
-                    return;
-                  }
+                  // Default pieces to 0 if not entered
+                  String pieces = _piecesController.text.trim().isEmpty
+                      ? "0"
+                      : _piecesController.text.trim();
 
                   Navigator.pop(context);
                   _showBookingReviewSheet(
                     context,
                     widget.isSpotHatchery ?? false,
                     widget.isVehicleHatchery ?? false,
-                    calculatePrice(_piecesController.text, widget.price),
+                    calculatePrice(pieces, widget.price),
+                    pieces,
                   );
                 },
                 text: "Confirm Booking",
@@ -410,6 +384,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     bool isSpotHatchery,
     bool isVehicleHatchery,
     String? estimatePrice,
+    String pieces,
   ) {
     showModalBottomSheet(
       context: context,
@@ -456,7 +431,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                         name: _nameController.text,
                         phone: _phoneController.text,
                         unit: _unitController.text,
-                        pieces: _piecesController.text,
+                        pieces: pieces,
                         location: _dropLocController.text,
                         date: _dateController.text,
                         hatcheryId: widget.hatcheryId,

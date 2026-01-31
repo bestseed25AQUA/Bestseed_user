@@ -12,7 +12,7 @@ class BroodStockController extends GetxController {
   final categories = <Category>[].obs;
   final broodStocks = <BroodstockData>[].obs;
   final homeBroodStocks = <BroodstockData>[].obs;
-  final filteredBroodStocks = <BroodstockData>[].obs; //
+  final filteredBroodStocks = <BroodstockData>[].obs;
 
   /// Selected filters
   final selectedCategory = Rx<Category?>(null);
@@ -20,24 +20,72 @@ class BroodStockController extends GetxController {
   final selectedYear = ''.obs;
   final searchQuery = ''.obs;
 
+  /// Default filter from API
+  final defaultCategory = 'Tiger'.obs;
+  final defaultMonthYear = ''.obs;
+
   @override
   void onInit() {
     super.onInit();
     fetchInitialData();
   }
 
+  /// Fetch default filter settings from API
+  Future<void> getDefaultFilter() async {
+    try {
+      final response = await getRequest(
+        endPoint: "${NetworkConfig.baseURL}/farmer/broodstock-default-filter",
+        headers: await buildHeader(),
+      );
+
+      print('=====get default filter api========');
+      print(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == true && data['data'] != null) {
+          final filterData = data['data'];
+          defaultCategory.value = filterData['category'] ?? 'Tiger';
+          selectedMonth.value = filterData['month'] ?? DateTime.now().month.toString().padLeft(2, '0');
+          selectedYear.value = filterData['year'] ?? DateTime.now().year.toString();
+          defaultMonthYear.value = filterData['display_month_year'] ?? '';
+        }
+      }
+    } catch (e) {
+      print('Error fetching default filter: $e');
+      // Use fallback defaults
+      final now = DateTime.now();
+      selectedMonth.value = now.month.toString().padLeft(2, '0');
+      selectedYear.value = now.year.toString();
+    }
+  }
+
   /// Fetch both categories & broodstock initially
   Future<void> fetchInitialData() async {
+    // First fetch the default filter from API
+    await getDefaultFilter();
+
     await getCategories();
-    //default
+
+    // Set default category based on API response
     if (categories.isNotEmpty) {
       try {
         bool isFound = false;
         for (var category in categories) {
-          if (category.categoryName == "Vannamei") {
+          if (category.categoryName.toLowerCase() == defaultCategory.value.toLowerCase()) {
             selectedCategory.value = category;
             isFound = true;
             break;
+          }
+        }
+        if (!isFound) {
+          // Fallback to Tiger if API default not found
+          for (var category in categories) {
+            if (category.categoryName == "Tiger") {
+              selectedCategory.value = category;
+              isFound = true;
+              break;
+            }
           }
         }
         if (!isFound) {
@@ -48,10 +96,12 @@ class BroodStockController extends GetxController {
       }
     }
 
-    // Default month & year = current date
-    final now = DateTime.now();
-    selectedMonth.value = now.month.toString().padLeft(2, '0');
-    selectedYear.value = now.year.toString();
+    // If default filter didn't set month/year, use current date
+    if (selectedMonth.value.isEmpty) {
+      final now = DateTime.now();
+      selectedMonth.value = now.month.toString().padLeft(2, '0');
+      selectedYear.value = now.year.toString();
+    }
 
     await getBroodStock();
   }
@@ -183,7 +233,16 @@ class BroodStockController extends GetxController {
         broodStocks.where((item) {
           final hatchery = item.hatcheryName.toLowerCase();
           final supplier = item.supplierName.toLowerCase();
-          return hatchery.contains(lowerQuery) || supplier.contains(lowerQuery);
+          final location = item.locationName.toLowerCase();
+          final count = item.availableQuantity.toLowerCase();
+          final importedDate = item.importedDate.toLowerCase();
+          final description = item.description.toLowerCase();
+          return hatchery.contains(lowerQuery) ||
+              supplier.contains(lowerQuery) ||
+              location.contains(lowerQuery) ||
+              count.contains(lowerQuery) ||
+              importedDate.contains(lowerQuery) ||
+              description.contains(lowerQuery);
         }).toList(),
       );
     }

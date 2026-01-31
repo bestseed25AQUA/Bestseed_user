@@ -281,7 +281,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
 
                                     return _buildCompactInfoRow(
                                       Icons.location_on,
-                                      location?.title ?? '',
+                                      hatchery.locationName ?? '',
                                     );
                                   },
                                 ),

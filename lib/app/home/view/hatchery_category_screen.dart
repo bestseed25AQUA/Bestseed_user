@@ -63,7 +63,6 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
     try {
       final cat = _homeController.categories.firstWhere(
         (c) => c.id == (hatchery.categoryId),
-        // orElse: () => Category(id: -1, categoryName: ''),
       );
       return cat.id == -1 ? '' : cat.categoryName;
     } catch (_) {
@@ -463,7 +462,6 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
     super.dispose();
   }
 
-  // final SeedsPriceController controller = Get.put(SeedsPriceController());
   @override
   Widget build(BuildContext context) {
     final validImages = widget.imageUrl;

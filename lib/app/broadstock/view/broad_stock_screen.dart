@@ -32,8 +32,38 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
   @override
   void initState() {
     super.initState();
-    selectedMonthYear.value = getPastMonths(12).first;
-    controller.getBroodStock();
+    _initializeFilter();
+  }
+
+  void _initializeFilter() {
+    // Set initial fallback value
+    selectedMonthYear.value = getPastMonths(24).first;
+
+    // Listen for future changes to defaultMonthYear
+    ever(controller.defaultMonthYear, (value) {
+      _syncMonthYearFromController(value);
+    });
+
+    // Also check if value is already set (in case API call already completed)
+    if (controller.defaultMonthYear.value.isNotEmpty) {
+      _syncMonthYearFromController(controller.defaultMonthYear.value);
+    }
+  }
+
+  void _syncMonthYearFromController(String value) {
+    if (value.isNotEmpty) {
+      // Check if the value exists in our list (24 months to include past months)
+      final months = getPastMonths(24);
+      if (months.contains(value)) {
+        selectedMonthYear.value = value;
+        print('Synced month/year to: $value');
+      } else {
+        // If not found, try to find a matching month
+        // The API returns "Dec 2025" format, our list also uses "Dec 2025"
+        print('Default month "$value" not found in list: $months');
+        selectedMonthYear.value = months.first;
+      }
+    }
   }
 
   // Generate list of past N months in "MMM yyyy" format
@@ -166,57 +196,6 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
     );
   }
 
-  CustomAppBar _buildAppBar() {
-    return CustomAppBar(
-      automaticallyImplyLeading: false,
-      title: Text(
-        'Brood Stock',
-        style: GoogleFonts.roboto(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      actions: [
-        InkWell(
-          onTap: () => Get.to(() => LanguageSelectionScreen()),
-          child: Container(
-            padding: EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey),
-            ),
-            child: Image.asset('assets/images/lan_image.png', height: 28),
-          ),
-        ),
-        const SizedBox(width: 16),
-        InkWell(
-          onTap: () => Get.to(() => NotificationsScreen()),
-          child: Container(
-            padding: EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey),
-            ),
-            child: Image.asset('assets/images/notification.png', height: 28),
-          ),
-        ),
-        const SizedBox(width: 16),
-        InkWell(
-          onTap: () => Get.to(() => ProfileScreen()),
-          child: Container(
-            padding: EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey),
-            ),
-            child: Image.asset('assets/images/person.png', height: 28),
-          ),
-        ),
-        const SizedBox(width: 16),
-      ],
-    );
-  }
-
   Widget _buildSearchBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 1.0),
@@ -281,7 +260,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
             () => CustomDropdown<String>(
               backgroundColor: Color(0xffF3F4F6),
               selectedValue: selectedMonthYear.value,
-              items: getPastMonths(12),
+              items: getPastMonths(24),
               itemLabel: (month) => month,
               hintText: "Select Month/Year",
               onChanged: (monthYear) {
@@ -368,7 +347,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                   const SizedBox(width: 3),
                   Expanded(
                     child: Text(
-                      "Location",
+                      data.locationName,
                       style: GoogleFonts.roboto(
                         fontSize: 14,
                         color: Colors.black87,
@@ -418,20 +397,10 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
 
               const SizedBox(height: 12),
 
-              // Chips Row → Available + Packing (conditional)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   buildStatusChip(data),
-
-                  // if (data.availableOn.isNotEmpty && data.packingStart.isNotEmpty)
-                  //   const SizedBox(width: 10),
-                  // if (data.packingStart.isNotEmpty)
-                  //   _buildChip(
-                  //     label: "${data.packingStart}",
-                  //     bgColor: Colors.blue.withOpacity(0.15),
-                  //     textColor: Colors.blue[700]!,
-                  //   ),
                 ],
               ),
             ],

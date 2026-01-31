@@ -50,6 +50,7 @@ class BroodstockData {
   final String vendorAddress;
   final String latitude;
   final String longitude;
+  final String locationName;
   final String image;
   final String importedDate;
   final List<String> images;
@@ -69,6 +70,7 @@ class BroodstockData {
     required this.vendorAddress,
     required this.latitude,
     required this.longitude,
+    required this.locationName,
     required this.image,
     required this.importedDate,
     required this.images,
@@ -76,29 +78,35 @@ class BroodstockData {
   });
 
   factory BroodstockData.fromJson(Map<String, dynamic> json) {
+    // Safely extract location and vendor as Map
+    final location = json['location'] is Map ? json['location'] as Map : null;
+    final vendor = json['vendor'] is Map ? json['vendor'] as Map : null;
+    final category = json['category'] is Map ? json['category'] as Map : null;
+
     return BroodstockData(
       id: json['id'] ?? 0,
       hatcheryId: json['hatchery_id'] ?? 0,
-      hatcheryName: json['hatchery_name'] ?? '',
-      supplierName: json['supplier_name'] ?? '',
-      categoryName: json['category']?['category_name'] ?? '',
-      description: json['description'] ?? '',
-      availableQuantity: json['available_quantity'] ?? '',
-      availableOn: json['available_on'] ?? '',
-      packingStart: json['packing_start'] ?? '',
-      vendorName: json['vendor']?['vendor_name'] ?? '',
-      vendorAddress: json['vendor']?['vendor_address'] ?? '',
-      latitude: json['vendor']?['latitude'] ?? '',
-      longitude: json['vendor']?['longitude'] ?? '',
-      image: json['image'] ?? '',
-      importedDate: json['imported_date'] ?? '',
+      hatcheryName: json['hatchery_name']?.toString() ?? '',
+      supplierName: json['supplier_name']?.toString() ?? '',
+      categoryName: category?['category_name']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      availableQuantity: json['available_quantity']?.toString() ?? '',
+      availableOn: json['available_on']?.toString() ?? '',
+      packingStart: json['packing_start']?.toString() ?? '',
+      vendorName: vendor?['vendor_name']?.toString() ?? '',
+      vendorAddress: vendor?['vendor_address']?.toString() ?? '',
+      latitude: (location?['latitude'] ?? vendor?['latitude'] ?? '').toString(),
+      longitude: (location?['longitude'] ?? vendor?['longitude'] ?? '').toString(),
+      locationName: location?['location_name']?.toString() ?? '',
+      image: json['image']?.toString() ?? '',
+      importedDate: json['imported_date']?.toString() ?? '',
       images: List.generate(
-        (json['images'] != null && json['images'].runtimeType == List)
-            ? json['images'].length
+        (json['images'] != null && json['images'] is List)
+            ? (json['images'] as List).length
             : 0,
         (index) => json['images'][index].toString(),
       ),
-      status: broodstockStatusFromString(json['status']),
+      status: broodstockStatusFromString(json['status']?.toString()),
     );
   }
 
@@ -116,8 +124,11 @@ class BroodstockData {
     'vendor': {
       'vendor_name': vendorName,
       'vendor_address': vendorAddress,
+    },
+    'location': {
       'latitude': latitude,
       'longitude': longitude,
+      'location_name': locationName,
     },
     'images': image,
   };

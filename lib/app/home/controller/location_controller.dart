@@ -292,7 +292,23 @@ class LocationController extends GetxController {
       }
 
       Placemark place = placemarks.first;
-      String locationName = '${place.subLocality ?? ''}, ${place.locality ?? ''}';
+
+      // Build location name with proper context (locality, city, state)
+      List<String> locationParts = [];
+      if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+        locationParts.add(place.subLocality!);
+      }
+      if (place.locality != null && place.locality!.isNotEmpty) {
+        locationParts.add(place.locality!);
+      }
+      if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+        locationParts.add(place.administrativeArea!);
+      }
+      String locationName = locationParts.toSet().toList().join(', ');
+      if (locationName.startsWith(', ')) {
+        locationName = locationName.substring(2);
+      }
+
       String fullAddress =
           "${place.subLocality ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}, ${place.country ?? ''}";
 
