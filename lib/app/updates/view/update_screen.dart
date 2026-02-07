@@ -47,85 +47,89 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: CustomIconAppbar(
-        title: 'Updates',
-        ontapBack: () {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
           dashboardCtrl.changeIndex(0);
-        },
-      ),
-      backgroundColor: Colors.white,
-      body: CustomRefereshIndicator(
-        onRefresh: () async {
-          await hatcheryUpdatesController.fetchHatcheryUpdates();
-        },
+        }
+      },
 
-        child: SingleChildScrollView(
-          physics: AlwaysScrollableScrollPhysics(),
-          child: Column(
-            children: [
-              // SizedBox(height: 16),
-              // Obx(() {
-              //   return Container(
-              //     decoration: BoxDecoration(color: Colors.grey.withOpacity(.3)),
-              //     child: MediaCarouselWidget(
-              //       mediaUrls: List.generate(
-              //         hatcheryUpdatesController.banners.length,
-              //         (index) => hatcheryUpdatesController.banners[index].url,
-              //       ),
+      child: Scaffold(
+        appBar: CustomIconAppbar(title: 'Updates', showBackButton: false),
+        backgroundColor: Colors.white,
+        body: CustomRefereshIndicator(
+          onRefresh: () async {
+            await hatcheryUpdatesController.fetchHatcheryUpdates();
+          },
 
-              //       mediaTypes: List.generate(
-              //         hatcheryUpdatesController.banners.length,
-              //         (index) => hatcheryUpdatesController.banners[index].type,
-              //       ),
-              //     ),
-              //   );
-              // }),
-              SizedBox(height: 5),
-              Obx(() {
-                if (hatcheryUpdatesController.isLoading.value ||
-                    hatcheryUpdatesController.hatcheryData.value?.data ==
-                        null) {
-                  return Column(
-                    children: List.generate(4, (index) => postShimmerCard()),
-                  );
-                }
+          child: SingleChildScrollView(
+            physics: AlwaysScrollableScrollPhysics(),
+            child: Column(
+              children: [
+                // SizedBox(height: 16),
+                // Obx(() {
+                //   return Container(
+                //     decoration: BoxDecoration(color: Colors.grey.withOpacity(.3)),
+                //     child: MediaCarouselWidget(
+                //       mediaUrls: List.generate(
+                //         hatcheryUpdatesController.banners.length,
+                //         (index) => hatcheryUpdatesController.banners[index].url,
+                //       ),
 
-                return ListView.builder(
-                  physics: NeverScrollableScrollPhysics(),
-                  shrinkWrap: true,
-                  itemCount:
-                      hatcheryUpdatesController
-                          .hatcheryData
-                          .value
-                          ?.data
-                          ?.length ??
-                      0,
-                  itemBuilder: (context, index) {
-                    return PostWidget(
-                      postData: hatcheryUpdatesController
-                          .hatcheryData
-                          .value
-                          ?.data?[index],
-                      ontap: () {
-                        Get.to(
-                          () => HatcheryDetailsScreen(
-                            id:
-                                hatcheryUpdatesController
-                                    .hatcheryData
-                                    .value
-                                    ?.data?[index]
-                                    .hatcheryId
-                                    ?.toString() ??
-                                '',
-                          ),
-                        );
-                      },
+                //       mediaTypes: List.generate(
+                //         hatcheryUpdatesController.banners.length,
+                //         (index) => hatcheryUpdatesController.banners[index].type,
+                //       ),
+                //     ),
+                //   );
+                // }),
+                SizedBox(height: 5),
+                Obx(() {
+                  if (hatcheryUpdatesController.isLoading.value ||
+                      hatcheryUpdatesController.hatcheryData.value?.data ==
+                          null) {
+                    return Column(
+                      children: List.generate(4, (index) => postShimmerCard()),
                     );
-                  },
-                );
-              }),
-            ],
+                  }
+
+                  return ListView.builder(
+                    physics: NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    itemCount:
+                        hatcheryUpdatesController
+                            .hatcheryData
+                            .value
+                            ?.data
+                            ?.length ??
+                        0,
+                    itemBuilder: (context, index) {
+                      return PostWidget(
+                        postData: hatcheryUpdatesController
+                            .hatcheryData
+                            .value
+                            ?.data?[index],
+                        ontap: () {
+                          Get.to(
+                            () => HatcheryDetailsScreen(
+                              id:
+                                  hatcheryUpdatesController
+                                      .hatcheryData
+                                      .value
+                                      ?.data?[index]
+                                      .hatcheryId
+                                      ?.toString() ??
+                                  '',
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  );
+                }),
+              ],
+            ),
           ),
         ),
       ),
@@ -198,7 +202,7 @@ class _PostWidgetState extends State<PostWidget> {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(20),
                             child: Image.network(
-                              widget.postData?.profileImage ?? "",
+                              widget.postData?.thumbnail ?? "",
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
@@ -210,32 +214,53 @@ class _PostWidgetState extends State<PostWidget> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            (widget.postData?.hatcheryName?.isEmpty ?? true)
-                                ? Container(
-                                    height: 15,
-                                    width: 100,
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(.1),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              (widget.postData?.hatcheryName?.isEmpty ?? true)
+                                  ? Container(
+                                      height: 15,
+                                      width: 100,
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.1),
+                                      ),
+                                    )
+                                  : Text(
+                                      widget.postData?.hatcheryName ?? '',
+                                      style: GoogleFonts.roboto(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
                                     ),
-                                  )
-                                : Text(
-                                    widget.postData?.hatcheryName ?? '',
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      widget.postData?.title ?? '',
+                                      style: GoogleFonts.roboto(
+                                        color: Colors.grey,
+                                        fontSize: 14,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    widget.postData?.postedOn ?? '',
                                     style: GoogleFonts.roboto(
-                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey,
                                       fontSize: 14,
                                     ),
                                   ),
-                            Text(
-                              widget.postData?.postedOn ?? '',
-                              style: GoogleFonts.roboto(
-                                color: Colors.grey,
-                                fontSize: 14,
+                                ],
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -298,13 +323,20 @@ class _PostWidgetState extends State<PostWidget> {
                 decoration: BoxDecoration(color: Colors.black.withOpacity(.1)),
                 child: Builder(
                   builder: (context) {
-                    final urls = widget.postData?.mediaFiles
+                    final urls =
+                        widget.postData?.mediaFiles
                             ?.map((e) => e.toString())
-                            .toList() ?? [];
-                    print(urls);
+                            .toList() ??
+                        [];
+                    final types =
+                        widget.postData?.mediaTypes
+                            ?.map((e) => e.toString())
+                            .toList() ??
+                        [];
                     return MediaCarouselWidget(
-                      title: widget.postData?.hatcheryName??'',
+                      title: widget.postData?.hatcheryName ?? '',
                       mediaUrls: urls,
+                      mediaTypes: types,
                       mediaType: widget.postData?.mediaType ?? "",
                       height: 350,
                       borderRadius: 0,

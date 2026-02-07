@@ -16,6 +16,7 @@ class HatcheryCategory {
 
 class HatcheryHomeModel {
   final int id;
+  final String uniqueId; // Unique identifier for API calls
   final String imagePath;
   final String title;
   final String location;
@@ -29,6 +30,7 @@ class HatcheryHomeModel {
 
   HatcheryHomeModel({
     required this.id,
+    required this.uniqueId,
     required this.imagePath,
     required this.title,
     required this.location,
@@ -89,6 +91,7 @@ class HatcheryHomeModel {
 
     return HatcheryHomeModel(
       id: json["id"] ?? 0,
+      uniqueId: json["unique_id"]?.toString() ?? '',
       imagePath: resolvedImage,
       title: json["hatchery_name"] ?? "",
       location: json["location"] ?? "Unknown",

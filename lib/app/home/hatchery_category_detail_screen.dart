@@ -6,7 +6,6 @@ import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/full_image_screen.dart';
 import 'package:seedsuser/app/home/booking_hatchery_widget.dart';
 import 'package:seedsuser/app/home/controller/hatchery_category_controller.dart';
-import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
@@ -46,6 +45,21 @@ class _HatcheryCategoryDetailScreenState
         lower.endsWith('.wmv') ||
         lower.endsWith('.flv') ||
         lower.endsWith('.mkv');
+  }
+
+  String _getStatusText(int status) {
+    switch (status) {
+      case 1:
+        return 'Available';
+      case 2:
+        return 'Coming Soon';
+      case 3:
+        return 'Upcoming';
+      case 4:
+        return 'Shortly Available';
+      default:
+        return 'Closed';
+    }
   }
 
   final hatcheryCategoryController = Get.put(HatcheryCategoryController());
@@ -238,8 +252,8 @@ class _HatcheryCategoryDetailScreenState
                       ),
                     const SizedBox(height: 20),
 
+                    /// 🏷️ Category Name (only show name, not description/gallery/report)
                     if (detail.category != null) ...[
-                      /// 🏷️ Category Name
                       Text(
                         detail.category!.name ?? "",
                         style: GoogleFonts.roboto(
@@ -247,111 +261,51 @@ class _HatcheryCategoryDetailScreenState
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    /// 📄 Hatchery Report
+                    if (detail.report != null &&
+                        detail.report!.isNotEmpty) ...[
+                      Text(
+                        "Hatchery Report",
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
 
                       const SizedBox(height: 8),
 
-                      /// 📝 Category Description
-                      if (detail.category!.description != null &&
-                          detail.category!.description!.isNotEmpty)
-                        Text(
-                          detail.category!.description ?? "",
-                          style: GoogleFonts.roboto(
-                            fontSize: 14,
-                            height: 1.4,
-                            color: Colors.grey.shade800,
+                      InkWell(
+                        onTap: () {
+                          _launchUrl(detail.report!, context);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 16,
                           ),
-                        ),
-
-                      const SizedBox(height: 16),
-
-                      /// 🖼️ Category Gallery
-                      if ((detail.category!.gallery ?? []).isNotEmpty) ...[
-                        Text(
-                          "Category Images",
-                          style: GoogleFonts.roboto(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        SizedBox(
-                          height: 108,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: detail.category!.gallery!.length,
-                            itemBuilder: (_, index) {
-                              final url = detail.category!.gallery![index];
-
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 12),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(
-                                    url,
-                                    height: 108,
-                                    width: 104,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(
-                                      height: 108,
-                                      width: 104,
-                                      color: Colors.grey.withOpacity(.3),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-                      ],
-
-                      /// 📄 Category Report
-                      if (detail.category!.report != null &&
-                          detail.category!.report!.isNotEmpty) ...[
-                        Text(
-                          "Category Report",
-                          style: GoogleFonts.roboto(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        InkWell(
-                          onTap: () {
-                            final reportUrl =
-                                "${NetworkConfig.baseURL}${detail.category!.report}";
-                            _launchUrl(reportUrl, context);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 12,
-                              horizontal: 16,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: Theme.of(context).primaryColor,
                             ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: Theme.of(context).primaryColor,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(Icons.picture_as_pdf, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text(
+                                "View Report",
+                                style: TextStyle(fontWeight: FontWeight.w600),
                               ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Icon(Icons.picture_as_pdf, color: Colors.red),
-                                SizedBox(width: 8),
-                                Text(
-                                  "View Report",
-                                  style: TextStyle(fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
+                      const SizedBox(height: 16),
                     ],
                     SizedBox(height: 10),
 
@@ -413,10 +367,22 @@ class _HatcheryCategoryDetailScreenState
                         ),
                         const SizedBox(height: 12),
 
-                        _buildInfoRow(
-                          Icons.money,
-                          "Price",
-                          "₹${detail.price ?? ''}",
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildInfoRow(
+                              Icons.money,
+                              "Price",
+                              "₹${detail.price ?? ''}",
+                            ),
+
+                            if (detail.status != null)
+                              _buildInfoRow(
+                                Icons.info_outline,
+                                "Status",
+                                _getStatusText(detail.status!),
+                              ),
+                          ],
                         ),
                       ],
                     ),

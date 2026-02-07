@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/booking_hatchery_widget.dart';
 import 'package:seedsuser/app/home/view/vehicle_availability_detail_screen.dart';
-import 'package:seedsuser/app/model/location_model.dart';
 import 'package:seedsuser/app/model/vehicle_available_model.dart';
 import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 import 'package:seedsuser/app/utils/video_player.dart';
@@ -257,24 +256,11 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
                   ),
                   const SizedBox(height: 8),
 
-                  // // Location
+                  // Location
                   if (hatchery.locationName?.isNotEmpty ?? false)
-                    Builder(
-                      builder: (context) {
-                        Location? location;
-                        try {
-                          location = controller.locations.firstWhere(
-                            (e) =>
-                                e.id.toString() ==
-                                hatchery.locationId.toString(),
-                          );
-                        } catch (e) {}
-
-                        return _buildInfoRow(
-                          Icons.location_on,
-                          location != null ? location.title : '',
-                        );
-                      },
+                    _buildInfoRow(
+                      Icons.location_on,
+                      hatchery.locationName ?? '',
                     ),
                   const SizedBox(height: 8),
 

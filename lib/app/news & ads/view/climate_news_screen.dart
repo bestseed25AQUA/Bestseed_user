@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/climate_news_detail_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
+import 'package:seedsuser/app/utils/video_player.dart';
 import 'package:shimmer/shimmer.dart';
 
 class ClimateNewsScreen extends StatefulWidget {
@@ -19,6 +20,16 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
   final newsSpecificController = Get.put(NewsSpecificController());
   List<Map<String, String>> allNews = [];
   List<Map<String, String>> filteredNews = [];
+
+  // Check if URL is a video
+  bool _isVideoUrl(String url) {
+    final lowerUrl = url.toLowerCase();
+    return lowerUrl.endsWith('.mp4') ||
+        lowerUrl.endsWith('.mov') ||
+        lowerUrl.endsWith('.m3u8') ||
+        lowerUrl.endsWith('.webm') ||
+        lowerUrl.endsWith('.avi');
+  }
 
   @override
   void initState() {
@@ -135,32 +146,34 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
                       .newsSpecificData
                       .value
                       ?.data?[index];
-                  return InkWell(
-                    onTap: () {
-                      Navigator.push(
-                                context,
-                                PageRouteBuilder(
-                                  transitionDuration: const Duration(
-                                    milliseconds: 600,
-                                  ), // smooth
-                                  reverseTransitionDuration: const Duration(
-                                    milliseconds: 600,
-                                  ),
-                                  pageBuilder: (_, __, ___) => ClimateDetailScreen(
+
+                  void navigateToDetail() {
+                    Navigator.push(
+                      context,
+                      PageRouteBuilder(
+                        transitionDuration: const Duration(
+                          milliseconds: 600,
+                        ),
+                        reverseTransitionDuration: const Duration(
+                          milliseconds: 600,
+                        ),
+                        pageBuilder: (_, __, ___) => ClimateDetailScreen(
                           id: data?.id.toString() ?? '',
                           title: data?.title ?? "",
                           subtitle: data?.curesFor ?? "",
                           imageUrl: data?.mediaPath ?? '',
                           tag: 'climateNewsScreen$index',
                         ),
-                      ));
-                    },
-                    child: _buildNewsCard(
-                      data?.title ?? '',
-                      data?.curesFor ?? '',
-                      data?.mediaPath ?? '',
-                      'climateNewsScreen$index',
-                    ),
+                      ),
+                    );
+                  }
+
+                  return _buildNewsCard(
+                    data?.title ?? '',
+                    data?.curesFor ?? '',
+                    data?.mediaPath ?? '',
+                    'climateNewsScreen$index',
+                    navigateToDetail,
                   );
                 },
               ),
@@ -176,7 +189,10 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
     String? subtitle,
     String imageUrl,
     String tag,
+    VoidCallback onTap,
   ) {
+    final isVideo = _isVideoUrl(imageUrl);
+
     return Container(
       width: 150,
       margin: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -194,35 +210,50 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
               tag: tag,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  imageUrl,
-                  height: 120,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return SizedBox(height: 120, width: 150);
-                  },
-                ),
+                child: isVideo
+                    ? InlineVideoPlayer(
+                        url: imageUrl,
+                        title: title,
+                        height: 120,
+                      )
+                    : Image.network(
+                        imageUrl,
+                        height: 120,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return SizedBox(height: 120, width: 150);
+                        },
+                      ),
               ),
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            title,
-            style: GoogleFonts.roboto(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+          // Title and subtitle - tappable to navigate to detail
+          InkWell(
+            onTap: onTap,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
-          if (subtitle != null)
-            Text(
-              subtitle,
-              style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
         ],
       ),
     );

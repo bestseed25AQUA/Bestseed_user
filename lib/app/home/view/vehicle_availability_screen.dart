@@ -74,6 +74,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/common/voice_mic_button.dart';
 import 'package:seedsuser/app/home/controller/vehicle_availabilitys_controller.dart';
@@ -375,12 +376,16 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
           ),
         ),
       ),
-      body: Column(
-        children: [
-          // 🔍 Search Bar
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: _buildSearchBar(
+      body: CustomRefereshIndicator(
+        onRefresh: () async {
+          await controller.fetchVehicleAvailability();
+        },
+        child: Column(
+          children: [
+            // 🔍 Search Bar
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: _buildSearchBar(
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -509,6 +514,7 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
             }),
           ),
         ],
+        ),
       ),
     );
   }

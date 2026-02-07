@@ -105,19 +105,30 @@ class _HomeAppBarState extends State<HomeAppBar> {
             fit: StackFit.expand,
             children: [
               Obx(() {
-                String image = _homeBannerController.bannersTop.isEmpty
-                    ? ''
-                    : _homeBannerController.bannersTop[0].url;
+                // Show fallback asset if no banners available
+                if (_homeBannerController.bannersTop.isEmpty) {
+                  return Image.asset(
+                    "assets/images/home_top.png",
+                    fit: BoxFit.cover,
+                  );
+                }
+
+                final imageUrl = _homeBannerController.bannersTop[0].url;
                 return Image.network(
-                  _homeBannerController.bannersTop.isEmpty ? image : image,
+                  imageUrl,
                   fit: BoxFit.cover,
                   loadingBuilder: (context, child, loadingProgress) {
+                    // When loading is complete, loadingProgress is null - show the loaded image
+                    if (loadingProgress == null) {
+                      return child;
+                    }
+                    // Still loading - show placeholder
                     return Image.asset(
                       "assets/images/home_top.png",
                       fit: BoxFit.cover,
                     );
                   },
-                  errorBuilder: (context, child, loadingProgress) {
+                  errorBuilder: (context, error, stackTrace) {
                     return Image.asset(
                       "assets/images/home_top.png",
                       fit: BoxFit.cover,
@@ -205,8 +216,8 @@ class _HomeAppBarState extends State<HomeAppBar> {
                                         },
                                         child: Image.asset(
                                           'assets/images/wheather.png',
-                                          height: 40,
-                                          width: 47,
+                                          height: 60,
+                                          width: 60,
                                         ),
                                       ),
 
@@ -388,21 +399,6 @@ class _HomeAppBarState extends State<HomeAppBar> {
                                       return const ProfileScreen();
                                     },
                                   ),
-                                  // InkWell(
-                                  //   onTap: () {
-                                  //     Navigator.push(
-                                  //       context,
-                                  //       AppAnimations.circularRevealRoute(
-                                  //         const ProfileScreen(),
-                                  //         center: Alignment.topCenter,
-                                  //       ),
-                                  //     );
-                                  //   },
-                                  //   child: Image.asset(
-                                  //     'assets/images/person.png',
-                                  //     height: 32,
-                                  //   ),
-                                  // ),
                                   const SizedBox(width: 16),
                                 ],
                               ),
@@ -411,7 +407,6 @@ class _HomeAppBarState extends State<HomeAppBar> {
                         ],
                       ),
                       SizedBox(height: 2),
-                      // _buildSearchBar(context),
                       AnimatedSearchBar(
                         titles: const [
                           'Search "Hatchery Name"',
@@ -432,21 +427,6 @@ class _HomeAppBarState extends State<HomeAppBar> {
                   ),
                 ),
               ),
-              // Align(
-              //   alignment: Alignment.bottomCenter,
-              //   child: Opacity(
-              //     // hide smoothly when collapsing
-              //     opacity: (maxHeight - kToolbarHeight) / (maxHeight),
-              //     child: Padding(
-              //       padding: const EdgeInsets.only(
-              //         left: 16,
-              //         right: 16,
-              //         bottom: 8,
-              //       ),
-              //       child: _buildSearchBar(context),
-              //     ),
-              //   ),
-              // ),
             ],
           );
         },
@@ -455,74 +435,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
       bottom: PreferredSize(
         preferredSize: const Size(double.infinity, 48),
         child: widget.bottom,
-        //  Column(
-        //   crossAxisAlignment: CrossAxisAlignment.start,
-        //   mainAxisAlignment: MainAxisAlignment.start,
-        //   children: [widget.bottom, SizedBox(height: 00)]),
       ),
-    );
-  }
-
-  Widget _buildSearchBar(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: SizedBox(
-            height: 40,
-            child: Hero(
-              tag: 'homeAppBarSearch',
-              child: Material(
-                color: Colors.transparent,
-                child: TextField(
-                  readOnly: true,
-                  onTap: () {
-                    Navigator.push(context, zoomOutFadeRoute(SearchScreen()));
-                  },
-                  decoration: InputDecoration(
-                    // hintText: 'Search for Hatcheries, locations, seeds',
-                    hintText: 'Search for Hatcher...',
-                    hintStyle: GoogleFonts.roboto(color: Colors.grey),
-                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                    filled: true,
-                    contentPadding: EdgeInsets.only(bottom: 20),
-                    suffixIcon: Icon(Icons.mic, color: AppColors.primary),
-                    // suffix: Column(
-                    //   children: [
-                    //     SizedBox(height: 00,),
-                    //     Padding(
-                    //       padding: const EdgeInsets.only(top: 0),
-                    //       child: Icon(Icons.mic,color: AppColors.primary),
-                    //     ),
-
-                    //     SizedBox(height: 10,),
-                    //   ],
-                    // ),
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        InkWell(
-          // onTap: () => _showFilterBottomSheet(context),
-          onTap: () => Get.to(() => const SearchScreen()),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
-            height: 35,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Center(child: const Icon(Icons.tune, color: Colors.grey)),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -532,13 +445,11 @@ Route zoomOutFadeRoute(Widget page) {
     transitionDuration: const Duration(milliseconds: 650),
     pageBuilder: (_, __, ___) => page,
     transitionsBuilder: (_, animation, __, child) {
-      // Zoom out (scale from 0.8 → 1.0)
       final scaleAnimation = Tween<double>(
         begin: 0.8,
         end: 1.0,
       ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
 
-      // Fade animation (0 → 1)
       final fadeAnimation = Tween<double>(
         begin: 0.0,
         end: 1.0,

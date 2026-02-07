@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/single_new_detail_controller.dart';
+import 'package:seedsuser/app/utils/video_player.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -33,6 +34,17 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
   final String _initialMessage =
       'Hello, I am interested in the Probiotic Powder.';
   final singleNewDetailController = Get.put(SingleNewDetailController());
+
+  // Check if URL is a video
+  bool _isVideoUrl(String url) {
+    final lowerUrl = url.toLowerCase();
+    return lowerUrl.endsWith('.mp4') ||
+        lowerUrl.endsWith('.mov') ||
+        lowerUrl.endsWith('.m3u8') ||
+        lowerUrl.endsWith('.webm') ||
+        lowerUrl.endsWith('.avi');
+  }
+
   @override
   void initState() {
     singleNewDetailController.fetch(type: "medicine news", id: widget.id);
@@ -80,23 +92,29 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    // Product Image Section
+                    // Product Image/Video Section
                     Hero(
                       tag: widget.tag,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
-                        child: Image.network(
-                          widget.imageUrl, // <<< USE THE SAME IMAGE
-                          fit: BoxFit.cover,
-                          width: MediaQuery.of(context).size.width * .9,
-                          height: MediaQuery.of(context).size.height * .2,
-                          errorBuilder: (context, error, stackTrace) {
-                            return SizedBox(
-                              width: MediaQuery.of(context).size.width * .9,
-                              height: MediaQuery.of(context).size.height * .2,
-                            );
-                          },
-                        ),
+                        child: _isVideoUrl(widget.imageUrl)
+                            ? InlineVideoPlayer(
+                                url: widget.imageUrl,
+                                title: widget.title,
+                                height: MediaQuery.of(context).size.height * .25,
+                              )
+                            : Image.network(
+                                widget.imageUrl,
+                                fit: BoxFit.cover,
+                                width: MediaQuery.of(context).size.width * .9,
+                                height: MediaQuery.of(context).size.height * .2,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return SizedBox(
+                                    width: MediaQuery.of(context).size.width * .9,
+                                    height: MediaQuery.of(context).size.height * .2,
+                                  );
+                                },
+                              ),
                       ),
                     ),
 
@@ -108,6 +126,7 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                       style: GoogleFonts.roboto(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
+                        color: Colors.black,
                       ),
                     ),
                     const SizedBox(height: 4.0),
@@ -115,7 +134,7 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                       widget.subtitle,
                       style: GoogleFonts.roboto(
                         fontSize: 14,
-                        color: Colors.grey,
+                        color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 16.0),

@@ -105,7 +105,11 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
                           ),
                           child: Text(
                             _getSafeLabel(item),
-                            style: GoogleFonts.roboto(fontSize: 14),
+                            style: GoogleFonts.roboto(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87,
+                            ),
                           ),
                         ),
                       );
@@ -166,8 +170,9 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
                 child: Text(
                   displayText,
                   style: GoogleFonts.roboto(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),

@@ -29,10 +29,15 @@ class HatcheryCateogryScreen extends StatefulWidget {
     required this.hatcheryId,
     required this.hatcheryName,
     this.tag,
+    this.useHatcheryId = false,
   });
   final String hatcheryId;
   final String hatcheryName;
   final String? tag;
+
+  /// If true, uses database id endpoint (/hatchery-by-id) - for search flow
+  /// If false, uses unique_id endpoint (/hatchery-all-category) - for home screen flow
+  final bool useHatcheryId;
   @override
   State<HatcheryCateogryScreen> createState() => _HatcheryCateogryScreenState();
 }
@@ -51,7 +56,10 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
 
   initCall() async {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await hatcheryCategoryController.fetchHetcheryCategory(widget.hatcheryId);
+      await hatcheryCategoryController.fetchHetcheryCategory(
+        widget.hatcheryId,
+        useHatcheryId: widget.useHatcheryId,
+      );
     });
     // WidgetsBinding.instance.addPostFrameCallback((_) async {
     //   hatcheryCategoryController.fetchHetcheryCategory(widget.hatcheryId);
@@ -235,7 +243,8 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                                         HatcheryCategoryDetailScreen(
                                           hatcheryName: widget.hatcheryName,
                                           videoUrl: 'assets/videos/sample.mp4',
-                                          hatcheryId: widget.hatcheryId,
+                                          hatcheryId: item.id
+                                              .toString(), // Use item.id instead of unique_id
                                           categoryId: hatcheryCategoryController
                                               .hatcheryCateogoryData
                                               .value
@@ -266,6 +275,7 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
 
                                   price: item.price,
                                   availableDate: item.availableOn,
+                                  status: item.status,
                                   callUrl: item.callUrl,
                                   whatsappUrl: item.whatsappUrl,
                                   hatcheryId: item.id.toString(),
@@ -349,13 +359,17 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                                   width: 160,
                                   height: 295,
                                   ontap: () {
+                                    // Use uniqueId for API call, fallback to id if uniqueId is not available
+                                    final hatcheryIdForApi =
+                                        hatchery.uniqueId.isNotEmpty
+                                        ? hatchery.uniqueId
+                                        : hatchery.id.toString();
                                     Navigator.pushReplacement(
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) =>
                                             HatcheryCateogryScreen(
-                                              hatcheryId: hatchery.id
-                                                  .toString(),
+                                              hatcheryId: hatcheryIdForApi,
                                               hatcheryName: hatchery
                                                   .hatcheryName
                                                   .toString(),
@@ -366,6 +380,7 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
 
                                   /// ⭐ No nullable — model is safe
                                   id: hatchery.id.toString(),
+                                  uniqueId: hatchery.uniqueId,
                                   imagePath: image,
 
                                   title: hatchery.hatcheryName,
@@ -402,6 +417,7 @@ class HarcheryCardWidget extends StatefulWidget {
   final String? availableDate;
   final String broodstockCount;
   final String price;
+  final String? status; // Hatchery status
   final String? callUrl;
   final String? whatsappUrl;
   final String hatcheryId;
@@ -416,6 +432,7 @@ class HarcheryCardWidget extends StatefulWidget {
     required this.price,
     required this.hatcheryId,
     this.availableDate,
+    this.status,
     this.callUrl,
     this.whatsappUrl,
     required this.categoryId,
@@ -441,6 +458,22 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
         lower.endsWith('.wmv') ||
         lower.endsWith('.flv') ||
         lower.endsWith('.mkv');
+  }
+
+  String _getStatusText(String status) {
+    // Convert status code to readable text
+    switch (status) {
+      case '1':
+        return 'Available';
+      case '2':
+        return 'Coming Soon';
+      case '3':
+        return 'Upcoming';
+      case '4':
+        return 'Shortly Available';
+      default:
+        return status; // Return as-is if not a known code
+    }
   }
 
   @override
@@ -589,20 +622,19 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // NAME + (removed badge same as original)
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        widget.hatcheryName,
-                        style: GoogleFonts.roboto(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
+                // Row(
+                //   children: [
+                //     Expanded(
+                //       child: Text(
+                //         widget.hatcheryName,
+                //         style: GoogleFonts.roboto(
+                //           fontSize: 20,
+                //           fontWeight: FontWeight.w800,
+                //         ),
+                //       ),
+                //     ),
+                //   ],
+                // ),
                 const SizedBox(height: 2),
 
                 // CATEGORY NAME
@@ -612,15 +644,9 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                     Text(
                       widget.categoryName,
                       style: GoogleFonts.roboto(
-                        fontSize: 16,
-                        color: Colors.grey[900],
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
                       ),
-                    ),
-
-                    _buildInfoRow(
-                      "assets/images/MoneyWavy.png",
-                      "Price",
-                      "₹ ${widget.price}",
                     ),
                   ],
                 ),
@@ -637,6 +663,26 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                       "${widget.broodstockCount} Pieces",
                     ),
 
+                    _buildInfoRow(
+                      "assets/images/MoneyWavy.png",
+                      "Price",
+                      "₹ ${widget.price}",
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 2),
+
+                // STATUS
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (widget.status != null && widget.status!.isNotEmpty)
+                      _buildInfoRow(
+                        "assets/images/CalendarBlank.png",
+                        "Status",
+                        _getStatusText(widget.status!),
+                      ),
                     if (widget.availableDate != null)
                       _buildInfoRow(
                         "assets/images/CalendarBlank.png",
@@ -645,8 +691,6 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                       ),
                   ],
                 ),
-
-                const SizedBox(height: 3),
 
                 // PRICE
                 const SizedBox(height: 3),

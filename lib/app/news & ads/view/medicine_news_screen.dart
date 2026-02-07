@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
+import 'package:seedsuser/app/utils/video_player.dart';
 import 'package:shimmer/shimmer.dart';
 
 class MedicineNewsScreen extends StatefulWidget {
@@ -18,6 +19,16 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
   final newsSpecificController = Get.put(NewsSpecificController());
   List<Map<String, String>> allNews = [];
   List<Map<String, String>> filteredNews = [];
+
+  // Check if URL is a video
+  bool _isVideoUrl(String url) {
+    final lowerUrl = url.toLowerCase();
+    return lowerUrl.endsWith('.mp4') ||
+        lowerUrl.endsWith('.mov') ||
+        lowerUrl.endsWith('.m3u8') ||
+        lowerUrl.endsWith('.webm') ||
+        lowerUrl.endsWith('.avi');
+  }
 
   @override
   void initState() {
@@ -134,33 +145,34 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
                       .newsSpecificData
                       .value
                       ?.data?[index];
-                  return InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        PageRouteBuilder(
-                          transitionDuration: const Duration(
-                            milliseconds: 600,
-                          ), // smooth
-                          reverseTransitionDuration: const Duration(
-                            milliseconds: 600,
-                          ),
-                          pageBuilder: (_, __, ___) => MedicineDetailScreen(
-                            id: data?.id.toString() ?? '',
-                            title: data?.medicineName.toString() ?? '',
-                            subtitle: data?.curesFor ?? "",
-                            imageUrl: data?.mediaPath ?? "",
-                            tag: 'medicineNewScreen$index',
-                          ),
+
+                  void navigateToDetail() {
+                    Navigator.push(
+                      context,
+                      PageRouteBuilder(
+                        transitionDuration: const Duration(
+                          milliseconds: 600,
                         ),
-                      );
-                    },
-                    child: _buildNewsCard(
-                      data?.medicineName ?? '',
-                      data?.curesFor ?? '',
-                      data?.mediaPath ?? '',
-                      'medicineNewScreen$index',
-                    ),
+                        reverseTransitionDuration: const Duration(
+                          milliseconds: 600,
+                        ),
+                        pageBuilder: (_, __, ___) => MedicineDetailScreen(
+                          id: data?.id.toString() ?? '',
+                          title: data?.medicineName.toString() ?? '',
+                          subtitle: data?.curesFor ?? "",
+                          imageUrl: data?.mediaPath ?? "",
+                          tag: 'medicineNewScreen$index',
+                        ),
+                      ),
+                    );
+                  }
+
+                  return _buildNewsCard(
+                    data?.medicineName ?? '',
+                    data?.curesFor ?? '',
+                    data?.mediaPath ?? '',
+                    'medicineNewScreen$index',
+                    navigateToDetail,
                   );
                 },
               ),
@@ -176,7 +188,10 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
     String? subtitle,
     String imageUrl,
     String tag,
+    VoidCallback onTap,
   ) {
+    final isVideo = _isVideoUrl(imageUrl);
+
     return Container(
       width: 150,
       margin: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -194,35 +209,50 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
               tag: tag,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  imageUrl,
-                  height: 120,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return SizedBox(height: 120, width: 150);
-                  },
-                ),
+                child: isVideo
+                    ? InlineVideoPlayer(
+                        url: imageUrl,
+                        title: title,
+                        height: 120,
+                      )
+                    : Image.network(
+                        imageUrl,
+                        height: 120,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return SizedBox(height: 120, width: 150);
+                        },
+                      ),
               ),
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            title,
-            style: GoogleFonts.roboto(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+          // Title and subtitle - tappable to navigate to detail
+          InkWell(
+            onTap: onTap,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
-          if (subtitle != null)
-            Text(
-              subtitle,
-              style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
         ],
       ),
     );

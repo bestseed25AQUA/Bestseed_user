@@ -9,6 +9,7 @@ import 'package:seedsuser/app/home/controller/hatchery_category_controller.dart'
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
+import 'package:seedsuser/app/utils/network_config.dart';
 
 class HatcheryWidget extends StatelessWidget {
   final VoidCallback onViewAllTap;
@@ -90,6 +91,7 @@ class HatcheryWidget extends StatelessWidget {
                 type: item.categoryNames, // Show all categories
                 categoryCount: item.categoryCount,
                 id: item.id.toString(),
+                uniqueId: item.uniqueId, // Pass uniqueId for API calls
                 status: item.status,
                 statusColor: getHatcheryStatusColor(item.statusCode),
                 availableUntil: item.availableUntil,
@@ -129,6 +131,7 @@ class HatcheryCard extends StatelessWidget {
   final Color statusColor;
   final String? availableUntil;
   final String? id;
+  final String? uniqueId; // Unique identifier for API calls
   final int index;
   final VoidCallback? ontap;
 
@@ -145,6 +148,7 @@ class HatcheryCard extends StatelessWidget {
     required this.statusColor,
     this.availableUntil,
     this.id,
+    this.uniqueId,
     this.ontap,
     required this.index,
   });
@@ -154,6 +158,11 @@ class HatcheryCard extends StatelessWidget {
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
 
+    // Safety: ensure imagePath has base URL
+    final resolvedImagePath = imagePath.isNotEmpty && !imagePath.startsWith('http')
+        ? '${NetworkConfig.imageURL}/$imagePath'
+        : imagePath;
+
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       // onTap: () => Get.to(() => HatcheryDetailScreen()),
@@ -162,13 +171,15 @@ class HatcheryCard extends StatelessWidget {
           () {
             print('HatcheryCard$index');
             print('ontap ok');
+            // Use uniqueId for API call, fallback to id if uniqueId is not available
+            final hatcheryIdForApi = (uniqueId != null && uniqueId!.isNotEmpty) ? uniqueId! : id.toString();
             Navigator.push(
               context,
               PageRouteBuilder(
                 transitionDuration: const Duration(milliseconds: 600), // smooth
                 reverseTransitionDuration: const Duration(milliseconds: 600),
                 pageBuilder: (_, __, ___) => HatcheryCateogryScreen(
-                  hatcheryId: id.toString(),
+                  hatcheryId: hatcheryIdForApi,
                   hatcheryName: title,
                   tag: 'HatcheryCard$id$index',
                 ),
@@ -217,22 +228,22 @@ class HatcheryCard extends StatelessWidget {
                       child: Hero(
                         tag: 'HatcheryCard$id$index',
                         child: Image.network(
-                          imagePath,
+                          resolvedImagePath,
                           width: double.infinity,
                           height: imageHeight,
                           fit: BoxFit.cover,
                           errorBuilder: (c, e, s) {
                             // 🔁 fallback from category_media → hatcheries
                             final fallbackPath =
-                                imagePath.contains('category_media')
-                                ? imagePath.replaceFirst(
+                                resolvedImagePath.contains('category_media')
+                                ? resolvedImagePath.replaceFirst(
                                     'category_media',
                                     'hatcheries',
                                   )
-                                : imagePath;
+                                : resolvedImagePath;
 
                             // Prevent infinite loop
-                            if (fallbackPath == imagePath) {
+                            if (fallbackPath == resolvedImagePath) {
                               return SizedBox(
                                 height: imageHeight,
                                 child: CustomShimmer(),

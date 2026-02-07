@@ -1,3 +1,5 @@
+import 'package:seedsuser/app/utils/network_config.dart';
+
 class HatcheryFilterResponse {
   final bool status;
   final String message;
@@ -101,6 +103,13 @@ class HatcheryFilterItem {
 
   factory HatcheryFilterItem.fromJson(Map<String, dynamic> json) {
     try {
+      final rawImage = json['image']?.toString() ?? "";
+      final resolvedImage = rawImage.isEmpty
+          ? ""
+          : (rawImage.startsWith('http')
+                ? rawImage
+                : '${NetworkConfig.imageURL}/$rawImage');
+
       return HatcheryFilterItem(
         id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? "0") ?? 0,
         hatcheryName: json['hatchery_name']?.toString() ?? "",
@@ -112,7 +121,7 @@ class HatcheryFilterItem {
         location: json['location']?.toString() ?? "",
         status: json['status']?.toString() ?? "",
         availableOn: json['available_on']?.toString() ?? "",
-        image: json['image']?.toString() ?? "",
+        image: resolvedImage,
         lat: json['lat']?.toString() ?? "",
         lng: json['lng']?.toString() ?? "",
         isSpot: json['is_spot'] is int ? json['is_spot'] : int.tryParse(json['is_spot']?.toString() ?? "0") ?? 0,

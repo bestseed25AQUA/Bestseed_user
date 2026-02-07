@@ -10,6 +10,7 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_best_seed_background.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:seedsuser/app/vehicle_tracking/controller/vehicle_tracking_controller.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/full_map_screen.dart';
 
@@ -219,17 +220,28 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  SizedBox(width: 20,),
+                  SizedBox(width: 20),
                   Text(
                     "Have a question? ",
                     style: GoogleFonts.poppins(fontSize: 14),
                   ),
-                  Text(
-                    "Contact us",
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: Colors.blue,
-                      fontWeight: FontWeight.w600,
+                  InkWell(
+                    onTap: () async {
+                      final vendorMobile = d.vendorMobile;
+                      if (vendorMobile != null && vendorMobile.isNotEmpty) {
+                        final uri = Uri(scheme: 'tel', path: vendorMobile);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri);
+                        }
+                      }
+                    },
+                    child: Text(
+                      "Contact us",
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],

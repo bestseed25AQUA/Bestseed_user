@@ -99,100 +99,105 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
   final dashboardCtrl = Get.find<DashboardController>();
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: CustomIconAppbar(
-        title: "Brood Stock",
-        ontapBack: () {
-          dashboardCtrl.changeIndex(0);
-        },
-      ),
-      body: Obx(() {
-        return CustomRefereshIndicator(
-          onRefresh: () async {
-            await controller.getBroodStock();
-          },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 8),
-                  _buildSearchBar(),
-                  const SizedBox(height: 8),
-                  _buildFilterSection(),
-                  const SizedBox(height: 12),
-                  _buildHatcheryListHeader(),
-                  const SizedBox(height: 8),
-                  if (controller.isLoading.value)
-                    ListView.builder(
-                      itemCount: 3,
-                      shrinkWrap: true,
-                      padding: EdgeInsets.only(top: 5, bottom: 5),
-                      itemBuilder: (context, index) {
-                        return Padding(
-                          padding: EdgeInsets.only(top: 5, bottom: 5),
-                          child: AnimatedAppearance(
-                            type: AnimationType.slideDown,
-                            child: hatcheryCardShimmer(),
-                          ),
-                        );
-                      },
-                    )
-                  else if (controller.filteredBroodStocks.isEmpty)
-                    Padding(
-                      padding: EdgeInsets.only(
-                        top: MediaQuery.of(context).size.height * .2,
-                      ),
-                      child: const Center(
-                        child: Text('No brood stock available.'),
-                      ),
-                    )
-                  else
-                    AnimatedAppearance(
-                      child: ListView.builder(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          dashboardCtrl.changeIndex(0); // Navigate to home screen
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: CustomIconAppbar(title: "Brood Stock", showBackButton: false),
+        body: Obx(() {
+          return CustomRefereshIndicator(
+            onRefresh: () async {
+              await controller.getBroodStock();
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    _buildSearchBar(),
+                    const SizedBox(height: 8),
+                    _buildFilterSection(),
+                    const SizedBox(height: 12),
+                    _buildHatcheryListHeader(),
+                    const SizedBox(height: 8),
+                    if (controller.isLoading.value)
+                      ListView.builder(
+                        itemCount: 3,
                         shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: controller.filteredBroodStocks.length,
+                        padding: EdgeInsets.only(top: 5, bottom: 5),
                         itemBuilder: (context, index) {
-                          BroodstockData data =
-                              controller.filteredBroodStocks[index];
                           return Padding(
-                            padding: EdgeInsetsGeometry.symmetric(
-                              vertical: 5,
-                              horizontal: 10,
-                            ),
-                            child: InkWell(
-                              onTap: () {
-                                Get.to(
-                                  HatcheryCateogryScreen(
-                                    hatcheryId: controller
-                                        .filteredBroodStocks[index]
-                                        .hatcheryId
-                                        .toString(),
-                                    // hatcheryId: '139',
-                                    hatcheryName: controller
-                                        .filteredBroodStocks[index]
-                                        .hatcheryName
-                                        .toString(),
-                                  ),
-                                );
-                              },
-                              child: _buildHatcheryCard(data),
+                            padding: EdgeInsets.only(top: 5, bottom: 5),
+                            child: AnimatedAppearance(
+                              type: AnimationType.slideDown,
+                              child: hatcheryCardShimmer(),
                             ),
                           );
                         },
+                      )
+                    else if (controller.filteredBroodStocks.isEmpty)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          top: MediaQuery.of(context).size.height * .2,
+                        ),
+                        child: const Center(
+                          child: Text('No brood stock available.'),
+                        ),
+                      )
+                    else
+                      AnimatedAppearance(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: controller.filteredBroodStocks.length,
+                          itemBuilder: (context, index) {
+                            BroodstockData data =
+                                controller.filteredBroodStocks[index];
+                            return Padding(
+                              padding: EdgeInsetsGeometry.symmetric(
+                                vertical: 5,
+                                horizontal: 10,
+                              ),
+                              child: InkWell(
+                                onTap: () {
+                                  Get.to(
+                                    HatcheryCateogryScreen(
+                                      hatcheryId: controller
+                                          .filteredBroodStocks[index]
+                                          .hatcheryId
+                                          .toString(),
+                                      // hatcheryId: '139',
+                                      hatcheryName: controller
+                                          .filteredBroodStocks[index]
+                                          .hatcheryName
+                                          .toString(),
+                                      useHatcheryId:
+                                          true, // Use database id endpoint for broodstock flow
+                                    ),
+                                  );
+                                },
+                                child: _buildHatcheryCard(data),
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                  const SizedBox(height: 10),
-                ],
+                    const SizedBox(height: 10),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      }),
+          );
+        }),
+      ),
     );
   }
 
@@ -399,9 +404,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  buildStatusChip(data),
-                ],
+                children: [buildStatusChip(data)],
               ),
             ],
           ),

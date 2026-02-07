@@ -50,6 +50,7 @@ class Data {
   List<Unit>? units;
   int? broodstock;
   String? price;
+  String? report; // Hatchery report URL
   String? callUrl;
   String? whatsappUrl;
 
@@ -66,6 +67,7 @@ class Data {
     this.units,
     this.broodstock,
     this.price,
+    this.report,
     this.callUrl,
     this.whatsappUrl,
   });
@@ -97,6 +99,7 @@ class Data {
               ),
         broodstock: json["broodstock"] as int?,
         price: json["price"] as String?,
+        report: json["report"] as String?,
         callUrl: json["call_url"] as String?,
         whatsappUrl: json["whatsapp_url"] as String?,
       );
@@ -118,6 +121,7 @@ class Data {
     "units": units?.map((x) => x.toJson()).toList() ?? [],
     "broodstock": broodstock,
     "price": price,
+    "report": report,
     "call_url": callUrl,
     "whatsapp_url": whatsappUrl,
   };

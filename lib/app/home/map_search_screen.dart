@@ -1,8 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -36,16 +36,18 @@ class _GoogleMapSearchPlacesScreenState
   var uuid = const Uuid();
   String _sessionToken = '';
   List<dynamic> _placeList = [];
+  Timer? _debounce;
+  bool _isConfirming = false;
 
   @override
   void initState() {
     super.initState();
     _selectedLocation = LatLng(widget.latitude, widget.longitude);
-    
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _mapController?.dispose();
     _textController.dispose();
     _focusNode.dispose();
@@ -53,12 +55,15 @@ class _GoogleMapSearchPlacesScreenState
   }
 
   _onChanged(String value) {
-    if (_sessionToken == null) {
-      setState(() {
-        _sessionToken = uuid.v4();
-      });
+    if (value.trim().isEmpty) {
+      setState(() => _placeList.clear());
+      return;
     }
-    getSuggestion(value);
+    // Debounce: wait 400ms after user stops typing
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      getSuggestion(value);
+    });
   }
 
   void getSuggestion(String input) async {
@@ -236,23 +241,21 @@ class _GoogleMapSearchPlacesScreenState
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: ListView.builder(
-                            physics: NeverScrollableScrollPhysics(),
                             shrinkWrap: true,
                             itemCount: _placeList.length,
                             itemBuilder: (context, index) {
                               return GestureDetector(
                                 onTap: () async {
-                                  Map<String, dynamic> data = await getLatLng(
-                                    _placeList[index]['place_id'],
-                                  );
-                                  var _latLng = getLatLongFromMap(data);
-                                  print(_latLng);
-                                  _addMarkerAnimateCameraPosition(_latLng);
-                                  _selectedLocation = _latLng;
-                                  _textController.text =
-                                      _placeList[index]["description"];
+                                  final description = _placeList[index]["description"];
+                                  final placeId = _placeList[index]['place_id'];
+                                  _textController.text = description;
                                   _focusNode.unfocus();
-                                  _placeList.clear();
+                                  setState(() => _placeList.clear());
+
+                                  Map<String, dynamic> data = await getLatLng(placeId);
+                                  var latLng = getLatLongFromMap(data);
+                                  _addMarkerAnimateCameraPosition(latLng);
+                                  _selectedLocation = latLng;
                                 },
                                 child: Container(
                                   decoration: BoxDecoration(
@@ -285,74 +288,107 @@ class _GoogleMapSearchPlacesScreenState
                 style: ButtonStyle(
                   backgroundColor: WidgetStateProperty.all(AppColors.primary),
                 ),
-                onPressed: () async {
-                  if (_selectedLocation != null) {
-                    List<Placemark> placemarks = await placemarkFromCoordinates(
-                      _selectedLocation!.latitude,
-                      _selectedLocation!.longitude,
-                    );
-                    Placemark place = placemarks.first;
+                onPressed: _isConfirming
+                    ? null
+                    : () async {
+                        if (_selectedLocation == null) return;
 
-                    // Build full address with all available components
-                    List<String> addressParts = [];
+                        setState(() => _isConfirming = true);
 
-                    // Add street/name if available
-                    if (place.name != null && place.name!.isNotEmpty && place.name != place.subLocality) {
-                      addressParts.add(place.name!);
-                    }
-                    if (place.street != null && place.street!.isNotEmpty && place.street != place.name) {
-                      addressParts.add(place.street!);
-                    }
-                    if (place.subLocality != null && place.subLocality!.isNotEmpty) {
-                      addressParts.add(place.subLocality!);
-                    }
-                    if (place.locality != null && place.locality!.isNotEmpty) {
-                      addressParts.add(place.locality!);
-                    }
-                    if (place.subAdministrativeArea != null && place.subAdministrativeArea!.isNotEmpty) {
-                      addressParts.add(place.subAdministrativeArea!);
-                    }
-                    if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
-                      addressParts.add(place.administrativeArea!);
-                    }
-                    if (place.postalCode != null && place.postalCode!.isNotEmpty) {
-                      addressParts.add(place.postalCode!);
-                    }
-                    if (place.country != null && place.country!.isNotEmpty) {
-                      addressParts.add(place.country!);
-                    }
+                        try {
+                          List<Placemark> placemarks =
+                              await placemarkFromCoordinates(
+                            _selectedLocation!.latitude,
+                            _selectedLocation!.longitude,
+                          );
+                          Placemark place = placemarks.first;
 
-                    // Remove duplicates while preserving order
-                    List<String> uniqueParts = [];
-                    for (var part in addressParts) {
-                      if (!uniqueParts.contains(part)) {
-                        uniqueParts.add(part);
-                      }
-                    }
+                          // Build full address with all available components
+                          List<String> addressParts = [];
 
-                    String fullAddress = uniqueParts.join(', ');
+                          if (place.name != null &&
+                              place.name!.isNotEmpty &&
+                              place.name != place.subLocality) {
+                            addressParts.add(place.name!);
+                          }
+                          if (place.street != null &&
+                              place.street!.isNotEmpty &&
+                              place.street != place.name) {
+                            addressParts.add(place.street!);
+                          }
+                          if (place.subLocality != null &&
+                              place.subLocality!.isNotEmpty) {
+                            addressParts.add(place.subLocality!);
+                          }
+                          if (place.locality != null &&
+                              place.locality!.isNotEmpty) {
+                            addressParts.add(place.locality!);
+                          }
+                          if (place.subAdministrativeArea != null &&
+                              place.subAdministrativeArea!.isNotEmpty) {
+                            addressParts.add(place.subAdministrativeArea!);
+                          }
+                          if (place.administrativeArea != null &&
+                              place.administrativeArea!.isNotEmpty) {
+                            addressParts.add(place.administrativeArea!);
+                          }
+                          if (place.postalCode != null &&
+                              place.postalCode!.isNotEmpty) {
+                            addressParts.add(place.postalCode!);
+                          }
+                          if (place.country != null &&
+                              place.country!.isNotEmpty) {
+                            addressParts.add(place.country!);
+                          }
 
-                    print('Full Address Components: $place');
-                    print('Built Full Address: $fullAddress');
+                          // Remove duplicates while preserving order
+                          List<String> uniqueParts = [];
+                          for (var part in addressParts) {
+                            if (!uniqueParts.contains(part)) {
+                              uniqueParts.add(part);
+                            }
+                          }
 
-                    showSelectedLocationPopup(
-                      location: fullAddress,
-                      onConfirm: () {
-                        // Call the callback first, then close the map screen
-                        widget.ontapSelectLocation(_selectedLocation!, fullAddress);
-                        Navigator.of(context).pop(true);
+                          String fullAddress = uniqueParts.join(', ');
+
+                          if (!mounted) return;
+                          setState(() => _isConfirming = false);
+
+                          final selectedLoc = _selectedLocation!;
+
+                          showSelectedLocationPopup(
+                            location: fullAddress,
+                            onConfirm: () {
+                              widget.ontapSelectLocation(
+                                  selectedLoc, fullAddress);
+                              Navigator.of(context).pop(true);
+                            },
+                          );
+                        } catch (e) {
+                          if (mounted) {
+                            setState(() => _isConfirming = false);
+                          }
+                          print('Error getting address: $e');
+                        }
                       },
-                    );
-                  }
-                },
                 child: Row(
                   children: [
+                    if (_isConfirming)
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    else
+                      const Icon(Icons.location_on, color: Colors.white),
+                    const SizedBox(width: 5),
                     Text(
-                      'Confirm Location',
-                      style: TextStyle(color: Colors.white),
+                      _isConfirming ? 'Loading...' : 'Confirm Location',
+                      style: const TextStyle(color: Colors.white),
                     ),
-                    SizedBox(width: 5),
-                    Icon(Icons.location_on, color: Colors.white),
                   ],
                 ),
               ),
@@ -369,6 +405,7 @@ class _GoogleMapSearchPlacesScreenState
   }) {
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (dialogContext) {
         return Stack(
           clipBehavior: Clip.none,
@@ -423,8 +460,12 @@ class _GoogleMapSearchPlacesScreenState
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     onPressed: () {
-                      Navigator.pop(dialogContext);  // Close the dialog
-                      onConfirm();  // Close map screen and callback
+                      // Close dialog first, then wait for it to finish before popping map
+                      Navigator.pop(dialogContext);
+                      // Use a short delay to let dialog animation complete
+                      Future.delayed(const Duration(milliseconds: 150), () {
+                        onConfirm();
+                      });
                     },
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -433,8 +474,8 @@ class _GoogleMapSearchPlacesScreenState
                           "Add Location",
                           style: TextStyle(fontSize: 16, color: Colors.white),
                         ),
-                        SizedBox(width: 5),
-                        Icon(
+                        const SizedBox(width: 5),
+                        const Icon(
                           Icons.add_location_alt_rounded,
                           color: Colors.white,
                         ),
@@ -448,12 +489,12 @@ class _GoogleMapSearchPlacesScreenState
             Positioned(
               top:
                   MediaQuery.of(dialogContext).size.height *
-                  0.27, // adjust for perfect position
+                  0.27,
               right: 35,
               child: GestureDetector(
                 onTap: () => Navigator.pop(dialogContext),
                 child: Container(
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
                     boxShadow: [

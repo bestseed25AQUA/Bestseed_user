@@ -42,16 +42,20 @@ class TrackingData {
 
   final String travelCost;
   final String expectedDelivery;
+  final String? vendorMobile;
 
-  TrackingData( {
+  TrackingData({
     required this.vehicleId,
     required this.bookingId,
     required this.pickup,
     required this.drop,
     required this.driverLocation,
-    required this.driverDetails, // ✅ NEW
+    required this.driverDetails,
     required this.deliveryUpdates,
-    required this.timeline,required this.travelCost,required this.expectedDelivery,
+    required this.timeline,
+    required this.travelCost,
+    required this.expectedDelivery,
+    this.vendorMobile,
   });
 
   factory TrackingData.fromJson(Map<String, dynamic> json) {
@@ -72,6 +76,7 @@ class TrackingData {
       timeline: (json['timeline'] as List<dynamic>)
           .map((e) => TimelineItem.fromJson(e))
           .toList(),
+      vendorMobile: json['vendor_mobile']?.toString(),
     );
   }
 

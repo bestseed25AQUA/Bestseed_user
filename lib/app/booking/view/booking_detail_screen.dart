@@ -7,6 +7,7 @@ import 'package:seedsuser/app/booking/model/booking_detail_model.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_best_seed_background.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/vehicle_tracking_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../controller/my_booking_controller.dart';
 
 class BookingDetailScreen extends StatefulWidget {
@@ -145,11 +146,25 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               //     ),
               //   )
               else
-                _timelineSection(data.bookingStatus, w, () {
+                _timelineSection(data.bookingStatus, data.statusValue, w, () {
                   Get.to(
                     VehicleTrackingScreen(bookingId: data.bookingId.toString()),
                   );
                 }),
+
+              // Driver details section (visible when status >= 3)
+              if (data.driver != null &&
+                  data.statusValue >= 3 &&
+                  data.statusValue != 6)
+                _driverSection(data.driver!, w),
+
+              // Booking & vehicle descriptions
+              if (data.bookingDescription != null &&
+                  data.bookingDescription!.isNotEmpty)
+                _descriptionCard("Booking Description", data.bookingDescription!),
+              if (data.vehicleDescription != null &&
+                  data.vehicleDescription!.isNotEmpty)
+                _descriptionCard("Vehicle Description", data.vehicleDescription!),
 
               const SizedBox(height: 20),
 
@@ -179,7 +194,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               ),
 
               const SizedBox(height: 20),
-              _helpSection(w),
+              _helpSection(w, data.vendorMobile),
               SizedBox(height: 30),
               CustomBestSeedBackground(),
               const SizedBox(height: 40),
@@ -263,9 +278,13 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
 
   Widget _timelineSection(
     List<BookingStatusStep> steps,
+    int statusValue,
     double w,
     VoidCallback ontapCheckVehicleStatus,
   ) {
+    // Show "Check vehicle status" only when status is 3 (Driver Assigned) or 4 (In Progress)
+    final bool showVehicleButton = statusValue == 3 || statusValue == 4;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -293,7 +312,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                     size: 26,
                     color: done ? Colors.green : Colors.grey,
                   ),
-                  if (s.label.toLowerCase() != "Delivered".toLowerCase())
+                  if (s.label.toLowerCase() != "delivered")
                     Container(
                       width: 2,
                       height: 40,
@@ -318,8 +337,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          if (s.label.toLowerCase() ==
-                              "In Progress".toLowerCase())
+                          if (s.label.toLowerCase() == "in progress" &&
+                              showVehicleButton)
                             InkWell(
                               onTap: ontapCheckVehicleStatus,
                               child: Text(
@@ -383,20 +402,192 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     }
   }
 
-  Widget _helpSection(double w) {
+  Widget _helpSection(double w, String? vendorMobile) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
         Text("Have a question? ", style: GoogleFonts.poppins(fontSize: 14)),
-        Text(
-          "Contact us",
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            color: Colors.blue,
-            fontWeight: FontWeight.w600,
+        InkWell(
+          onTap: () async {
+            if (vendorMobile != null && vendorMobile.isNotEmpty) {
+              final uri = Uri(scheme: 'tel', path: vendorMobile);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri);
+              }
+            }
+          },
+          child: Text(
+            "Contact us",
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: Colors.blue,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _driverSection(DriverDetailModel driver, double w) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        Text(
+          "Driver Details",
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5F5F5),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.grey.shade300,
+                backgroundImage: driver.image != null && driver.image!.isNotEmpty
+                    ? NetworkImage(driver.image!)
+                    : null,
+                child: driver.image == null || driver.image!.isEmpty
+                    ? const Icon(Icons.person, color: Colors.white, size: 28)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (driver.name != null && driver.name!.isNotEmpty)
+                      Text(
+                        driver.name!,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    if (driver.vehicleNumber != null &&
+                        driver.vehicleNumber!.isNotEmpty)
+                      Text(
+                        driver.vehicleNumber!,
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    if (driver.vehicleStartedDate != null &&
+                        driver.vehicleStartedDate!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          children: [
+                            Icon(Icons.schedule, size: 14, color: Colors.grey.shade600),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                driver.vehicleStartedDate!,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (driver.vehicleStartAddress != null &&
+                        driver.vehicleStartAddress!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Row(
+                          children: [
+                            Icon(Icons.location_on_outlined, size: 14, color: Colors.grey.shade600),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                driver.vehicleStartAddress!,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (driver.mobile != null && driver.mobile!.isNotEmpty)
+                InkWell(
+                  onTap: () async {
+                    final uri = Uri(scheme: 'tel', path: driver.mobile);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.phone,
+                      color: Colors.green,
+                      size: 22,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _descriptionCard(String title, String description) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F5F5),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              description,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

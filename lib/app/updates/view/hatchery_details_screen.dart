@@ -43,8 +43,11 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
-    
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Get.back(),
+        ),
         title: Text(
           'Updates',
           style: GoogleFonts.roboto(
@@ -79,109 +82,80 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            Container(
-              height: 140,
-              width: double.infinity,
-              color: AppColors.primary,
-              padding: const EdgeInsets.all(16),
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // ---------- IMAGE + NAME ----------
-                      Row(
-                        children: [
-                          ClipOval(
-                            child: Image.network(
-                              (hatcheryUpdatesController
-                                          .hatcherySingleData
-                                          .value
-                                          ?.data
-                                          ?.isEmpty ??
-                                      true)
-                                  ? ""
-                                  : (hatcheryUpdatesController
-                                            .hatcherySingleData
-                                            .value
-                                            ?.data?[0]
-                                            .profileImage ??
-                                        ''),
-                              width: 50,
-                              height: 50,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return CircleAvatar(
-                                  radius: 25,
-                                  backgroundColor: Colors.grey.withOpacity(.2),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          SizedBox(
-                            width: MediaQuery.of(context).size.width*.3,
-                            child: Text(
-                              (hatcheryUpdatesController
-                                          .hatcherySingleData
-                                          .value
-                                          ?.data
-                                          ?.isEmpty ??
-                                      true)
-                                  ? ""
-                                  : (hatcheryUpdatesController
-                                            .hatcherySingleData
-                                            .value
-                                            ?.data?[0]
-                                            .hatcheryName ??
-                                        ''),
-                              style: GoogleFonts.roboto(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
+            Obx(() {
+              final data = hatcheryUpdatesController.hatcherySingleData.value?.data;
+              final hasData = data != null && data.isNotEmpty;
+              return Container(
+                height: 110,
+                width: double.infinity,
+                color: AppColors.primary,
+                padding: const EdgeInsets.all(16),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // ---------- IMAGE + NAME ----------
+                        Expanded(
+                          child: Row(
+                            children: [
+                              ClipOval(
+                                child: Image.network(
+                                  hasData ? (data[0].thumbnail ?? '') : '',
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return CircleAvatar(
+                                      radius: 25,
+                                      backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  hasData ? (data[0].hatcheryName ?? '') : '',
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
 
-                      // ---------- LOCATION ----------
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on,
-                            color: Colors.blue,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            (hatcheryUpdatesController
-                                        .hatcherySingleData
-                                        .value
-                                        ?.data
-                                        ?.isEmpty ??
-                                    true)
-                                ? ""
-                                : (hatcheryUpdatesController
-                                          .hatcherySingleData
-                                          .value
-                                          ?.data?[0]
-                                          .locationName ??
-                                      ''),
-                            style: GoogleFonts.roboto(fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    ],
+                        // ---------- LOCATION ----------
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on,
+                              color: Colors.blue,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              hasData ? (data[0].locationName ?? '') : '',
+                              style: GoogleFonts.roboto(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            }),
             SizedBox(height: 16),
             Obx(() {
               if (hatcheryUpdatesController.isSingleLoading.value) {

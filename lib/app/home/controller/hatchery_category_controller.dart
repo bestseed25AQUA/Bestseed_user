@@ -19,11 +19,20 @@ class HatcheryCategoryController extends GetxController {
     similarHatcheries: [],
   ).obs;
 
-  Future<void> fetchHetcheryCategory(String id) async {
+  /// Fetch hatchery categories
+  /// [id] - The hatchery identifier
+  /// [useHatcheryId] - If true, uses database id endpoint (/hatchery-by-id),
+  ///                   if false, uses unique_id endpoint (/hatchery-all-category)
+  Future<void> fetchHetcheryCategory(String id, {bool useHatcheryId = false}) async {
     try {
       isLoading.value = true;
-      final endpoint = '${NetworkConfig.baseURL}/farmer/hatchery-all-category/$id';
-      print('🔍 Fetching hatchery categories for ID: $id');
+      // Use different endpoints based on the source
+      // - Search flow: useHatcheryId = true -> /hatchery-by-id/{id}
+      // - Home screen flow: useHatcheryId = false -> /hatchery-all-category/{unique_id}
+      final endpoint = useHatcheryId
+          ? '${NetworkConfig.baseURL}/farmer/hatchery-by-id/$id'
+          : '${NetworkConfig.baseURL}/farmer/hatchery-all-category/$id';
+      print('🔍 Fetching hatchery categories for ID: $id (useHatcheryId: $useHatcheryId)');
       print('📍 Endpoint: $endpoint');
 
       final response = await getRequest(

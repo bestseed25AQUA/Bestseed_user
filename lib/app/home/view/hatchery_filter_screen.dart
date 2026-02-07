@@ -395,6 +395,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                                 builder: (_) => HatcheryCateogryScreen(
                                   hatcheryId: item.id.toString(),
                                   hatcheryName: item.hatcheryName.toString(),
+                                  useHatcheryId: true, // Use database id endpoint for search flow
                                 ),
                               ),
                             );

@@ -108,10 +108,16 @@ class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer> {
     } catch (e) {
       print('FullScreenVideoPlayer: Video load error: $e');
       if (mounted) {
+        String message = e.toString();
+        // Show user-friendly error for 4K/high-resolution videos
+        if (message.contains('EXCEEDS_CAPABILITIES') ||
+            message.contains('DecoderInitializationException')) {
+          message = 'Video resolution too high for this device. Please ask admin to upload a lower resolution video.';
+        }
         setState(() {
           _hasError = true;
           _isLoading = false;
-          _errorMessage = e.toString();
+          _errorMessage = message;
         });
       }
     }

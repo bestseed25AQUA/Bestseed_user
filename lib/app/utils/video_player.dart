@@ -6,12 +6,14 @@ class InlineVideoPlayer extends StatefulWidget {
   final String url;
   final String title; // hatchery name or any title
   final double? height;
+  final Function(bool isPlaying)? onPlayStateChanged; // Callback when play/pause state changes
 
   const InlineVideoPlayer({
     super.key,
     required this.url,
     required this.title,
     this.height,
+    this.onPlayStateChanged,
   });
 
   @override
@@ -80,15 +82,17 @@ class _InlineVideoPlayerState extends State<InlineVideoPlayer> {
         });
       }
       print('InlineVideoPlayer: Video initialized successfully');
-    } catch (e, stackTrace) {
-      print('InlineVideoPlayer: Video initialization error!');
-      print('InlineVideoPlayer: URL = $videoUrl');
-      print('InlineVideoPlayer: Error = $e');
-      print('InlineVideoPlayer: Stack = $stackTrace');
+    } catch (e) {
+      print('InlineVideoPlayer: Video initialization error: $e');
       if (mounted) {
+        String message = e.toString();
+        if (message.contains('EXCEEDS_CAPABILITIES') ||
+            message.contains('DecoderInitializationException')) {
+          message = 'Video resolution too high for this device';
+        }
         setState(() {
           _hasError = true;
-          _errorMessage = e.toString();
+          _errorMessage = message;
         });
       }
     }
@@ -102,9 +106,12 @@ class _InlineVideoPlayerState extends State<InlineVideoPlayer> {
 
   void _togglePlay() {
     if (_controller == null) return;
+    final willPlay = !_controller!.value.isPlaying;
     setState(() {
-      _controller!.value.isPlaying ? _controller!.pause() : _controller!.play();
+      willPlay ? _controller!.play() : _controller!.pause();
     });
+    // Notify parent about play state change
+    widget.onPlayStateChanged?.call(willPlay);
   }
 
   void _openFullscreen() {

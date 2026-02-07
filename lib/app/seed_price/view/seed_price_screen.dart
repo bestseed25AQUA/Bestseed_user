@@ -79,19 +79,21 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: CustomIconAppbar(
-        title: "Seed Prices",
-        ontapBack: () {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          // Navigate to home screen (index 0) when back is pressed
           dashboardCtrl.changeIndex(0);
-        },
-      ),
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: CustomIconAppbar(
+          title: "Seed Prices",
+          showBackButton: false, // No back button for bottom nav screens
+        ),
       body: Obx(() {
-        // if (controller.isLoading.value) {
-        //   return const Center(child: CircularProgressIndicator());
-        // }
-
         PriceModel? priceData = controller.priceData.value;
 
         if ((priceData == null || priceData.prices.isEmpty) && !_dialogShown) {
@@ -207,20 +209,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
             physics: AlwaysScrollableScrollPhysics(),
             child: Column(
               children: [
-                //  SizedBox(height: 10),
-                // // Container(color: Colors.black,height: 10,width: double.infinity,),
-                // SizedBox(
-                //   width: AppSize.width,
-                //   child: Align(
-                //     alignment: Alignment.center,
-                //     child: WantedBannerWidget(
-                //       ontapImage: () {
-                //         Get.to(WantedCropBuyersScreen());
-                //       },
-                //     ),
-                //   ),
-                // ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 InkWell(
                   borderRadius: BorderRadius.circular(12),
                   onTap: () {
@@ -231,101 +220,164 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                     child: Image.asset(
                       'assets/images/wanted_banner.png',
                       width: MediaQuery.of(context).size.width * .9,
-                      height: 150,
+                      height: 110,
+                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
-                // const SizedBox(height: 10),
-                // const SizedBox(height: 10),
-                // SeedPriceBannerWidget(),
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                    horizontal: 0,
+                    vertical: 4,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // --- Filters: Location & Category ---
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Obx(() {
-                              if (controller.locations.isEmpty) {
-                                return const SizedBox();
-                              }
-                              return CustomDropdown<Location>(
-                                selectedValue:
-                                    controller.selectedLocation.value,
-                                items: controller.locations,
-                                itemLabel: (loc) => loc.title,
-                                hintText: "Select Location",
-                                backgroundColor: Color(0xffF3F4F6),
-                                onChanged: (loc) {
-                                  controller.selectedLocation.value = loc;
-                                  _dialogShown = false;
-                                  controller.getPrices();
-                                },
-                              );
-                            }),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Obx(() {
-                              if (controller.categories.isEmpty) {
-                                return const SizedBox();
-                              }
-
-                              return CustomDropdown<Category>(
-                                selectedValue:
-                                    controller.selectedCategory.value,
-                                items: controller.categories,
-                                itemLabel: (cat) => cat.categoryName,
-                                hintText: "Select Category",
-                                backgroundColor: Color(0xffDCEEF8),
-                                onChanged: (cat) {
-                                  controller.selectedCategory.value = cat;
-                                  _dialogShown = false;
-                                  controller.getPrices();
-                                },
-                              );
-                            }),
-                          ),
-                        ],
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Obx(() {
+                                if (controller.locations.isEmpty) {
+                                  return const SizedBox();
+                                }
+                                return CustomDropdown<Location>(
+                                  selectedValue:
+                                      controller.selectedLocation.value,
+                                  items: controller.locations,
+                                  itemLabel: (loc) => loc.title,
+                                  hintText: "Select Location",
+                                  backgroundColor: Color(0xffF3F4F6),
+                                  onChanged: (loc) {
+                                    controller.selectedLocation.value = loc;
+                                    _dialogShown = false;
+                                    controller.getPrices();
+                                  },
+                                );
+                              }),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Obx(() {
+                                if (controller.categories.isEmpty) {
+                                  return const SizedBox();
+                                }
+                        
+                                // Blue dropdown style category selector
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    color: Color(0xff2196F3),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: PopupMenuButton<Category>(
+                                    offset: const Offset(0, 45),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    onSelected: (cat) {
+                                      controller.selectedCategory.value = cat;
+                                      _dialogShown = false;
+                                      controller.getPrices();
+                                    },
+                                    itemBuilder: (context) {
+                                      return controller.categories.map((cat) {
+                                        final isSelected =
+                                            controller.selectedCategory.value?.categoryName ==
+                                                cat.categoryName;
+                                        return PopupMenuItem<Category>(
+                                          value: cat,
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                cat.categoryName,
+                                                style: GoogleFonts.roboto(
+                                                  fontSize: 15,
+                                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                                  color: isSelected ? Color(0xff2196F3) : Colors.black87,
+                                                ),
+                                              ),
+                                              if (isSelected)
+                                                Icon(Icons.check, color: Color(0xff2196F3), size: 18),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList();
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 10,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              controller.selectedCategory.value
+                                                      ?.categoryName ??
+                                                  "Select Category",
+                                              style: GoogleFonts.roboto(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          Icon(
+                                            Icons.keyboard_arrow_down,
+                                            color: Colors.white,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 0),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 8,
-                          horizontal: 16,
+                        padding: const EdgeInsets.only(
+                          top: 6, bottom: 0,
+                          left: 0,
                         ),
                         decoration: BoxDecoration(
-                          // color: Colors.blue[50],
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Count',
-                              style: GoogleFonts.roboto(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blueGrey[700],
+                            Expanded(
+                              child: Text(
+                                'Count',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.roboto(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w300,
+                                  color: Colors.black,
+                                ),
                               ),
                             ),
-                            Text(
-                              "Today's Prices",
-                              style: GoogleFonts.roboto(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blueGrey[700],
+                            Expanded(
+                              child: Text(
+                                "Today's Price",
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.roboto(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w300,
+                                  color: Colors.black,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 2),
                       if (controller.isLoading.value)
                         AnimatedAppearance(
                           child: ListView.builder(
@@ -355,10 +407,10 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                vertical: 8,
-                                horizontal: 8,
+                                vertical: 4,
+                                horizontal: 0,
                               ),
-                              height: MediaQuery.of(context).size.height * .4,
+                              height: MediaQuery.of(context).size.height * .42,
                               child: Scrollbar(
                                 thumbVisibility: true,
                                 child: ListView.builder(
@@ -371,42 +423,43 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                                     return AnimatedAppearance(
                                       child: Container(
                                         margin: const EdgeInsets.only(
-                                          bottom: 10,
+                                          bottom: 1,
                                         ),
                                         padding: const EdgeInsets.symmetric(
-                                          vertical: 7,
-                                          horizontal: 16,
+                                          vertical: 10,
+                                          horizontal: 0,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Color(0xffF3F4F6),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
+                                          color: Colors.white,
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: Colors.grey.shade200,
+                                              width: 1,
+                                            ),
                                           ),
-                                          boxShadow: [
-                                            // BoxShadow(
-                                            //   color: Colors.black.withOpacity(.3),
-                                            //   blurRadius: 6,
-                                            //   offset: const Offset(0, 3),
-                                            // ),
-                                          ],
                                         ),
                                         child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
                                           children: [
-                                            Text(
-                                              item.size,
-                                              style: GoogleFonts.roboto(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w500,
+                                            Expanded(
+                                              child: Text(
+                                                item.size,
+                                                textAlign: TextAlign.center,
+                                                style: GoogleFonts.roboto(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w400,
+                                                  color: Colors.black87,
+                                                ),
                                               ),
                                             ),
-                                            Text(
-                                              "₹${item.todayPrice}",
-                                              style: GoogleFonts.roboto(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.blue[800],
+                                            Expanded(
+                                              child: Text(
+                                                "₹ ${item.todayPrice}",
+                                                textAlign: TextAlign.center,
+                                                style: GoogleFonts.roboto(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Color(0xff2196F3),
+                                                ),
                                               ),
                                             ),
                                           ],
@@ -417,11 +470,43 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                                 ),
                               ),
                             ),
-                            Text(
-                              'The above prices may vary between above or below 5 rs per kilogram.',
-                              style: GoogleFonts.roboto(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
+                            const SizedBox(height: 16),
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 8),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.grey.shade200,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 2),
+                                    child: Icon(
+                                      Icons.error,
+                                      color: Colors.red,
+                                      size: 22,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      // 'We are always committed to bring you the latest market price trends best in-time. You are requested to note that the prices mentioned here are subject to frequent change depending on market conditions, type of buyers (traders, agents and/or exporters), quantity requirements and other influencing factors. The change in pricing may vary between Rs.2 to 12 per kilogram. Please refer to the disclaimer to know more.',
+                                      'The above prices may vary between above or below 5 rs per kilogram.',
+                                      style: GoogleFonts.roboto(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w400,
+                                        color: Colors.grey[700],
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -451,6 +536,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
           ),
         );
       }),
+      ),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/common/voice_mic_button.dart';
 import 'package:seedsuser/app/spot_hatchery/controller/spot_hatchery_controller.dart';
 import 'package:seedsuser/app/spot_hatchery/view/harchery_card_widget.dart';
@@ -208,11 +209,15 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
           ),
         ),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: _buildSearchBar(
+      body: CustomRefereshIndicator(
+        onRefresh: () async {
+          await controller.fetchSpotHatcheries();
+        },
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: _buildSearchBar(
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -290,6 +295,7 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
             }),
           ),
         ],
+        ),
       ),
     );
   }

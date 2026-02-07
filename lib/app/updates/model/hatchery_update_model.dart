@@ -49,6 +49,7 @@ class HatcheryData {
   String? caption;
   List<String>? hashtags;
   List<String>? mediaFiles;
+  List<String>? mediaTypes; // NEW: array of media types
   String? mediaType;
   String? postedOn;
 
@@ -76,6 +77,7 @@ class HatcheryData {
     this.caption,
     this.hashtags,
     this.mediaFiles,
+    this.mediaTypes,
     this.mediaType,
     this.postedOn,
     this.callUrl,
@@ -89,7 +91,7 @@ class HatcheryData {
     this.vendorName,
     this.vendorMobile,
     this.hatcheryId,
-    this.locationName
+    this.locationName,
   });
 
   factory HatcheryData.fromJson(Map<String, dynamic> json) {
@@ -103,6 +105,27 @@ class HatcheryData {
           .toList();
     }
 
+    // Parse media_files array from API (with fallback to single media_path)
+    List<String> mediaFilesList = [];
+    if (json["media_files"] != null && json["media_files"] is List) {
+      mediaFilesList = List<String>.from(
+          json["media_files"].where((e) => e != null && e.toString().isNotEmpty));
+    } else if (json["media_path"] != null &&
+        json["media_path"].toString().isNotEmpty) {
+      // Fallback to single media_path for backward compatibility
+      mediaFilesList = [json["media_path"]];
+    }
+
+    // Parse media_types array from API
+    List<String> mediaTypesList = [];
+    if (json["media_types"] != null && json["media_types"] is List) {
+      mediaTypesList = List<String>.from(
+          json["media_types"].where((e) => e != null && e.toString().isNotEmpty));
+    } else if (json["media_type"] != null) {
+      // Fallback to single media_type
+      mediaTypesList = [json["media_type"]];
+    }
+
     return HatcheryData(
       id: json["id"],
 
@@ -112,7 +135,8 @@ class HatcheryData {
       locationName: json["hatchery"]?["location_name"],
       caption: json["description"] ?? "",
       hashtags: tagList,
-      mediaFiles: [json["media_path"] ?? ""],
+      mediaFiles: mediaFilesList,
+      mediaTypes: mediaTypesList,
       mediaType: json["media_type"],
       postedOn: json["posted_on"],
 
@@ -138,11 +162,12 @@ class HatcheryData {
   Map<String, dynamic> toJson() => {
         "id": id,
         "hatchery_name": hatcheryName,
-        "location_name":locationName,
+        "location_name": locationName,
         "profile_image": profileImage,
         "caption": caption,
         "hashtags": hashtags ?? [],
         "media_files": mediaFiles ?? [],
+        "media_types": mediaTypes ?? [],
         "media_type": mediaType,
         "posted_on": postedOn,
         "call_url": callUrl,

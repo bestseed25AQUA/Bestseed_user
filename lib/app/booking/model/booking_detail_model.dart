@@ -25,6 +25,12 @@ class BookingDetailModel {
 
   final CancellationReasonModel? cancellationReason;
 
+  // Driver details (available when status >= 3)
+  final DriverDetailModel? driver;
+  final String? vendorMobile;
+  final String? bookingDescription;
+  final String? vehicleDescription;
+
   BookingDetailModel({
     required this.bookingUId,
     required this.status,
@@ -45,6 +51,10 @@ class BookingDetailModel {
     required this.categoryName,
     this.cancellationReason,
     required this.statusValue,
+    this.driver,
+    this.vendorMobile,
+    this.bookingDescription,
+    this.vehicleDescription,
   });
 
   factory BookingDetailModel.fromJson(Map<String, dynamic> json) {
@@ -85,6 +95,13 @@ class BookingDetailModel {
       cancellationReason: booking["cancellation_reason"] != null
           ? CancellationReasonModel.fromJson(booking["cancellation_reason"])
           : null,
+
+      driver: booking["driver"] != null
+          ? DriverDetailModel.fromJson(booking["driver"])
+          : null,
+      vendorMobile: booking["vendor_mobile"]?.toString(),
+      bookingDescription: booking["booking_description"]?.toString(),
+      vehicleDescription: booking["vehicle_description"]?.toString(),
     );
   }
 }
@@ -99,6 +116,35 @@ class CancellationReasonModel {
     return CancellationReasonModel(
       code: json["code"] ?? 0,
       text: json["text"]?.toString() ?? "",
+    );
+  }
+}
+
+class DriverDetailModel {
+  final String? name;
+  final String? mobile;
+  final String? image;
+  final String? vehicleNumber;
+  final String? vehicleStartedDate;
+  final String? vehicleStartAddress;
+
+  DriverDetailModel({
+    this.name,
+    this.mobile,
+    this.image,
+    this.vehicleNumber,
+    this.vehicleStartedDate,
+    this.vehicleStartAddress,
+  });
+
+  factory DriverDetailModel.fromJson(Map<String, dynamic> json) {
+    return DriverDetailModel(
+      name: json["name"]?.toString(),
+      mobile: json["mobile"]?.toString(),
+      image: json["image"]?.toString(),
+      vehicleNumber: json["vehicle_number"]?.toString(),
+      vehicleStartedDate: json["vehicle_started_date"]?.toString(),
+      vehicleStartAddress: json["vehicle_start_address"]?.toString(),
     );
   }
 }

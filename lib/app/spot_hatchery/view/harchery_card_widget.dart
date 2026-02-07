@@ -254,7 +254,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                     ),
                   ),
 
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 8),
 
                   // // Location
                   if (hasLocation || hasStock)
@@ -306,7 +306,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                     ),
 
                   // if (hatchery.locationName?.isNotEmpty ?? false)
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       _actionButton(

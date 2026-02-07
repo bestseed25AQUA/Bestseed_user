@@ -1,14 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
-import 'package:carousel_slider/carousel_slider.dart';
-import 'package:get/get.dart';
-import 'package:seedsuser/app/common/full_image_screen.dart';
-import 'package:seedsuser/app/home/view/full_video_screen.dart';
-import 'package:seedsuser/app/home/widget/hachery_category_banner_widget.dart';
-import 'package:video_player/video_player.dart';
-
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:carousel_slider/carousel_slider.dart';
+import 'package:seedsuser/app/common/full_media_screen.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 
 class MediaCarouselWidget extends StatefulWidget {
@@ -49,19 +42,19 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
           itemBuilder: (context, index, realIndex) {
             final type = widget.mediaTypes?[index] ?? widget.mediaType;
             final url = widget.mediaUrls[index];
-            // print('object');
-            // print(url);
             return type == "image"
                 ? _buildImage(
                     url,
                     widget.borderRadius ?? 12,
                     title: widget.title,
+                    index: index,
                   )
                 : _buildVideo(
                     url,
                     widget.borderRadius ?? 12,
                     widget.height,
                     widget.title,
+                    index: index,
                   );
           },
           options: CarouselOptions(
@@ -96,30 +89,36 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
     );
   }
 
-  Widget _buildImage(String imageUrl, double borderRadius, {String? title}) {
+  void _openFullScreen(int index) {
+    // Build media types list for full screen
+    final types = widget.mediaTypes ??
+        List.generate(widget.mediaUrls.length, (_) => widget.mediaType ?? 'image');
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FullMediaScreen(
+          mediaUrls: widget.mediaUrls,
+          mediaTypes: types,
+          initialIndex: index,
+          title: widget.title,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImage(String imageUrl, double borderRadius, {String? title, int index = 0}) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          PageRouteBuilder(
-            transitionDuration: const Duration(milliseconds: 400),
-            pageBuilder: (_, __, ___) =>
-                FullImageScreen(imageUrl: imageUrl, title: title),
-          ),
-        );
-      },
-      child: Hero(
-        tag: imageUrl,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(borderRadius ?? 30),
-          child: Image.network(
-            imageUrl,
-            width: double.infinity,
-            fit: BoxFit.fill,
-            errorBuilder: (_, __, ___) => Container(
-              color: Colors.grey[300],
-              child: const Icon(Icons.broken_image),
-            ),
+      onTap: () => _openFullScreen(index),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: Image.network(
+          imageUrl,
+          width: double.infinity,
+          fit: BoxFit.fill,
+          errorBuilder: (_, __, ___) => Container(
+            color: Colors.grey[300],
+            child: const Icon(Icons.broken_image),
           ),
         ),
       ),
@@ -131,12 +130,11 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
     String url,
     double borderRadius,
     double? aspectRatio,
-    String? title,
-  ) {
+    String? title, {
+    int index = 0,
+  }) {
     return GestureDetector(
-      onTap: () {
-        Get.to(() => FullScreenVideoPlayer(videoUrl: url, title: title));
-      },
+      onTap: () => _openFullScreen(index),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
         child: Stack(
@@ -144,7 +142,6 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
           children: [
             VideoPlayerPreview(
               url: url,
-              // aspectRatio: aspectRatio,
               height: widget.height,
             ),
             const Icon(Icons.play_circle_fill, size: 65, color: Colors.white),
@@ -210,7 +207,7 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(.5),
+                      color: Colors.black.withValues(alpha: 0.5),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -225,5 +222,3 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     );
   }
 }
-
-/// ---------------- FULL SCREEN VIDEO ----------------

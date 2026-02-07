@@ -1,19 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:seedsuser/app/common/custom_button.dart';
-import 'package:seedsuser/app/common/custom_dropdown.dart';
-import 'package:seedsuser/app/common/custom_toast.dart';
-import 'package:seedsuser/app/home/booking_review_widget.dart';
-import 'package:seedsuser/app/home/map_search_screen.dart';
-import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_button.dart';
+import 'package:seedsuser/app/common/custom_dropdown.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/home/booking_review_widget.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/controller/location_controller.dart';
 import 'package:seedsuser/app/home/map_search_screen.dart';
@@ -52,6 +46,8 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
   final List<String> _salinity = List.generate(41, (index) => '$index');
 
   Position? currentPosition;
+  bool _isGettingLocation = false;
+
   Future<Position?> getCurrentLocation() async {
     currentPosition = await _getCurrentLocation();
     return currentPosition;
@@ -80,8 +76,15 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
       return null;
     }
 
+    // Try last known position first for speed
+    final lastKnown = await Geolocator.getLastKnownPosition();
+    if (lastKnown != null && currentPosition == null) {
+      currentPosition = lastKnown;
+    }
+
+    // Then get accurate position
     final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
+      desiredAccuracy: LocationAccuracy.medium,
     );
     print('====current location get successfully=======');
     return position;
@@ -98,6 +101,27 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     super.dispose();
   }
 
+  void _openMapScreen(NavigatorState navigator) {
+    final double lat = currentPosition!.latitude;
+    final double lng = currentPosition!.longitude;
+
+    navigator.push<bool>(
+      MaterialPageRoute(
+        builder: (ctx) => GoogleMapSearchPlacesScreen(
+          latitude: lat,
+          longitude: lng,
+          ontapSelectLocation: (location, fullAddress) {
+            if (mounted) {
+              setState(() {
+                _dropLocController.text = fullAddress;
+              });
+            }
+          },
+        ),
+      ),
+    );
+  }
+
   String calculatePrice(String noOfPices, String price) {
     try {
       return (double.parse(noOfPices) * double.parse(price)).toString();
@@ -108,9 +132,37 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
 
   @override
   void initState() {
-    // TODO: implement initState
-    getCurrentLocation();
     super.initState();
+    getCurrentLocation();
+    _autoFillUserData();
+  }
+
+  /// Auto-fill name and phone from user profile
+  void _autoFillUserData() {
+    try {
+      final profileController = Get.find<ProfileController>();
+      final profile = profileController.profile.value;
+
+      if (profile != null) {
+        // Auto-fill name (combine first and last name)
+        final firstName = profile.firstName ?? '';
+        final lastName = profile.lastName ?? '';
+        final fullName = '$firstName $lastName'.trim();
+        if (fullName.isNotEmpty) {
+          _nameController.text = fullName;
+        }
+
+        // Auto-fill phone number
+        if (profile.mobile != null && profile.mobile!.isNotEmpty) {
+          _phoneController.text = profile.mobile!;
+        }
+      }
+    } catch (e) {
+      // ProfileController not registered yet, ignore
+      if (kDebugMode) {
+        print('Profile not available for auto-fill: $e');
+      }
+    }
   }
 
   @override
@@ -242,27 +294,28 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               controller: _dropLocController,
               iconColor: Colors.blue,
               label: "Dropping location",
-              hint: "Tap to select location from map",
+              hint: _isGettingLocation ? "Getting location..." : "Tap to select location from map",
               icon: Icons.location_on_outlined,
               readOnly: true,
               ontapSuffix: () async {
-                print('--- DROP LOCATION TAPPED ---');
-                print('BottomSheet mounted: $mounted');
+                // Prevent double tap
+                if (_isGettingLocation) return;
 
                 // Capture navigator before async gap
                 final navigator = Navigator.of(context);
 
-                // Always try to get fresh location if current position is null
-                if (currentPosition == null) {
-                  print('Getting fresh location...');
-                  currentPosition = await getCurrentLocation();
+                // If location already available, open map immediately
+                if (currentPosition != null) {
+                  _openMapScreen(navigator);
+                  return;
                 }
 
-                print(
-                  'Opening map - Current position: ${currentPosition?.latitude}, ${currentPosition?.longitude}',
-                );
+                // Show loading while getting location
+                setState(() => _isGettingLocation = true);
+                currentPosition = await getCurrentLocation();
+                if (!mounted) return;
+                setState(() => _isGettingLocation = false);
 
-                // If still no location, show error and return
                 if (currentPosition == null) {
                   CustomToast.show(
                     message:
@@ -271,39 +324,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                   return;
                 }
 
-                // Store coordinates before navigation
-                final double lat = currentPosition!.latitude;
-                final double lng = currentPosition!.longitude;
-
-                // Check if widget is still mounted before navigation
-                if (!mounted) return;
-
-                // Navigate to map screen using Navigator.push
-                final result = await navigator.push<bool>(
-                  MaterialPageRoute(
-                    builder: (ctx) => GoogleMapSearchPlacesScreen(
-                      latitude: lat,
-                      longitude: lng,
-                      ontapSelectLocation: (location, fullAddress) async {
-                        print('CALLBACK RECEIVED LOCATION: $location');
-                        print('FULL ADDRESS: $fullAddress');
-                        try {
-                          // Use the full address directly from the map screen
-                          // It's already properly formatted with all components
-                          if (mounted) {
-                            setState(() {
-                              _dropLocController.text = fullAddress;
-                            });
-                          }
-                        } catch (e) {
-                          print('Error setting address: $e');
-                        }
-                      },
-                    ),
-                  ),
-                );
-                print('Map closed with result: $result');
-                print('--- END DROP LOCATION FLOW ---');
+                _openMapScreen(navigator);
               },
             ),
 

@@ -5,9 +5,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/controller/my_booking_controller.dart';
 import 'package:seedsuser/app/booking/view/booking_detail_screen.dart';
 import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
-import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 import 'package:seedsuser/app/model/my_booking_model.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
+import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
+import 'package:seedsuser/app/spot_hatchery/view/spot_hatchery_detail_screen.dart';
+import 'package:seedsuser/app/spot_hatchery/controller/spot_hatchery_controller.dart';
+import 'package:seedsuser/app/home/view/vehicle_availability_detail_screen.dart';
+import 'package:seedsuser/app/home/controller/vehicle_availabilitys_controller.dart';
+import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
@@ -28,7 +33,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
     super.initState();
 
     _initSpeech();
-    controller.fetchBookings();
+    // fetchBookings() is already called in controller's onInit()
 
     _scrollController.addListener(() {
       if (_scrollController.position.atEdge) {
@@ -416,31 +421,36 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
   }
 
   Widget _monthChip(int month) {
-    return InkWell(
-      onTap: () {
-        controller.selectedMonth.value = month.toString();
-        controller.selectedYear.value = "";
-        controller.selectedDate.value = "";
-        controller.fetchBookings();
-        Navigator.pop(context);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.blue.shade50,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.blue.shade300),
-        ),
-        child: Text(
-          _monthName(month),
-          style: GoogleFonts.roboto(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.blue.shade700,
+    return Obx(() {
+      final isSelected = controller.selectedMonth.value == month.toString();
+      return InkWell(
+        onTap: () {
+          controller.selectedMonth.value = month.toString();
+          controller.selectedDate.value = "";
+          controller.fetchBookings();
+          Navigator.pop(context);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.blue.shade300 : Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? Colors.blue.shade700 : Colors.blue.shade300,
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Text(
+            _monthName(month),
+            style: GoogleFonts.roboto(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: isSelected ? Colors.white : Colors.blue.shade700,
+            ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   String _monthName(int m) {
@@ -461,32 +471,38 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
   }
 
   Widget _yearChip(int year) {
-    return InkWell(
-      onTap: () {
-        controller.selectedMonth.value = "";
-        controller.selectedDate.value = "";
-        controller.selectedYear.value = year.toString();
-        controller.fetchBookings();
-        Navigator.pop(context);
-      },
-      child: Container(
-        margin: const EdgeInsets.only(right: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.green.shade50,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.green.shade300),
-        ),
-        child: Text(
-          "$year",
-          style: GoogleFonts.roboto(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.green.shade700,
+    return Obx(() {
+      final isSelected = controller.selectedYear.value == year.toString();
+      return InkWell(
+        onTap: () {
+          controller.selectedMonth.value = "";
+          controller.selectedDate.value = "";
+          controller.selectedYear.value = year.toString();
+          controller.fetchBookings();
+          Navigator.pop(context);
+        },
+        child: Container(
+          margin: const EdgeInsets.only(right: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.green.shade400 : Colors.green.shade50,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? Colors.green.shade700 : Colors.green.shade300,
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Text(
+            "$year",
+            style: GoogleFonts.roboto(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: isSelected ? Colors.white : Colors.green.shade700,
+            ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   String selectedFilter = "All";
@@ -622,8 +638,11 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
               final query = _searchController.text.trim().toLowerCase();
 
               final filteredList = controller.bookingList.where((item) {
-                return query.isEmpty ||
-                    item.hatcheryName.toString().toLowerCase().contains(query);
+                if (query.isEmpty) return true;
+                return item.bookingId.toString().contains(query) ||
+                    item.bookingUid.toLowerCase().contains(query) ||
+                    item.hatcheryName.toLowerCase().contains(query) ||
+                    item.droppingLocation.toLowerCase().contains(query);
               }).toList();
               return Column(
                 children: [
@@ -680,38 +699,105 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                     ),
                   ),
                   Expanded(
-                    child: Obx(() {
-                      return ListView.builder(
+                    child: filteredList.isEmpty && query.isNotEmpty
+                        ? Center(
+                            child: Text(
+                              "No bookings found",
+                              style: GoogleFonts.roboto(fontSize: 16),
+                            ),
+                          )
+                        : ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         itemCount:
-                            controller.bookingList.length +
-                            (controller.hasMore ? 1 : 0),
+                            filteredList.length +
+                            (query.isEmpty && controller.hasMore ? 1 : 0),
                         itemBuilder: (context, index) {
-                          if (index < controller.bookingList.length) {
-                            final booking = controller.bookingList[index];
-                            return _buildBookingCard(booking, () {
-                              Get.to(
-                                BookingDetailScreen(
-                                  hatcheryName: booking.hatcheryName,
-                                  bookingId: booking.bookingId.toString(),
-                                ),
-                              );
-                            }, () {});
+                          if (index < filteredList.length) {
+                            final booking = filteredList[index];
+                            return _buildBookingCard(
+                              booking,
+                              () {
+                                Get.to(
+                                  BookingDetailScreen(
+                                    hatcheryName: booking.hatcheryName,
+                                    bookingId: booking.bookingId.toString(),
+                                  ),
+                                );
+                              },
+                              () async {
+                                // Navigate to correct screen based on booking type
+                                if (booking.isSpot?.value == 1) {
+                                  // Spot Hatchery - fetch data and navigate to detail
+                                  final spotController = Get.put(
+                                    SpotHatcheryController(),
+                                  );
+                                  if (spotController.spotHatchery.isEmpty) {
+                                    await spotController.fetchSpotHatcheries();
+                                  }
+                                  final spotHatchery = spotController
+                                      .spotHatchery
+                                      .firstWhereOrNull(
+                                        (s) =>
+                                            s.hatcheryId == booking.hatcheryId,
+                                      );
+                                  if (spotHatchery != null) {
+                                    Get.to(
+                                      () => SpotHatcheryDetailScreen(
+                                        spotHatchery: spotHatchery,
+                                      ),
+                                    );
+                                  } else {
+                                    CustomToast.error(
+                                      "Spot hatchery not found",
+                                    );
+                                  }
+                                } else if (booking.isSpot?.value == 2) {
+                                  // Vehicle Availability - fetch data and navigate to detail
+                                  final vehicleController = Get.put(
+                                    VehicleAvailabilitysController(),
+                                  );
+                                  if (vehicleController.vehicleList.isEmpty) {
+                                    await vehicleController
+                                        .fetchVehicleAvailability();
+                                  }
+                                  final vehicle = vehicleController.vehicleList
+                                      .firstWhereOrNull(
+                                        (v) =>
+                                            v.vehicleId == booking.hatcheryId,
+                                      );
+                                  if (vehicle != null) {
+                                    Get.to(
+                                      () => VehicleAvailabilityDetailScreen(
+                                        vehicleAvailability: vehicle,
+                                      ),
+                                    );
+                                  } else {
+                                    CustomToast.error("Vehicle not found");
+                                  }
+                                } else {
+                                  // Regular Hatchery
+                                  Get.to(
+                                    () => HatcheryCateogryScreen(
+                                      hatcheryId: booking.hatcheryId.toString(),
+                                      hatcheryName: booking.hatcheryName,
+                                      useHatcheryId: true,
+                                    ),
+                                  );
+                                }
+                              },
+                            );
                           } else {
                             // LOAD MORE LOADER
-                            if (index == controller.bookingList.length) {
-                              return const Padding(
-                                padding: EdgeInsets.all(16),
-                                child: Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              );
-                            }
+                            return const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
                           }
                         },
-                      );
-                    }),
+                      ),
                   ),
                 ],
               );
@@ -747,7 +833,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
           },
           decoration: InputDecoration(
             icon: const Icon(Icons.search, color: Colors.grey),
-            hintText: 'Search for hatcherie...',
+            hintText: 'Search by ID, name or location...',
             border: InputBorder.none,
             isDense: true,
             suffixIcon: suffixIcon,
@@ -870,31 +956,8 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
           ),
           const SizedBox(height: 12),
           // -------------------- ID + DATETIME --------------------
-          Column(
+          Row(
             children: [
-              // Column(
-              //   crossAxisAlignment: CrossAxisAlignment.start,
-              //   children: [
-              //     Text(
-              //       "ID:",
-              //       style: GoogleFonts.roboto(
-              //         fontSize: 16,
-              //         fontWeight: FontWeight.w700,
-              //       ),
-              //     ),
-              //     SizedBox(height: 10),
-              //     SizedBox(
-              //       width: MediaQuery.of(context).size.width * .3,
-              //       child: Text(
-              //         data.bookingUid,
-              //         style: GoogleFonts.roboto(
-              //           fontSize: 13,
-              //           fontWeight: FontWeight.w400,
-              //         ),
-              //       ),
-              //     ),
-              //   ],
-              // ),
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -902,6 +965,41 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                 ),
               ),
+              Spacer(),
+              if (data.deliveryDatetime.isNotEmpty)
+                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
+              SizedBox(width: 3),
+              if (data.deliveryDatetime.isNotEmpty)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Dilivery Date",
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      color: Colors.grey.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 0),
+
+          // -------------------- HATCHERY NAME --------------------
+          Row(
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  data.hatcheryName,
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Spacer(),
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
@@ -914,17 +1012,6 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                 ),
               ),
             ],
-          ),
-
-          const SizedBox(height: 0),
-
-          // -------------------- HATCHERY NAME --------------------
-          Text(
-            data.hatcheryName,
-            style: GoogleFonts.roboto(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
           ),
           Text(
             data.categoryName,
@@ -958,7 +1045,8 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                 ),
               ),
 
-              const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
+              if (data.packingDate.isNotEmpty)
+                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
               const SizedBox(width: 6),
               Text(
                 data.packingDate,
@@ -971,6 +1059,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
           ),
 
           const SizedBox(height: 5),
+          if(data.droppingLocation.isNotEmpty)
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

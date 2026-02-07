@@ -12,7 +12,9 @@ class CustomIconAppbar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.title,
     this.bottom,
-    this.toolbarHeight = kToolbarHeight, this.ontapBack,
+    this.toolbarHeight = kToolbarHeight,
+    this.ontapBack,
+    this.showBackButton = true,
   });
 
   final String title;
@@ -20,12 +22,15 @@ class CustomIconAppbar extends StatelessWidget implements PreferredSizeWidget {
   final PreferredSizeWidget? bottom;
   final double toolbarHeight;
   final Function()? ontapBack;
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
     return CustomAppBar(
       automaticallyImplyLeading: false,
-      leading: IconButton(icon: Icon(Icons.arrow_back,color: Colors.black,), onPressed: ontapBack,),
+      leading: showBackButton
+          ? IconButton(icon: Icon(Icons.arrow_back, color: Colors.black), onPressed: ontapBack)
+          : null,
       titleWidget: Text(
         title,
         style: GoogleFonts.roboto(
@@ -33,7 +38,7 @@ class CustomIconAppbar extends StatelessWidget implements PreferredSizeWidget {
           fontWeight: FontWeight.bold,fontSize: 17
         ),
       ),
-      titleSpacing: 0,
+      titleSpacing: showBackButton ? 0 : 56,
       // titleWidget: Text(
       //   title,
       //   style: GoogleFonts.roboto(

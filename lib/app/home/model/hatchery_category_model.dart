@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:seedsuser/app/utils/network_config.dart';
 
 HatcheryDetailsResponse hatcheryDetailsResponseFromJson(String str) {
   return HatcheryDetailsResponse.fromJson(json.decode(str));
@@ -210,6 +211,7 @@ class BranchModel {
 
 class SimilarHatchery {
   final int id;
+  final String uniqueId; // Unique identifier for API calls
   final String hatcheryName;
   final int categoryId;
   final String? location;
@@ -220,6 +222,7 @@ class SimilarHatchery {
 
   SimilarHatchery({
     required this.id,
+    required this.uniqueId,
     required this.hatcheryName,
     required this.categoryId,
     required this.location,
@@ -230,8 +233,16 @@ class SimilarHatchery {
   });
 
   factory SimilarHatchery.fromJson(Map<String, dynamic> json) {
+    final rawImage = json["image"]?.toString() ?? "";
+    final resolvedImage = rawImage.isEmpty
+        ? null
+        : (rawImage.startsWith('http')
+              ? rawImage
+              : '${NetworkConfig.imageURL}/$rawImage');
+
     return SimilarHatchery(
       id: json["id"] is int ? json["id"] : int.tryParse("${json["id"]}") ?? 0,
+      uniqueId: json["unique_id"]?.toString() ?? '',
       hatcheryName: json["hatchery_name"]?.toString() ?? "",
       categoryId: json["category_id"] is int
           ? json["category_id"]
@@ -239,7 +250,7 @@ class SimilarHatchery {
       location: json["location"]?.toString(),
       status: json["status"]?.toString() ?? "",
       availableOn: json["available_on"]?.toString(),
-      image: json["image"]?.toString(),
+      image: resolvedImage,
       isSpot: json["is_spot"] is int
           ? json["is_spot"]
           : int.tryParse("${json["is_spot"]}") ?? 0,

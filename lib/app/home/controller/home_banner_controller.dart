@@ -8,6 +8,7 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 
 class HomeBannerController extends GetxController {
   var isLoading = true.obs;
+  var isTopLoading = false.obs;
   var banners = <BannerItem>[].obs;
   var bannersBackGround = <BannerItem>[].obs;
   var bannersMedicine = <BannerItem>[].obs;
@@ -16,10 +17,10 @@ class HomeBannerController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    fetchBannersTop();
     // fetchBanners();
     fetchBannersBackground();
     fetchBannersMedicine();
-    fetchBannersTop();
   }
 
   Future<void> fetchBanners() async {
@@ -73,11 +74,10 @@ class HomeBannerController extends GetxController {
 
   Future<void> fetchBannersTop() async {
     try {
-      isLoading.value = true;
+      isTopLoading.value = true;
 
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/banner_top",
-          //  endPoint: "${NetworkConfig.baseURL}/farmer/banner_bg",
         headers: await buildHeader(),
       );
 
@@ -87,13 +87,11 @@ class HomeBannerController extends GetxController {
         if (model.status) {
           bannersTop.assignAll(model.banners);
         }
-      } else {
-        CustomToast.error("Failed to fetch profile ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong  ");
+      print("Failed to fetch top banner: $e");
     } finally {
-      isLoading.value = false;
+      isTopLoading.value = false;
     }
   }
 

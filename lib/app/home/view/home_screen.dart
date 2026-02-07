@@ -6,6 +6,7 @@ import 'package:seedsuser/app/common/custom_loading_box.dart';
 import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/home/controller/filter_controller.dart';
 import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
+import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/controller/location_controller.dart';
 import 'package:seedsuser/app/home/view/all_screen.dart';
@@ -32,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen>
   );
   final ProfileController profileController = Get.put(ProfileController());
   final newsSpecificController = Get.put(NewsSpecificController());
+  final _homeBannerController = Get.put(HomeBannerController());
 
   @override
   void initState() {
@@ -195,6 +197,7 @@ class _HomeScreenState extends State<HomeScreen>
             return _tabController == null || (categories.isEmpty)
                 ? CustomRefereshIndicator(
                     onRefresh: () async {
+                      _homeBannerController.fetchBannersTop();
                       await _homeController.changeHomeData('', '');
                     },
                     child: homeShimmer(context),
@@ -205,6 +208,7 @@ class _HomeScreenState extends State<HomeScreen>
                     children: [
                       CustomRefereshIndicator(
                         onRefresh: () async {
+                          _homeBannerController.fetchBannersTop();
                           await _homeController.changeHomeData('', '');
                         },
                         child: const HomePage(),
@@ -214,6 +218,7 @@ class _HomeScreenState extends State<HomeScreen>
                           .map(
                             (e) => CustomRefereshIndicator(
                               onRefresh: () async {
+                                _homeBannerController.fetchBannersTop();
                                 await _homeController.changeHomeData(
                                   _homeController.selectedCategoryId.value,
                                   _locationController.selectedLocationId.value,

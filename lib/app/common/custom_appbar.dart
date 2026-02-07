@@ -58,7 +58,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             Text(
               titleString ?? myText,
               style: GoogleFonts.roboto(
-                color: Colors.black,fontSize:17,
+                color: Colors.black,fontSize:18,
                 fontWeight: FontWeight.bold,
               ),
             ),

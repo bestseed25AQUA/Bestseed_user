@@ -262,6 +262,8 @@ class MyBookingController extends GetxController {
           CustomToast.success(
             data['message'] ?? "Booking created successfully",
           );
+          // Refresh bookings list so new booking appears in MyBookingScreen
+          await fetchBookings();
           return data['data']?['booking_id']?.toString();
         } else {
           CustomToast.error(data['message'] ?? "Booking failed");

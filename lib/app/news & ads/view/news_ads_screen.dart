@@ -10,7 +10,6 @@ import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/controller/location_controller.dart';
-import 'package:seedsuser/app/home/view/full_video_screen.dart';
 import 'package:seedsuser/app/home/widget/home_banner_carousel.dart'
     hide VideoPlayerBanner;
 import 'package:seedsuser/app/language/language_screen.dart';
@@ -26,6 +25,7 @@ import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
 import 'package:seedsuser/app/utils/app_size.dart';
+import 'package:seedsuser/app/utils/video_player.dart';
 import 'package:shimmer/shimmer.dart';
 
 class NewsAdsScreen extends StatefulWidget {
@@ -44,6 +44,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
   final homeController = Get.put(HomeController());
 
   int _currentIndex = 0;
+  bool _isVideoPlaying = false; // Track if any video is playing to pause auto-scroll
   @override
   void initState() {
     super.initState();
@@ -67,12 +68,17 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
   final dashboardCtrl = Get.find<DashboardController>();
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: CustomIconAppbar(title: 'News & Ads', ontapBack: () {
-        dashboardCtrl.changeIndex(0);
-      },),
-      body: CustomRefereshIndicator(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          dashboardCtrl.changeIndex(0); // Navigate to home screen
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: CustomIconAppbar(title: 'News & Ads', showBackButton: false,),
+        body: CustomRefereshIndicator(
         onRefresh: () async {
           await newsAdsController.fetch();
         },
@@ -187,62 +193,25 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                         ),
                                       );
                                     } else {
-                                      // It's a video - show thumbnail with play icon, play on tap (fullscreen)
-                                      // DO NOT autoplay videos in carousel - causes lifecycle/surface conflicts
-                                      return GestureDetector(
-                                        onTap: () {
-                                          Get.to(
-                                            () => FullScreenVideoPlayer(
-                                              videoUrl: mediaUrl,
-                                              title: data?.title,
-                                            ),
-                                          );
-                                        },
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(12),
-                                            color: Colors.black87,
-                                            border: Border.all(width: .1, color: Colors.grey),
-                                          ),
-                                          child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(12),
-                                            child: Stack(
-                                              alignment: Alignment.center,
-                                              children: [
-                                                // Dark background for video thumbnail
-                                                Container(
-                                                  width: double.infinity,
-                                                  height: boxHeight,
-                                                  color: Colors.black87,
-                                                ),
-                                                // Play icon and title
-                                                Column(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
-                                                  children: [
-                                                    Icon(
-                                                      Icons.play_circle_fill,
-                                                      color: Colors.white,
-                                                      size: 60,
-                                                    ),
-                                                    SizedBox(height: 8),
-                                                    Padding(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                                                      child: Text(
-                                                        data?.title ?? 'Video',
-                                                        style: TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 14,
-                                                          fontWeight: FontWeight.w500,
-                                                        ),
-                                                        textAlign: TextAlign.center,
-                                                        maxLines: 2,
-                                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ],
-                                            ),
+                                      // It's a video - use InlineVideoPlayer with play/pause and fullscreen
+                                      return Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(12),
+                                          color: Colors.black87,
+                                          border: Border.all(width: .1, color: Colors.grey),
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(12),
+                                          child: InlineVideoPlayer(
+                                            url: mediaUrl,
+                                            title: data?.title ?? 'Video',
+                                            height: boxHeight - 20,
+                                            onPlayStateChanged: (isPlaying) {
+                                              // Pause/resume auto-scroll based on video play state
+                                              setState(() {
+                                                _isVideoPlaying = isPlaying;
+                                              });
+                                            },
                                           ),
                                         ),
                                       );
@@ -250,13 +219,16 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                   },
                                   options: CarouselOptions(
                                     height: boxHeight - 20,
-                                    autoPlay: true,
+                                    autoPlay: !_isVideoPlaying, // Pause auto-scroll when video is playing
                                     enlargeCenterPage: true,
                                     viewportFraction: 0.9,
                                     onPageChanged: (index, reason) {
                                       setState(() {
-                                        _currentIndex =
-                                            index; // update current index
+                                        _currentIndex = index;
+                                        // Stop video when carousel slides to another item
+                                        if (_isVideoPlaying) {
+                                          _isVideoPlaying = false;
+                                        }
                                       });
                                     },
                                   ),
@@ -348,7 +320,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                     ?.medicineNews?[index];
                                 return _buildNewsCard(
                                   data?.medicineName ?? "",
-                                  data?.curesFor ?? "",
+                                  data?.createdAt ?? "",
                                   data?.mediaPath ?? "",
                                   'medicine$index',
                                   () {
@@ -364,7 +336,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                             MedicineDetailScreen(
                                               id: data?.id.toString() ?? '',
                                               title: data?.medicineName ?? '',
-                                              subtitle: data?.curesFor ?? '',
+                                              subtitle: data?.createdAt ?? '',
                                               imageUrl: data?.mediaPath ?? '',
                                               tag: 'medicine$index',
                                             ),
@@ -498,6 +470,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -683,29 +656,22 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: ontap,
-              child: Hero(
-                tag: tag,
-                child: Material(
-                  color: Colors.white,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: isVideo
-                        ? Container(
-                            height: 120,
-                            width: 150,
-                            color: Colors.black87,
-                            child: Center(
-                              child: Icon(
-                                Icons.play_circle_fill,
-                                color: Colors.white,
-                                size: 50,
-                              ),
-                            ),
-                          )
-                        : Image.network(
+            // Media section - video or image
+            Hero(
+              tag: tag,
+              child: Material(
+                color: Colors.white,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: isVideo
+                      ? InlineVideoPlayer(
+                          url: mediaUrl,
+                          title: title,
+                          height: 120,
+                        )
+                      : InkWell(
+                          onTap: ontap,
+                          child: Image.network(
                             mediaUrl,
                             height: 120,
                             width: 150,
@@ -725,34 +691,39 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                               );
                             },
                           ),
-                  ),
+                        ),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Text(
-                title,
-                style: GoogleFonts.roboto(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+            // Title and subtitle - tappable to navigate to detail
+            InkWell(
+              onTap: ontap,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.roboto(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.left,
+                      maxLines: subtitle == null ? 2 : 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (subtitle != null && subtitle.isNotEmpty)
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
                 ),
-                textAlign: TextAlign.left,
-                maxLines: subtitle == null ? 2 : 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (subtitle != null && subtitle.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Text(
-                  subtitle,
-                  style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
           ],
         ),
       ),
