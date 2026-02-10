@@ -96,9 +96,8 @@ class _GoogleMapSearchPlacesScreenState
   }
 
   Future<Map<String, dynamic>> getLatLng(String placeId) async {
-    final apiKey = 'AIzaSyAAzpePCxZ8fp-habEMV2EcXfd9mU-vDRM';
     final url =
-        'https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=$apiKey';
+        'https://maps.googleapis.com/maps/api/place/details/json?place_id=$placeId&key=${NetworkConfig.googleApiKey2}';
 
     final response = await http.get(Uri.parse(url));
     if (response.statusCode == 200) {
@@ -252,10 +251,14 @@ class _GoogleMapSearchPlacesScreenState
                                   _focusNode.unfocus();
                                   setState(() => _placeList.clear());
 
-                                  Map<String, dynamic> data = await getLatLng(placeId);
-                                  var latLng = getLatLongFromMap(data);
-                                  _addMarkerAnimateCameraPosition(latLng);
-                                  _selectedLocation = latLng;
+                                  try {
+                                    Map<String, dynamic> data = await getLatLng(placeId);
+                                    var latLng = getLatLongFromMap(data);
+                                    if (!mounted) return;
+                                    _addMarkerAnimateCameraPosition(latLng);
+                                  } catch (e) {
+                                    print('Error getting place details: $e');
+                                  }
                                 },
                                 child: Container(
                                   decoration: BoxDecoration(

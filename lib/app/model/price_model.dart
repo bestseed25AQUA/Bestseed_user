@@ -3,6 +3,7 @@ class PriceModel {
   String category;
   String location;
   String description;
+  String disclaimer;
   String msg;
   List<Price> prices;
 
@@ -11,6 +12,7 @@ class PriceModel {
     required this.category,
     required this.location,
     required this.description,
+    required this.disclaimer,
     required this.msg,
     required this.prices,
   });
@@ -21,6 +23,7 @@ class PriceModel {
       category: json['category'] ?? '',
       location: json['location'] ?? '',
       description: json['description'] ?? '',
+      disclaimer: json['disclaimer'] ?? '',
       msg: json['msg'] ?? '',
       prices: json['prices'] != null
           ? List<Price>.from(json['prices'].map((x) => Price.fromJson(x)))
@@ -33,6 +36,7 @@ class PriceModel {
     'category': category,
     'location': location,
     'description': description,
+    'disclaimer': disclaimer,
     'msg': msg,
     'prices': List<dynamic>.from(prices.map((x) => x.toJson())),
   };

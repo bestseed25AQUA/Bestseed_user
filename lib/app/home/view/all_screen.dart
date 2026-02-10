@@ -25,6 +25,7 @@ import 'package:seedsuser/app/home/today_price_widget.dart';
 import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
 import 'package:seedsuser/app/utils/app_animations.dart';
 import 'package:seedsuser/app/utils/app_size.dart';
+import 'package:seedsuser/app/utils/video_player.dart';
 import 'package:video_player/video_player.dart';
 
 class HomePage extends StatefulWidget {
@@ -378,14 +379,12 @@ class _HomePageState extends State<HomePage>
                                     ?.length ??
                                 0) !=
                             0)
-                          SizedBox(
-                            height:
-                                MediaQuery.of(context).size.width * .38 + 50,
-                            child: ListView(
-                              scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8.0,
-                              ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8.0,
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: List.generate(
                                 (_newsSpecificController
                                                 .newsSpecificHomeData
@@ -406,34 +405,36 @@ class _HomePageState extends State<HomePage>
                                       .newsSpecificHomeData
                                       .value
                                       ?.data?[index];
-                                  return _buildNewsCard(
-                                    data?.medicineName ?? "",
-                                    data?.curesFor ?? "",
-                                    data?.mediaPath ?? "",
-                                    'medicine$index',
-                                    () {
-                                      Navigator.push(
-                                        context,
-                                        PageRouteBuilder(
-                                          transitionDuration: const Duration(
-                                            milliseconds: 600,
-                                          ), // smooth
-                                          reverseTransitionDuration:
-                                              const Duration(milliseconds: 600),
-                                          pageBuilder: (_, __, ___) =>
-                                              MedicineDetailScreen(
-                                                id: data?.id.toString() ?? '',
-                                                title:
-                                                    data?.medicineName
-                                                        .toString() ??
-                                                    '',
-                                                subtitle: data?.curesFor ?? "",
-                                                imageUrl: data?.mediaPath ?? "",
-                                                tag: 'medicine$index',
-                                              ),
-                                        ),
-                                      );
-                                    },
+                                  return Expanded(
+                                    child: _buildNewsCard(
+                                      data?.medicineName ?? "",
+                                      data?.curesFor ?? "",
+                                      data?.mediaPath ?? "",
+                                      'medicine$index',
+                                      () {
+                                        Navigator.push(
+                                          context,
+                                          PageRouteBuilder(
+                                            transitionDuration: const Duration(
+                                              milliseconds: 600,
+                                            ),
+                                            reverseTransitionDuration:
+                                                const Duration(milliseconds: 600),
+                                            pageBuilder: (_, __, ___) =>
+                                                MedicineDetailScreen(
+                                                  id: data?.id.toString() ?? '',
+                                                  title:
+                                                      data?.medicineName
+                                                          .toString() ??
+                                                      '',
+                                                  subtitle: data?.curesFor ?? "",
+                                                  imageUrl: data?.mediaPath ?? "",
+                                                  tag: 'medicine$index',
+                                                ),
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   );
                                 },
                               ),
@@ -682,6 +683,15 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  bool _isVideoUrl(String url) {
+    final lowerUrl = url.toLowerCase();
+    return lowerUrl.endsWith('.mp4') ||
+        lowerUrl.endsWith('.mov') ||
+        lowerUrl.endsWith('.m3u8') ||
+        lowerUrl.endsWith('.webm') ||
+        lowerUrl.endsWith('.avi');
+  }
+
   Widget _buildNewsCard(
     String title,
     String? subtitle,
@@ -689,8 +699,9 @@ class _HomePageState extends State<HomePage>
     String tag,
     VoidCallback ontap,
   ) {
+    final isVideo = _isVideoUrl(imageUrl);
     return Padding(
-      padding: EdgeInsetsGeometry.only(right: 10),
+      padding: EdgeInsetsGeometry.only(right: 6, left: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -700,27 +711,27 @@ class _HomePageState extends State<HomePage>
               tag: tag,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(14.85),
-                child: Container(
-                  height: MediaQuery.of(context).size.width * .38,
-                  width: MediaQuery.of(context).size.width * .38,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: Colors.white.withOpacity(.7),
-                    border: Border.all(width: .1, color: Colors.grey),
-                    boxShadow: [BoxShadow(color: Colors.grey)],
-                  ),
-                  child: Image.network(
-                    imageUrl,
-                    height: 120,
-                    width: 150,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return SizedBox(
-                        height: 120,
-                        width: 150,
-                        child: CustomShimmer(),
-                      );
-                    },
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.white.withOpacity(.7),
+                      border: Border.all(width: .1, color: Colors.grey),
+                      boxShadow: [BoxShadow(color: Colors.grey)],
+                    ),
+                    child: isVideo
+                        ? InlineVideoPlayer(
+                            url: imageUrl,
+                            title: title,
+                          )
+                        : Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return CustomShimmer();
+                            },
+                          ),
                   ),
                 ),
               ),
@@ -738,7 +749,7 @@ class _HomePageState extends State<HomePage>
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (subtitle != null)

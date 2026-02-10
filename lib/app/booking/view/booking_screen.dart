@@ -988,27 +988,26 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
 
           // -------------------- HATCHERY NAME --------------------
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Align(
-                alignment: Alignment.centerLeft,
+              Expanded(
                 child: Text(
                   data.hatcheryName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.roboto(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              Spacer(),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  data.deliveryDatetime,
-                  style: GoogleFonts.roboto(
-                    fontSize: 14,
-                    color: Colors.grey.shade700,
-                    fontWeight: FontWeight.w500,
-                  ),
+              SizedBox(width: 8),
+              Text(
+                data.deliveryDatetime,
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],

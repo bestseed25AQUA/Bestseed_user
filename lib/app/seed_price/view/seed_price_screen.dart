@@ -471,6 +471,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                               ),
                             ),
                             const SizedBox(height: 16),
+                            if (priceData.disclaimer.isNotEmpty)
                             Container(
                               margin: const EdgeInsets.symmetric(horizontal: 8),
                               padding: const EdgeInsets.all(16),
@@ -496,8 +497,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Text(
-                                      // 'We are always committed to bring you the latest market price trends best in-time. You are requested to note that the prices mentioned here are subject to frequent change depending on market conditions, type of buyers (traders, agents and/or exporters), quantity requirements and other influencing factors. The change in pricing may vary between Rs.2 to 12 per kilogram. Please refer to the disclaimer to know more.',
-                                      'The above prices may vary between above or below 5 rs per kilogram.',
+                                      priceData.disclaimer,
                                       style: GoogleFonts.roboto(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w400,
