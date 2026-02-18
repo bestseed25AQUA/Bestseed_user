@@ -6,12 +6,12 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/custom_button.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
-// import 'package:seedsuser/app/farm_management/farmer/controller/former_details_controller.dart' hide FarmListController;
 
 class AddFarmerDetailsFormScreen extends StatefulWidget {
   const AddFarmerDetailsFormScreen({super.key, this.farmData});
@@ -30,12 +30,14 @@ class _AddFarmerDetailsFormScreenState
   final TextEditingController stockingDate = TextEditingController();
   final TextEditingController store = TextEditingController();
   final TextEditingController lowFeedLimit = TextEditingController();
-  final TextEditingController tanks = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   final ImagePicker _picker = ImagePicker();
 
   List<Map<String, String>> images = [];
+  int? selectedTanks;
+
+  final List<int> tankOptions = List.generate(50, (i) => i + 1);
 
   Future<void> pickImages() async {
     final List<XFile>? files = await _picker.pickMultiImage();
@@ -54,23 +56,35 @@ class _AddFarmerDetailsFormScreenState
       firstDate: DateTime(2000),
       lastDate: DateTime(2050),
       initialDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (pick != null) {
-      stockingDate.text = "${pick.year}-${pick.month}-${pick.day}";
+      stockingDate.text =
+          "${pick.year}-${pick.month.toString().padLeft(2, '0')}-${pick.day.toString().padLeft(2, '0')}";
     }
   }
 
   @override
   void initState() {
     super.initState();
-
-    /// ✅ Assign incoming farm values (Edit Mode)
     if (widget.farmData != null) {
       farmName.text = widget.farmData!.farmName ?? "";
       stockingDate.text = widget.farmData!.stockingDate ?? "";
       store.text = widget.farmData!.store ?? "";
       lowFeedLimit.text = widget.farmData!.lowFeedLimit ?? "";
-      tanks.text = widget.farmData!.noOfTanks?.toString() ?? "";
+      selectedTanks = widget.farmData!.noOfTanks;
       if (widget.farmData!.images?.imagesList != null) {
         for (var value in widget.farmData!.images!.imagesList!) {
           images.add({'network': value});
@@ -87,269 +101,181 @@ class _AddFarmerDetailsFormScreenState
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
-        iconTheme: IconThemeData(color: Colors.black),
-        title: const Text(
-          "Farm Details",
-          style: TextStyle(color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Get.back(),
+        ),
+        title: Text(
+          "Fill form",
+          style: GoogleFonts.roboto(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
         ),
         backgroundColor: AppColors.primary,
+        elevation: 0,
       ),
-      body: Builder(
-        builder: (context) => Padding(
-          padding: const EdgeInsets.all(16),
-          child: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Image picker preview
-                  Container(
-                    height: 200,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: images.isEmpty
-                        ? InkWell(
-                            onTap: pickImages,
-                            child: Container(
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                color: Colors.white,
-                                border: Border.all(
-                                  color: Colors.grey.shade400,
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: const Center(
-                                child: Icon(
-                                  Icons.add_a_photo,
-                                  size: 40,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ),
-                          )
-                        : CarouselSlider.builder(
-                            itemCount: images.length + 1,
-                            options: CarouselOptions(
-                              height: 200,
-                              enlargeCenterPage: true,
-                              viewportFraction: 1,
-                              enableInfiniteScroll: false,
-                              onPageChanged: (index, reason) {
-                                setState(() {
-                                  currentIndex = index;
-                                });
-                              },
-                            ),
-
-                            itemBuilder: (context, index, realIndex) {
-                              if (index == images.length) {
-                                return InkWell(
-                                  onTap: pickImages,
-                                  child: Container(
-                                    width: double.infinity,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(12),
-                                      color: Colors.white,
-                                      border: Border.all(
-                                        color: Colors.grey.shade400,
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.add_a_photo,
-                                        size: 40,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }
-
-                              var map = images[index];
-                              bool isLocal = map.containsKey('local');
-                              bool isNetwork = map.containsKey('network');
-
-                              return Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: isLocal
-                                        ? Image.file(
-                                            File(map['local'].toString()),
-                                            width: double.infinity,
-                                            height: 200,
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                                  return SizedBox(height: 200);
-                                                },
-                                          )
-                                        : isNetwork
-                                        ? CustomNetworkImage(
-                                            imageUrl: map['network'] ?? '',
-                                            width: double.infinity,
-                                            height: 200,
-                                          )
-                                        : const SizedBox(),
-                                  ),
-
-                                  // ✅ Delete Button
-                                  if (isLocal)
-                                    Positioned(
-                                      top: 8,
-                                      right: 8,
-                                      child: GestureDetector(
-                                        onTap: () {
-                                          setState(() {
-                                            images.removeAt(index);
-                                          });
-                                        },
-                                        child: const CircleAvatar(
-                                          radius: 14,
-                                          backgroundColor: Colors.red,
-                                          child: Icon(
-                                            Icons.close,
-                                            size: 16,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  Positioned(
-                                    bottom: 10,
-                                    right: 10,
-                                    child: (images.isNotEmpty)
-                                        ? Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 8,
-                                            ),
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: Padding(
-                                                padding: EdgeInsets.only(
-                                                  top: 4,
-                                                  bottom: 4,
-                                                  right: 8,
-                                                  left: 8,
-                                                ),
-                                                child: Text(
-                                                  "${currentIndex + 1}/${images.length}",
-                                                  style: const TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                        : SizedBox(),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Upload Farm Images
+                Text(
+                  "Upload Farm Images",
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
                   ),
+                ),
+                const SizedBox(height: 10),
+                _buildImageUploadArea(),
+                const SizedBox(height: 24),
 
-                  const SizedBox(height: 18),
+                // Farm Name
+                _buildLabel("Farm Name"),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  controller: farmName,
+                  hint: "Enter Farm Name",
+                ),
+                const SizedBox(height: 20),
 
-                  textField("Farm Name", farmName),
-                  textField(
-                    "Stocking Date",
-                    stockingDate,
-                    readOnly: true,
-                    onTap: pickDate,keyboardType: TextInputType.number
+                // Stocking Date
+                _buildLabel("Stocking Date"),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  controller: stockingDate,
+                  hint: "Select Date",
+                  readOnly: true,
+                  onTap: pickDate,
+                  suffixIcon: Icon(
+                    Icons.calendar_today_outlined,
+                    color: Colors.grey.shade500,
+                    size: 20,
                   ),
-                  textField("Store*", store, keyboardType: TextInputType.number,),
-                  textField(
-                    "Low Feed Limit",
-                    lowFeedLimit,
-                    keyboardType: TextInputType.number,
-                  ),
-                  textField(
-                    "No. of Tanks",
-                    tanks,
-                    keyboardType: TextInputType.number,
-                  ),
+                ),
+                const SizedBox(height: 20),
 
-                  const SizedBox(height: 30),
+                // No. of Tanks (Dropdown)
+                _buildLabel("No. of Tanks"),
+                const SizedBox(height: 8),
+                _buildTanksDropdown(),
+                const SizedBox(height: 20),
 
-                  Obx(() {
-                    return ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        minimumSize: const Size(double.infinity, 50),
+                // Store
+                _buildLabel("Store"),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  controller: store,
+                  hint: "Enter Store",
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 20),
+
+                // Low Feed Limit with info tooltip
+                Row(
+                  children: [
+                    _buildLabel("Low feed Limit"),
+                    const SizedBox(width: 6),
+                    Tooltip(
+                      message:
+                          "Once the feed limit is reached, all farm\npartners and managers will get a notification",
+                      triggerMode: TooltipTriggerMode.tap,
+                      preferBelow: false,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
-                      child: controller.isOverlay.value
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : Text(
-                              isEdit ? "Update" : "Save",
-                              style: const TextStyle(color: Colors.white),
-                            ),
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      textStyle: GoogleFonts.roboto(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
+                      child: Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  controller: lowFeedLimit,
+                  hint: "Enter Low Feed Limit",
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 36),
 
-                      onPressed: controller.isOverlay.value
-                          ? () {}
-                          : () async {
-                              if (!_formKey.currentState!.validate()) {
-                                return;
-                              }
-                              bool success = false;
+                // Save Button
+                Obx(() {
+                  return CustomButton(
+                    text: isEdit ? "Update" : "Save",
+                    isLoading: controller.isOverlay.value,
+                    borderRadius: 12,
+                    onPressed: () async {
+                      if (!_formKey.currentState!.validate()) return;
 
-                              if (images.isEmpty) {
-                                CustomToast.show(
-                                  message: "Please upload at least 1 image",
-                                );
-                                return;
-                              }
-                              if (isEdit) {
-                                success = await controller.updateFarmData(
-                                  farmId: widget.farmData!.id!,
-                                  farmName: farmName.text,
-                                  stockingDate: stockingDate.text,
-                                  store: store.text,
-                                  lowFeedLimit: lowFeedLimit.text,
-                                  tanks: tanks.text,
-                                  imagePaths: images
-                                      .where(
-                                        (item) => item.containsKey('local'),
-                                      )
-                                      .map((item) => item['local'].toString())
-                                      .toList(),
-                                );
-                              } else {
-                                success = await controller.uploadFarmData(
-                                  farmName: farmName.text,
-                                  stockingDate: stockingDate.text,
-                                  store: store.text,
-                                  lowFeedLimit: lowFeedLimit.text,
-                                  tanks: tanks.text,
-                                  imagePaths: images
-                                      .where(
-                                        (item) => item.containsKey('local'),
-                                      )
-                                      .map((item) => item['local'].toString())
-                                      .toList(),
-                                );
-                              }
-                              if (success) {
-                                Get.back();
-                                Get.find<FarmListController>().fetchFarmList();
-                              }
-                            },
-                    );
-                  }),
-                ],
-              ),
+                      if (images.isEmpty) {
+                        CustomToast.show(
+                          message: "Please upload at least 1 image",
+                        );
+                        return;
+                      }
+
+                      if (selectedTanks == null) {
+                        CustomToast.show(
+                          message: "Please select number of tanks",
+                        );
+                        return;
+                      }
+
+                      bool success = false;
+
+                      if (isEdit) {
+                        success = await controller.updateFarmData(
+                          farmId: widget.farmData!.id!,
+                          farmName: farmName.text,
+                          stockingDate: stockingDate.text,
+                          store: store.text,
+                          lowFeedLimit: lowFeedLimit.text,
+                          tanks: selectedTanks.toString(),
+                          imagePaths: images
+                              .where((item) => item.containsKey('local'))
+                              .map((item) => item['local'].toString())
+                              .toList(),
+                        );
+                      } else {
+                        success = await controller.uploadFarmData(
+                          farmName: farmName.text,
+                          stockingDate: stockingDate.text,
+                          store: store.text,
+                          lowFeedLimit: lowFeedLimit.text,
+                          tanks: selectedTanks.toString(),
+                          imagePaths: images
+                              .where((item) => item.containsKey('local'))
+                              .map((item) => item['local'].toString())
+                              .toList(),
+                        );
+                      }
+                      if (success) {
+                        Get.back();
+                        Get.find<FarmListController>().fetchFarmList();
+                      }
+                    },
+                  );
+                }),
+                const SizedBox(height: 20),
+              ],
             ),
           ),
         ),
@@ -357,49 +283,327 @@ class _AddFarmerDetailsFormScreenState
     );
   }
 
-  Widget textField(
-    String label,
-    TextEditingController controller, {
+  // ─── Image Upload Area ───
+  Widget _buildImageUploadArea() {
+    if (images.isEmpty) {
+      return GestureDetector(
+        onTap: pickImages,
+        child: Container(
+          height: 160,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.grey.shade300,
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.cloud_upload_outlined,
+                  size: 32,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "Upload Images",
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "PNG, JPEG",
+                style: GoogleFonts.roboto(
+                  fontSize: 12,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Container(
+          height: 180,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: CarouselSlider.builder(
+            itemCount: images.length + 1,
+            options: CarouselOptions(
+              height: 180,
+              enlargeCenterPage: true,
+              viewportFraction: 1,
+              enableInfiniteScroll: false,
+              onPageChanged: (index, reason) {
+                setState(() {
+                  currentIndex = index;
+                });
+              },
+            ),
+            itemBuilder: (context, index, realIndex) {
+              if (index == images.length) {
+                return GestureDetector(
+                  onTap: pickImages,
+                  child: Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.grey.shade50,
+                      border: Border.all(
+                        color: Colors.grey.shade300,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: 36,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Add More",
+                          style: GoogleFonts.roboto(
+                            fontSize: 13,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              var map = images[index];
+              bool isLocal = map.containsKey('local');
+              bool isNetwork = map.containsKey('network');
+
+              return Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: isLocal
+                        ? Image.file(
+                            File(map['local'].toString()),
+                            width: double.infinity,
+                            height: 180,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const SizedBox(height: 180);
+                            },
+                          )
+                        : isNetwork
+                            ? CustomNetworkImage(
+                                imageUrl: map['network'] ?? '',
+                                width: double.infinity,
+                                height: 180,
+                              )
+                            : const SizedBox(),
+                  ),
+                  // Delete Button
+                  if (isLocal)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            images.removeAt(index);
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade400,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Image Counter
+                  if (images.isNotEmpty)
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          "${currentIndex + 1}/${images.length}",
+                          style: GoogleFonts.roboto(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─── Label Widget ───
+  Widget _buildLabel(String label) {
+    return Text(
+      label,
+      style: GoogleFonts.roboto(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+      ),
+    );
+  }
+
+  // ─── Text Field Widget ───
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
     bool readOnly = false,
     VoidCallback? onTap,
     TextInputType? keyboardType,
+    Widget? suffixIcon,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: GoogleFonts.roboto(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 5),
-        TextFormField(
-          controller: controller,
-          readOnly: readOnly,
-          keyboardType: keyboardType,
-          onTap: onTap,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return "$label is required!";
-            }
-
-            if (label == "Low Feed Limit" || label == "No. of Tanks") {
-              if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
-                return "$label must be a valid number!";
-              }
-              if (int.parse(value) <= 0) {
-                return "$label must be greater than 0!";
-              }
-            }
-
-            return null;
-          },
-
-          decoration: InputDecoration(
-            hintText: "Enter $label".replaceAll('*', ''),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          ),
+    return TextFormField(
+      controller: controller,
+      readOnly: readOnly,
+      keyboardType: keyboardType,
+      onTap: onTap,
+      style: GoogleFonts.roboto(fontSize: 14, color: Colors.black87),
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) {
+          return "$hint is required";
+        }
+        return null;
+      },
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: GoogleFonts.roboto(
+          fontSize: 14,
+          color: Colors.grey.shade400,
         ),
-        const SizedBox(height: 18),
-      ],
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red),
+        ),
+      ),
+    );
+  }
+
+  // ─── Tanks Dropdown Widget ───
+  Widget _buildTanksDropdown() {
+    return DropdownButtonFormField<int>(
+      value: selectedTanks,
+      hint: Text(
+        "Select No. of Tanks",
+        style: GoogleFonts.roboto(
+          fontSize: 14,
+          color: Colors.grey.shade400,
+        ),
+      ),
+      style: GoogleFonts.roboto(fontSize: 14, color: Colors.black87),
+      icon: Icon(
+        Icons.keyboard_arrow_down_rounded,
+        color: Colors.grey.shade500,
+      ),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red),
+        ),
+      ),
+      items: tankOptions.map((int value) {
+        return DropdownMenuItem<int>(
+          value: value,
+          child: Text("$value"),
+        );
+      }).toList(),
+      onChanged: (value) {
+        setState(() {
+          selectedTanks = value;
+        });
+      },
+      validator: (value) {
+        if (value == null) {
+          return "Please select number of tanks";
+        }
+        return null;
+      },
     );
   }
 }

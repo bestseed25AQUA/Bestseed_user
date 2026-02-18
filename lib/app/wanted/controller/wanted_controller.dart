@@ -16,11 +16,17 @@ class WantedCropController extends GetxController {
   var bannerList = <WantedBannerItem>[].obs;
   var wantedCropsList = <WantedCrop>[].obs;
 
+  // Categories and locations from the wanted-crops API
+  var apiCategories = <Category>[].obs;
+  var apiLocations = <Location>[].obs;
+
   Rx<Location?> selectedLocation = Rx<Location?>(null);
   Rx<Category?> selectedCategory = Rx<Category?>(null);
 
   getDefaultCrops() {
     final SeedsPriceController seedController = Get.put(SeedsPriceController());
+
+    // Set default location
     if (seedController.locations.isNotEmpty) {
       try {
         bool isFound = false;
@@ -38,10 +44,9 @@ class WantedCropController extends GetxController {
       } catch (e) {
         selectedLocation.value = seedController.locations.first;
       }
-      fetchCrops();
     }
 
-    /// for default category
+    // Set default category
     if (seedController.categories.isNotEmpty) {
       try {
         bool isFound = false;
@@ -58,7 +63,12 @@ class WantedCropController extends GetxController {
       } catch (e) {
         selectedCategory.value = seedController.categories.first;
       }
-    } 
+    }
+
+    // Fetch crops AFTER both location and category are set
+    if (selectedLocation.value != null || selectedCategory.value != null) {
+      fetchCrops();
+    }
   }
 
   // ======================================================
@@ -128,21 +138,64 @@ class WantedCropController extends GetxController {
         print('++++++++data is +++++++');
         print(jsonData);
 
-        if (jsonData["status"] == true && jsonData["wanted_crops"] != null) {
+        // Parse categories and locations from the API response
+        if (jsonData["categories"] != null) {
           try {
-            wantedCropsList.assignAll(
-              (jsonData["wanted_crops"] as List)
-                  .map((e) => WantedCrop.fromJson(e))
+            apiCategories.assignAll(
+              (jsonData["categories"] as List)
+                  .map((e) => Category.fromJson(e))
                   .toList(),
             );
-            print('data initalize');
+          } catch (_) {}
+        }
+        if (jsonData["locations"] != null) {
+          try {
+            apiLocations.assignAll(
+              (jsonData["locations"] as List).map((e) => Location(
+                id: e['id'].toString(),
+                title: e['location_name'] ?? e['title'] ?? '',
+                subtitle: e['subtitle'] ?? '',
+                longitude: e['longitude']?.toString() ?? '',
+                latitude: e['latitude']?.toString() ?? '',
+                isDefault: e['is_default'] ?? false,
+              )).toList(),
+            );
+          } catch (_) {}
+        }
+
+        // Re-match selected values so dropdown highlights them correctly
+        if (apiLocations.isNotEmpty && selectedLocation.value != null) {
+          try {
+            final match = apiLocations.firstWhere(
+              (l) => l.id == selectedLocation.value!.id,
+            );
+            selectedLocation.value = match;
+          } catch (_) {}
+        }
+        if (apiCategories.isNotEmpty && selectedCategory.value != null) {
+          try {
+            final match = apiCategories.firstWhere(
+              (c) => c.id == selectedCategory.value!.id,
+            );
+            selectedCategory.value = match;
+          } catch (_) {}
+        }
+
+        if (jsonData["status"] == true && jsonData["wanted_crops"] != null) {
+          try {
+            final cropsList = (jsonData["wanted_crops"] as List)
+                .map((e) => WantedCrop.fromJson(e))
+                .toList();
+            wantedCropsList.assignAll(cropsList);
+            print('wanted crops loaded: ${cropsList.length} items');
           } catch (e, s) {
-            print('error comming');
+            print('error parsing wanted crops');
             print(e);
             print(s.toString());
           }
         } else {
           wantedCropsList.clear();
+          print('wanted_crops key is null or status is false');
         }
       } else {
         CustomToast.error("Failed to fetch crops");

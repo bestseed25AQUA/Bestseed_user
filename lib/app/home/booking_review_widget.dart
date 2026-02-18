@@ -11,6 +11,7 @@ class BookingReviewContent extends StatelessWidget {
   final String name,
       phone,
       unit,
+      salinity,
       pieces,
       location,
       date,
@@ -22,13 +23,18 @@ class BookingReviewContent extends StatelessWidget {
   final BuildContext bottomSheetContext;
   final bool isSpotHatchery;
   final bool isVehicleHatchery;
+  final double? dropLat;
+  final double? dropLng;
   const BookingReviewContent({
     super.key,
     required this.name,
     required this.phone,
     required this.unit,
+    required this.salinity,
     required this.pieces,
     required this.location,
+    this.dropLat,
+    this.dropLng,
     required this.date,
     required this.hatcheryId,
     required this.hatcheryName,
@@ -113,6 +119,8 @@ class BookingReviewContent extends StatelessWidget {
                 const Divider(),
                 _buildInfoRow('Unit', unit),
                 const Divider(),
+                _buildInfoRow('Salinity', salinity.isNotEmpty ? salinity : '-'),
+                const Divider(),
                 _buildInfoRow('No.of Pieces', "$pieces Pieces"),
                 const Divider(),
                 _buildInfoRow('Estimated Price', '₹$estimatedPrice'),
@@ -142,9 +150,12 @@ class BookingReviewContent extends StatelessWidget {
                             customerName: name,
                             customerMobile: phone,
                             unit: unit,
+                            salinity: salinity,
                             noOfPieces: pieces,
                             price: estimatedPrice,
                             droppingLocation: location,
+                            dropLat: dropLat,
+                            dropLng: dropLng,
                             packingDate: date,
                             locationId: '3', // locationId,
                           );

@@ -3,10 +3,12 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
-import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/common/infinite_image_scroll.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/farm_management/farm_home/farm_home_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
 import 'package:seedsuser/app/home/contact_us.dart';
 import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
@@ -25,7 +27,9 @@ import 'package:seedsuser/app/home/today_price_widget.dart';
 import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
 import 'package:seedsuser/app/utils/app_animations.dart';
 import 'package:seedsuser/app/utils/app_size.dart';
-import 'package:seedsuser/app/utils/video_player.dart';
+import 'package:seedsuser/app/common/full_image_screen.dart';
+import 'package:seedsuser/app/common/media_carousel_widget.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:video_player/video_player.dart';
 
 class HomePage extends StatefulWidget {
@@ -52,11 +56,18 @@ class _HomePageState extends State<HomePage>
   final _homeController = Get.put(HomeController());
   final _homeBannerController = Get.put(HomeBannerController());
   final _hatcheryController = Get.put(HatcheryUpdatesController());
+  final _farmListController = Get.put(FarmListController());
   // late Animation<Offset> _fishAnimation;
 
   @override
   void initState() {
     super.initState();
+
+    // Ensure hatchery updates are fetched for home screen
+    if (_hatcheryController.hatcheryHomeData.value == null ||
+        (_hatcheryController.hatcheryHomeData.value?.data.isEmpty ?? true)) {
+      _hatcheryController.fetchHatcheryHomeUpdate();
+    }
 
     _controller = AnimationController(
       vsync: this,
@@ -135,53 +146,97 @@ class _HomePageState extends State<HomePage>
                         ),
                       );
                     }
-                    return Image.network(
-                      banner.url,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      height: AppSize.height * .08,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Image.asset(
-                          'assets/images/best_seed_bottom.png',
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          height: AppSize.height * .08,
-                        );
-                      },
+                    return Stack(
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => FullImageScreen(
+                                  imageUrl: banner.url,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Image.network(
+                            banner.url,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            height: AppSize.height * .08,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Image.asset(
+                                'assets/images/best_seed_bottom.png',
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                height: AppSize.height * .08,
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     );
                   }),
                   const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          AppAnimations.fade(VehicleAvailabilityScreen()),
-                        );
-                      },
-                      child: ClipRRect(
+                  Obx(() {
+                    final homeBanners = _homeBannerController.bannersHome;
+                    return Container(
+                      decoration: BoxDecoration(
+                        // border: Border.all(color: Colors.grey),
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.asset(
-                          'assets/images/home_banner.jpeg',
-                          width: AppSize.width * .9,
-                          height: AppSize.height * .15,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              // ignore: deprecated_member_use
-                              Container(
-                                width: AppSize.width * .9,
-                                height: AppSize.height * .15,
-                                color: Colors.grey.withOpacity(.1),
-                              ),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            AppAnimations.fade(VehicleAvailabilityScreen()),
+                          );
+                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: homeBanners.isNotEmpty
+                              ? Stack(
+                                  children: [
+                                    Image.network(
+                                      homeBanners.first.url,
+                                      width: AppSize.width * .9,
+                                      height: AppSize.height * .15,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return Shimmer.fromColors(
+                                          baseColor: Colors.grey.shade300,
+                                          highlightColor: Colors.grey.shade100,
+                                          child: Container(
+                                            width: AppSize.width * .9,
+                                            height: AppSize.height * .15,
+                                            color: Colors.white,
+                                          ),
+                                        );
+                                      },
+                                      errorBuilder: (_, __, ___) => Image.asset(
+                                        'assets/images/home_banner.jpeg',
+                                        width: AppSize.width * .9,
+                                        height: AppSize.height * .15,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Shimmer.fromColors(
+                                  baseColor: Colors.grey.shade50,
+                                  highlightColor: Colors.grey.shade100,
+                                  child: Container(
+                                    width: AppSize.width * .9,
+                                    height: AppSize.height * .15,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  }),
                 ],
               ),
             ),
@@ -231,31 +286,47 @@ class _HomePageState extends State<HomePage>
                           children: [
                             SizedBox(
                               width: MediaQuery.of(context).size.width * .52,
-                              child: _buildMenuItem(
-                                'Spot \nHatcheries',
-                                'assets/images/hatchery_icon.png',
-                                () {
-                                  Navigator.push(
-                                    context,
-                                    AppAnimations.fade(SpotHatcheryScreen()),
-                                  );
-                                },
-                              ),
+                              child: Obx(() {
+                                final spotIcons = _homeBannerController.bannersSpotHatcheries;
+                                return _buildMenuItem(
+                                  'Spot \nHatcheries',
+                                  'assets/images/hatchery_icon.png',
+                                  () {
+                                    Navigator.push(
+                                      context,
+                                      AppAnimations.fade(SpotHatcheryScreen()),
+                                    );
+                                  },
+                                  networkImageUrl: spotIcons.isNotEmpty ? spotIcons.first.url : null,
+                                );
+                              }),
                             ),
                             // SizedBox(height: 10),
                             Spacer(),
                             SizedBox(
                               width: MediaQuery.of(context).size.width * .52,
-                              child: _buildMenuItem(
-                                'Farm \nManagement',
-                                'assets/images/farm.png',
-                                () {
-                                  Navigator.push(
-                                    context,
-                                    AppAnimations.fade(FarmHomeScreen()),
-                                  );
-                                },
-                              ),
+                              child: Obx(() {
+                                final farmIcons = _homeBannerController.bannersFarmManagement;
+                                return _buildMenuItem(
+                                  'Farm \nManagement',
+                                  'assets/images/farm.png',
+                                  () {
+                                    final farmData = _farmListController.farmList.value?.data;
+                                    if (farmData != null && farmData.isNotEmpty) {
+                                      Navigator.push(
+                                        context,
+                                        AppAnimations.fade(const FarmManagementScreen()),
+                                      );
+                                    } else {
+                                      Navigator.push(
+                                        context,
+                                        AppAnimations.fade(const InitialFarmScreen()),
+                                      );
+                                    }
+                                  },
+                                  networkImageUrl: farmIcons.isNotEmpty ? farmIcons.first.url : null,
+                                );
+                              }),
                             ),
                           ],
                         ),
@@ -408,7 +479,7 @@ class _HomePageState extends State<HomePage>
                                   return Expanded(
                                     child: _buildNewsCard(
                                       data?.medicineName ?? "",
-                                      data?.curesFor ?? "",
+                                      data?.subtitle ?? data?.curesFor ?? "",
                                       data?.mediaPath ?? "",
                                       'medicine$index',
                                       () {
@@ -427,13 +498,15 @@ class _HomePageState extends State<HomePage>
                                                       data?.medicineName
                                                           .toString() ??
                                                       '',
-                                                  subtitle: data?.curesFor ?? "",
+                                                  subtitle: data?.subtitle ?? data?.curesFor ?? "",
                                                   imageUrl: data?.mediaPath ?? "",
                                                   tag: 'medicine$index',
                                                 ),
                                           ),
                                         );
                                       },
+                                      mediaFiles: data?.mediaFiles,
+                                      mediaTypes: data?.mediaTypes,
                                     ),
                                   );
                                 },
@@ -444,13 +517,7 @@ class _HomePageState extends State<HomePage>
                     );
                   }),
                   SizedBox(height: 16),
-                  if (_hatcheryController
-                          .hatcheryHomeData
-                          .value
-                          ?.data
-                          .isNotEmpty ??
-                      false)
-                    HatcheryUpdatesWidget(),
+                  HatcheryUpdatesWidget(),
                   SizedBox(height: 100),
                 ],
               ),
@@ -515,7 +582,7 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildMenuItem(String text, String iconPath, VoidCallback onTap) {
+  Widget _buildMenuItem(String text, String iconPath, VoidCallback onTap, {String? networkImageUrl}) {
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -556,7 +623,17 @@ class _HomePageState extends State<HomePage>
               ),
             ),
             Spacer(),
-            Image.asset(iconPath, height: AppSize.height * .055),
+            networkImageUrl != null
+                ? Image.network(
+                    networkImageUrl,
+                    height: AppSize.height * .055,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Image.asset(iconPath, height: AppSize.height * .055);
+                    },
+                    errorBuilder: (_, __, ___) => Image.asset(iconPath, height: AppSize.height * .055),
+                  )
+                : Image.asset(iconPath, height: AppSize.height * .055),
           ],
         ),
       ),
@@ -697,42 +774,39 @@ class _HomePageState extends State<HomePage>
     String? subtitle,
     String imageUrl,
     String tag,
-    VoidCallback ontap,
-  ) {
-    final isVideo = _isVideoUrl(imageUrl);
+    VoidCallback ontap, {
+    List<String>? mediaFiles,
+    List<String>? mediaTypes,
+  }) {
+    final urls = (mediaFiles != null && mediaFiles.isNotEmpty)
+        ? mediaFiles
+        : (imageUrl.isNotEmpty ? [imageUrl] : <String>[]);
+    final types = (mediaTypes != null && mediaTypes.isNotEmpty)
+        ? mediaTypes
+        : [_isVideoUrl(imageUrl) ? 'video' : 'image'];
+
     return Padding(
       padding: EdgeInsetsGeometry.only(right: 6, left: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InkWell(
-            onTap: ontap,
-            child: Hero(
-              tag: tag,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14.85),
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: Colors.white.withOpacity(.7),
-                      border: Border.all(width: .1, color: Colors.grey),
-                      boxShadow: [BoxShadow(color: Colors.grey)],
-                    ),
-                    child: isVideo
-                        ? InlineVideoPlayer(
-                            url: imageUrl,
-                            title: title,
-                          )
-                        : Image.network(
-                            imageUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return CustomShimmer();
-                            },
-                          ),
-                  ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14.85),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white.withOpacity(.7),
+                  border: Border.all(width: .1, color: Colors.grey),
+                  boxShadow: [BoxShadow(color: Colors.grey)],
+                ),
+                child: MiniMediaCarousel(
+                  mediaUrls: urls,
+                  mediaTypes: types,
+                  height: double.infinity,
+                  borderRadius: 12,
+                  onTap: ontap,
                 ),
               ),
             ),

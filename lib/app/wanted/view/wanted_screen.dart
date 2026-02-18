@@ -77,15 +77,17 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
                 children: [
                   Expanded(
                     child: Obx(() {
-                      if (seedController.locations.isEmpty) {
+                      final locations = controller.apiLocations.isNotEmpty
+                          ? controller.apiLocations
+                          : seedController.locations;
+                      if (locations.isEmpty) {
                         return const SizedBox();
                       }
                       return CustomDropdown<Location>(
                         selectedValue: controller.selectedLocation.value,
-                        items: seedController.locations,
+                        items: locations,
                         itemLabel: (loc) => loc.title,
-                        
-                                 backgroundColor: Color(0xffF3F4F6),
+                        backgroundColor: Color(0xffF3F4F6),
                         hintText: "Select Location",
                         onChanged: (loc) {
                           controller.selectedLocation.value = loc;
@@ -97,12 +99,15 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: Obx(() {
-                      if (seedController.categories.isEmpty) {
+                      final categories = controller.apiCategories.isNotEmpty
+                          ? controller.apiCategories
+                          : seedController.categories;
+                      if (categories.isEmpty) {
                         return const SizedBox();
                       }
                       return CustomDropdown<Category>(
-                        selectedValue:  controller.selectedCategory.value,
-                        items: seedController.categories,
+                        selectedValue: controller.selectedCategory.value,
+                        items: categories,
                         itemLabel: (cat) => cat.categoryName,
                         backgroundColor: Color(0xffF3F4F6),
                         hintText: "Select Category",
@@ -126,7 +131,7 @@ class _WantedCropBuyersScreenState extends State<WantedCropBuyersScreen> {
                       padding: EdgeInsets.only(
                         top: MediaQuery.of(context).size.height * .2,
                       ),
-                      child: Text("Now wanted crops available now.", style: GoogleFonts.roboto(
+                      child: Text("No wanted crops available now.", style: GoogleFonts.roboto(
                                 fontSize: 14, 
                                 color: Colors.black,
                               ),),

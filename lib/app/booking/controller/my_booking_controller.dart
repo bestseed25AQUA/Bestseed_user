@@ -154,7 +154,22 @@ class MyBookingController extends GetxController {
   }
 
   bool get hasInProgressBooking {
-    return bookingList.any((booking) => booking.status == "in_progress");
+    return bookingList.any((b) =>
+        (b.status is Map && b.status['value'] == 4));
+  }
+
+  int get inProgressBookingCount {
+    return bookingList.where((b) =>
+        (b.status is Map && b.status['value'] == 4)).length;
+  }
+
+  BookingData? get inProgressBooking {
+    try {
+      return bookingList.firstWhere((b) =>
+          (b.status is Map && b.status['value'] == 4));
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> cancelBooking(String bookingId, String reason) async {
@@ -205,9 +220,12 @@ class MyBookingController extends GetxController {
     required String customerName,
     required String customerMobile,
     required String unit,
+    required String salinity,
     required String noOfPieces,
     required String price,
     required String droppingLocation,
+    double? dropLat,
+    double? dropLng,
     required String packingDate,
     required String locationId,
     required bool isSpotHatchery,
@@ -239,8 +257,17 @@ class MyBookingController extends GetxController {
         "price": price,
         // "location_id": locationId.toString(),
       };
+      if (salinity.isNotEmpty) {
+        body["salinity"] = salinity;
+      }
       if (normalizedDate != null) {
         body["packing_date"] = normalizedDate;
+      }
+      if (dropLat != null) {
+        body["drop_lat"] = dropLat.toString();
+      }
+      if (dropLng != null) {
+        body["drop_lng"] = dropLng.toString();
       }
       print('second map');
       print(body);

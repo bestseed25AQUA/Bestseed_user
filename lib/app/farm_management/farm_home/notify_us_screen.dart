@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
 
@@ -98,7 +99,7 @@ class _NotifyUsScreenState extends State<NotifyUsScreen> {
 
                 if (_farmController.farmList.value?.data?.isNotEmpty == true) {
                   Get.off(
-                    () => FarmManagementScreen(),
+                    () => AddFarmerDetailsFormScreen(),
                   ); // Replace current screen
                 } else {
                   Get.to(

@@ -70,31 +70,55 @@ class Data {
 class ClimateNew {
   int? id;
   String? title;
+  String? subtitle;
   String? mediaType;
   String? mediaPath;
+  List<String>? mediaFiles;
+  List<String>? mediaTypes;
   String? createdAt;
 
   ClimateNew({
     this.id,
     this.title,
+    this.subtitle,
     this.mediaType,
     this.mediaPath,
+    this.mediaFiles,
+    this.mediaTypes,
     this.createdAt,
   });
 
-  factory ClimateNew.fromJson(Map<String, dynamic> json) => ClimateNew(
-    id: json["id"],
-    title: json["title"],
-    mediaType: json["media_type"],
-    mediaPath: json["media_path"],
-    createdAt: json["created_at"],
-  );
+  factory ClimateNew.fromJson(Map<String, dynamic> json) {
+    List<String>? files;
+    List<String>? types;
+    if (json["media_files"] != null && json["media_files"] is List) {
+      files = List<String>.from(json["media_files"].map((x) => x.toString()));
+      types = json["media_types"] != null && json["media_types"] is List
+          ? List<String>.from(json["media_types"].map((x) => x.toString()))
+          : [];
+    } else if (json["media_path"] != null && json["media_path"].toString().isNotEmpty) {
+      files = [json["media_path"].toString()];
+      types = [json["media_type"]?.toString() ?? 'image'];
+    }
+    return ClimateNew(
+      id: json["id"],
+      title: json["title"],
+      subtitle: json["subtitle"],
+      mediaType: json["media_type"],
+      mediaPath: json["media_path"],
+      mediaFiles: files,
+      mediaTypes: types,
+      createdAt: json["created_at"],
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     "id": id,
     "title": title,
     "media_type": mediaType,
     "media_path": mediaPath,
+    "media_files": mediaFiles,
+    "media_types": mediaTypes,
     "created_at": createdAt,
   };
 }
@@ -102,28 +126,50 @@ class ClimateNew {
 class MedicineNew {
   int? id;
   String? medicineName;
+  String? subtitle;
   String? curesFor;
   String? mediaType;
   String? mediaPath;
+  List<String>? mediaFiles;
+  List<String>? mediaTypes;
   String? createdAt;
 
   MedicineNew({
     this.id,
     this.medicineName,
+    this.subtitle,
     this.curesFor,
     this.mediaType,
     this.mediaPath,
+    this.mediaFiles,
+    this.mediaTypes,
     this.createdAt,
   });
 
-  factory MedicineNew.fromJson(Map<String, dynamic> json) => MedicineNew(
-    id: json["id"],
-    medicineName: json["medicine_name"],
-    curesFor: json["cures_for"],
-    mediaType: json["media_type"],
-    mediaPath: json["media_path"],
-    createdAt: json["created_at"],
-  );
+  factory MedicineNew.fromJson(Map<String, dynamic> json) {
+    List<String>? files;
+    List<String>? types;
+    if (json["media_files"] != null && json["media_files"] is List) {
+      files = List<String>.from(json["media_files"].map((x) => x.toString()));
+      types = json["media_types"] != null && json["media_types"] is List
+          ? List<String>.from(json["media_types"].map((x) => x.toString()))
+          : [];
+    } else if (json["media_path"] != null && json["media_path"].toString().isNotEmpty) {
+      files = [json["media_path"].toString()];
+      types = [json["media_type"]?.toString() ?? 'image'];
+    }
+    return MedicineNew(
+      id: json["id"],
+      medicineName: json["medicine_name"],
+      subtitle: json["subtitle"],
+      curesFor: json["cures_for"],
+      mediaType: json["media_type"],
+      mediaPath: json["media_path"],
+      mediaFiles: files,
+      mediaTypes: types,
+      createdAt: json["created_at"],
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     "id": id,
@@ -131,6 +177,8 @@ class MedicineNew {
     "cures_for": curesFor,
     "media_type": mediaType,
     "media_path": mediaPath,
+    "media_files": mediaFiles,
+    "media_types": mediaTypes,
     "created_at": createdAt,
   };
 }

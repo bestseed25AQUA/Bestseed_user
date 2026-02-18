@@ -12,6 +12,7 @@ import 'package:seedsuser/app/common/custom_best_seed_background.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:seedsuser/app/vehicle_tracking/controller/vehicle_tracking_controller.dart';
+import 'package:seedsuser/app/vehicle_tracking/model/specific_vehicle_tracking_response.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/full_map_screen.dart';
 
 import 'widgets/map_section_widget.dart';
@@ -28,7 +29,7 @@ class VehicleTrackingScreen extends StatefulWidget {
 }
 
 class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
-  final controller = Get.put(VehicleTrackingController());
+  late final VehicleTrackingController controller;
 
   GoogleMapController? mapController;
 
@@ -42,31 +43,55 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
   BitmapDescriptor? pickupIcon;
   BitmapDescriptor? destinationIcon;
 
+  bool _isLoading = true;
+  TrackingData? _trackingData;
+
   @override
   void initState() {
     super.initState();
+    controller = Get.put(VehicleTrackingController());
     loadData();
   }
 
   Future<void> loadData() async {
-    await controller.fetchSpecificVehicleTracking(widget.bookingId);
+    if (!mounted) return;
+    setState(() => _isLoading = true);
 
-    final d = controller.specificVehicle.value?.data;
-    if (d == null) return;
+    try {
+      await controller.fetchSpecificVehicleTracking(widget.bookingId);
 
-    pickup = LatLng(d.pickup.lat, d.pickup.lng);
-    drop = LatLng(d.drop.lat, d.drop.lng);
-    driverLoc = LatLng(d.driverLocation.lat, d.driverLocation.lng);
+      final d = controller.specificVehicle.value?.data;
+      if (d == null) {
+        print("VehicleTrackingScreen: No tracking data found for ${widget.bookingId}");
+        return;
+      }
 
-    driverIcon = await loadMarker("assets/images/vehicle_truck.png", 70);
-    pickupIcon = await loadMarker("assets/images/pickup_vehicle_icon.png", 70);
-    destinationIcon = await loadMarker(
-      "assets/images/drop_vehicle_icon.png",
-      70,
-    );
+      _trackingData = d;
+      pickup = LatLng(d.pickup.lat, d.pickup.lng);
+      drop = LatLng(d.drop.lat, d.drop.lng);
+      driverLoc = LatLng(d.driverLocation.lat, d.driverLocation.lng);
 
-    await loadPolyline();
-    setState(() {});
+      try {
+        driverIcon = await loadMarker("assets/images/vehicle_truck.png", 70);
+        pickupIcon = await loadMarker("assets/images/pickup_vehicle_icon.png", 70);
+        destinationIcon = await loadMarker(
+          "assets/images/drop_vehicle_icon.png",
+          70,
+        );
+      } catch (e) {
+        print("VehicleTrackingScreen: Error loading markers: $e");
+      }
+
+      try {
+        await loadPolyline();
+      } catch (e) {
+        print("VehicleTrackingScreen: Error loading polyline: $e");
+      }
+    } catch (e) {
+      print("VehicleTrackingScreen: Error in loadData: $e");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<BitmapDescriptor> loadMarker(String asset, int width) async {
@@ -136,17 +161,16 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
         ),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
-      body: Obx(() {
-        final loading = controller.specificLoading.value;
-        final res = controller.specificVehicle.value;
-
-        if (loading) {
+      body: Builder(builder: (context) {
+        if (_isLoading) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (res == null) {
+
+        final d = _trackingData;
+        if (d == null) {
           return const Center(child: Text("No tracking data found"));
         }
-        final d = res.data!;
+
         // Build last update details
         final lastUpdateTime = d.timeline.isNotEmpty
             ? "${d.timeline.first.time}, ${d.timeline.first.date}"

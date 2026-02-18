@@ -28,11 +28,8 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
       Get.find<FilterHatcheryController>();
 
   final TextEditingController _searchController = TextEditingController();
-
+  final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
-
-  bool _isListening = false;
-  String _voiceText = "";
   late stt.SpeechToText _speech;
   bool _isAvailable = false;
 
@@ -47,9 +44,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
   final FilterHatcheryController filterHatcheryController = Get.put(
     FilterHatcheryController(),
   );
-  void _applyFilters() {
-    filterHatcheryController.applyFilter();
-  }
+
 
   String fullText = "";
   void startListening() {
@@ -74,8 +69,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
             Navigator.pop(dialogContext!);
           } // close dialog
           _searchController.text = fullText;
-          filterHatcheryController.query = fullText;
-          _applyFilters();
+          filterHatcheryController.searchLocally(fullText);
         }
 
         // If you want live update uncomment below
@@ -213,6 +207,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
   void dispose() {
     _searchController.dispose();
     _focusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -269,8 +264,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                   },
 
                   onChanged: (value) {
-                    filterHatcheryController.query = value;
-                    filterHatcheryController.applyFilter();
+                    filterHatcheryController.searchLocally(value);
                   },
                   onSubmitted: (value) {},
                   controller: _searchController,
@@ -288,8 +282,7 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                             icon: const Icon(Icons.clear),
                             onPressed: () {
                               setState(() => _searchController.clear());
-                              filterHatcheryController.query = '';
-                              filterHatcheryController.applyFilter();
+                              filterHatcheryController.searchLocally('');
                             },
                           ),
 
@@ -347,62 +340,137 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                     .value
                     .data; // filterByName();
                 return Expanded(
-                  child: AnimatedAppearance(
-                    child: GridView.builder(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.only(
-                        left: 20,
-                        right: 20,
-                        top: 10,
-                      ),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 14,
-                            childAspectRatio:
-                                0.8, // adjust based on your card height
+                  child: Stack(
+                    children: [
+                      AnimatedAppearance(
+                        child: GridView.builder(
+                          shrinkWrap: true,
+                          controller: _scrollController,
+                          padding: const EdgeInsets.only(
+                            left: 20,
+                            right: 20,
+                            top: 10,
+                            bottom: 20,
                           ),
-                      itemCount: list.length,
-                      itemBuilder: (context, index) {
-                        final item = list[index];
-                        return HatcheryCard(
-                          index: index,
-                          width: cardWidth,
-                          height: cardHeight,
-                          imagePath: item.image,
-                          title: item.hatcheryName,
-                          location: item.location,
-                          type: item.category,
-                          status: item.status,
-                          availableUntil: item.availableOn,
-                          statusColor: item.status.toLowerCase() == "available"
-                              ? const Color(0xff25A652)
-                              : item.status.toLowerCase() == "coming soon" ||
-                                    item.status.toLowerCase() == "-"
-                              ? const Color(0xff007DFE)
-                              : item.status.toLowerCase() == "upcoming"
-                              ? const Color(0xff6F42C1)
-                              : item.status.toLowerCase() == "shortly available"
-                              ? const Color(0xffF4A100)
-                              : item.status.toLowerCase() == "closed"
-                              ? const Color(0xffE31B1B)
-                              : const Color(0xffE31B1B),
-                          ontap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => HatcheryCateogryScreen(
-                                  hatcheryId: item.id.toString(),
-                                  hatcheryName: item.hatcheryName.toString(),
-                                  useHatcheryId: true, // Use database id endpoint for search flow
-                                ),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 14,
+                                childAspectRatio:
+                                    0.8, // adjust based on your card height
                               ),
+                          itemCount: list.length,
+                          itemBuilder: (context, index) {
+                            final item = list[index];
+                            return HatcheryCard(
+                              index: index,
+                              width: cardWidth,
+                              height: cardHeight,
+                              imagePath: item.image,
+                              title: item.hatcheryName,
+                              location: item.location,
+                              type: item.category,
+                              status: item.status,
+                              availableUntil: item.availableOn,
+                              statusColor:
+                                  item.status.toLowerCase() == "available"
+                                  ? const Color(0xff25A652)
+                                  : item.status.toLowerCase() ==
+                                            "coming soon" ||
+                                        item.status.toLowerCase() == "-"
+                                  ? const Color(0xff007DFE)
+                                  : item.status.toLowerCase() == "upcoming"
+                                  ? const Color(0xff6F42C1)
+                                  : item.status.toLowerCase() ==
+                                        "shortly available"
+                                  ? const Color(0xffF4A100)
+                                  : item.status.toLowerCase() == "closed"
+                                  ? const Color(0xffE31B1B)
+                                  : const Color(0xffE31B1B),
+                              ontap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => HatcheryCateogryScreen(
+                                      hatcheryId: item.id.toString(),
+                                      hatcheryName: item.hatcheryName
+                                          .toString(),
+                                      useHatcheryId:
+                                          true, // Use database id endpoint for search flow
+                                    ),
+                                  ),
+                                );
+                              },
                             );
                           },
-                        );
-                      },
-                    ),
+                        ),
+                      ),
+                      Positioned(
+                        right: 4,
+                        top: 0,
+                        bottom: 0,
+                        child: IgnorePointer(
+                          child: AnimatedBuilder(
+                            animation: _scrollController,
+                            builder: (context, _) {
+                              return LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final viewportHeight = constraints.maxHeight;
+
+                                  if (!_scrollController.hasClients) {
+                                    return const SizedBox();
+                                  }
+
+                                  final maxScroll =
+                                      _scrollController.position.maxScrollExtent;
+                                  if (maxScroll <= 0) {
+                                    return const SizedBox();
+                                  }
+
+                                  final currentScroll = _scrollController.offset;
+                                  final totalContentHeight =
+                                      maxScroll +
+                                      _scrollController.position.viewportDimension;
+
+                                  final thumbHeight =
+                                      (viewportHeight * viewportHeight) /
+                                      totalContentHeight;
+
+                                  final scrollFraction =
+                                      (currentScroll / maxScroll).clamp(0.0, 1.0);
+
+                                  final thumbTop =
+                                      scrollFraction *
+                                      (viewportHeight - thumbHeight);
+
+                                  return SizedBox(
+                                    width: 4,
+                                    height: viewportHeight,
+                                    child: Stack(
+                                      children: [
+                                        Positioned(
+                                          top: thumbTop,
+                                          child: Container(
+                                            width: 4,
+                                            height: thumbHeight,
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               }),

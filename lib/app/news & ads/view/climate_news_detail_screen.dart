@@ -3,9 +3,10 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
+import 'package:seedsuser/app/common/media_carousel_widget.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/single_new_detail_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
-import 'package:seedsuser/app/utils/video_player.dart';
+
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -94,35 +95,28 @@ class _ClimateDetailScreenState extends State<ClimateDetailScreen> {
             // }
 
             final data = singleNewDetailController.singleDetailData.value;
+
+            // Build media arrays from detail API with fallback
+            final mediaUrls = (data?.data?.mediaFiles != null && data!.data!.mediaFiles!.isNotEmpty)
+                ? data.data!.mediaFiles!
+                : [widget.imageUrl];
+            final mediaTypes = (data?.data?.mediaTypes != null && data!.data!.mediaTypes!.isNotEmpty)
+                ? data.data!.mediaTypes!
+                : [_isVideoUrl(widget.imageUrl) ? 'video' : 'image'];
+
             return Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    // Product Image/Video Section
-                    Hero(
-                      tag: widget.tag,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: _isVideoUrl(widget.imageUrl)
-                            ? InlineVideoPlayer(
-                                url: widget.imageUrl,
-                                title: widget.title,
-                                height: MediaQuery.of(context).size.height * .25,
-                              )
-                            : Image.network(
-                                widget.imageUrl,
-                                fit: BoxFit.cover,
-                                width: MediaQuery.of(context).size.width * .9,
-                                height: MediaQuery.of(context).size.height * .3,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return SizedBox(
-                                    width: MediaQuery.of(context).size.width * .9,
-                                    height: MediaQuery.of(context).size.height * .3,
-                                  );
-                                },
-                              ),
+                    // Media Carousel Section
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: MediaCarouselWidget(
+                        mediaUrls: mediaUrls,
+                        mediaTypes: mediaTypes,
+                        borderRadius: 16,
                       ),
                     ),
                     const SizedBox(height: 16.0),

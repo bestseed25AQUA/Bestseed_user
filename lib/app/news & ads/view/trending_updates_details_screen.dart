@@ -45,9 +45,13 @@ class _TrendingUpdatesDetailsScreenState
         return const Scaffold(body: Center(child: Text("No Data Found")));
       }
 
-      // PREPARE LISTS FOR CAROUSEL
-      final mediaUrls = [data.mediaPath ?? ""];
-      final mediaTypes = [data.mediaType ?? "image"];
+      // PREPARE LISTS FOR CAROUSEL (use multi-media arrays with fallback)
+      final mediaUrls = (data.mediaFiles != null && data.mediaFiles!.isNotEmpty)
+          ? data.mediaFiles!
+          : [data.mediaPath ?? ""];
+      final mediaTypes = (data.mediaTypes != null && data.mediaTypes!.isNotEmpty)
+          ? data.mediaTypes!
+          : [data.mediaType ?? "image"];
 
       return Scaffold(
         appBar: CustomAppBar(
@@ -90,10 +94,8 @@ class _TrendingUpdatesDetailsScreenState
                 ),
               ),
 
-              const SizedBox(height: 16),
-
               Padding(
-                padding: const EdgeInsets.all(18.0),
+                padding: const EdgeInsets.only(left: 18.0, right: 18, top: 8),
                 child: Text(
                   data.title ?? "",
                   style: GoogleFonts.roboto(
@@ -106,7 +108,7 @@ class _TrendingUpdatesDetailsScreenState
               const SizedBox(height: 10),
 
               Padding(
-                padding: const EdgeInsets.all(18.0),
+                padding: const EdgeInsets.only(left: 18.0, right: 18),
                 child: Text(
                   data.description ?? "",
                   style: GoogleFonts.roboto(

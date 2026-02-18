@@ -670,7 +670,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                             ),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.blue),
+                              // border: Border.all(color: Colors.blue),
                             ),
                             child: InkWell(
                               onTap: startRecording,
@@ -684,7 +684,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                                 child: Icon(
                                   Icons.mic,
                                   color: Colors.blue,
-                                  size: 30,
+                                  size: 22,
                                 ),
                               ),
                             ),
@@ -823,19 +823,22 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
         border: Border.all(width: 1, color: Color(0xffE5E7EB)),
       ),
       child: SizedBox(
-        height: 43,
+        height: 42,
         child: TextField(
           focusNode: focusNode,
           controller: controller,
           onChanged: onChanged,
+          style: const TextStyle(fontSize: 14),
           onTapOutside: (event) {
             focusNode.unfocus();
           },
           decoration: InputDecoration(
-            icon: const Icon(Icons.search, color: Colors.grey),
+            icon: const Icon(Icons.search, color: Colors.grey, size: 20),
             hintText: 'Search by ID, name or location...',
+            hintStyle: const TextStyle(fontSize: 14),
             border: InputBorder.none,
             isDense: true,
+            contentPadding: const EdgeInsets.symmetric(vertical: 12),
             suffixIcon: suffixIcon,
           ),
         ),

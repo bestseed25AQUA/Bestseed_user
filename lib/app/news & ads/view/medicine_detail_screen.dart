@@ -3,8 +3,8 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
+import 'package:seedsuser/app/common/media_carousel_widget.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/single_new_detail_controller.dart';
-import 'package:seedsuser/app/utils/video_player.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -28,11 +28,6 @@ class MedicineDetailScreen extends StatefulWidget {
 }
 
 class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
-  final String _whatsappNumber = '918977778784';
-
-  // Optional: Define a pre-filled message
-  final String _initialMessage =
-      'Hello, I am interested in the Probiotic Powder.';
   final singleNewDetailController = Get.put(SingleNewDetailController());
 
   // Check if URL is a video
@@ -56,7 +51,6 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
-        
         backgroundColor: Colors.blue[800],
         // automaticallyImplyLeading: false,
         leading: Padding(
@@ -86,35 +80,32 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
             //   return medicineShimmer();
             // }
             final data = singleNewDetailController.singleDetailData.value;
+
+            // Build media arrays from detail API with fallback
+            final mediaUrls =
+                (data?.data?.mediaFiles != null &&
+                    data!.data!.mediaFiles!.isNotEmpty)
+                ? data.data!.mediaFiles!
+                : [widget.imageUrl];
+            final mediaTypes =
+                (data?.data?.mediaTypes != null &&
+                    data!.data!.mediaTypes!.isNotEmpty)
+                ? data.data!.mediaTypes!
+                : [_isVideoUrl(widget.imageUrl) ? 'video' : 'image'];
+
             return Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    // Product Image/Video Section
-                    Hero(
-                      tag: widget.tag,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: _isVideoUrl(widget.imageUrl)
-                            ? InlineVideoPlayer(
-                                url: widget.imageUrl,
-                                title: widget.title,
-                                height: MediaQuery.of(context).size.height * .25,
-                              )
-                            : Image.network(
-                                widget.imageUrl,
-                                fit: BoxFit.cover,
-                                width: MediaQuery.of(context).size.width * .9,
-                                height: MediaQuery.of(context).size.height * .2,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return SizedBox(
-                                    width: MediaQuery.of(context).size.width * .9,
-                                    height: MediaQuery.of(context).size.height * .2,
-                                  );
-                                },
-                              ),
+                    // Media Carousel Section
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: MediaCarouselWidget(
+                        mediaUrls: mediaUrls,
+                        mediaTypes: mediaTypes,
+                        borderRadius: 16,
                       ),
                     ),
 
@@ -129,7 +120,7 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                         color: Colors.black,
                       ),
                     ),
-                    const SizedBox(height: 4.0),
+                    if (widget.title.isNotEmpty) const SizedBox(height: 4.0),
                     Text(
                       widget.subtitle,
                       style: GoogleFonts.roboto(
@@ -137,7 +128,7 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                         color: Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 16.0),
+                    if (widget.subtitle.isNotEmpty) const SizedBox(height: 8.0),
 
                     // Description/Details Section
                     Builder(
@@ -147,6 +138,8 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                         }
                         return Text(
                           data?.data?.description ?? '',
+                          textAlign: TextAlign
+                              .justify, // This makes the text justified
                           style: GoogleFonts.roboto(
                             fontSize: 14,
                             color: Colors.grey,
@@ -162,27 +155,32 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
           }),
         ],
       ),
-      bottomNavigationBar: Container(
-        // padding: const EdgeInsets.all(12.0),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 13,vertical: 30),
+      bottomNavigationBar: Obx(() {
+        final data = singleNewDetailController.singleDetailData.value?.data;
+        final callNum = data?.callNumber ?? '';
+        final whatsappUrl = data?.whatsappNumber ?? '';
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 30),
           child: Row(
             children: <Widget>[
               // Call Now Button
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    // Logic for calling
-                    _makePhoneCall('tel:+918977778784');
-                  },
+                  onPressed: callNum.isNotEmpty
+                      ? () => _makePhoneCall(callNum)
+                      : null,
                   icon: const Icon(Icons.call, color: Colors.white),
                   label: Text(
                     'Call Now',
-                    style: GoogleFonts.roboto(color: Colors.white, fontSize: 14),
+                    style: GoogleFonts.roboto(
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
-                   padding: const EdgeInsets.symmetric(vertical: 5),
+                    padding: const EdgeInsets.symmetric(vertical: 5),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -190,13 +188,13 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-          
+
               // WhatsApp Button
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {
-                    _launchWhatsApp();
-                  },
+                  onPressed: whatsappUrl.isNotEmpty
+                      ? () => _launchWhatsApp(whatsappUrl)
+                      : null,
                   icon: Image.asset(
                     'assets/images/whatsApp.png',
                     height: 20,
@@ -204,7 +202,10 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                   ),
                   label: Text(
                     'WhatsApp',
-                    style: GoogleFonts.roboto(color: Colors.green, fontSize: 14),
+                    style: GoogleFonts.roboto(
+                      color: Colors.green,
+                      fontSize: 14,
+                    ),
                   ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Colors.green),
@@ -212,46 +213,28 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    // The image's WhatsApp button looks like a light green background,
-                    // so we'll adjust the style slightly.
-                    backgroundColor: Colors.white, // Or a very light green
+                    backgroundColor: Colors.white,
                   ),
                 ),
               ),
             ],
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 
-  // Function to launch WhatsApp
-  Future<void> _launchWhatsApp() async {
-    // Use the wa.me link for maximum compatibility
-    final String url =
-        'https://wa.me/$_whatsappNumber?text=${Uri.encodeComponent(_initialMessage)}';
-
-    final Uri launchUri = Uri.parse(url);
-
+  Future<void> _launchWhatsApp(String whatsappUrl) async {
+    final Uri launchUri = Uri.parse(whatsappUrl);
     if (await canLaunchUrl(launchUri)) {
       await launchUrl(launchUri, mode: LaunchMode.externalApplication);
-    } else {
-      // Fallback: Show an error if WhatsApp can't be opened
-      // You might show a snackbar or dialog here
-      throw 'Could not launch WhatsApp for $_whatsappNumber';
     }
   }
 
-  Future<void> _makePhoneCall(String url) async {
-    final Uri launchUri = Uri(
-      scheme: 'tel', // The 'tel' scheme is used for phone numbers
-      path: url,
-    );
+  Future<void> _makePhoneCall(String callUrl) async {
+    final Uri launchUri = Uri.parse(callUrl);
     if (await canLaunchUrl(launchUri)) {
       await launchUrl(launchUri);
-    } else {
-      // Optionally, show a snackbar or alert if the dialer can't be launched
-      throw 'Could not launch $launchUri';
     }
   }
 

@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/model/booking_detail_model.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_best_seed_background.dart';
-import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/vehicle_tracking_screen.dart';
+import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking_map_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../controller/my_booking_controller.dart';
 
@@ -95,7 +95,10 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         final data = controller.bookingDetail.value;
         if (data == null) return const Center(child: Text("No data"));
 
-        return SingleChildScrollView(
+        return RefreshIndicator(
+          onRefresh: () => controller.fetchBookingDetail(widget.bookingId),
+          child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.symmetric(horizontal: w * 0.06),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,25 +149,17 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               //     ),
               //   )
               else
-                _timelineSection(data.bookingStatus, data.statusValue, w, () {
+                _timelineSection(data.bookingStatus, data.statusValue, w, data.bookingDescription, () {
                   Get.to(
-                    VehicleTrackingScreen(bookingId: data.bookingId.toString()),
+                    VehicleTrackingMapScreen(bookingId: data.bookingId.toString()),
                   );
                 }),
 
               // Driver details section (visible when status >= 3)
               if (data.driver != null &&
                   data.statusValue >= 3 &&
-                  data.statusValue != 6)
+                  data.statusValue != 5 && data.statusValue != 6)
                 _driverSection(data.driver!, w),
-
-              // Booking & vehicle descriptions
-              if (data.bookingDescription != null &&
-                  data.bookingDescription!.isNotEmpty)
-                _descriptionCard("Booking Description", data.bookingDescription!),
-              if (data.vehicleDescription != null &&
-                  data.vehicleDescription!.isNotEmpty)
-                _descriptionCard("Vehicle Description", data.vehicleDescription!),
 
               const SizedBox(height: 20),
 
@@ -177,7 +172,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               ),
 
               _detail("ID", data.bookingId.toString(), w),
-              _detail("Date & Time", data.bookingDateTime, w),
+              _detail("Delivery Date & Time", data.bookingDateTime, w),
               _detail("Unit location", data.unitLocation, w),
               _detail("No. of pieces", data.pieces, w),
               _detail("Estimated Price", data.estimatedPrice, w),
@@ -200,6 +195,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               const SizedBox(height: 40),
             ],
           ),
+        ),
         );
       }),
     );
@@ -280,10 +276,15 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     List<BookingStatusStep> steps,
     int statusValue,
     double w,
+    String? bookingDescription,
     VoidCallback ontapCheckVehicleStatus,
   ) {
     // Show "Check vehicle status" only when status is 3 (Driver Assigned) or 4 (In Progress)
-    final bool showVehicleButton = statusValue == 3 || statusValue == 4;
+    final bool showVehicleButton = statusValue == 4;
+
+    final String descriptionText = (bookingDescription != null && bookingDescription.isNotEmpty)
+        ? bookingDescription
+        : "We've received your booking. Within a few days, we will assign your vehicle.";
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -294,7 +295,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          "We've received your booking. Within a few days, we will assign your vehicle.",
+          descriptionText,
           style: GoogleFonts.poppins(fontSize: 14, color: Colors.black),
         ),
 
@@ -331,7 +332,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            getTime(s.label),
+                            s.label,
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -352,13 +353,22 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                             ),
                         ],
                       ),
-                      Text(
-                        s.time,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.grey,
+                      if (s.time.isNotEmpty)
+                        Text(
+                          s.time,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        )
+                      else if (!done)
+                        Text(
+                          "Pending",
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.grey.shade400,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -554,40 +564,6 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _descriptionCard(String title, String description) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F5F5),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              description,
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                color: Colors.black87,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

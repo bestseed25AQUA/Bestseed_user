@@ -24,6 +24,10 @@ class BroodStockController extends GetxController {
   final defaultCategory = 'Tiger'.obs;
   final defaultMonthYear = ''.obs;
 
+  /// Available months from API (dynamic)
+  final availableMonths = <Map<String, String>>[].obs;
+  final isMonthsLoading = false.obs;
+
   @override
   void onInit() {
     super.onInit();
@@ -57,6 +61,40 @@ class BroodStockController extends GetxController {
       final now = DateTime.now();
       selectedMonth.value = now.month.toString().padLeft(2, '0');
       selectedYear.value = now.year.toString();
+    }
+  }
+
+  /// Fetch available months that have broodstock data (all categories combined)
+  Future<void> fetchAvailableMonths() async {
+    try {
+      isMonthsLoading.value = true;
+      final endpoint =
+          "${NetworkConfig.baseURL}/farmer/broodstock-available-months";
+
+      final response = await getRequest(
+        endPoint: endpoint,
+        headers: await buildHeader(),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == true && data['data'] is List) {
+          final List<Map<String, String>> months = [];
+          for (var item in data['data']) {
+            months.add({
+              'month': item['month']?.toString() ?? '',
+              'year': item['year']?.toString() ?? '',
+              'month_name': item['month_name']?.toString() ?? '',
+              'display': item['display']?.toString() ?? '',
+            });
+          }
+          availableMonths.assignAll(months);
+        }
+      }
+    } catch (e) {
+      print('Error fetching available months: $e');
+    } finally {
+      isMonthsLoading.value = false;
     }
   }
 
@@ -103,6 +141,7 @@ class BroodStockController extends GetxController {
       selectedYear.value = now.year.toString();
     }
 
+    await fetchAvailableMonths();
     await getBroodStock();
   }
 
@@ -183,9 +222,29 @@ class BroodStockController extends GetxController {
 
  Future<void> getBroodStockForHome({required String categoryId, required String locationId}) async {
     try {
+      // Use default filter values from admin config (same as BroodStock screen)
+      // First fetch defaults if not already loaded
+      if (defaultCategory.value.isEmpty) {
+        await getDefaultFilter();
+      }
+
+      final category = defaultCategory.value.isNotEmpty
+          ? Uri.encodeComponent(defaultCategory.value.toLowerCase())
+          : '';
+      final month = selectedMonth.value.isNotEmpty
+          ? selectedMonth.value
+          : DateTime.now().month.toString().padLeft(2, '0');
+      final year = selectedYear.value.isNotEmpty
+          ? selectedYear.value
+          : DateTime.now().year.toString();
+
       final endpoint =
-          "${NetworkConfig.baseURL}/farmer/broodstocks?category_id=$categoryId&location_id=$locationId";
-          print('==============calling getBroodStockForHome============');
+          "${NetworkConfig.baseURL}/farmer/broodstocks_list"
+          "?category=$category"
+          "&month=$month"
+          "&year=$year";
+      print('==============calling getBroodStockForHome============');
+      print(endpoint);
 
       final response = await getRequest(
         endPoint: endpoint,
@@ -195,15 +254,15 @@ class BroodStockController extends GetxController {
       print(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        print('getBroodStockForHome data');
-        print(data);
         if (data['status'] == true && data['data'] is List) {
           final model = BroodstockModel.fromJson(data);
-          homeBroodStocks.assignAll(model.data);
-          print('==========length=========');
-          print(homeBroodStocks);
-        } else {  
-          CustomToast.info(data['message'] ?? "No broodstock found.");
+          // Limit to max 5 items for home screen
+          final limitedData = model.data.length > 5
+              ? model.data.sublist(0, 5)
+              : model.data;
+          homeBroodStocks.assignAll(limitedData);
+        } else {
+          homeBroodStocks.clear();
         }
       } else {
         CustomToast.error(
@@ -215,7 +274,7 @@ class BroodStockController extends GetxController {
       print(e.toString());
       print(s.toString());
       CustomToast.error("Error fetching brood stock  ");
-    } finally { 
+    } finally {
     }
   }
 

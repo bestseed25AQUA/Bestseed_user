@@ -59,32 +59,36 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
           },
           options: CarouselOptions(
             height: widget.height,
-            enlargeCenterPage: true,
-            viewportFraction:
-                (MediaQuery.of(context).size.width) / (widget.height ?? 180),
+            enlargeCenterPage: false,
+            viewportFraction: 1.0,
+            enableInfiniteScroll: widget.mediaUrls.length > 1,
+            scrollPhysics: widget.mediaUrls.length <= 1
+                ? const NeverScrollableScrollPhysics()
+                : null,
             onPageChanged: (index, reason) {
               setState(() => currentIndex = index);
             },
           ),
         ),
 
-        /// --- INDICATOR DOTS ---
-        Positioned(
-          bottom: 8,
-          child: Row(
-            children: List.generate(widget.mediaUrls.length, (index) {
-              return Container(
-                width: 8,
-                height: 8,
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: currentIndex == index ? Colors.blue : Colors.grey,
-                ),
-              );
-            }),
+        /// --- INDICATOR DOTS (only when multiple items) ---
+        if (widget.mediaUrls.length > 1)
+          Positioned(
+            bottom: 8,
+            child: Row(
+              children: List.generate(widget.mediaUrls.length, (index) {
+                return Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: currentIndex == index ? Colors.blue : Colors.grey,
+                  ),
+                );
+              }),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -115,7 +119,7 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
         child: Image.network(
           imageUrl,
           width: double.infinity,
-          fit: BoxFit.fill,
+          fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => Container(
             color: Colors.grey[300],
             child: const Icon(Icons.broken_image),
@@ -147,6 +151,127 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
             const Icon(Icons.play_circle_fill, size: 65, color: Colors.white),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Lightweight carousel for list/grid cards - uses PageView with dots.
+/// Tapping any media calls [onTap]. Shows dots only when multiple media.
+class MiniMediaCarousel extends StatefulWidget {
+  final List<String> mediaUrls;
+  final List<String> mediaTypes;
+  final double height;
+  final double? width;
+  final VoidCallback? onTap;
+  final double borderRadius;
+
+  const MiniMediaCarousel({
+    super.key,
+    required this.mediaUrls,
+    required this.mediaTypes,
+    required this.height,
+    this.width,
+    this.onTap,
+    this.borderRadius = 12,
+  });
+
+  @override
+  State<MiniMediaCarousel> createState() => _MiniMediaCarouselState();
+}
+
+class _MiniMediaCarouselState extends State<MiniMediaCarousel> {
+  int _currentPage = 0;
+
+  bool _isVideoUrl(String url) {
+    final lowerUrl = url.toLowerCase();
+    return lowerUrl.endsWith('.mp4') ||
+        lowerUrl.endsWith('.mov') ||
+        lowerUrl.endsWith('.m3u8') ||
+        lowerUrl.endsWith('.webm') ||
+        lowerUrl.endsWith('.avi');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.mediaUrls.isEmpty) {
+      return SizedBox(height: widget.height, width: widget.width);
+    }
+
+    if (widget.mediaUrls.length == 1) {
+      return GestureDetector(
+        onTap: widget.onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(widget.borderRadius),
+          child: _buildMediaItem(widget.mediaUrls[0],
+              widget.mediaTypes.isNotEmpty ? widget.mediaTypes[0] : 'image'),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(widget.borderRadius),
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          SizedBox(
+            height: widget.height,
+            width: widget.width,
+            child: PageView.builder(
+              itemCount: widget.mediaUrls.length,
+              onPageChanged: (i) => setState(() => _currentPage = i),
+              itemBuilder: (context, index) {
+                final url = widget.mediaUrls[index];
+                final type = index < widget.mediaTypes.length
+                    ? widget.mediaTypes[index]
+                    : 'image';
+                return GestureDetector(
+                  onTap: widget.onTap,
+                  child: _buildMediaItem(url, type),
+                );
+              },
+            ),
+          ),
+          Positioned(
+            bottom: 4,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(
+                widget.mediaUrls.length,
+                (i) => Container(
+                  width: 6,
+                  height: 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentPage == i ? Colors.blue : Colors.white70,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMediaItem(String url, String type) {
+    if (type == 'video' || _isVideoUrl(url)) {
+      return VideoPlayerPreview(
+        url: url,
+        height: widget.height,
+        width: widget.width,
+      );
+    }
+    return Image.network(
+      url,
+      height: widget.height,
+      width: widget.width ?? double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        height: widget.height,
+        color: Colors.grey[300],
+        child: const Icon(Icons.broken_image),
       ),
     );
   }

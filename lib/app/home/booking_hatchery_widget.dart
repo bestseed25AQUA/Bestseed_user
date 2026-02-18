@@ -47,6 +47,8 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
 
   Position? currentPosition;
   bool _isGettingLocation = false;
+  double? _dropLat;
+  double? _dropLng;
 
   Future<Position?> getCurrentLocation() async {
     currentPosition = await _getCurrentLocation();
@@ -114,6 +116,8 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
             if (mounted) {
               setState(() {
                 _dropLocController.text = fullAddress;
+                _dropLat = location.latitude;
+                _dropLng = location.longitude;
               });
             }
           },
@@ -384,6 +388,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     widget.isVehicleHatchery ?? false,
                     calculatePrice(pieces, widget.price),
                     pieces,
+                    _selectedSalinity,
                   );
                 },
                 text: "Confirm Booking",
@@ -406,6 +411,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     bool isVehicleHatchery,
     String? estimatePrice,
     String pieces,
+    String? salinity,
   ) {
     showModalBottomSheet(
       context: context,
@@ -413,9 +419,9 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.8,
-          minChildSize: 0.8,
-          maxChildSize: 0.8,
+          initialChildSize: 0.85,
+          minChildSize: 0.85,
+          maxChildSize: 0.85,
           builder: (context, scrollController) {
             return Container(
               decoration: const BoxDecoration(
@@ -452,8 +458,11 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                         name: _nameController.text,
                         phone: _phoneController.text,
                         unit: _unitController.text,
+                        salinity: salinity ?? '',
                         pieces: pieces,
                         location: _dropLocController.text,
+                        dropLat: _dropLat,
+                        dropLng: _dropLng,
                         date: _dateController.text,
                         hatcheryId: widget.hatcheryId,
                         hatcheryName: widget.hatcheryName,

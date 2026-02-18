@@ -66,27 +66,18 @@ class HatcheryUpdatesWidget extends StatelessWidget {
                     padding: EdgeInsets.all(10),
                     scrollDirection: Axis.horizontal,
                     itemCount:
-                        (hatcheryController
-                                    .hatcheryHomeData
-                                    .value
-                                    ?.data
-                                    .length ??
-                                0) <=
-                            4
-                        ? (hatcheryController
-                                  .hatcheryHomeData
-                                  .value
-                                  ?.data
-                                  .length ??
-                              0)
-                        : 4,
+                        hatcheryController
+                            .hatcheryHomeData
+                            .value
+                            ?.data
+                            .length ??
+                        0,
                     itemBuilder: (context, index) {
-
                       final data = hatcheryController
                           .hatcheryHomeData
                           .value
                           ?.data[index];
-                        
+
                       return _buildHatcheryCard(
                         imagePath: data?.hatcheryLogo ?? '',
                         hatcheryName: data?.hatcheryName ?? '',
@@ -144,6 +135,7 @@ class HatcheryUpdatesWidget extends StatelessWidget {
             width: 150,
             child: Text(
               hatcheryName,
+              textAlign: TextAlign.center,
               style: GoogleFonts.roboto(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,

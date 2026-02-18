@@ -20,7 +20,7 @@ class VoiceMicButton extends StatelessWidget {
       // onLongPress: onStart,
       // onLongPressUp: onStop,
       onPressed: onStart,
-      icon: Icon(Icons.mic, color: Colors.blue, size: iconSize ?? 30),
+      icon: Icon(Icons.mic, color: Colors.blue, size: iconSize ?? 24),
     );
   }
 }

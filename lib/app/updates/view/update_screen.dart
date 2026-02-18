@@ -149,29 +149,6 @@ class PostWidget extends StatefulWidget {
 }
 
 class _PostWidgetState extends State<PostWidget> {
-  final PageController _pageController = PageController();
-
-  int _currentPage = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController.addListener(() {
-      int next = _pageController.page!.round();
-      if (_currentPage != next) {
-        setState(() {
-          _currentPage = next;
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -313,49 +290,32 @@ class _PostWidgetState extends State<PostWidget> {
           ),
           // Post Header
           // Media Carousel
-          Stack(
-            alignment: Alignment.bottomCenter,
-            children: [
-              Container(
-                height: AppSize.height * .25,
-                width: MediaQuery.of(context).size.width * 1,
-                // ignore: deprecated_member_use
-                decoration: BoxDecoration(color: Colors.black.withOpacity(.1)),
-                child: Builder(
-                  builder: (context) {
-                    final urls =
-                        widget.postData?.mediaFiles
-                            ?.map((e) => e.toString())
-                            .toList() ??
-                        [];
-                    final types =
-                        widget.postData?.mediaTypes
-                            ?.map((e) => e.toString())
-                            .toList() ??
-                        [];
-                    return MediaCarouselWidget(
-                      title: widget.postData?.hatcheryName ?? '',
-                      mediaUrls: urls,
-                      mediaTypes: types,
-                      mediaType: widget.postData?.mediaType ?? "",
-                      height: 350,
-                      borderRadius: 0,
-                    );
-                  },
-                ),
-              ),
-              // Page Indicator Dots
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    widget.postData?.mediaFiles?.length ?? 0,
-                    (index) => buildDot(index),
-                  ),
-                ),
-              ),
-            ],
+          Container(
+            height: AppSize.height * .25,
+            width: MediaQuery.of(context).size.width,
+            decoration: BoxDecoration(color: Colors.black.withOpacity(.1)),
+            child: Builder(
+              builder: (context) {
+                final urls =
+                    widget.postData?.mediaFiles
+                        ?.map((e) => e.toString())
+                        .toList() ??
+                    [];
+                final types =
+                    widget.postData?.mediaTypes
+                        ?.map((e) => e.toString())
+                        .toList() ??
+                    [];
+                return MediaCarouselWidget(
+                  title: widget.postData?.hatcheryName ?? '',
+                  mediaUrls: urls,
+                  mediaTypes: types,
+                  mediaType: widget.postData?.mediaType ?? "",
+                  height: 350,
+                  borderRadius: 0,
+                );
+              },
+            ),
           ),
           // Action Buttons
           Padding(
@@ -466,16 +426,4 @@ class _PostWidgetState extends State<PostWidget> {
     );
   }
 
-  Widget buildDot(int index) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      margin: const EdgeInsets.symmetric(horizontal: 4.0),
-      height: 6,
-      width: _currentPage == index ? 12 : 6,
-      decoration: BoxDecoration(
-        color: _currentPage == index ? Colors.blue : Colors.grey.shade400,
-        borderRadius: BorderRadius.circular(3),
-      ),
-    );
-  }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:seedsuser/app/common/full_image_screen.dart';
 
 class ImageCarousel extends StatelessWidget {
   final List<String> images;
@@ -12,8 +13,9 @@ class ImageCarousel extends StatelessWidget {
     super.key,
     required this.images,
     this.height = 150,
-    this.viewportFraction = 1,//0.85,
-    this.isNetwork = false, required this.placeHolder,
+    this.viewportFraction = 1, //0.85,
+    this.isNetwork = false,
+    required this.placeHolder,
   });
 
   @override
@@ -30,21 +32,41 @@ class ImageCarousel extends StatelessWidget {
         scrollDirection: Axis.horizontal,
       ),
       items: images.map((img) {
-        return isNetwork
-            ? Image.network(
-                img,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                errorBuilder: (context, error, stackTrace) {
-                  return Image.asset(placeHolder,  fit: BoxFit.cover,
-                height: double.infinity,);
-                },
-              )
-            : Image.asset(
-                img,
-                fit: BoxFit.cover,
-                height: double.infinity,
-              );
+        return GestureDetector(
+          onTap: isNetwork
+              ? () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => FullImageScreen(imageUrl: img),
+                    ),
+                  );
+                }
+              : null,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              isNetwork
+                  ? Image.network(
+                      img,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Image.asset(
+                          placeHolder,
+                          fit: BoxFit.cover,
+                          height: double.infinity,
+                        );
+                      },
+                    )
+                  : Image.asset(
+                      img,
+                      fit: BoxFit.cover,
+                      height: double.infinity,
+                    ),
+            ],
+          ),
+        );
       }).toList(),
     );
   }

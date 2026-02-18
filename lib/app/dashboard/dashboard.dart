@@ -17,6 +17,9 @@ import 'package:seedsuser/app/news%20&%20ads/view/news_ads_screen.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/seed_price/view/seed_price_screen.dart';
 import 'package:seedsuser/app/updates/view/update_screen.dart';
+import 'package:seedsuser/app/booking/controller/my_booking_controller.dart';
+import 'package:seedsuser/app/vehicle_tracking/view/booking_vehicle_list_screen.dart';
+import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking_map_screen.dart';
 import 'package:seedsuser/l10n/app_localizations.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
@@ -33,6 +36,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final HomeController _homeController = Get.put(HomeController());
   final LocationController _locationController = Get.put(LocationController());
   final ProfileController _profileController = Get.put(ProfileController());
+  final MyBookingController _bookingController = Get.put(MyBookingController());
 
   bool _isCheckingPermission = true;
 
@@ -107,11 +111,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       enableDrag: false,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return LocationPermissionDialog(
-          onEnable: () async {
-            Navigator.pop(context);
-            await _handleEnableLocation();
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) {
+              SystemNavigator.pop();
+            }
           },
+          child: LocationPermissionDialog(
+            onEnable: () async {
+              Navigator.pop(context);
+              await _handleEnableLocation();
+            },
+          ),
         );
       },
     );
@@ -538,6 +550,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
         },
         child: Scaffold(
           body: Obx(() => pages[controller.currentIndex.value]),
+          floatingActionButton: Obx(() {
+            if (controller.currentIndex.value != 0) return const SizedBox();
+            if (!_bookingController.hasInProgressBooking) return const SizedBox();
+            final booking = _bookingController.inProgressBooking;
+            if (booking == null) return const SizedBox();
+            final inProgressCount = _bookingController.inProgressBookingCount;
+            return GestureDetector(
+              onTap: () {
+                if (inProgressCount == 1) {
+                  Get.to(() => VehicleTrackingMapScreen(
+                        bookingId: booking.bookingId.toString(),
+                      ));
+                } else {
+                  Get.to(() => const VehicleTrackingPage());
+                }
+              },
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.local_shipping_outlined,
+                        color: AppColors.primary, size: 28),
+                    const SizedBox(width: 10),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Pickup Started",
+                          style: GoogleFonts.roboto(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          "Vehicle Status",
+                          style: GoogleFonts.roboto(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(Icons.arrow_forward_ios,
+                        size: 16, color: AppColors.primary),
+                  ],
+                ),
+              ),
+            );
+          }),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           bottomNavigationBar: Obx(
             () => ClipRRect(
               borderRadius: const BorderRadius.only(

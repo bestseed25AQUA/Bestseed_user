@@ -36,64 +36,44 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
   }
 
   void _initializeFilter() {
-    // Set initial fallback value
-    selectedMonthYear.value = getPastMonths(24).first;
+    // Listen for available months changes to set initial selection
+    ever(controller.availableMonths, (months) {
+      if (months.isNotEmpty && selectedMonthYear.value.isEmpty) {
+        _setDefaultMonth();
+      }
+    });
 
-    // Listen for future changes to defaultMonthYear
+    // Listen for default month year from API
     ever(controller.defaultMonthYear, (value) {
       _syncMonthYearFromController(value);
     });
 
-    // Also check if value is already set (in case API call already completed)
+    // Also check if values are already set
     if (controller.defaultMonthYear.value.isNotEmpty) {
       _syncMonthYearFromController(controller.defaultMonthYear.value);
+    } else if (controller.availableMonths.isNotEmpty) {
+      _setDefaultMonth();
+    }
+  }
+
+  void _setDefaultMonth() {
+    final months = controller.availableMonths;
+    if (months.isNotEmpty) {
+      selectedMonthYear.value = months.first['display'] ?? '';
     }
   }
 
   void _syncMonthYearFromController(String value) {
     if (value.isNotEmpty) {
-      // Check if the value exists in our list (24 months to include past months)
-      final months = getPastMonths(24);
-      if (months.contains(value)) {
+      final displayMonths = controller.availableMonths
+          .map((m) => m['display'] ?? '')
+          .toList();
+      if (displayMonths.contains(value)) {
         selectedMonthYear.value = value;
-        print('Synced month/year to: $value');
-      } else {
-        // If not found, try to find a matching month
-        // The API returns "Dec 2025" format, our list also uses "Dec 2025"
-        print('Default month "$value" not found in list: $months');
-        selectedMonthYear.value = months.first;
+      } else if (displayMonths.isNotEmpty) {
+        selectedMonthYear.value = displayMonths.first;
       }
     }
-  }
-
-  // Generate list of past N months in "MMM yyyy" format
-  List<String> getPastMonths(int count) {
-    final now = DateTime.now();
-    List<String> months = [];
-    for (int i = 0; i < count; i++) {
-      final date = DateTime(now.year, now.month - i, 1);
-      months.add("${_monthName(date.month)} ${date.year}");
-    }
-    return months;
-  }
-
-  String _monthName(int month) {
-    const monthNames = [
-      '',
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return monthNames[month];
   }
 
   final dashboardCtrl = Get.find<DashboardController>();
@@ -259,29 +239,51 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
 
         const SizedBox(width: 16),
 
-        // ✅ Month Year Dropdown
+        // ✅ Month Year Dropdown (dynamic from API)
         Expanded(
-          child: Obx(
-            () => CustomDropdown<String>(
+          child: Obx(() {
+            final displayMonths = controller.availableMonths
+                .map((m) => m['display'] ?? '')
+                .where((d) => d.isNotEmpty)
+                .toList();
+
+            // Ensure selected value exists in list
+            if (displayMonths.isNotEmpty &&
+                !displayMonths.contains(selectedMonthYear.value)) {
+              selectedMonthYear.value = displayMonths.first;
+            }
+
+            return CustomDropdown<String>(
               backgroundColor: Color(0xffF3F4F6),
               selectedValue: selectedMonthYear.value,
-              items: getPastMonths(24),
+              items: displayMonths.isEmpty
+                  ? (selectedMonthYear.value.isNotEmpty ? [selectedMonthYear.value] : ['No data'])
+                  : displayMonths,
               itemLabel: (month) => month,
               hintText: "Select Month/Year",
               onChanged: (monthYear) {
                 selectedMonthYear.value = monthYear;
 
-                // 🔹 Extract month & year
-                final parts = monthYear.split(' ');
-                if (parts.length == 2) {
-                  controller.onMonthYearChanged(
-                    parts[0].toLowerCase(),
-                    parts[1],
-                  );
+                // Find the matching month data to get numeric month
+                final matchingMonth = controller.availableMonths
+                    .firstWhereOrNull((m) => m['display'] == monthYear);
+                if (matchingMonth != null) {
+                  controller.selectedMonth.value = matchingMonth['month'] ?? '';
+                  controller.selectedYear.value = matchingMonth['year'] ?? '';
+                  controller.getBroodStock();
+                } else {
+                  // Fallback: extract from display string
+                  final parts = monthYear.split(' ');
+                  if (parts.length == 2) {
+                    controller.onMonthYearChanged(
+                      parts[0].toLowerCase(),
+                      parts[1],
+                    );
+                  }
                 }
               },
-            ),
-          ),
+            );
+          }),
         ),
       ],
     );
@@ -462,11 +464,18 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
           textColor: Colors.green[800]!,
         );
 
+      case BroodstockStatus.comingSoon:
+        return _buildChip(
+          label: 'Coming Soon',
+          bgColor: Colors.blue.withOpacity(0.15),
+          textColor: Colors.blue[700]!,
+        );
+
       case BroodstockStatus.upcoming:
         return _buildChip(
           label: 'Upcoming',
-          bgColor: Colors.blue.withOpacity(0.15),
-          textColor: Colors.blue[700]!,
+          bgColor: Colors.purple.withOpacity(0.15),
+          textColor: Colors.purple[700]!,
         );
 
       case BroodstockStatus.shortlyAvailable:

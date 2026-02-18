@@ -25,6 +25,7 @@ import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
 import 'package:seedsuser/app/utils/app_size.dart';
+import 'package:seedsuser/app/common/media_carousel_widget.dart';
 import 'package:seedsuser/app/utils/video_player.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -143,7 +144,12 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
 
                                     if (!isVideoMedia) {
                                       return GestureDetector(
-                                        onTap: () {},
+                                        onTap: () {
+                                          Get.to(() => TrendingUpdatesDetailsScreen(
+                                            id: data?.id.toString() ?? '',
+                                            title: data?.title ?? '',
+                                          ));
+                                        },
                                         child: Container(
                                           decoration: BoxDecoration(
                                             borderRadius: BorderRadius.circular(
@@ -239,54 +245,22 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                   bottom: 10,
                                   left: 0,
                                   right: 0,
-                                  child: Builder(
-                                    builder: (context) {
-                                      try {
-                                        return Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children:
-                                              newsAdsController
-                                                      .newsAdsData
-                                                      ?.value
-                                                      ?.data
-                                                      ?.trendingUpdate
-                                                      ?.asMap()
-                                                      .entries
-                                                      .map((entry) {
-                                                        return Container(
-                                                              width: 8.0,
-                                                              height: 8.0,
-                                                              margin:
-                                                                  const EdgeInsets.symmetric(
-                                                                    horizontal:
-                                                                        4.0,
-                                                                  ),
-                                                              decoration: BoxDecoration(
-                                                                shape: BoxShape
-                                                                    .circle,
-                                                                color:
-                                                                    _currentIndex ==
-                                                                        entry
-                                                                            .key
-                                                                    ? Colors
-                                                                          .blue // Active dot
-                                                                    : Colors
-                                                                          .grey, // Inactive dot
-                                                              ),
-                                                            )
-                                                            as Widget;
-                                                      })
-                                                      .toList()
-                                                  as List<Widget>,
-                                        );
-                                      } catch (e) {
-                                        SizedBox();
-                                      } finally {
-                                        // ignore: control_flow_in_finally
-                                        return SizedBox();
-                                      }
-                                    },
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: List.generate(
+                                      newsAdsController.newsAdsData.value?.data?.trendingUpdate?.length ?? 0,
+                                      (index) => Container(
+                                        width: 8.0,
+                                        height: 8.0,
+                                        margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: _currentIndex == index
+                                              ? Colors.blue
+                                              : Colors.grey,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -320,7 +294,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                     ?.medicineNews?[index];
                                 return _buildNewsCard(
                                   data?.medicineName ?? "",
-                                  data?.createdAt ?? "",
+                                  data?.subtitle ?? "",
                                   data?.mediaPath ?? "",
                                   'medicine$index',
                                   () {
@@ -336,7 +310,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                             MedicineDetailScreen(
                                               id: data?.id.toString() ?? '',
                                               title: data?.medicineName ?? '',
-                                              subtitle: data?.createdAt ?? '',
+                                              subtitle: data?.subtitle ?? '',
                                               imageUrl: data?.mediaPath ?? '',
                                               tag: 'medicine$index',
                                             ),
@@ -344,6 +318,8 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                     );
                                   },
                                   mediaType: data?.mediaType,
+                                  mediaFiles: data?.mediaFiles,
+                                  mediaTypes: data?.mediaTypes,
                                 );
                               },
                             ),
@@ -376,7 +352,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                     ?.climateNews?[index];
                                 return _buildNewsCard(
                                   data?.title ?? "",
-                                  data?.createdAt ?? "",
+                                  data?.subtitle ?? "",
                                   data?.mediaPath ?? "",
                                   'climate$index',
                                   () {
@@ -392,7 +368,7 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                             ClimateDetailScreen(
                                               id: data?.id.toString() ?? '',
                                               title: data?.title ?? '',
-                                              subtitle: data?.createdAt ?? '',
+                                              subtitle: data?.subtitle ?? '',
                                               imageUrl: data?.mediaPath ?? '',
                                               tag: 'climate$index',
                                             ),
@@ -400,6 +376,8 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                     );
                                   },
                                   mediaType: data?.mediaType,
+                                  mediaFiles: data?.mediaFiles,
+                                  mediaTypes: data?.mediaTypes,
                                 );
                               },
                             ),
@@ -620,21 +598,16 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
     String tag,
     VoidCallback ontap, {
     String? mediaType,
+    List<String>? mediaFiles,
+    List<String>? mediaTypes,
   }) {
-    // Check if media is video by file extension (more reliable than mediaType from API)
-    final lowerUrl = mediaUrl.toLowerCase();
-    bool isVideo = lowerUrl.endsWith('.mp4') ||
-        lowerUrl.endsWith('.mov') ||
-        lowerUrl.endsWith('.m3u8') ||
-        lowerUrl.endsWith('.webm') ||
-        lowerUrl.endsWith('.avi');
-
-    // Only use mediaType if URL doesn't have a clear extension
-    if (!isVideo && !lowerUrl.endsWith('.png') &&
-        !lowerUrl.endsWith('.jpg') && !lowerUrl.endsWith('.jpeg') &&
-        !lowerUrl.endsWith('.gif') && !lowerUrl.endsWith('.webp')) {
-      isVideo = mediaType == 'video';
-    }
+    // Use multi-media arrays if available, fallback to single mediaUrl
+    final urls = (mediaFiles != null && mediaFiles.isNotEmpty)
+        ? mediaFiles
+        : (mediaUrl.isNotEmpty ? [mediaUrl] : <String>[]);
+    final types = (mediaTypes != null && mediaTypes.isNotEmpty)
+        ? mediaTypes
+        : [mediaType ?? 'image'];
 
     return Container(
       decoration: BoxDecoration(
@@ -656,44 +629,14 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Media section - video or image
-            Hero(
-              tag: tag,
-              child: Material(
-                color: Colors.white,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: isVideo
-                      ? InlineVideoPlayer(
-                          url: mediaUrl,
-                          title: title,
-                          height: 120,
-                        )
-                      : InkWell(
-                          onTap: ontap,
-                          child: Image.network(
-                            mediaUrl,
-                            height: 120,
-                            width: 150,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Shimmer.fromColors(
-                                baseColor: Colors.grey.shade300,
-                                highlightColor: Colors.grey.shade100,
-                                child: Container(
-                                  height: 120,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                ),
-              ),
+            // Media section - mini carousel with dots
+            MiniMediaCarousel(
+              mediaUrls: urls,
+              mediaTypes: types,
+              height: 120,
+              width: 150,
+              onTap: ontap,
+              borderRadius: 12,
             ),
             // Title and subtitle - tappable to navigate to detail
             InkWell(

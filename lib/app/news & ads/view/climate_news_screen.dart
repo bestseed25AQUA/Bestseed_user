@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/common/media_carousel_widget.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/climate_news_detail_screen.dart';
-import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
-import 'package:seedsuser/app/utils/video_player.dart';
 import 'package:shimmer/shimmer.dart';
 
 class ClimateNewsScreen extends StatefulWidget {
@@ -20,16 +19,6 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
   final newsSpecificController = Get.put(NewsSpecificController());
   List<Map<String, String>> allNews = [];
   List<Map<String, String>> filteredNews = [];
-
-  // Check if URL is a video
-  bool _isVideoUrl(String url) {
-    final lowerUrl = url.toLowerCase();
-    return lowerUrl.endsWith('.mp4') ||
-        lowerUrl.endsWith('.mov') ||
-        lowerUrl.endsWith('.m3u8') ||
-        lowerUrl.endsWith('.webm') ||
-        lowerUrl.endsWith('.avi');
-  }
 
   @override
   void initState() {
@@ -57,7 +46,7 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
-        
+
         leading: Padding(
           padding: const EdgeInsets.only(left: 16.0),
           child: CircleAvatar(
@@ -81,7 +70,6 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
       ),
       body: Column(
         children: [
-          // 🔍 Search Field
           if (false)
             Padding(
               padding: const EdgeInsets.all(8.0),
@@ -100,19 +88,12 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
                   decoration: InputDecoration(
                     hintText: 'Search climate news...',
                     prefixIcon: const Icon(Icons.search),
-                    // filled: true,
-                    // fillColor: Colors.grey[200],
-                    // contentPadding: const EdgeInsets.symmetric(
-                    //   horizontal: 16,
-                    //   vertical: 16,
-                    // ),
                     border: InputBorder.none,
                   ),
                 ),
               ),
             ),
 
-          // 📰 Grid of News
           Obx(() {
             if (newsSpecificController.isLoading.value) {
               return climateNewsShimmer();
@@ -137,7 +118,7 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
                   crossAxisCount: 2,
                   mainAxisSpacing: 8.0,
                   crossAxisSpacing: 8.0,
-                  childAspectRatio: 1,
+                  childAspectRatio: 0.85,
                 ),
                 itemCount:
                     newsSpecificController.newsSpecificData.value?.data?.length,
@@ -146,6 +127,9 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
                       .newsSpecificData
                       .value
                       ?.data?[index];
+
+                  final mediaUrls = data?.mediaFiles ?? [data?.mediaPath ?? ''];
+                  final mediaTypes = data?.mediaTypes ?? [data?.mediaType ?? 'image'];
 
                   void navigateToDetail() {
                     Navigator.push(
@@ -160,7 +144,7 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
                         pageBuilder: (_, __, ___) => ClimateDetailScreen(
                           id: data?.id.toString() ?? '',
                           title: data?.title ?? "",
-                          subtitle: data?.curesFor ?? "",
+                          subtitle: data?.subtitle ?? "",
                           imageUrl: data?.mediaPath ?? '',
                           tag: 'climateNewsScreen$index',
                         ),
@@ -169,11 +153,11 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
                   }
 
                   return _buildNewsCard(
-                    data?.title ?? '',
-                    data?.curesFor ?? '',
-                    data?.mediaPath ?? '',
-                    'climateNewsScreen$index',
-                    navigateToDetail,
+                    title: data?.title ?? '',
+                    subtitle: data?.subtitle ?? '',
+                    mediaUrls: mediaUrls,
+                    mediaTypes: mediaTypes,
+                    onTap: navigateToDetail,
                   );
                 },
               ),
@@ -184,15 +168,13 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
     );
   }
 
-  Widget _buildNewsCard(
-    String title,
+  Widget _buildNewsCard({
+    required String title,
     String? subtitle,
-    String imageUrl,
-    String tag,
-    VoidCallback onTap,
-  ) {
-    final isVideo = _isVideoUrl(imageUrl);
-
+    required List<String> mediaUrls,
+    required List<String> mediaTypes,
+    required VoidCallback onTap,
+  }) {
     return Container(
       width: 150,
       margin: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -206,30 +188,18 @@ class _ClimateNewsScreenState extends State<ClimateNewsScreen> {
               border: Border.all(width: .1, color: Colors.grey),
               boxShadow: [BoxShadow(color: Colors.grey)],
             ),
-            child: Hero(
-              tag: tag,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: isVideo
-                    ? InlineVideoPlayer(
-                        url: imageUrl,
-                        title: title,
-                        height: 120,
-                      )
-                    : Image.network(
-                        imageUrl,
-                        height: 120,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return SizedBox(height: 120, width: 150);
-                        },
-                      ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: MiniMediaCarousel(
+                mediaUrls: mediaUrls,
+                mediaTypes: mediaTypes,
+                height: 120,
+                borderRadius: 12,
+                onTap: onTap,
               ),
             ),
           ),
           const SizedBox(height: 8),
-          // Title and subtitle - tappable to navigate to detail
           InkWell(
             onTap: onTap,
             child: Column(
@@ -264,7 +234,7 @@ Widget climateNewsShimmer() {
   return Expanded(
     child: GridView.builder(
       padding: const EdgeInsets.all(12),
-      itemCount: 6, // show 6 shimmer items
+      itemCount: 6,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         mainAxisSpacing: 10,
@@ -278,7 +248,6 @@ Widget climateNewsShimmer() {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // IMAGE SHIMMER
               Container(
                 height: 120,
                 width: double.infinity,
@@ -290,7 +259,6 @@ Widget climateNewsShimmer() {
 
               const SizedBox(height: 10),
 
-              // TITLE SHIMMER
               Container(
                 height: 14,
                 width: 120,
@@ -301,8 +269,6 @@ Widget climateNewsShimmer() {
               ),
 
               const SizedBox(height: 6),
-
-              // SUBTITLE SHIMMER
             ],
           ),
         );

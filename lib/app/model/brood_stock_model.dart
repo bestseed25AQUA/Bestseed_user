@@ -1,8 +1,9 @@
 enum BroodstockStatus {
   available,
+  comingSoon,
   upcoming,
-  closed,
   shortlyAvailable,
+  closed,
   unknown,
 }
 
@@ -135,15 +136,23 @@ class BroodstockData {
 }
 
 BroodstockStatus broodstockStatusFromString(String? value) {
-  switch (value?.toLowerCase()) {
+  switch (value?.toLowerCase().trim()) {
+    case '1':
     case 'available':
       return BroodstockStatus.available;
+    case '2':
+    case 'coming_soon':
+    case 'coming soon':
+      return BroodstockStatus.comingSoon;
+    case '3':
     case 'upcoming':
       return BroodstockStatus.upcoming;
-    case 'closed':
-      return BroodstockStatus.closed;
+    case '4':
     case 'shortly_available':
       return BroodstockStatus.shortlyAvailable;
+    case '5':
+    case 'closed':
+      return BroodstockStatus.closed;
     default:
       return BroodstockStatus.unknown;
   }

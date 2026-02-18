@@ -190,26 +190,9 @@ class HatcherySuppliersWidget extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // Chips Row → Available + Packing (conditional)
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  if (data.availableOn.isNotEmpty)
-                    _buildChip(context,
-                      label: data.availableOn.replaceAll(" on", ''),
-                      bgColor: Colors.green.withOpacity(0.15),
-                      textColor: Colors.green[800]!,
-                    ),
-
-                  // if (data.availableOn.isNotEmpty && data.packingStart.isNotEmpty)
-                  //   const SizedBox(width: 10),
-                  if (data.packingStart.isNotEmpty)
-                    _buildChip(context,
-                      label: "${data.packingStart}",
-                      bgColor: Colors.blue.withOpacity(0.15),
-                      textColor: Colors.blue[700]!,
-                    ),
-                ],
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [buildStatusChip(data)],
               ),
             ],
           ),
@@ -218,7 +201,70 @@ class HatcherySuppliersWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildChip(BuildContext context,{
+  Widget buildStatusChip(BroodstockData data) {
+    switch (data.status) {
+      case BroodstockStatus.available:
+        // Show "Available" with date if available
+        String availableLabel = 'Available';
+        if (data.availableOn.isNotEmpty) {
+          // Extract just the date part from availableOn
+          String dateStr = data.availableOn
+              .replaceAll('Available on ', '')
+              .replaceAll('Available ', '')
+              .trim();
+          availableLabel = 'Available $dateStr';
+        }
+        return _buildChip(
+          label: availableLabel,
+          bgColor: Colors.green.withOpacity(0.15),
+          textColor: Colors.green[800]!,
+        );
+
+      case BroodstockStatus.comingSoon:
+        return _buildChip(
+          label: 'Coming Soon',
+          bgColor: Colors.blue.withOpacity(0.15),
+          textColor: Colors.blue[700]!,
+        );
+
+      case BroodstockStatus.upcoming:
+        return _buildChip(
+          label: 'Upcoming',
+          bgColor: Colors.purple.withOpacity(0.15),
+          textColor: Colors.purple[700]!,
+        );
+
+      case BroodstockStatus.shortlyAvailable:
+        // Show "Shortly Available" with date if available
+        String shortlyLabel = 'Shortly Available';
+        if (data.availableOn.isNotEmpty) {
+          String dateStr = data.availableOn
+              .replaceAll('Shortly Available on ', '')
+              .replaceAll('Shortly Available ', '')
+              .replaceAll('Available on ', '')
+              .replaceAll('Available ', '')
+              .trim();
+          shortlyLabel = 'Shortly Available $dateStr';
+        }
+        return _buildChip(
+          label: shortlyLabel,
+          bgColor: Colors.orange.withOpacity(0.15),
+          textColor: Colors.orange[800]!,
+        );
+
+      case BroodstockStatus.closed:
+        return _buildChip(
+          label: 'Closed',
+          bgColor: Colors.grey.withOpacity(0.2),
+          textColor: Colors.grey[800]!,
+        );
+
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildChip({
     required String label,
     required Color bgColor,
     required Color textColor,
@@ -230,10 +276,10 @@ class HatcherySuppliersWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: SizedBox(
-        width: MediaQuery.of(context).size.width * .4 - 22,
+        width: Get.width * .6 - 22,
         child: Center(
           child: Text(
-            label,
+            label.replaceAll("Start", ""),
             style: GoogleFonts.roboto(
               fontSize: 14,
               color: textColor,

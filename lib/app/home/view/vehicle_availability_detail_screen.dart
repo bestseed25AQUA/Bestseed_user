@@ -4,8 +4,8 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/booking_hatchery_widget.dart';
+import 'package:seedsuser/app/common/media_carousel_widget.dart';
 import 'package:seedsuser/app/model/vehicle_available_model.dart';
-import 'package:seedsuser/app/utils/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class VehicleAvailabilityDetailScreen extends StatefulWidget {
@@ -23,8 +23,6 @@ class VehicleAvailabilityDetailScreen extends StatefulWidget {
 
 class _VehicleAvailabilityDetailScreenState
     extends State<VehicleAvailabilityDetailScreen> {
-  late PageController _pageController;
-  int _currentPage = 0;
   bool _isViewMoreExpanded = false;
 
   bool _isVideo(String url) {
@@ -40,13 +38,6 @@ class _VehicleAvailabilityDetailScreenState
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
   }
 
   @override
@@ -76,85 +67,15 @@ class _VehicleAvailabilityDetailScreenState
             if (validImages.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: SizedBox(
-                        height: 180,
-                        width: double.infinity,
-                        child: validImages.length == 1
-                            ? (_isVideo(validImages.first))
-                                ? InlineVideoPlayer(
-                                    url: validImages.first,
-                                    title: vehicle.vehicleName,
-                                    height: 180,
-                                  )
-                                : Image.network(
-                                    validImages.first,
-                                    width: double.infinity,
-                                    height: 180,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, _, __) => Container(
-                                        color: Colors.grey.withOpacity(.2)),
-                                  )
-                            : PageView.builder(
-                                controller: _pageController,
-                                onPageChanged: (index) {
-                                  setState(() {
-                                    _currentPage = index;
-                                  });
-                                },
-                                itemCount: validImages.length,
-                                itemBuilder: (context, index) {
-                                  final url = validImages[index];
-                                  if (_isVideo(url)) {
-                                    return InlineVideoPlayer(
-                                      url: url,
-                                      title: vehicle.vehicleName,
-                                      height: 180,
-                                    );
-                                  }
-                                  return Image.network(
-                                    url,
-                                    width: double.infinity,
-                                    height: 180,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, _, __) {
-                                      return Container(
-                                        color: Colors.grey.withOpacity(.2),
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                      ),
-                    ),
-                    // Image indicator dots
-                    if (validImages.length > 1)
-                      Positioned(
-                        bottom: 8,
-                        left: 0,
-                        right: 0,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(
-                            validImages.length,
-                            (index) => Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: _currentPage == index
-                                    ? Colors.white
-                                    : Colors.white.withOpacity(0.5),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
+                child: SizedBox(
+                  height: 180,
+                  child: MediaCarouselWidget(
+                    mediaUrls: validImages,
+                    mediaTypes: validImages.map((url) => _isVideo(url) ? 'video' : 'image').toList(),
+                    height: 180,
+                    borderRadius: 14,
+                    title: vehicle.vehicleName,
+                  ),
                 ),
               ),
 

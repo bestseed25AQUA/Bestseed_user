@@ -13,9 +13,9 @@ import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_scree
 import 'package:seedsuser/app/farm_management/farmer/view/feed_update_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/chat_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/widget/contact_us_dialog.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_options.dart';
 import 'package:seedsuser/app/farm_management/manager/view/manager_screen.dart';
+import 'package:seedsuser/app/farm_management/farm_home/notify_us_screen.dart';
 import 'package:seedsuser/app/farm_management/partner/view/partner_screen.dart';
 
 class FarmManagementScreen extends StatefulWidget {
@@ -60,19 +60,46 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
-        automaticallyImplyLeading: true,
+        automaticallyImplyLeading: false,
         backgroundColor: AppColors.primary,
         elevation: 0,
         foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Get.back(),
+        ),
         title: Text(
           'Farm Management',
           style: GoogleFonts.roboto(color: Colors.white),
         ),
         // leading: const Icon(Icons.menu),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.headset_mic_outlined, color: Colors.white),
-            onPressed: () => showContactUsDialog(context),
+          Container(
+            margin: const EdgeInsets.only(right: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Scan',
+                  style: GoogleFonts.roboto(
+                    color: Colors.black,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.qr_code_scanner,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -81,64 +108,87 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        return Stack(
+        return Column(
           children: [
-            ListView.builder(
-              reverse: true,
-              padding: const EdgeInsets.only(
-                top: 10,
-                right: 10,
-                bottom: 5,
-                left: 5,
-              ),
-              itemCount: farmSections.length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
-                  child: InkWell(
-                    onTap: () {
-                      Get.to(
-                        FarmTankListScreen(
-                          farmId: farmSections[index].id,
-                          farmName: farmSections[index].name,
+            Expanded(
+              child: Stack(
+                children: [
+                  ListView.builder(
+                    reverse: true,
+                    padding: const EdgeInsets.only(
+                      top: 10,
+                      right: 10,
+                      bottom: 5,
+                      left: 5,
+                    ),
+                    itemCount: farmSections.length,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: InkWell(
+                          onTap: () {
+                            Get.to(
+                              FarmTankListScreen(
+                                farmId: farmSections[index].id,
+                                farmName: farmSections[index].name,
+                              ),
+                            );
+                          },
+                          child: FarmCard(
+                            farm: farmSections[index],
+                            tankController: tankController,
+                          ),
                         ),
                       );
                     },
-                    child: FarmCard(
-                      farm: farmSections[index],
-                      tankController: tankController,
-                    ),
                   ),
-                );
-              },
-            ),
 
-            if (_isChatbotOpen)
-              const Positioned(bottom: 120, right: 16, child: ChatbotWidget()),
-            Positioned(
-              bottom: 16,
-              right: 16,
-              child: Column(
-                children: [
-                  FloatingActionButton(
-                    heroTag: 'chatbotFab',
-                    backgroundColor: _isChatbotOpen
-                        ? Colors.white
-                        : primaryBlue,
-                    onPressed: _toggleChatbot,
-                    child: Icon(
-                      _isChatbotOpen ? Icons.close : Icons.smart_toy_outlined,
-                      color: _isChatbotOpen ? primaryBlue : Colors.white,
+                  if (_isChatbotOpen)
+                    const Positioned(bottom: 120, right: 16, child: ChatbotWidget()),
+                  Positioned(
+                    bottom: 16,
+                    right: 16,
+                    child: Column(
+                      children: [
+                        FloatingActionButton(
+                          heroTag: 'chatbotFab',
+                          backgroundColor: _isChatbotOpen
+                              ? Colors.white
+                              : primaryBlue,
+                          onPressed: _toggleChatbot,
+                          child: Icon(
+                            _isChatbotOpen ? Icons.close : Icons.smart_toy_outlined,
+                            color: _isChatbotOpen ? primaryBlue : Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        FloatingActionButton(
+                          heroTag: 'addFab',
+                          backgroundColor: primaryBlue,
+                          onPressed: () => Get.to(() => AddFarmerDetailsFormScreen()),
+                          child: const Icon(Icons.add, color: Colors.white),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  FloatingActionButton(
-                    heroTag: 'addFab',
-                    backgroundColor: primaryBlue,
-                    onPressed: () => Get.to(() => AddFarmerDetailsFormScreen()),
-                    child: const Icon(Icons.add, color: Colors.white),
                   ),
                 ],
+              ),
+            ),
+            // Fixed Contact Us button at bottom
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16, top: 8),
+              child: TextButton(
+                onPressed: () {
+                  Get.to(() => const NotifyUsScreen());
+                },
+                child: Text(
+                  'Contact Us',
+                  style: GoogleFonts.roboto(
+                    color: AppColors.primary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ],

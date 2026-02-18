@@ -30,7 +30,21 @@ class CustomIconAppbar extends StatelessWidget implements PreferredSizeWidget {
       automaticallyImplyLeading: false,
       leading: showBackButton
           ? IconButton(icon: Icon(Icons.arrow_back, color: Colors.black), onPressed: ontapBack)
-          : null,
+          : Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.grey.shade500),
+                ),
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
       titleWidget: Text(
         title,
         style: GoogleFonts.roboto(
@@ -38,7 +52,7 @@ class CustomIconAppbar extends StatelessWidget implements PreferredSizeWidget {
           fontWeight: FontWeight.bold,fontSize: 17
         ),
       ),
-      titleSpacing: showBackButton ? 0 : 56,
+      titleSpacing: showBackButton ? 0 : 4,
       // titleWidget: Text(
       //   title,
       //   style: GoogleFonts.roboto(

@@ -54,6 +54,8 @@ class FilterHatcheryController extends GetxController {
         );
         // Store all hatcheries for dropdown usage
         allHatcheries.assignAll(modelData.data);
+        // Show all hatcheries initially
+        hatcherFilteredData.value = modelData;
       } else {
         CustomToast.error("Failed to fetch prices ");
       }
@@ -149,7 +151,7 @@ class FilterHatcheryController extends GetxController {
       final String url =
           "${NetworkConfig.baseURL}/farmer/hatcheries"
           "?category_id=$categoryCSV"
-          // "&location_id=$locationCSV"
+          "&location_id=$locationCSV"
           "&brand_id=$brandCSV"
           "&q=$query"
           "&page=$page";
@@ -186,6 +188,35 @@ class FilterHatcheryController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  void searchLocally(String searchQuery) {
+    query = searchQuery;
+
+    List<HatcheryFilterItem> filtered = allHatcheries.toList();
+
+    // Filter by search text (name + location)
+    if (searchQuery.isNotEmpty) {
+      final lowerQuery = searchQuery.toLowerCase();
+      filtered = filtered.where((item) {
+        return item.hatcheryName.toLowerCase().contains(lowerQuery) ||
+            item.location.toLowerCase().contains(lowerQuery) ||
+            item.category.toLowerCase().contains(lowerQuery) ||
+            item.status.toLowerCase().contains(lowerQuery);
+      }).toList();
+    }
+
+    hatcherFilteredData.value = HatcheryFilterResponse(
+      status: true,
+      message: "Filtered",
+      meta: MetaData(
+        total: filtered.length,
+        perPage: filtered.length,
+        currentPage: 1,
+        lastPage: 1,
+      ),
+      data: filtered,
+    );
   }
 
   void resetFilters() {

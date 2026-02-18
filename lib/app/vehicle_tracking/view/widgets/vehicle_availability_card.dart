@@ -145,51 +145,64 @@ class VehicleAvaibalityCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               // Pieces Row
-              Row(
-                children: [
-                  Image.asset(
-                    'assets/images/pieces_icon.png',
-                    height: 22,
-                    width: 22,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(
-                        Icons.shopping_bag,
-                        size: 22,
-                        color: Colors.grey,
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    quantity,
-                    style: GoogleFonts.roboto(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+              Expanded(
+                child: Row(
+                  children: [
+                    Image.asset(
+                      'assets/images/pieces_icon.png',
+                      height: 22,
+                      width: 22,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.shopping_bag,
+                          size: 22,
+                          color: Colors.grey,
+                        );
+                      },
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        quantity,
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
-              const SizedBox(height: 6),
+              const SizedBox(width: 8),
 
               // Date Row
-              Row(
-                children: [
-                  Icon(
-                    Icons.calendar_today,
-                    size: 18,
-                    color: Colors.grey.shade600,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    date,
-                    style: GoogleFonts.roboto(
-                      fontSize: 14,
-                      color: Colors.black87,
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 18,
+                      color: Colors.grey.shade600,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        date,
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
