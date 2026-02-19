@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:get/get.dart';
+import 'package:seedsuser/app/common/app_cache_helper.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/model/hatchery_model.dart';
 import 'package:seedsuser/app/model/home_banner_model.dart';
@@ -49,6 +51,17 @@ class HatcheryUpdatesController extends GetxController {
     String? locationId = '',
   }) async {
     try {
+      // Load from cache first
+      try {
+        final cached = await AppCacheHelper.get('hatchery_home_updates');
+        if (cached != null) {
+          final data = json.decode(cached);
+          hatcheryHomeData.value = HatcheryModel.fromJson(data);
+        }
+      } catch (e) {
+        debugPrint('Cache read failed (hatchery_home_updates): $e');
+      }
+
       String endPoint =
           "${NetworkConfig.baseURL}/farmer/home-hatchery-updates?category_id=$categoryId&location_id=$locationId";
 
@@ -61,6 +74,7 @@ class HatcheryUpdatesController extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         hatcheryHomeData.value = HatcheryModel.fromJson(data);
+        try { await AppCacheHelper.save('hatchery_home_updates', response.body); } catch (e) { debugPrint('Cache save failed (hatchery_home_updates): $e'); }
       } else {
         CustomToast.error("Failed to fetch ");
       }
@@ -69,7 +83,7 @@ class HatcheryUpdatesController extends GetxController {
       print(e.toString());
       print(s.toString());
       CustomToast.error("Something went wrong  ");
-    } finally {  
+    } finally {
     }
   }
 

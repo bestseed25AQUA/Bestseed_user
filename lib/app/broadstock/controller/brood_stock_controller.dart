@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:get/get.dart';
+import 'package:seedsuser/app/common/app_cache_helper.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/model/brood_stock_model.dart';
 import 'package:seedsuser/app/model/category_model.dart';
@@ -222,6 +224,23 @@ class BroodStockController extends GetxController {
 
  Future<void> getBroodStockForHome({required String categoryId, required String locationId}) async {
     try {
+      // Load from cache first
+      try {
+        final cached = await AppCacheHelper.get('broodstock_home');
+        if (cached != null) {
+          final data = jsonDecode(cached);
+          if (data['status'] == true && data['data'] is List) {
+            final model = BroodstockModel.fromJson(data);
+            final limitedData = model.data.length > 5
+                ? model.data.sublist(0, 5)
+                : model.data;
+            homeBroodStocks.assignAll(limitedData);
+          }
+        }
+      } catch (e) {
+        debugPrint('Cache read failed (broodstock_home): $e');
+      }
+
       // Use default filter values from admin config (same as BroodStock screen)
       // First fetch defaults if not already loaded
       if (defaultCategory.value.isEmpty) {
@@ -264,6 +283,7 @@ class BroodStockController extends GetxController {
         } else {
           homeBroodStocks.clear();
         }
+        try { await AppCacheHelper.save('broodstock_home', response.body); } catch (e) { debugPrint('Cache save failed (broodstock_home): $e'); }
       } else {
         CustomToast.error(
           "Failed to fetch brood stock (Code )",

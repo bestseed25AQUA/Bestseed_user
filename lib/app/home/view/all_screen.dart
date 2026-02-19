@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/best_deals/view/best_deals_screen.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/infinite_image_scroll.dart';
@@ -274,7 +275,10 @@ class _HomePageState extends State<HomePage>
                           'FC Farm Medicine for fishes ',
                           'assets/images/fc_prawn.png',
                           () {
-                            // Get.to(() => FarmHomeScreen());
+                            Navigator.push(
+                              context,
+                              AppAnimations.fade(const BestDealsScreen()),
+                            );
                           },
                         ),
                       ),

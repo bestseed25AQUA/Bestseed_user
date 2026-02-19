@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:get/get.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
+import 'package:seedsuser/app/common/app_cache_helper.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/model/brand_model.dart';
@@ -70,6 +72,20 @@ class HomeController extends GetxController {
   Future<void> getCategories() async {
     try {
       isLoading.value = true;
+
+      // Load from cache first
+      try {
+        final cached = await AppCacheHelper.get('categories');
+        if (cached != null) {
+          final data = jsonDecode(cached);
+          final List<dynamic> catList = data['categories'];
+          categories.assignAll(catList.map((e) => Category.fromJson(e)).toList());
+          isLoading.value = false;
+        }
+      } catch (e) {
+        debugPrint('Cache read failed (categories): $e');
+      }
+
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/categories",
         headers: await buildHeader(),
@@ -82,6 +98,7 @@ class HomeController extends GetxController {
         final List<dynamic> catList = data['categories'];
         categories.assignAll(catList.map((e) => Category.fromJson(e)).toList());
         // ⭐ Pass data to search filter controller
+        try { await AppCacheHelper.save('categories', response.body); } catch (e) { debugPrint('Cache save failed (categories): $e'); }
       } else {
         CustomToast.error("Failed to fetch categories ");
       }
@@ -100,6 +117,20 @@ class HomeController extends GetxController {
   Future<void> getBrands() async {
     try {
       isLoading.value = true;
+
+      // Load from cache first
+      try {
+        final cached = await AppCacheHelper.get('brands');
+        if (cached != null) {
+          final data = jsonDecode(cached);
+          final List<dynamic> brandList = data['brands'];
+          brands.assignAll(brandList.map((e) => BrandModel.fromJson(e)).toList());
+          isLoading.value = false;
+        }
+      } catch (e) {
+        debugPrint('Cache read failed (brands): $e');
+      }
+
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/brands",
         headers: await buildHeader(),
@@ -113,6 +144,7 @@ class HomeController extends GetxController {
         final data = jsonDecode(response.body);
         final List<dynamic> brandList = data['brands'];
         brands.assignAll(brandList.map((e) => BrandModel.fromJson(e)).toList());
+        try { await AppCacheHelper.save('brands', response.body); } catch (e) { debugPrint('Cache save failed (brands): $e'); }
       } else {
         CustomToast.error("Failed to fetch brands ");
       }
@@ -129,6 +161,24 @@ class HomeController extends GetxController {
 
   Future<void> getHatcheries(String? categoryId) async {
     try {
+      final cacheKey = 'home_hatcheries_${categoryId ?? ''}';
+
+      // Load from cache first
+      try {
+        final cached = await AppCacheHelper.get(cacheKey);
+        if (cached != null) {
+          final data = jsonDecode(cached);
+          if (data['data'] != null && data['data'] is List) {
+            final List<dynamic> hatcheryList = data['data'];
+            hatcheries.assignAll(
+              hatcheryList.map((e) => HatcheryHomeModel.fromJson(e ?? {})).toList(),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('Cache read failed (hatcheries): $e');
+      }
+
       final response = await getRequest(
         endPoint:
             "${NetworkConfig.baseURL}/farmer/home-hatcheries?category_id=${categoryId ?? ''}",
@@ -150,6 +200,7 @@ class HomeController extends GetxController {
         hatcheries.assignAll(
           hatcheryList.map((e) => HatcheryHomeModel.fromJson(e ?? {})).toList(),
         );
+        try { await AppCacheHelper.save(cacheKey, response.body); } catch (e) { debugPrint('Cache save failed (hatcheries): $e'); }
       } else {
         CustomToast.error("Failed to fetch hatcheries");
       }
@@ -169,6 +220,17 @@ class HomeController extends GetxController {
 
   Future<void> getPricesForHome() async {
     try {
+      // Load from cache first
+      try {
+        final cached = await AppCacheHelper.get('home_seed_prices');
+        if (cached != null) {
+          final data = jsonDecode(cached);
+          homePriceData.value = PriceHomeModel.fromJson(data);
+        }
+      } catch (e) {
+        debugPrint('Cache read failed (home_seed_prices): $e');
+      }
+
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/home-seed-prices",
         headers: await buildHeader(),
@@ -179,6 +241,7 @@ class HomeController extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         homePriceData.value = PriceHomeModel.fromJson(data);
+        try { await AppCacheHelper.save('home_seed_prices', response.body); } catch (e) { debugPrint('Cache save failed (home_seed_prices): $e'); }
       } else {
         CustomToast.error("Failed to fetch prices ");
       }
