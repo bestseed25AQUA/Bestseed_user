@@ -112,7 +112,7 @@ class _BestDealDetailScreenState extends State<BestDealDetailScreen> {
                     // Description
                     Builder(
                       builder: (context) {
-                        if (controller.isDetailLoading.value) {
+                        if (data == null && controller.isDetailLoading.value) {
                           return _descriptionShimmer();
                         }
                         return HtmlWidget(

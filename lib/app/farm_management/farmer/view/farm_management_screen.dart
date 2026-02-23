@@ -11,6 +11,7 @@ import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart'
 import 'package:seedsuser/app/farm_management/farmer/view/farm_detail_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/feed_update_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/setup_access_guide_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/chat_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_options.dart';
@@ -93,11 +94,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
                   ),
                 ),
                 const SizedBox(width: 4),
-                Icon(
-                  Icons.qr_code_scanner,
-                  color: AppColors.primary,
-                  size: 18,
-                ),
+                Icon(Icons.qr_code_scanner, color: AppColors.primary, size: 18),
               ],
             ),
           ),
@@ -144,7 +141,11 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
                   ),
 
                   if (_isChatbotOpen)
-                    const Positioned(bottom: 120, right: 16, child: ChatbotWidget()),
+                    const Positioned(
+                      bottom: 120,
+                      right: 16,
+                      child: ChatbotWidget(),
+                    ),
                   Positioned(
                     bottom: 16,
                     right: 16,
@@ -157,7 +158,9 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
                               : primaryBlue,
                           onPressed: _toggleChatbot,
                           child: Icon(
-                            _isChatbotOpen ? Icons.close : Icons.smart_toy_outlined,
+                            _isChatbotOpen
+                                ? Icons.close
+                                : Icons.smart_toy_outlined,
                             color: _isChatbotOpen ? primaryBlue : Colors.white,
                           ),
                         ),
@@ -165,7 +168,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
                         FloatingActionButton(
                           heroTag: 'addFab',
                           backgroundColor: primaryBlue,
-                          onPressed: () => Get.to(() => AddFarmerDetailsFormScreen()),
+                          onPressed: () =>
+                              Get.to(() => AddFarmerDetailsFormScreen()),
                           child: const Icon(Icons.add, color: Colors.white),
                         ),
                       ],
@@ -255,6 +259,11 @@ class FarmCard extends StatelessWidget {
                             Navigator.pop(context);
                             tankController.getTankList(farm.id);
                             Get.to(FeedUpdateScreen(farmId: farm.id));
+                          },
+
+                          onTapAccessSetup: () {
+                            Navigator.pop(context);
+                            Get.to(() => SetupAccessGuideScreen());
                           },
 
                           onPartners: () {
@@ -613,6 +622,7 @@ void showFarmBottomSheet({
   required BuildContext context,
   required String farmName,
   required VoidCallback onAddTankQty,
+  required VoidCallback onTapAccessSetup,
   required VoidCallback onPartners,
   required VoidCallback onManager,
   required VoidCallback onEditFarm,
@@ -659,6 +669,12 @@ void showFarmBottomSheet({
               icon: Icons.layers,
               title: "Add today's tanks quantity",
               onTap: onAddTankQty,
+            ),
+
+            _sheetItem(
+              icon: Icons.person_2,
+              title: "Set Up Access for Manager or Partner",
+              onTap: onTapAccessSetup,
             ),
 
             _sheetItem(icon: Icons.group, title: "Partners", onTap: onPartners),

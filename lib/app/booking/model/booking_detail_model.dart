@@ -6,6 +6,7 @@ class BookingDetailModel {
 
   final String bookingDateTime;
   final String unitLocation;
+  final int salinity;
   final String pieces;
   final String estimatedPrice;
   final String droppingLocation;
@@ -37,6 +38,7 @@ class BookingDetailModel {
     required this.statusDescription,
     required this.bookingDateTime,
     required this.unitLocation,
+    required this.salinity,
     required this.pieces,
     required this.estimatedPrice,
     required this.droppingLocation,
@@ -75,6 +77,7 @@ class BookingDetailModel {
 
       bookingDateTime: booking["delivery_datetime"]?.toString() ?? "",
       unitLocation: booking["unit"]?.toString() ?? "",
+      salinity: booking["salinity"] ?? 0,
       pieces: booking["no_of_pieces"]?.toString() ?? "",
       estimatedPrice: booking["estimated_price"]?.toString() ?? "",
       droppingLocation: booking["dropping_location"]?.toString() ?? "",

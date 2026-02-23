@@ -12,18 +12,18 @@ import 'package:seedsuser/app/vehicle_tracking/model/specific_vehicle_tracking_r
 class VehicleTrackingMapScreen extends StatefulWidget {
   final String bookingId;
 
-  const VehicleTrackingMapScreen({
-    super.key,
-    required this.bookingId,
-  });
+  const VehicleTrackingMapScreen({super.key, required this.bookingId});
 
   @override
   State<VehicleTrackingMapScreen> createState() =>
       _VehicleTrackingMapScreenState();
 }
 
-class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
-  final VehicleTrackingController controller = Get.put(VehicleTrackingController());
+class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
+    with TickerProviderStateMixin {
+  final VehicleTrackingController controller = Get.put(
+    VehicleTrackingController(),
+  );
 
   // Separate controllers for small and expanded maps
   GoogleMapController? _smallMapController;
@@ -79,9 +79,23 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
   bool _isRefreshing = false;
   Timer? _timeAgoTimer;
 
+  // Pulse animation for vehicle icon
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
   @override
   void initState() {
     super.initState();
+
+    // Setup pulse animation for vehicle icon
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 2.5).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
+    );
+
     _initializeMap();
     // Update "Updated X mins ago" text every 30 seconds
     _timeAgoTimer = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -164,16 +178,18 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
 
   Future<void> _loadCustomMarkers() async {
     // Small map markers (smaller size for compact view)
-    _smallTruckMarker =
-        await CustomMarkerHelper.getTruckMarkerFromAsset(size: 30);
+    _smallTruckMarker = await CustomMarkerHelper.getTruckMarkerFromAsset(
+      size: 30,
+    );
     _smallPickupMarker =
         await CustomMarkerHelper.getStartLocationMarkerFromAsset(size: 26);
     _smallDestinationMarker =
         await CustomMarkerHelper.getDropLocationMarkerFromAsset(size: 26);
 
     // Expanded map markers (bigger size for full screen view)
-    _expandedTruckMarker =
-        await CustomMarkerHelper.getTruckMarkerFromAsset(size: 60);
+    _expandedTruckMarker = await CustomMarkerHelper.getTruckMarkerFromAsset(
+      size: 60,
+    );
     _expandedPickupMarker =
         await CustomMarkerHelper.getStartLocationMarkerFromAsset(size: 30);
     _expandedDestinationMarker =
@@ -205,8 +221,9 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
     if (destination.lat != 0 && destination.lng != 0) {
       _destinationLatLng = LatLng(destination.lat, destination.lng);
     } else if (destination.name.isNotEmpty) {
-      _destinationLatLng =
-          await GoogleMapsService.geocodeAddress(destination.name);
+      _destinationLatLng = await GoogleMapsService.geocodeAddress(
+        destination.name,
+      );
     }
 
     // Build markers for both small and expanded views
@@ -221,15 +238,14 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
       );
 
       if (routeData.isNotEmpty) {
-        final polylinePoints =
-            routeData['polyline_points'] as List<LatLng>? ?? [];
-        _routeStops =
-            routeData['stops'] as List<Map<String, dynamic>>? ?? [];
+        final completedPoints =
+            routeData['completed_points'] as List<LatLng>? ?? [];
+        final remainingPointsRoute =
+            routeData['remaining_points'] as List<LatLng>? ?? [];
+        _routeStops = routeData['stops'] as List<Map<String, dynamic>>? ?? [];
         _totalRouteDurationSeconds =
             routeData['total_duration_seconds'] as int? ?? 0;
 
-        final driverSplitIndex =
-            routeData['driver_split_index'] as int? ?? 0;
         final driverFraction =
             routeData['driver_progress_fraction'] as double? ?? 0.0;
         final remainingSeconds =
@@ -244,54 +260,47 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
             driverLoc.updatedAt!.isNotEmpty) {
           try {
             final updatedAt = DateTime.parse(driverLoc.updatedAt!);
-            final elapsedSeconds =
-                (driverFraction * _totalRouteDurationSeconds).round();
-            _routeStartTime =
-                updatedAt.subtract(Duration(seconds: elapsedSeconds));
+            final elapsedSeconds = (driverFraction * _totalRouteDurationSeconds)
+                .round();
+            _routeStartTime = updatedAt.subtract(
+              Duration(seconds: elapsedSeconds),
+            );
           } catch (_) {}
         }
 
-        if (polylinePoints.isNotEmpty) {
-          if (_currentLatLng != null &&
-              driverSplitIndex > 0 &&
-              driverSplitIndex < polylinePoints.length) {
-            // Green solid line: pickup to driver position (completed)
-            polylines.add(
-              Polyline(
-                polylineId: const PolylineId('completed'),
-                points: polylinePoints.sublist(0, driverSplitIndex + 1),
-                color: Colors.green,
-                width: 5,
-              ),
-            );
-            // Blue dashed line: driver position to destination (remaining)
+        if (_currentLatLng != null && completedPoints.isNotEmpty) {
+          // Green solid line: pickup to driver position (completed)
+          polylines.add(
+            Polyline(
+              polylineId: const PolylineId('completed'),
+              points: completedPoints,
+              color: Colors.green,
+              width: 5,
+            ),
+          );
+          // Blue dashed line: driver position to destination (remaining)
+          if (remainingPointsRoute.isNotEmpty) {
             polylines.add(
               Polyline(
                 polylineId: const PolylineId('remaining'),
-                points: polylinePoints.sublist(driverSplitIndex),
+                points: remainingPointsRoute,
                 color: const Color(0xFF0077C8),
                 width: 5,
-                patterns: [
-                  PatternItem.dash(20),
-                  PatternItem.gap(10),
-                ],
-              ),
-            );
-          } else {
-            // No current location — full route as dashed blue
-            polylines.add(
-              Polyline(
-                polylineId: const PolylineId('full_route'),
-                points: polylinePoints,
-                color: const Color(0xFF0077C8),
-                width: 5,
-                patterns: [
-                  PatternItem.dash(20),
-                  PatternItem.gap(10),
-                ],
+                patterns: [PatternItem.dash(20), PatternItem.gap(10)],
               ),
             );
           }
+        } else if (remainingPointsRoute.isNotEmpty) {
+          // No current location — full route as dashed blue
+          polylines.add(
+            Polyline(
+              polylineId: const PolylineId('full_route'),
+              points: remainingPointsRoute,
+              color: const Color(0xFF0077C8),
+              width: 5,
+              patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+            ),
+          );
         }
       } else {
         // Fallback: straight lines if Directions API fails
@@ -310,10 +319,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
               points: [_currentLatLng!, _destinationLatLng!],
               color: const Color(0xFF0077C8),
               width: 4,
-              patterns: [
-                PatternItem.dash(20),
-                PatternItem.gap(10),
-              ],
+              patterns: [PatternItem.dash(20), PatternItem.gap(10)],
             ),
           );
         } else {
@@ -355,24 +361,20 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
         Marker(
           markerId: const MarkerId('pickup'),
           position: _pickupLatLng!,
-          icon: _smallPickupMarker ??
+          icon:
+              _smallPickupMarker ??
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-          infoWindow: InfoWindow(
-            title: 'Pickup',
-            snippet: pickup.name,
-          ),
+          infoWindow: InfoWindow(title: 'Pickup', snippet: pickup.name),
         ),
       );
       expandedMarkers.add(
         Marker(
           markerId: const MarkerId('pickup'),
           position: _pickupLatLng!,
-          icon: _expandedPickupMarker ??
+          icon:
+              _expandedPickupMarker ??
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-          infoWindow: InfoWindow(
-            title: 'Pickup',
-            snippet: pickup.name,
-          ),
+          infoWindow: InfoWindow(title: 'Pickup', snippet: pickup.name),
         ),
       );
     }
@@ -383,11 +385,14 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
         Marker(
           markerId: const MarkerId('vehicle'),
           position: _currentLatLng!,
-          icon: _smallTruckMarker ??
+          icon:
+              _smallTruckMarker ??
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
           infoWindow: InfoWindow(
             title: 'Vehicle Location',
-            snippet: driverLoc.name.isNotEmpty ? driverLoc.name : 'Current Position',
+            snippet: driverLoc.name.isNotEmpty
+                ? driverLoc.name
+                : 'Current Position',
           ),
           anchor: const Offset(0.5, 0.5),
         ),
@@ -396,11 +401,14 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
         Marker(
           markerId: const MarkerId('vehicle'),
           position: _currentLatLng!,
-          icon: _expandedTruckMarker ??
+          icon:
+              _expandedTruckMarker ??
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
           infoWindow: InfoWindow(
             title: 'Vehicle Location',
-            snippet: driverLoc.name.isNotEmpty ? driverLoc.name : 'Current Position',
+            snippet: driverLoc.name.isNotEmpty
+                ? driverLoc.name
+                : 'Current Position',
           ),
           anchor: const Offset(0.5, 0.5),
         ),
@@ -413,7 +421,8 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
         Marker(
           markerId: const MarkerId('destination'),
           position: _destinationLatLng!,
-          icon: _smallDestinationMarker ??
+          icon:
+              _smallDestinationMarker ??
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
           infoWindow: InfoWindow(
             title: 'Destination',
@@ -425,7 +434,8 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
         Marker(
           markerId: const MarkerId('destination'),
           position: _destinationLatLng!,
-          icon: _expandedDestinationMarker ??
+          icon:
+              _expandedDestinationMarker ??
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
           infoWindow: InfoWindow(
             title: 'Destination',
@@ -450,10 +460,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
     if (points.isEmpty) return;
 
     if (points.length == 1) {
-      _initialPosition = CameraPosition(
-        target: points.first,
-        zoom: 14.0,
-      );
+      _initialPosition = CameraPosition(target: points.first, zoom: 14.0);
       return;
     }
 
@@ -601,9 +608,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
       ),
       decoration: BoxDecoration(
         color: const Color(0xFFF5F5F5),
-        border: Border(
-          top: BorderSide(color: Colors.grey.shade300, width: 1),
-        ),
+        border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1)),
       ),
       child: Row(
         children: [
@@ -697,9 +702,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
         // Loading indicator for route
         if (_isLoadingRoute)
           const Center(
-            child: CircularProgressIndicator(
-              color: Color(0xFF0077C8),
-            ),
+            child: CircularProgressIndicator(color: Color(0xFF0077C8)),
           ),
 
         // Center on vehicle button
@@ -777,10 +780,14 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
       _expandedMapController!.animateCamera(
         CameraUpdate.newLatLngBounds(
           LatLngBounds(
-            southwest:
-                LatLng(minLat - actualLatPadding, minLng - actualLngPadding),
-            northeast:
-                LatLng(maxLat + actualLatPadding, maxLng + actualLngPadding),
+            southwest: LatLng(
+              minLat - actualLatPadding,
+              minLng - actualLngPadding,
+            ),
+            northeast: LatLng(
+              maxLat + actualLatPadding,
+              maxLng + actualLngPadding,
+            ),
           ),
           60,
         ),
@@ -826,10 +833,14 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
       _smallMapController!.animateCamera(
         CameraUpdate.newLatLngBounds(
           LatLngBounds(
-            southwest:
-                LatLng(minLat - actualLatPadding, minLng - actualLngPadding),
-            northeast:
-                LatLng(maxLat + actualLatPadding, maxLng + actualLngPadding),
+            southwest: LatLng(
+              minLat - actualLatPadding,
+              minLng - actualLngPadding,
+            ),
+            northeast: LatLng(
+              maxLat + actualLatPadding,
+              maxLng + actualLngPadding,
+            ),
           ),
           40,
         ),
@@ -848,10 +859,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          bottom: BorderSide(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
+          bottom: BorderSide(color: Colors.grey.shade200, width: 1),
         ),
       ),
       child: Row(
@@ -928,9 +936,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
               Container(
                 color: Colors.white.withValues(alpha: 0.7),
                 child: const Center(
-                  child: CircularProgressIndicator(
-                    color: Color(0xFF0077C8),
-                  ),
+                  child: CircularProgressIndicator(color: Color(0xFF0077C8)),
                 ),
               ),
             // Expand icon
@@ -967,11 +973,15 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
     if (_trackingData == null) return const SizedBox.shrink();
 
     final driver = _trackingData!.driverDetails;
-    final driverName = driver.driverName.isNotEmpty ? driver.driverName : 'Not assigned';
-    final driverMobile =
-        driver.driverPhone.isNotEmpty ? '+91${driver.driverPhone}' : 'N/A';
-    final vehicleNumber =
-        driver.vehicleNumber.isNotEmpty ? driver.vehicleNumber : 'N/A';
+    final driverName = driver.driverName.isNotEmpty
+        ? driver.driverName
+        : 'Not assigned';
+    final driverMobile = driver.driverPhone.isNotEmpty
+        ? '+91${driver.driverPhone}'
+        : 'N/A';
+    final vehicleNumber = driver.vehicleNumber.isNotEmpty
+        ? driver.vehicleNumber
+        : 'N/A';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1018,11 +1028,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: width * 0.05,
-          color: Colors.grey.shade700,
-        ),
+        Icon(icon, size: width * 0.05, color: Colors.grey.shade700),
         SizedBox(width: width * 0.02),
         Text(
           text,
@@ -1040,7 +1046,8 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
   Widget _buildVehicleStatus(double width, double height) {
     if (_trackingData == null) return const SizedBox.shrink();
 
-    String statusMessage = _trackingData!.vehicleDescription ??
+    String statusMessage =
+        _trackingData!.vehicleDescription ??
         (_trackingData!.deliveryUpdates.note.isNotEmpty
             ? _trackingData!.deliveryUpdates.note
             : 'We\'ve received your booking. Within a few days, we will assign your vehicle');
@@ -1048,12 +1055,55 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Vehicle Status',
-          style: TextStyle(
-            fontSize: width * 0.042,
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Vehicle Status',
+              style: TextStyle(
+                fontSize: width * 0.042,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (_estimatedDuration.isNotEmpty)
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: width * 0.03,
+                  vertical: width * 0.015,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0077C8).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Deliver in',
+                      style: TextStyle(
+                        fontSize: width * 0.03,
+                        color: const Color(0xFF0077C8),
+                      ),
+                    ),
+                    SizedBox(width: width * 0.015),
+                    Icon(
+                      Icons.access_time,
+                      size: width * 0.035,
+                      color: const Color(0xFF0077C8),
+                    ),
+                    SizedBox(width: width * 0.01),
+                    Text(
+                      _estimatedDuration,
+                      style: TextStyle(
+                        fontSize: width * 0.032,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF0077C8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
         SizedBox(height: height * 0.01),
         Text(
@@ -1088,10 +1138,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
 
     return Text(
       deliveryText,
-      style: TextStyle(
-        fontSize: width * 0.036,
-        color: Colors.grey.shade700,
-      ),
+      style: TextStyle(fontSize: width * 0.036, color: Colors.grey.shade700),
     );
   }
 
@@ -1105,10 +1152,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
     final hasCurrentLocation = driverLoc.lat != 0 && driverLoc.lng != 0;
 
     // Split intermediate stops into passed and upcoming
-    final passedStops =
-        _routeStops.where((s) => s['passed'] == true).toList();
-    final upcomingStops =
-        _routeStops.where((s) => s['passed'] != true).toList();
+    final passedStops = _routeStops.where((s) => s['passed'] == true).toList();
+    final upcomingStops = _routeStops
+        .where((s) => s['passed'] != true)
+        .toList();
 
     List<Widget> timelineItems = [];
 
@@ -1137,8 +1184,9 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
       String stopTime = '-';
       if (_routeStartTime != null) {
         final estimatedSeconds = stop['estimated_seconds'] as int? ?? 0;
-        final stopDateTime =
-            _routeStartTime!.add(Duration(seconds: estimatedSeconds));
+        final stopDateTime = _routeStartTime!.add(
+          Duration(seconds: estimatedSeconds),
+        );
         stopTime = _formatDateTimeObj(stopDateTime);
       }
       timelineItems.add(
@@ -1165,6 +1213,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
           driverLoc.name.isNotEmpty ? driverLoc.name : 'Current Location',
           _formatDate(driverLoc.updatedAt),
           _formatDateTime(driverLoc.updatedAt),
+          isPulsing: true,
         ),
       );
     }
@@ -1174,8 +1223,9 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
       String stopTime = '-';
       if (_routeStartTime != null) {
         final estimatedSeconds = stop['estimated_seconds'] as int? ?? 0;
-        final stopDateTime =
-            _routeStartTime!.add(Duration(seconds: estimatedSeconds));
+        final stopDateTime = _routeStartTime!.add(
+          Duration(seconds: estimatedSeconds),
+        );
         stopTime = _formatDateTimeObj(stopDateTime);
       }
       timelineItems.add(
@@ -1194,7 +1244,9 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
     // 5. Destination
     String destinationTime = '-';
     if (_routeStartTime != null && _totalRouteDurationSeconds > 0) {
-      final arrivalTime = _routeStartTime!.add(Duration(seconds: _totalRouteDurationSeconds));
+      final arrivalTime = _routeStartTime!.add(
+        Duration(seconds: _totalRouteDurationSeconds),
+      );
       destinationTime = _formatDateTimeObj(arrivalTime);
     }
     timelineItems.add(
@@ -1209,52 +1261,6 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
         isLast: true,
       ),
     );
-
-    // 6. ETA row below destination
-    if (_estimatedDuration.isNotEmpty) {
-      timelineItems.add(
-        Padding(
-          padding: EdgeInsets.only(left: width * 0.08 + width * 0.04, top: height * 0.01),
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: width * 0.03,
-              vertical: width * 0.015,
-            ),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0077C8).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Deliver in',
-                  style: TextStyle(
-                    fontSize: width * 0.03,
-                    color: const Color(0xFF0077C8),
-                  ),
-                ),
-                SizedBox(width: width * 0.015),
-                Icon(
-                  Icons.access_time,
-                  size: width * 0.035,
-                  color: const Color(0xFF0077C8),
-                ),
-                SizedBox(width: width * 0.01),
-                Text(
-                  _estimatedDuration,
-                  style: TextStyle(
-                    fontSize: width * 0.032,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF0077C8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
 
     return Column(children: timelineItems);
   }
@@ -1309,28 +1315,62 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
     bool isFirst = false,
     bool isLast = false,
     bool etaLabel = false,
+    bool isPulsing = false,
   }) {
+    final iconCircle = Container(
+      width: width * 0.08,
+      height: width * 0.08,
+      decoration: BoxDecoration(
+        color: iconColor == Colors.green
+            ? Colors.green
+            : Colors.grey.shade400,
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, size: width * 0.045, color: Colors.white),
+    );
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Column(
           children: [
-            Container(
-              width: width * 0.08,
-              height: width * 0.08,
-              decoration: BoxDecoration(
-                color: iconColor == Colors.green
-                    ? Colors.green
-                    : Colors.grey.shade400,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: Icon(
-                icon,
-                size: width * 0.045,
-                color: Colors.white,
-              ),
-            ),
+            isPulsing
+                ? SizedBox(
+                    width: width * 0.08,
+                    height: width * 0.08,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        // Animated pulse ring (overflows beyond icon bounds)
+                        AnimatedBuilder(
+                          animation: _pulseAnimation,
+                          builder: (context, child) {
+                            final size = width * 0.08 * _pulseAnimation.value;
+                            final offset = (size - width * 0.08) / 2;
+                            return Positioned(
+                              left: -offset,
+                              top: -offset,
+                              child: Container(
+                                width: size,
+                                height: size,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.green.withValues(
+                                    alpha: (1.0 - (_pulseAnimation.value - 1.0) / 1.5) * 0.4,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        // Solid icon circle
+                        iconCircle,
+                      ],
+                    ),
+                  )
+                : iconCircle,
             if (!isLast)
               Container(
                 width: 2,
@@ -1379,7 +1419,9 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
                             vertical: width * 0.012,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0077C8).withValues(alpha: 0.1),
+                            color: const Color(
+                              0xFF0077C8,
+                            ).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Column(
@@ -1441,9 +1483,9 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen> {
     // Get last update from driverLocation.updatedAt
     String lastUpdateTime = _formatDateTime(driverLoc.updatedAt);
     String lastUpdateDate = _formatDate(driverLoc.updatedAt);
-print("checking for last update $lastUpdateDate");
-print("checking for last update $lastUpdateTime");
-    // Get location name
+    print("checking for last update $lastUpdateDate");
+    print("checking for last update $lastUpdateTime");
+    // Get location name from API response
     String locationName = driverLoc.name.isNotEmpty
         ? driverLoc.name
         : 'Location not available';
@@ -1539,10 +1581,7 @@ print("checking for last update $lastUpdateTime");
     try {
       _expandedMapController!.animateCamera(
         CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: _currentLatLng!,
-            zoom: 15.0,
-          ),
+          CameraPosition(target: _currentLatLng!, zoom: 15.0),
         ),
       );
     } catch (e) {
@@ -1552,6 +1591,7 @@ print("checking for last update $lastUpdateTime");
 
   @override
   void dispose() {
+    _pulseController.dispose();
     _timeAgoTimer?.cancel();
     _smallMapController?.dispose();
     _expandedMapController?.dispose();

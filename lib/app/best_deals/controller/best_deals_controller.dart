@@ -78,6 +78,7 @@ class BestDealsController extends GetxController {
   Future<void> fetchDetail(String id) async {
     try {
       isDetailLoading.value = true;
+      bestDealDetail.value = null;
 
       // Step 1: Try loading from local DB (show instantly while API loads)
       try {

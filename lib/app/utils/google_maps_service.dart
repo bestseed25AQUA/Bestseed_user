@@ -120,13 +120,14 @@ class GoogleMapsService {
     }
   }
 
-  /// Reverse geocode coordinates to get city/town name
+  /// Reverse geocode coordinates to get neighborhood/area name.
+  /// Prefers sublocality (e.g. "Kothaguda", "Madhapur") over city ("Hyderabad").
   static Future<String?> reverseGeocode(LatLng location) async {
     try {
       final url =
           'https://maps.googleapis.com/maps/api/geocode/json'
           '?latlng=${location.latitude},${location.longitude}'
-          '&result_type=locality|administrative_area_level_3'
+          '&result_type=sublocality_level_1|sublocality|neighborhood|locality|administrative_area_level_3'
           '&language=en'
           '&key=$_apiKey';
 
@@ -139,12 +140,27 @@ class GoogleMapsService {
       final results = data['results'] as List;
       if (results.isEmpty) return null;
 
-      for (var component in results[0]['address_components']) {
-        final types = component['types'] as List;
-        if (types.contains('locality')) {
-          return component['long_name'];
+      // Priority: sublocality > neighborhood > locality (city)
+      const priority = [
+        'sublocality_level_1',
+        'sublocality',
+        'neighborhood',
+        'locality',
+        'administrative_area_level_3',
+      ];
+
+      for (final type in priority) {
+        for (final result in results) {
+          final components = result['address_components'] as List;
+          for (final component in components) {
+            final types = component['types'] as List;
+            if (types.contains(type)) {
+              return component['long_name'];
+            }
+          }
         }
       }
+
       return results[0]['formatted_address']?.toString().split(',').first;
     } catch (e) {
       debugPrint('Error reverse geocoding: $e');
@@ -152,7 +168,9 @@ class GoogleMapsService {
     }
   }
 
-  /// Get full route from origin to destination with intermediate stops
+  /// Get full route from origin to destination with intermediate stops.
+  /// When driverPosition is provided, it is used as a waypoint so the route
+  /// passes through the vehicle's actual location on the road.
   static Future<Map<String, dynamic>> getRouteWithStops({
     required LatLng origin,
     required LatLng destination,
@@ -160,10 +178,18 @@ class GoogleMapsService {
     int maxStops = 5,
   }) async {
     try {
+      // Use driver position as waypoint so route goes through it
+      String waypointStr = '';
+      if (driverPosition != null) {
+        waypointStr =
+            '&waypoints=${driverPosition.latitude},${driverPosition.longitude}';
+      }
+
       final url =
           'https://maps.googleapis.com/maps/api/directions/json'
           '?origin=${origin.latitude},${origin.longitude}'
           '&destination=${destination.latitude},${destination.longitude}'
+          '$waypointStr'
           '&key=$_apiKey';
 
       final response = await _dio.get(url);
@@ -173,54 +199,66 @@ class GoogleMapsService {
       if (data['status'] != 'OK') return {};
 
       final route = data['routes'][0];
-      final leg = route['legs'][0];
-      final encodedPolyline = route['overview_polyline']['points'] as String;
-      final polylinePoints = _decodePolyline(encodedPolyline);
+      final legs = route['legs'] as List;
 
-      final totalDurationSeconds = leg['duration']['value'] as int;
-      final totalDistanceMeters = leg['distance']['value'] as int;
-      final durationText = leg['duration']['text'] as String;
-      final distanceText = leg['distance']['text'] as String;
+      // Decode per-leg polylines
+      List<LatLng> completedPoints = [];
+      List<LatLng> remainingPoints = [];
+      int totalDurationSeconds = 0;
+      int totalDistanceMeters = 0;
+      int remainingSeconds = 0;
+      int completedSeconds = 0;
 
-      // Calculate cumulative distances along polyline
+      if (driverPosition != null && legs.length >= 2) {
+        // Leg 0: origin → driver (completed portion)
+        // Leg 1: driver → destination (remaining portion)
+        completedPoints = _decodeStepsPolyline(legs[0]['steps'] as List);
+        remainingPoints = _decodeStepsPolyline(legs[1]['steps'] as List);
+
+        completedSeconds = legs[0]['duration']['value'] as int;
+        remainingSeconds = legs[1]['duration']['value'] as int;
+        totalDurationSeconds = completedSeconds + remainingSeconds;
+        totalDistanceMeters = (legs[0]['distance']['value'] as int) +
+            (legs[1]['distance']['value'] as int);
+      } else {
+        // No driver position — single leg, full route as remaining
+        final encodedPolyline =
+            route['overview_polyline']['points'] as String;
+        remainingPoints = _decodePolyline(encodedPolyline);
+        totalDurationSeconds = legs[0]['duration']['value'] as int;
+        totalDistanceMeters = legs[0]['distance']['value'] as int;
+        remainingSeconds = totalDurationSeconds;
+      }
+
+      // Combine for full route polyline
+      List<LatLng> fullPolyline = [...completedPoints, ...remainingPoints];
+      int driverSplitIndex =
+          completedPoints.isNotEmpty ? completedPoints.length - 1 : 0;
+      double driverFraction = totalDurationSeconds > 0
+          ? completedSeconds / totalDurationSeconds
+          : 0;
+
+      // Calculate cumulative distances along full polyline
       List<double> cumulativeDistances = [0.0];
-      for (int i = 1; i < polylinePoints.length; i++) {
+      for (int i = 1; i < fullPolyline.length; i++) {
         double segDist =
-            _haversineDistance(polylinePoints[i - 1], polylinePoints[i]);
+            _haversineDistance(fullPolyline[i - 1], fullPolyline[i]);
         cumulativeDistances.add(cumulativeDistances.last + segDist);
       }
       double totalPolylineDist = cumulativeDistances.last;
+      double driverDistanceOnRoute = driverSplitIndex < cumulativeDistances.length
+          ? cumulativeDistances[driverSplitIndex]
+          : 0;
 
-      // Determine number of stops based on route distance
+      // Determine number of stops based on route distance (minimum 3 always)
       int numStops;
-      if (totalDistanceMeters < 50000) {
-        numStops = 0;
-      } else if (totalDistanceMeters < 200000) {
+      if (totalDistanceMeters < 200000) {
         numStops = min(3, maxStops);
       } else if (totalDistanceMeters < 500000) {
         numStops = min(5, maxStops);
       } else {
         numStops = maxStops;
       }
-
-      // Find driver's progress on route
-      double driverDistanceOnRoute = 0;
-      int driverSplitIndex = 0;
-      if (driverPosition != null) {
-        double minDist = double.infinity;
-        for (int i = 0; i < polylinePoints.length; i++) {
-          double d = _haversineDistance(driverPosition, polylinePoints[i]);
-          if (d < minDist) {
-            minDist = d;
-            driverSplitIndex = i;
-          }
-        }
-        driverDistanceOnRoute = cumulativeDistances[driverSplitIndex];
-      }
-
-      double driverFraction = totalPolylineDist > 0
-          ? driverDistanceOnRoute / totalPolylineDist
-          : 0;
 
       // Sample evenly-spaced intermediate stops
       List<Map<String, dynamic>> stops = [];
@@ -229,10 +267,9 @@ class GoogleMapsService {
         for (int i = 1; i <= numStops; i++) {
           double targetDist = interval * i;
           LatLng point = _interpolatePointOnPolyline(
-              targetDist, polylinePoints, cumulativeDistances);
+              targetDist, fullPolyline, cumulativeDistances);
           double fraction = targetDist / totalPolylineDist;
-          bool passed =
-              driverPosition != null && targetDist <= driverDistanceOnRoute;
+          bool passed = targetDist <= driverDistanceOnRoute;
           stops.add({
             'location': point,
             'distance_fraction': fraction,
@@ -249,28 +286,26 @@ class GoogleMapsService {
           stops[i]['name'] = names[i] ?? 'Unknown';
         }
 
-        // Remove consecutive duplicate city names
+        // Remove all duplicate names (keep first occurrence)
         List<Map<String, dynamic>> uniqueStops = [];
-        String? prevName;
+        Set<String> seenNames = {};
         for (var stop in stops) {
-          if (stop['name'] != prevName && stop['name'] != 'Unknown') {
+          final name = stop['name'] as String;
+          if (name != 'Unknown' && !seenNames.contains(name)) {
             uniqueStops.add(stop);
-            prevName = stop['name'] as String;
+            seenNames.add(name);
           }
         }
         stops = uniqueStops;
       }
 
-      int remainingSeconds =
-          ((1 - driverFraction) * totalDurationSeconds).round();
-
       return {
-        'polyline_points': polylinePoints,
+        'polyline_points': fullPolyline,
+        'completed_points': completedPoints,
+        'remaining_points': remainingPoints,
         'stops': stops,
         'total_duration_seconds': totalDurationSeconds,
         'total_distance_meters': totalDistanceMeters,
-        'duration_text': durationText,
-        'distance_text': distanceText,
         'driver_split_index': driverSplitIndex,
         'driver_progress_fraction': driverFraction,
         'remaining_duration_seconds': remainingSeconds,
@@ -279,6 +314,22 @@ class GoogleMapsService {
       debugPrint('Error getting route with stops: $e');
       return {};
     }
+  }
+
+  /// Decode polylines from all steps in a Directions API leg
+  static List<LatLng> _decodeStepsPolyline(List steps) {
+    List<LatLng> points = [];
+    for (var step in steps) {
+      final stepPoints =
+          _decodePolyline(step['polyline']['points'] as String);
+      if (points.isNotEmpty && stepPoints.isNotEmpty) {
+        // Skip first point of subsequent steps to avoid duplicates
+        points.addAll(stepPoints.sublist(1));
+      } else {
+        points.addAll(stepPoints);
+      }
+    }
+    return points;
   }
 
   /// Interpolate a point along the polyline at a given cumulative distance

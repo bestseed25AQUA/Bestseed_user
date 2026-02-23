@@ -33,6 +33,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
   final SeedsPriceController controller = Get.put(SeedsPriceController());
   final HomeBannerController _homeBannerController =
       Get.find<HomeBannerController>();
+  final ScrollController _priceScrollController = ScrollController();
   bool _dialogShown = false;
 
   @override
@@ -469,8 +470,10 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                                 height:
                                     MediaQuery.of(context).size.height * .42,
                                 child: Scrollbar(
+                                  controller: _priceScrollController,
                                   thumbVisibility: true,
                                   child: ListView.builder(
+                                    controller: _priceScrollController,
                                     padding: const EdgeInsets.only(right: 10),
                                     itemCount: priceData.prices.length,
                                     shrinkWrap: true,
@@ -598,5 +601,11 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
         }),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _priceScrollController.dispose();
+    super.dispose();
   }
 }

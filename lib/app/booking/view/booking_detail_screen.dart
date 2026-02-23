@@ -6,6 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/model/booking_detail_model.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_best_seed_background.dart';
+import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
+import 'package:seedsuser/app/common/refresh_button.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking_map_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../controller/my_booking_controller.dart';
@@ -85,6 +87,12 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
           ),
         ),
         iconTheme: const IconThemeData(color: Colors.black),
+        actions: [
+          RefreshButton(
+            onTap: () => controller.fetchBookingDetail(widget.bookingId),
+          ),
+          SizedBox(width: w * 0.03),
+        ],
       ),
 
       body: Obx(() {
@@ -95,107 +103,117 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         final data = controller.bookingDetail.value;
         if (data == null) return const Center(child: Text("No data"));
 
-        return RefreshIndicator(
+        return CustomRefereshIndicator(
           onRefresh: () => controller.fetchBookingDetail(widget.bookingId),
           child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: w * 0.06),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
-              _statusBox(
-                data.statusValue,
-                data.status,
-                data.statusDescription,
-                w,
-              ),
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(horizontal: w * 0.06),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
+                _statusBox(
+                  data.statusValue,
+                  data.status,
+                  data.statusDescription,
+                  w,
+                ),
 
-              const SizedBox(height: 20),
-              if (isPending(data.statusValue))
-                Center(
-                  child: InkWell(
-                    onTap: () => _openCancelReasonSheet(widget.bookingId),
-                    child: Container(
-                      width: w * 0.9,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.red),
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          "Cancel Booking",
-                          style: TextStyle(color: Colors.red, fontSize: 14),
+                const SizedBox(height: 20),
+                if (isPending(data.statusValue))
+                  Center(
+                    child: InkWell(
+                      onTap: () => _openCancelReasonSheet(widget.bookingId),
+                      child: Container(
+                        width: w * 0.9,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.red),
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            "Cancel Booking",
+                            style: TextStyle(color: Colors.red, fontSize: 14),
+                          ),
                         ),
                       ),
                     ),
+                  )
+                // else if (isCancelled(data.statusValue))
+                //   Container(
+                //     width: w * 0.9,
+                //     height: 48,
+                //     decoration: BoxDecoration(
+                //       border: Border.all(color: Colors.red),
+                //       borderRadius: BorderRadius.circular(25),
+                //       color: Color(0xffF87171).withOpacity(.1),
+                //     ),
+                //     child: const Center(
+                //       child: Text(
+                //         "Cancelled",
+                //         style: TextStyle(color: Colors.red, fontSize: 16),
+                //       ),
+                //     ),
+                //   )
+                else
+                  _timelineSection(
+                    data.bookingStatus,
+                    data.statusValue,
+                    w,
+                    data.bookingDescription,
+                    () {
+                      Get.to(
+                        VehicleTrackingMapScreen(
+                          bookingId: data.bookingId.toString(),
+                        ),
+                      );
+                    },
                   ),
-                )
-              // else if (isCancelled(data.statusValue))
-              //   Container(
-              //     width: w * 0.9,
-              //     height: 48,
-              //     decoration: BoxDecoration(
-              //       border: Border.all(color: Colors.red),
-              //       borderRadius: BorderRadius.circular(25),
-              //       color: Color(0xffF87171).withOpacity(.1),
-              //     ),
-              //     child: const Center(
-              //       child: Text(
-              //         "Cancelled",
-              //         style: TextStyle(color: Colors.red, fontSize: 16),
-              //       ),
-              //     ),
-              //   )
-              else
-                _timelineSection(data.bookingStatus, data.statusValue, w, data.bookingDescription, () {
-                  Get.to(
-                    VehicleTrackingMapScreen(bookingId: data.bookingId.toString()),
-                  );
-                }),
 
-              // Driver details section (visible when status >= 3)
-              if (data.driver != null &&
-                  data.statusValue >= 3 &&
-                  data.statusValue != 5 && data.statusValue != 6)
-                _driverSection(data.driver!, w),
+                // Driver details section (visible when status >= 3)
+                if (data.driver != null &&
+                    data.statusValue >= 3 &&
+                    data.statusValue != 5 &&
+                    data.statusValue != 6)
+                  _driverSection(data.driver!, w),
 
-              const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-              Text(
-                "Booking Details",
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                Text(
+                  "Booking Details",
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
 
-              _detail("ID", data.bookingId.toString(), w),
-              _detail("Delivery Date & Time", data.bookingDateTime, w),
-              _detail("Unit location", data.unitLocation, w),
-              _detail("No. of pieces", data.pieces, w),
-              _detail("Estimated Price", data.estimatedPrice, w),
-              _detail("Dropping location", data.droppingLocation, w),
-              _detail("Preferred Date", data.preferredDate, w),
-              SizedBox(height: 10),
-              Text(
-                "Note : ${data.note}",
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.grey,
+                _detail("ID", data.bookingId.toString(), w),
+                _detail("Delivery Date & Time", data.bookingDateTime, w),
+                _detail("Unit location", data.unitLocation, w),
+                _detail("Salinity", data.salinity.toString(), w),
+                _detail("No. of pieces", data.pieces, w),
+                _detail("Estimated Price", data.estimatedPrice, w),
+                _detail("Dropping location", data.droppingLocation, w),
+                _detail("Preferred Date", data.preferredDate, w),
+                SizedBox(height: 10),
+                Text(
+                  "Note : ${data.note}",
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.grey,
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 20),
-              _helpSection(w, data.vendorMobile),
-              SizedBox(height: 30),
-              CustomBestSeedBackground(),
-              const SizedBox(height: 40),
-            ],
+                const SizedBox(height: 20),
+                _helpSection(w, data.vendorMobile),
+                SizedBox(height: 30),
+                CustomBestSeedBackground(),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
-        ),
         );
       }),
     );
@@ -282,7 +300,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     // Show "Check vehicle status" only when status is 3 (Driver Assigned) or 4 (In Progress)
     final bool showVehicleButton = statusValue == 4;
 
-    final String descriptionText = (bookingDescription != null && bookingDescription.isNotEmpty)
+    final String descriptionText =
+        (bookingDescription != null && bookingDescription.isNotEmpty)
         ? bookingDescription
         : "We've received your booking. Within a few days, we will assign your vehicle.";
 
@@ -446,10 +465,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         const SizedBox(height: 20),
         Text(
           "Driver Details",
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 10),
         Container(
@@ -465,7 +481,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               CircleAvatar(
                 radius: 24,
                 backgroundColor: Colors.grey.shade300,
-                backgroundImage: driver.image != null && driver.image!.isNotEmpty
+                backgroundImage:
+                    driver.image != null && driver.image!.isNotEmpty
                     ? NetworkImage(driver.image!)
                     : null,
                 child: driver.image == null || driver.image!.isEmpty
@@ -500,7 +517,11 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Row(
                           children: [
-                            Icon(Icons.schedule, size: 14, color: Colors.grey.shade600),
+                            Icon(
+                              Icons.schedule,
+                              size: 14,
+                              color: Colors.grey.shade600,
+                            ),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
@@ -520,7 +541,11 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                         padding: const EdgeInsets.only(top: 2),
                         child: Row(
                           children: [
-                            Icon(Icons.location_on_outlined, size: 14, color: Colors.grey.shade600),
+                            Icon(
+                              Icons.location_on_outlined,
+                              size: 14,
+                              color: Colors.grey.shade600,
+                            ),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(

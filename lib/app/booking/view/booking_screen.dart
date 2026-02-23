@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/controller/my_booking_controller.dart';
 import 'package:seedsuser/app/booking/view/booking_detail_screen.dart';
 import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
+import 'package:seedsuser/app/common/refresh_button.dart';
 import 'package:seedsuser/app/model/my_booking_model.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
@@ -558,6 +559,11 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
         ),
         iconTheme: const IconThemeData(color: Colors.black),
         actions: [
+          RefreshButton(
+            onTap: () {
+              controller.fetchBookings();
+            },
+          ),
           GestureDetector(
             onTap: () => showFilterSheet(),
             child: Container(
@@ -707,97 +713,104 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                             ),
                           )
                         : ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        itemCount:
-                            filteredList.length +
-                            (query.isEmpty && controller.hasMore ? 1 : 0),
-                        itemBuilder: (context, index) {
-                          if (index < filteredList.length) {
-                            final booking = filteredList[index];
-                            return _buildBookingCard(
-                              booking,
-                              () {
-                                Get.to(
-                                  BookingDetailScreen(
-                                    hatcheryName: booking.hatcheryName,
-                                    bookingId: booking.bookingId.toString(),
+                            controller: _scrollController,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount:
+                                filteredList.length +
+                                (query.isEmpty && controller.hasMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index < filteredList.length) {
+                                final booking = filteredList[index];
+                                return _buildBookingCard(
+                                  booking,
+                                  () {
+                                    Get.to(
+                                      BookingDetailScreen(
+                                        hatcheryName: booking.hatcheryName,
+                                        bookingId: booking.bookingId.toString(),
+                                      ),
+                                    );
+                                  },
+                                  () async {
+                                    // Navigate to correct screen based on booking type
+                                    if (booking.isSpot?.value == 1) {
+                                      // Spot Hatchery - fetch data and navigate to detail
+                                      final spotController = Get.put(
+                                        SpotHatcheryController(),
+                                      );
+                                      if (spotController.spotHatchery.isEmpty) {
+                                        await spotController
+                                            .fetchSpotHatcheries();
+                                      }
+                                      final spotHatchery = spotController
+                                          .spotHatchery
+                                          .firstWhereOrNull(
+                                            (s) =>
+                                                s.hatcheryId ==
+                                                booking.hatcheryId,
+                                          );
+                                      if (spotHatchery != null) {
+                                        Get.to(
+                                          () => SpotHatcheryDetailScreen(
+                                            spotHatchery: spotHatchery,
+                                          ),
+                                        );
+                                      } else {
+                                        CustomToast.error(
+                                          "Spot hatchery not found",
+                                        );
+                                      }
+                                    } else if (booking.isSpot?.value == 2) {
+                                      // Vehicle Availability - fetch data and navigate to detail
+                                      final vehicleController = Get.put(
+                                        VehicleAvailabilitysController(),
+                                      );
+                                      if (vehicleController
+                                          .vehicleList
+                                          .isEmpty) {
+                                        await vehicleController
+                                            .fetchVehicleAvailability();
+                                      }
+                                      final vehicle = vehicleController
+                                          .vehicleList
+                                          .firstWhereOrNull(
+                                            (v) =>
+                                                v.vehicleId ==
+                                                booking.hatcheryId,
+                                          );
+                                      if (vehicle != null) {
+                                        Get.to(
+                                          () => VehicleAvailabilityDetailScreen(
+                                            vehicleAvailability: vehicle,
+                                          ),
+                                        );
+                                      } else {
+                                        CustomToast.error("Vehicle not found");
+                                      }
+                                    } else {
+                                      // Regular Hatchery
+                                      Get.to(
+                                        () => HatcheryCateogryScreen(
+                                          hatcheryId: booking.hatcheryId
+                                              .toString(),
+                                          hatcheryName: booking.hatcheryName,
+                                          useHatcheryId: true,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                );
+                              } else {
+                                // LOAD MORE LOADER
+                                return const Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: Center(
+                                    child: CircularProgressIndicator(),
                                   ),
                                 );
-                              },
-                              () async {
-                                // Navigate to correct screen based on booking type
-                                if (booking.isSpot?.value == 1) {
-                                  // Spot Hatchery - fetch data and navigate to detail
-                                  final spotController = Get.put(
-                                    SpotHatcheryController(),
-                                  );
-                                  if (spotController.spotHatchery.isEmpty) {
-                                    await spotController.fetchSpotHatcheries();
-                                  }
-                                  final spotHatchery = spotController
-                                      .spotHatchery
-                                      .firstWhereOrNull(
-                                        (s) =>
-                                            s.hatcheryId == booking.hatcheryId,
-                                      );
-                                  if (spotHatchery != null) {
-                                    Get.to(
-                                      () => SpotHatcheryDetailScreen(
-                                        spotHatchery: spotHatchery,
-                                      ),
-                                    );
-                                  } else {
-                                    CustomToast.error(
-                                      "Spot hatchery not found",
-                                    );
-                                  }
-                                } else if (booking.isSpot?.value == 2) {
-                                  // Vehicle Availability - fetch data and navigate to detail
-                                  final vehicleController = Get.put(
-                                    VehicleAvailabilitysController(),
-                                  );
-                                  if (vehicleController.vehicleList.isEmpty) {
-                                    await vehicleController
-                                        .fetchVehicleAvailability();
-                                  }
-                                  final vehicle = vehicleController.vehicleList
-                                      .firstWhereOrNull(
-                                        (v) =>
-                                            v.vehicleId == booking.hatcheryId,
-                                      );
-                                  if (vehicle != null) {
-                                    Get.to(
-                                      () => VehicleAvailabilityDetailScreen(
-                                        vehicleAvailability: vehicle,
-                                      ),
-                                    );
-                                  } else {
-                                    CustomToast.error("Vehicle not found");
-                                  }
-                                } else {
-                                  // Regular Hatchery
-                                  Get.to(
-                                    () => HatcheryCateogryScreen(
-                                      hatcheryId: booking.hatcheryId.toString(),
-                                      hatcheryName: booking.hatcheryName,
-                                      useHatcheryId: true,
-                                    ),
-                                  );
-                                }
-                              },
-                            );
-                          } else {
-                            // LOAD MORE LOADER
-                            return const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            );
-                          }
-                        },
-                      ),
+                              }
+                            },
+                          ),
                   ),
                 ],
               );
@@ -1061,25 +1074,25 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
           ),
 
           const SizedBox(height: 5),
-          if(data.droppingLocation.isNotEmpty)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.location_on, size: 22, color: Colors.grey),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  data.droppingLocation,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.roboto(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+          if (data.droppingLocation.isNotEmpty)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.location_on, size: 22, color: Colors.grey),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    data.droppingLocation,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
 
           const SizedBox(height: 10),
 
