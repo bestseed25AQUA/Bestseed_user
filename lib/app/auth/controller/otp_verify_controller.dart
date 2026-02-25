@@ -8,6 +8,7 @@ import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/dashboard/dashboard.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
+import 'package:seedsuser/app/notification/notification_service.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
 
 class OtpVerifyController extends GetxController {
@@ -117,6 +118,9 @@ class OtpVerifyController extends GetxController {
         }
 
         CustomToast.success("OTP verified successfully");
+
+        // Register FCM token with server after login
+        NotificationService().registerToken();
 
         Get.offAll(() => DashboardScreen());
       } else {

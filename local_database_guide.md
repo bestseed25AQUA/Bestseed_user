@@ -625,7 +625,7 @@ If you know MySQL, you already know SQLite:
 ## Where is the Database Stored?
 
 ```
-Android: /data/data/com.example.seedsuser/databases/best_deals.db
+Android: /data/data/com.app.bestseeds/databases/best_deals.db
 iOS:     <app_directory>/Documents/best_deals.db
 
 - User CANNOT see this file (it's in app's private storage)

@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/auth/view/splash_screen.dart'; 
 import 'package:seedsuser/app/language/controller/language_controller.dart';
+import 'package:seedsuser/app/notification/notification_service.dart';
 import 'package:seedsuser/app/utils/app_size.dart';
 import 'package:seedsuser/l10n/app_localizations.dart';
 import 'package:get_storage/get_storage.dart';
@@ -21,7 +24,16 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   HttpOverrides.global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   await GetStorage.init();
+
+  // Initialize Notification Service
+  final notificationService = NotificationService();
+  await notificationService.initialize();
+
+  // Subscribe to broadcast topic for admin notifications
+  await notificationService.subscribeToTopic('all_users');
+  
 
   Get.put(LanguageController());
   // SystemChrome.setSystemUIOverlayStyle(

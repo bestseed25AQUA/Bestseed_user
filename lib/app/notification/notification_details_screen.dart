@@ -1,84 +1,89 @@
 import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/utils/network_config.dart';
 
 class NotificationDetailScreen extends StatelessWidget {
-  const NotificationDetailScreen({super.key});
+  final String title;
+  final String body;
+  final String? image;
+
+  const NotificationDetailScreen({
+    super.key,
+    required this.title,
+    required this.body,
+    this.image,
+  });
 
   @override
   Widget build(BuildContext context) {
+    // Build the full image URL
+    String? imageUrl;
+    if (image != null && image!.isNotEmpty) {
+      if (image!.startsWith('http')) {
+        imageUrl = image;
+      } else {
+        imageUrl = '${NetworkConfig.imageURL}/$image';
+      }
+    }
+
     return Scaffold(
       appBar: CustomAppBar(
-    
-
-        iconTheme: IconThemeData(color: Colors.black)
+        iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.asset(
-                  'assets/images/royalu.png',
-                  // fit: BoxFit.cover,
-                  height: 250,
-                  width: double.infinity,
+            if (imageUrl != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.network(
+                    imageUrl,
+                    height: 250,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 250,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(
+                          Icons.image_not_supported,
+                          size: 60,
+                          color: Colors.grey,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Fresh Arrival: New Shrimp Varieties In Stock',
-                          style: GoogleFonts.roboto(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
                   Text(
-                    'Brood stock updated',
+                    title,
                     style: GoogleFonts.roboto(
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: 20,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Text(
-                    'Discover the latest additions to our seafood collection – premium hieces (freshwater & seawater shrimp) now available! Sourced directly from trusted farms, these new shrimp varieties offer unmatched taste, quality, and freshness.',
+                    body,
                     style: GoogleFonts.roboto(
-                      fontSize: 14,
+                      fontSize: 15,
                       color: Colors.grey[700],
+                      height: 1.5,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Whether you’re preparing a gourmet meal or a simple curry, our shrimp are perfect for every recipe.',
-                    style: GoogleFonts.roboto(
-                      fontSize: 14,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ..._buildChecklist([
-                    'Freshly caught',
-                    'Carefully cleaned',
-                    'Delivered chilled',
-                    'Ready to cook',
-                  ]),
                 ],
               ),
             ),
@@ -86,20 +91,5 @@ class NotificationDetailScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  List<Widget> _buildChecklist(List<String> items) {
-    return items.map((item) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4.0),
-        child: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 8),
-            Text(item, style: GoogleFonts.roboto(fontSize: 16)),
-          ],
-        ),
-      );
-    }).toList();
   }
 }
