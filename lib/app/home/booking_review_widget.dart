@@ -50,92 +50,101 @@ class BookingReviewContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.put(MyBookingController());
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.only(bottom: 24, left: 24, right: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Review Bookings',
-                style: GoogleFonts.roboto(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(bottomSheetContext),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // UI CARD
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15.0),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
+    return Column(
+      children: [
+        // Scrollable content
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      height: 40,
-                      width: 40,
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.star_border, color: Colors.green),
-                    ),
-
-                    const SizedBox(width: 10),
                     Text(
-                      hatcheryName,
+                      'Review Bookings',
                       style: GoogleFonts.roboto(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(bottomSheetContext),
                     ),
                   ],
                 ),
                 const SizedBox(height: 20),
 
-                _buildInfoRow('Name', name),
-                const Divider(),
-                _buildInfoRow('Phone Number', phone),
-                const Divider(),
-                _buildInfoRow('Unit', unit),
-                const Divider(),
-                _buildInfoRow('Salinity', salinity.isNotEmpty ? salinity : '-'),
-                const Divider(),
-                _buildInfoRow('No.of Pieces', "$pieces Pieces"),
-                const Divider(),
-                _buildInfoRow('Estimated Price', '₹$estimatedPrice'),
-                const Divider(),
-                _buildInfoRow('Dropping location', location),
-                const Divider(),
-                _buildInfoRow('Preferred Date', date),
+                // UI CARD
+                Container(
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 6,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            height: 40,
+                            width: 40,
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.star_border, color: Colors.green),
+                          ),
+
+                          const SizedBox(width: 10),
+                          Text(
+                            hatcheryName,
+                            style: GoogleFonts.roboto(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      _buildInfoRow('Name', name),
+                      const Divider(),
+                      _buildInfoRow('Phone Number', phone),
+                      const Divider(),
+                      _buildInfoRow('Unit', unit),
+                      const Divider(),
+                      _buildInfoRow('Salinity', salinity.isNotEmpty ? salinity : '-'),
+                      const Divider(),
+                      _buildInfoRow('No.of Pieces', "$pieces Pieces"),
+                      const Divider(),
+                      _buildInfoRow('Estimated Price', '₹$estimatedPrice'),
+                      const Divider(),
+                      _buildInfoRow('Dropping location', location),
+                      const Divider(),
+                      _buildInfoRow('Preferred Date', date),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
               ],
             ),
           ),
+        ),
 
-          const SizedBox(height: 20),
-
-          // PROCEED BUTTON
-          Obx(
+        // PROCEED BUTTON - pinned at bottom
+        Padding(
+          padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
+          child: Obx(
             () => CustomButton(
               onPressed: controller.isCreateLoading.value
                   ? () {}
@@ -173,9 +182,8 @@ class BookingReviewContent extends StatelessWidget {
               text: controller.isCreateLoading.value ? "Loading..." : "Proceed",
             ),
           ),
-          const SizedBox(height: 20),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

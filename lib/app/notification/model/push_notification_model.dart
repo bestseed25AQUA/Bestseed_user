@@ -3,6 +3,7 @@ class PushNotificationModel {
   final String title;
   final String body;
   final String? image;
+  final String? module;
   final String type;
   final Map<String, dynamic>? data;
   final String? readAt;
@@ -13,6 +14,7 @@ class PushNotificationModel {
     required this.title,
     required this.body,
     this.image,
+    this.module,
     required this.type,
     this.data,
     this.readAt,
@@ -25,6 +27,7 @@ class PushNotificationModel {
       title: json['title'] ?? '',
       body: json['body'] ?? '',
       image: json['image'],
+      module: json['module'],
       type: json['type'] ?? '',
       data: json['data'] is Map ? Map<String, dynamic>.from(json['data']) : null,
       readAt: json['read_at'],

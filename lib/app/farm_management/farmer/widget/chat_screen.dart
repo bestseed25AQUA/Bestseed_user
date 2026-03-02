@@ -40,7 +40,7 @@ class ChatBotScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Best Seed Bot',
+                  'Bestseed Bot',
                   style: GoogleFonts.roboto(
                     color: Colors.black,
                     fontSize: 18,

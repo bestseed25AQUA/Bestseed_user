@@ -124,106 +124,109 @@ class _HomePageState extends State<HomePage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header Section
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Obx(() {
-                    if (_homeBannerController.bannersBackGround.isEmpty) {
-                      return Image.asset(
-                        'assets/images/best_seed_bottom.png',
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        height: AppSize.height * .08,
-                      );
-                    }
-                    final banner = _homeBannerController.bannersBackGround[0];
-                    if (banner.type == 'video') {
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: _AutoLoopBannerVideo(
-                          url: banner.url,
-                          height: 73,
-                        ),
-                      );
-                    }
-                    return Stack(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => FullImageScreen(
-                                  imageUrl: banner.url,
-                                ),
-                              ),
-                            );
-                          },
-                          child: Image.network(
-                            banner.url,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            height: AppSize.height * .08,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Image.asset(
-                                'assets/images/best_seed_bottom.png',
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                                height: AppSize.height * .08,
-                              );
-                            },
-                          ),
-                        ),
-                      ],
+            Column(
+              children: [
+                Obx(() {
+                  if (_homeBannerController.bannersBackGround.isEmpty) {
+                    return Image.asset(
+                      'assets/images/best_seed_bottom.png',
+                      width: double.infinity,
+                      fit: BoxFit.contain,
+                      height: AppSize.height * .09,
                     );
-                  }),
-                  const SizedBox(height: 12),
-                  Obx(() {
-                    final homeBanners = _homeBannerController.bannersHome;
-                    return Container(
-                      decoration: BoxDecoration(
-                        // border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
+                  }
+                  final banner = _homeBannerController.bannersBackGround[0];
+                  if (banner.type == 'video') {
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: _AutoLoopBannerVideo(url: banner.url, height: 73),
+                    );
+                  }
+                  return Stack(
+                    children: [
+                      GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
-                            AppAnimations.fade(VehicleAvailabilityScreen()),
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  FullImageScreen(imageUrl: banner.url),
+                            ),
                           );
+                        },
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: AppSize.height * .08,
+                          child: FittedBox(
+                            fit: BoxFit.fill,
+                            child: Image.network(
+                              banner.url,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.asset(
+                                  'assets/images/best_seed_bottom.png',
+                                  width: double.infinity,
+                                  fit: BoxFit.fill,
+                                  height: AppSize.height * .08,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ],
+            ),
+
+            // ── Section 1: Vehicle Banner + Menu Items + Contact Us ──
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.white, Color(0xFFB3E5FC), Colors.white],
+                ),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  // Vehicle Availability Banner
+                  Obx(() {
+                    final homeBanners = _homeBannerController.bannersHome;
+                    return Container(
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          Navigator.push(context, AppAnimations.fade(VehicleAvailabilityScreen()));
                         },
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: homeBanners.isNotEmpty
-                              ? Stack(
-                                  children: [
-                                    Image.network(
-                                      homeBanners.first.url,
-                                      width: AppSize.width * .9,
-                                      height: AppSize.height * .15,
-                                      fit: BoxFit.cover,
-                                      loadingBuilder: (context, child, loadingProgress) {
-                                        if (loadingProgress == null) return child;
-                                        return Shimmer.fromColors(
-                                          baseColor: Colors.grey.shade300,
-                                          highlightColor: Colors.grey.shade100,
-                                          child: Container(
-                                            width: AppSize.width * .9,
-                                            height: AppSize.height * .15,
-                                            color: Colors.white,
-                                          ),
-                                        );
-                                      },
-                                      errorBuilder: (_, __, ___) => Image.asset(
-                                        'assets/images/home_banner.jpeg',
+                              ? Image.network(
+                                  homeBanners.first.url,
+                                  width: AppSize.width * .9,
+                                  height: AppSize.height * .15,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Shimmer.fromColors(
+                                      baseColor: Colors.grey.shade300,
+                                      highlightColor: Colors.grey.shade100,
+                                      child: Container(
                                         width: AppSize.width * .9,
                                         height: AppSize.height * .15,
-                                        fit: BoxFit.cover,
+                                        color: Colors.white,
                                       ),
-                                    ),
-                                  ],
+                                    );
+                                  },
+                                  errorBuilder: (_, __, ___) => Image.asset(
+                                    'assets/images/home_banner.jpeg',
+                                    width: AppSize.width * .9,
+                                    height: AppSize.height * .15,
+                                    fit: BoxFit.cover,
+                                  ),
                                 )
                               : Shimmer.fromColors(
                                   baseColor: Colors.grey.shade50,
@@ -238,120 +241,93 @@ class _HomePageState extends State<HomePage>
                       ),
                     );
                   }),
-                ],
-              ),
-            ),
-            // Menu Items Section
-            Builder(
-              builder: (context) {
-                final double boxesHeight = AppSize.height * .19;
-                return Container(
-                  // color: AppColors.primary,
-                  padding: const EdgeInsets.only(left: 16.0, right: 16, bottom: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      // Expanded(
-                      //   child: _buildMenuItem(
-                      //     'Farm Management',
-                      //     'assets/images/farm.png',
-                      //     () {
-                      //       Get.to(() => FarmHomeScreen());
-                      //       // Fluttertoast.showToast(
-                      //       //   msg: "Working on it...",
-                      //       //   toastLength: Toast.LENGTH_SHORT,
-                      //       //   gravity: ToastGravity.BOTTOM,
-                      //       //   backgroundColor: Colors.black54,
-                      //       //   textColor: Colors.red,
-                      //       //   fontSize: 16.0,
-                      //       // );
-                      //     },
-                      //   ),
-                      // ),
-                      SizedBox(
-                        height: boxesHeight,
-                        width: MediaQuery.of(context).size.width * .35,
-                        child: _buildMenuItemMedicine(
-                          'FC Farm Medicine for fishes ',
-                          'assets/images/fc_prawn.png',
-                          () {
-                            Navigator.push(
-                              context,
-                              AppAnimations.fade(const BestDealsScreen()),
-                            );
-                          },
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      SizedBox(
-                        height: boxesHeight,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                  SizedBox(height: 16),
+                  // Menu Items
+                  Builder(
+                    builder: (context) {
+                      final double boxesHeight = AppSize.height * .19;
+                      return Padding(
+                        padding: const EdgeInsets.only(left: 16.0, right: 16, bottom: 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
                           children: [
                             SizedBox(
-                              width: MediaQuery.of(context).size.width * .52,
-                              child: Obx(() {
-                                final spotIcons = _homeBannerController.bannersSpotHatcheries;
-                                return _buildMenuItem(
-                                  'Spot \nHatcheries',
-                                  'assets/images/hatchery_icon.png',
-                                  () {
-                                    Navigator.push(
-                                      context,
-                                      AppAnimations.fade(SpotHatcheryScreen()),
-                                    );
-                                  },
-                                  networkImageUrl: spotIcons.isNotEmpty ? spotIcons.first.url : null,
-                                );
-                              }),
+                              height: boxesHeight,
+                              width: MediaQuery.of(context).size.width * .35,
+                              child: _buildMenuItemMedicine(
+                                'FC Farm Medicine for fishes ',
+                                'assets/images/fc_prawn.png',
+                                () {
+                                  Navigator.push(context, AppAnimations.fade(const BestDealsScreen()));
+                                },
+                              ),
                             ),
-                            // SizedBox(height: 10),
-                            Spacer(),
-                            SizedBox(
-                              width: MediaQuery.of(context).size.width * .52,
-                              child: Obx(() {
-                                final farmIcons = _homeBannerController.bannersFarmManagement;
-                                return _buildMenuItem(
-                                  'Farm \nManagement',
-                                  'assets/images/farm.png',
-                                  () {
-                                    final farmData = _farmListController.farmList.value?.data;
-                                    if (farmData != null && farmData.isNotEmpty) {
-                                      Navigator.push(
-                                        context,
-                                        AppAnimations.fade(const FarmManagementScreen()),
-                                      );
-                                    } else {
-                                      Navigator.push(
-                                        context,
-                                        AppAnimations.fade(const InitialFarmScreen()),
-                                      );
-                                    }
-                                  },
-                                  networkImageUrl: farmIcons.isNotEmpty ? farmIcons.first.url : null,
-                                );
-                              }),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: SizedBox(
+                                height: boxesHeight,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    Expanded(
+                                      child: Obx(() {
+                                        final spotIcons = _homeBannerController.bannersSpotHatcheries;
+                                        return _buildMenuItem(
+                                          'Spot \nHatcheries',
+                                          'assets/images/hatchery_icon.png',
+                                          () {
+                                            Navigator.push(context, AppAnimations.fade(SpotHatcheryScreen()));
+                                          },
+                                          networkImageUrl: spotIcons.isNotEmpty ? spotIcons.first.url : null,
+                                        );
+                                      }),
+                                    ),
+                                    SizedBox(height: 8),
+                                    Expanded(
+                                      child: Obx(() {
+                                        final farmIcons = _homeBannerController.bannersFarmManagement;
+                                        return _buildMenuItem(
+                                          'Farm \nManagement',
+                                          'assets/images/farm.png',
+                                          () {
+                                            final farmData = _farmListController.farmList.value?.data;
+                                            if (farmData != null && farmData.isNotEmpty) {
+                                              Navigator.push(context, AppAnimations.fade(const FarmManagementScreen()));
+                                            } else {
+                                              Navigator.push(context, AppAnimations.fade(const InitialFarmScreen()));
+                                            }
+                                          },
+                                          networkImageUrl: farmIcons.isNotEmpty ? farmIcons.first.url : null,
+                                        );
+                                      }),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
+                  // Contact Us
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16.0, bottom: 0, right: 16),
+                    child: ContactUsPage(),
+                  ),
+                ],
+              ),
             ),
+
+            // ── Section 2: Hatcheries + Seed Request ──
             Container(
-              padding: const EdgeInsets.only(left: 16.0, bottom: 0, right: 16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.white, Color(0xFF81D4FA), Color(0xFFB3E5FC)],
                 ),
               ),
-              child: ContactUsPage(),
-            ),
-            // Hatcheries Section
-            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -368,11 +344,7 @@ class _HomePageState extends State<HomePage>
                         context,
                         AppAnimations.fade(
                           HatcheryFilterScreen(
-                            title:
-                                _homeController
-                                    .selectedCateogryName
-                                    .value
-                                    .isEmpty
+                            title: _homeController.selectedCateogryName.value.isEmpty
                                 ? "Hatchery"
                                 : _homeController.selectedCateogryName.value,
                           ),
@@ -382,14 +354,8 @@ class _HomePageState extends State<HomePage>
                   ),
                   SizedBox(height: 20),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 13,
-                      vertical: 0,
-                    ),
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 0,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 0),
+                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -416,70 +382,66 @@ class _HomePageState extends State<HomePage>
                         IconButton(
                           padding: EdgeInsets.all(0),
                           onPressed: () {
-                            Navigator.push(
-                              context,
-                              AppAnimations.slideLeftToRight(
-                                SeedRequestsFormScreen(),
-                              ),
-                            );
+                            Navigator.push(context, AppAnimations.slideLeftToRight(SeedRequestsFormScreen()));
                           },
-                          icon: Icon(
-                            Icons.arrow_forward,
-                            color: AppColors.primary,
-                          ),
+                          icon: Icon(Icons.arrow_forward, color: AppColors.primary),
                         ),
                       ],
                     ),
                   ),
                   SizedBox(height: 20),
+                ],
+              ),
+            ),
+
+            // ── Section 3: Today Prices + Suppliers ──
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFB3E5FC), Color(0xFF81D4FA), Color(0xFFB3E5FC)],
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
                   TodayPricesWidget(),
                   HatcherySuppliersWidget(),
+                ],
+              ),
+            ),
+
+            // ── Section 4: Medicine News + Updates ──
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFB3E5FC), Color(0xFFE1F5FE), Colors.white],
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
                   Obx(() {
                     return Column(
                       children: [
-                        if ((_newsSpecificController
-                                    .newsSpecificHomeData
-                                    .value
-                                    ?.data
-                                    ?.length ??
-                                0) !=
-                            0)
+                        if ((_newsSpecificController.newsSpecificHomeData.value?.data?.length ?? 0) != 0)
                           _buildSectionHeader('Medicine News', () {
                             dashboardCtrl.changeIndex(3);
                           }),
-                        if ((_newsSpecificController
-                                    .newsSpecificHomeData
-                                    .value
-                                    ?.data
-                                    ?.length ??
-                                0) !=
-                            0)
+                        if ((_newsSpecificController.newsSpecificHomeData.value?.data?.length ?? 0) != 0)
                           Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8.0,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: List.generate(
-                                (_newsSpecificController
-                                                .newsSpecificHomeData
-                                                .value
-                                                ?.data
-                                                ?.length ??
-                                            0) <=
-                                        2
-                                    ? (_newsSpecificController
-                                              .newsSpecificHomeData
-                                              .value
-                                              ?.data
-                                              ?.length ??
-                                          0)
+                                (_newsSpecificController.newsSpecificHomeData.value?.data?.length ?? 0) <= 2
+                                    ? (_newsSpecificController.newsSpecificHomeData.value?.data?.length ?? 0)
                                     : 2,
                                 (index) {
-                                  final data = _newsSpecificController
-                                      .newsSpecificHomeData
-                                      .value
-                                      ?.data?[index];
+                                  final data = _newsSpecificController.newsSpecificHomeData.value?.data?[index];
                                   return Expanded(
                                     child: _buildNewsCard(
                                       data?.medicineName ?? "",
@@ -490,22 +452,15 @@ class _HomePageState extends State<HomePage>
                                         Navigator.push(
                                           context,
                                           PageRouteBuilder(
-                                            transitionDuration: const Duration(
-                                              milliseconds: 600,
+                                            transitionDuration: const Duration(milliseconds: 600),
+                                            reverseTransitionDuration: const Duration(milliseconds: 600),
+                                            pageBuilder: (_, __, ___) => MedicineDetailScreen(
+                                              id: data?.id.toString() ?? '',
+                                              title: data?.medicineName.toString() ?? '',
+                                              subtitle: data?.subtitle ?? data?.curesFor ?? "",
+                                              imageUrl: data?.mediaPath ?? "",
+                                              tag: 'medicine$index',
                                             ),
-                                            reverseTransitionDuration:
-                                                const Duration(milliseconds: 600),
-                                            pageBuilder: (_, __, ___) =>
-                                                MedicineDetailScreen(
-                                                  id: data?.id.toString() ?? '',
-                                                  title:
-                                                      data?.medicineName
-                                                          .toString() ??
-                                                      '',
-                                                  subtitle: data?.subtitle ?? data?.curesFor ?? "",
-                                                  imageUrl: data?.mediaPath ?? "",
-                                                  tag: 'medicine$index',
-                                                ),
                                           ),
                                         );
                                       },
@@ -586,59 +541,56 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildMenuItem(String text, String iconPath, VoidCallback onTap, {String? networkImageUrl}) {
+  Widget _buildMenuItem(
+    String text,
+    String iconPath,
+    VoidCallback onTap, {
+    String? networkImageUrl,
+  }) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: EdgeInsets.all(AppSize.height * .017),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: Colors.white,
-          // border: Border.all(color: Colors.black.withOpacity(.1), width: 1),
           boxShadow: [
             BoxShadow(
               // ignore: deprecated_member_use
-              color: Colors.black.withOpacity(.1), // soft shadow
-              blurRadius: 1, // smooth blur
-              spreadRadius: 0, // light spread
-              offset: const Offset(0, 1), // shadow below the card
+              color: Colors.black.withOpacity(.1),
+              blurRadius: 1,
+              spreadRadius: 0,
+              offset: const Offset(0, 1),
             ),
           ],
-          gradient: LinearGradient(
-            colors: [Colors.white, Colors.white, Color(0xff6AD7FF)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
         ),
-        child: Row(
-          children: [
-            SizedBox(height: AppSize.height * .005),
-            SizedBox(
-              width: MediaQuery.of(context).size.width * .23,
-              child: Text(
-                text,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.roboto(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: networkImageUrl != null
+              ? Image.network(
+                  networkImageUrl,
+                  width: double.infinity,
+                  height: double.infinity,
+                  fit: BoxFit.fill,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Image.asset(
+                      iconPath,
+                      fit: BoxFit.contain,
+                      width: double.infinity,
+                    );
+                  },
+                  errorBuilder: (_, __, ___) => Image.asset(
+                    iconPath,
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                  ),
+                )
+              : Image.asset(
+                  iconPath,
+                  fit: BoxFit.contain,
+                  width: double.infinity,
                 ),
-                textAlign: TextAlign.start,
-              ),
-            ),
-            Spacer(),
-            networkImageUrl != null
-                ? Image.network(
-                    networkImageUrl,
-                    height: AppSize.height * .055,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Image.asset(iconPath, height: AppSize.height * .055);
-                    },
-                    errorBuilder: (_, __, ___) => Image.asset(iconPath, height: AppSize.height * .055),
-                  )
-                : Image.asset(iconPath, height: AppSize.height * .055),
-          ],
         ),
       ),
     );
@@ -854,10 +806,7 @@ class _AutoLoopBannerVideo extends StatefulWidget {
   final String url;
   final double height;
 
-  const _AutoLoopBannerVideo({
-    required this.url,
-    required this.height,
-  });
+  const _AutoLoopBannerVideo({required this.url, required this.height});
 
   @override
   State<_AutoLoopBannerVideo> createState() => _AutoLoopBannerVideoState();

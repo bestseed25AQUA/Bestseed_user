@@ -44,6 +44,7 @@ class TrackingData {
   final String expectedDelivery;
   final String? vendorMobile;
   final String? vehicleDescription;
+  final String? inProgressAt;
 
   TrackingData({
     required this.vehicleId,
@@ -58,6 +59,7 @@ class TrackingData {
     required this.expectedDelivery,
     this.vendorMobile,
     this.vehicleDescription,
+    this.inProgressAt,
   });
 
   factory TrackingData.fromJson(Map<String, dynamic> json) {
@@ -80,6 +82,7 @@ class TrackingData {
           .toList(),
       vendorMobile: json['vendor_mobile']?.toString(),
       vehicleDescription: json['vehicle_description']?.toString(),
+      inProgressAt: json['in_progress_at']?.toString(),
     );
   }
 

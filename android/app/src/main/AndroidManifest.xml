@@ -32,7 +32,7 @@
 
     <application
         android:enableOnBackInvokedCallback="true"
-        android:label="Best Seeds"
+        android:label="Bestseed"
         android:name="${applicationName}"
         android:hardwareAccelerated="true"
         android:usesCleartextTraffic="true"

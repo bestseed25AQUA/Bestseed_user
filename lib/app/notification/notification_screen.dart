@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:seedsuser/app/notification/controller/notification_controller.dart';
 import 'package:seedsuser/app/notification/model/push_notification_model.dart';
 import 'package:seedsuser/app/notification/notification_details_screen.dart';
@@ -57,9 +58,14 @@ class NotificationsScreen extends StatelessWidget {
         return RefreshIndicator(
           onRefresh: controller.fetchNotifications,
           child: ListView.builder(
+            controller: controller.scrollController,
             padding: const EdgeInsets.only(bottom: 16),
-            itemCount: orderedKeys.length,
+            itemCount: orderedKeys.length + (controller.hasMore ? 1 : 0),
             itemBuilder: (context, sectionIndex) {
+              if (sectionIndex >= orderedKeys.length) {
+                return const _ShimmerDotsLoader();
+              }
+
               final label = orderedKeys[sectionIndex];
               final items = grouped[label]!;
 
@@ -104,6 +110,7 @@ class NotificationsScreen extends StatelessWidget {
             title: notification.title,
             body: notification.body,
             image: notification.image,
+            module: notification.module,
           ));
     }
   }
@@ -186,6 +193,25 @@ class _NotificationCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (notification.module != null && notification.module!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0, bottom: 4.0),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            notification.module!,
+                            style: GoogleFonts.roboto(
+                              fontSize: 11,
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 4),
                     Text(
                       notification.body,
@@ -199,6 +225,36 @@ class _NotificationCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ShimmerDotsLoader extends StatelessWidget {
+  const _ShimmerDotsLoader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(3, (index) {
+          return Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+            period: Duration(milliseconds: 800 + (index * 200)),
+            child: Container(
+              width: 10,
+              height: 10,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                shape: BoxShape.circle,
+              ),
+            ),
+          );
+        }),
       ),
     );
   }

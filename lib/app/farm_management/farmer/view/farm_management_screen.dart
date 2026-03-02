@@ -462,7 +462,7 @@ class ChatbotWidget extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                'Hi ! I\'m Best Seeds Bot',
+                'Hi ! I\'m Bestseed Bot',
                 style: GoogleFonts.roboto(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

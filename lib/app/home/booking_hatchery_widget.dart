@@ -447,9 +447,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                   //   ),
                   // ),
                   Expanded(
-                    child: SingleChildScrollView(
-                      controller: scrollController,
-                      child: BookingReviewContent(
+                    child: BookingReviewContent(
                         bottomSheetContext: context,
                         estimatedPrice: estimatePrice ?? "",
                         categoryId: widget.categoryId,
@@ -468,7 +466,6 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                         hatcheryName: widget.hatcheryName,
                         locationId: '',
                       ),
-                    ),
                   ),
                 ],
               ),

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:seedsuser/app/auth/view/login_screen.dart';
 import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/dashboard/dashboard.dart';
+import 'package:seedsuser/app/notification/notification_service.dart';
 import 'package:seedsuser/app/updates/view/hatchery_details_screen.dart';
 import 'package:app_links/app_links.dart';
 
@@ -72,6 +73,10 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (token != null && token.isNotEmpty) {
       Get.off(() => DashboardScreen());
+      // Navigate to notification detail if app was opened via notification tap
+      Future.delayed(const Duration(milliseconds: 500), () {
+        NotificationService.handlePendingNotification();
+      });
     } else {
       Get.off(() => const LoginWithMobileScreen());
     }

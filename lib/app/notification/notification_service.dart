@@ -28,6 +28,10 @@ class NotificationService {
 
   static const String _baseUrl = NetworkConfig.baseURL;
 
+  /// Stores notification data when app is opened from terminated state.
+  /// Splash screen will consume this after its own navigation completes.
+  static Map<String, dynamic>? pendingNotificationData;
+
   Future<void> initialize() async {
     // 1. Register Background Handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -152,14 +156,12 @@ class NotificationService {
       _handleNotificationTap(message.data);
     });
 
-    // Check if app was opened from a terminated state via notification
+    // Check if app was opened from a terminated state via notification.
+    // Store the data so splash screen can handle it after its own navigation.
     _fcm.getInitialMessage().then((RemoteMessage? message) {
       if (message != null) {
         print('App opened from terminated state via notification: ${message.data}');
-        // Delay to allow app to fully initialize before navigating
-        Future.delayed(const Duration(seconds: 2), () {
-          _handleNotificationTap(message.data);
-        });
+        pendingNotificationData = Map<String, dynamic>.from(message.data);
       }
     });
   }
@@ -170,22 +172,34 @@ class NotificationService {
     if (notification == null) return;
 
     // Handle Image Notifications
+    // Check data payload first, then fallback to notification payload image
+    String? imageUrl = message.data['image']?.toString();
+    if (imageUrl == null || imageUrl.isEmpty) {
+      imageUrl = notification.android?.imageUrl ?? notification.apple?.imageUrl;
+    }
+
     BigPictureStyleInformation? bigPictureStyle;
-    if (message.data['image'] != null &&
-        message.data['image'].toString().isNotEmpty) {
+    if (imageUrl != null && imageUrl.isNotEmpty) {
       try {
-        final http.Response response = await http.get(
-          Uri.parse(message.data['image']),
-        );
-        bigPictureStyle = BigPictureStyleInformation(
-          ByteArrayAndroidBitmap(response.bodyBytes),
-          contentTitle: notification.title,
-          summaryText: notification.body,
-        );
+        print('Loading notification image from: $imageUrl');
+        final http.Response response = await http.get(Uri.parse(imageUrl));
+        if (response.statusCode == 200) {
+          bigPictureStyle = BigPictureStyleInformation(
+            ByteArrayAndroidBitmap(response.bodyBytes),
+            contentTitle: notification.title,
+            summaryText: notification.body,
+          );
+        } else {
+          print('Failed to load notification image: HTTP ${response.statusCode}');
+        }
       } catch (e) {
         print('Error loading notification image: $e');
       }
     }
+
+    // Show module name as subText in notification
+    final String? module = message.data['module']?.toString();
+    final String? subText = (module != null && module.isNotEmpty) ? module : null;
 
     AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'high_importance_channel',
@@ -194,6 +208,7 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
       showWhen: true,
+      subText: subText,
       styleInformation: bigPictureStyle,
     );
 
@@ -234,10 +249,12 @@ class NotificationService {
         final title = data['title'] ?? '';
         final body = data['body'] ?? '';
         final image = data['image'] ?? '';
+        final module = data['module'] ?? '';
         Get.to(() => NotificationDetailScreen(
               title: title,
               body: body,
               image: image,
+              module: module,
             ));
         break;
 
@@ -250,6 +267,15 @@ class NotificationService {
 
       default:
         print('Unknown notification type: $type');
+    }
+  }
+
+  /// Call this after splash screen navigation to handle any pending notification.
+  static void handlePendingNotification() {
+    if (pendingNotificationData != null) {
+      final data = pendingNotificationData!;
+      pendingNotificationData = null;
+      NotificationService()._handleNotificationTap(data);
     }
   }
 

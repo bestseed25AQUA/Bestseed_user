@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:seedsuser/app/common/refresh_button.dart';
 import 'package:seedsuser/app/utils/custom_marker_helper.dart';
 import 'package:seedsuser/app/utils/google_maps_service.dart';
 import 'package:seedsuser/app/vehicle_tracking/controller/vehicle_tracking_controller.dart';
@@ -74,6 +75,15 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   DateTime? _routeStartTime;
   int _totalRouteDurationSeconds = 0;
 
+  // Full polyline data for sub-stop generation
+  List<LatLng> _fullPolyline = [];
+  List<double> _cumulativeDistances = [];
+
+  // Expandable sub-timelines
+  int? _expandedSegmentIndex;
+  Map<int, List<Map<String, dynamic>>> _subStopsCache = {};
+  int? _loadingSegment;
+
   // Refresh state
   DateTime _lastRefreshedAt = DateTime.now();
   bool _isRefreshing = false;
@@ -92,9 +102,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat();
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 2.5).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
-    );
+    _pulseAnimation = Tween<double>(
+      begin: 1.0,
+      end: 2.5,
+    ).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeOut));
 
     _initializeMap();
     // Update "Updated X mins ago" text every 30 seconds
@@ -160,6 +171,11 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         _routeStartTime = null;
         _totalRouteDurationSeconds = 0;
         _estimatedDuration = '';
+        _fullPolyline = [];
+        _cumulativeDistances = [];
+        _expandedSegmentIndex = null;
+        _subStopsCache = {};
+        _loadingSegment = null;
 
         await _setupMarkersAndPolylines();
 
@@ -245,6 +261,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         _routeStops = routeData['stops'] as List<Map<String, dynamic>>? ?? [];
         _totalRouteDurationSeconds =
             routeData['total_duration_seconds'] as int? ?? 0;
+        _fullPolyline = routeData['polyline_points'] as List<LatLng>? ?? [];
+        _cumulativeDistances = (routeData['cumulative_distances'] as List?)
+                ?.cast<double>() ??
+            [];
 
         final driverFraction =
             routeData['driver_progress_fraction'] as double? ?? 0.0;
@@ -888,6 +908,8 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
               fontWeight: FontWeight.bold,
             ),
           ),
+          Spacer(),
+          RefreshButton(onTap: _refreshData),
         ],
       ),
     );
@@ -1142,6 +1164,114 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     );
   }
 
+  /// Build the ordered list of all main timeline entries with their segment index.
+  /// Each entry: { 'type': pickup|stop|driver|destination, 'data': ..., 'segmentIndex': int }
+  List<Map<String, dynamic>> _buildOrderedTimelineEntries() {
+    final driverLoc = _trackingData!.driverLocation;
+    final hasCurrentLocation = driverLoc.lat != 0 && driverLoc.lng != 0;
+
+    final passedStops = _routeStops.where((s) => s['passed'] == true).toList();
+    final upcomingStops = _routeStops.where((s) => s['passed'] != true).toList();
+
+    List<Map<String, dynamic>> entries = [];
+    int segIdx = 0;
+
+    // Pickup (segment 0 — no expand for pickup itself)
+    entries.add({'type': 'pickup', 'segmentIndex': segIdx});
+
+    // Passed stops
+    for (final stop in passedStops) {
+      segIdx++;
+      entries.add({'type': 'stop', 'data': stop, 'segmentIndex': segIdx, 'color': 'green'});
+    }
+
+    // Current driver location
+    if (hasCurrentLocation) {
+      segIdx++;
+      entries.add({'type': 'driver', 'segmentIndex': segIdx});
+    }
+
+    // Upcoming stops
+    for (final stop in upcomingStops) {
+      segIdx++;
+      entries.add({'type': 'stop', 'data': stop, 'segmentIndex': segIdx, 'color': 'grey'});
+    }
+
+    // Destination
+    segIdx++;
+    entries.add({'type': 'destination', 'segmentIndex': segIdx});
+
+    return entries;
+  }
+
+  /// Get the distance fraction for a given timeline entry
+  double _getFractionForEntry(Map<String, dynamic> entry) {
+    switch (entry['type']) {
+      case 'pickup':
+        return 0.0;
+      case 'destination':
+        return 1.0;
+      case 'driver':
+        if (_cumulativeDistances.isNotEmpty && _fullPolyline.isNotEmpty && _currentLatLng != null) {
+          double minDist = double.infinity;
+          int closestIdx = 0;
+          for (int i = 0; i < _fullPolyline.length; i++) {
+            final d = (_fullPolyline[i].latitude - _currentLatLng!.latitude).abs() +
+                (_fullPolyline[i].longitude - _currentLatLng!.longitude).abs();
+            if (d < minDist) {
+              minDist = d;
+              closestIdx = i;
+            }
+          }
+          return _cumulativeDistances[closestIdx] / _cumulativeDistances.last;
+        }
+        return 0.5;
+      case 'stop':
+        return (entry['data']?['distance_fraction'] as double?) ?? 0.0;
+      default:
+        return 0.0;
+    }
+  }
+
+  /// Handle timeline item tap — expand/collapse sub-stops
+  void _onTimelineTap(int segmentIndex, double prevFraction, double currentFraction) async {
+    // Toggle if already expanded
+    if (_expandedSegmentIndex == segmentIndex) {
+      setState(() => _expandedSegmentIndex = null);
+      return;
+    }
+
+    // If already cached, just expand
+    if (_subStopsCache.containsKey(segmentIndex)) {
+      setState(() => _expandedSegmentIndex = segmentIndex);
+      return;
+    }
+
+    // Need to generate sub-stops
+    if (_fullPolyline.isEmpty || _cumulativeDistances.isEmpty) return;
+
+    setState(() {
+      _loadingSegment = segmentIndex;
+      _expandedSegmentIndex = segmentIndex;
+    });
+
+    final subStops = await GoogleMapsService.generateSubStops(
+      fullPolyline: _fullPolyline,
+      cumulativeDistances: _cumulativeDistances,
+      startFraction: prevFraction,
+      endFraction: currentFraction,
+      totalDurationSeconds: _totalRouteDurationSeconds,
+      count: 3,
+    );
+
+    if (mounted) {
+      setState(() {
+        _subStopsCache[segmentIndex] = subStops;
+        _loadingSegment = null;
+      });
+    }
+  }
+
   Widget _buildLocationTimeline(double width, double height) {
     if (_trackingData == null) return const SizedBox.shrink();
 
@@ -1151,118 +1281,266 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
 
     final hasCurrentLocation = driverLoc.lat != 0 && driverLoc.lng != 0;
 
-    // Split intermediate stops into passed and upcoming
-    final passedStops = _routeStops.where((s) => s['passed'] == true).toList();
-    final upcomingStops = _routeStops
-        .where((s) => s['passed'] != true)
-        .toList();
+    final entries = _buildOrderedTimelineEntries();
 
     List<Widget> timelineItems = [];
 
-    // 1. Pickup location
-    String pickupTime = '-';
-    if (_routeStartTime != null) {
-      pickupTime = _formatDateTimeObj(_routeStartTime!);
-    } else {
-      pickupTime = _formatDateTime(driverLoc.updatedAt);
-    }
-    timelineItems.add(
-      _buildTimelineItem(
-        width,
-        height,
-        Icons.location_on,
-        hasCurrentLocation ? Colors.green : Colors.grey,
-        'Pickup started from',
-        pickup.name.isNotEmpty ? pickup.name : 'N/A',
-        pickupTime,
-        isFirst: true,
-      ),
-    );
+    for (int i = 0; i < entries.length; i++) {
+      final entry = entries[i];
+      final isLast = i == entries.length - 1;
+      final segIdx = entry['segmentIndex'] as int;
 
-    // 2. Passed intermediate stops
-    for (final stop in passedStops) {
-      String stopTime = '-';
-      if (_routeStartTime != null) {
-        final estimatedSeconds = stop['estimated_seconds'] as int? ?? 0;
-        final stopDateTime = _routeStartTime!.add(
-          Duration(seconds: estimatedSeconds),
-        );
-        stopTime = _formatDateTimeObj(stopDateTime);
+      switch (entry['type']) {
+        case 'pickup':
+          String pickupTime = '-';
+          if (_trackingData!.inProgressAt != null && _trackingData!.inProgressAt!.isNotEmpty) {
+            pickupTime = _trackingData!.inProgressAt!;
+          } else if (_routeStartTime != null) {
+            pickupTime = _formatDateTimeObj(_routeStartTime!);
+          } else {
+            pickupTime = _formatDateTime(driverLoc.updatedAt);
+          }
+          timelineItems.add(
+            _buildTimelineItem(
+              width, height,
+              Icons.location_on,
+              hasCurrentLocation ? Colors.green : Colors.grey,
+              'Pickup started from',
+              pickup.name.isNotEmpty ? pickup.name : 'N/A',
+              pickupTime,
+              isFirst: true,
+            ),
+          );
+          break;
+
+        case 'stop':
+          final stop = entry['data'] as Map<String, dynamic>;
+          final color = entry['color'] == 'green' ? Colors.green : Colors.grey;
+          String stopTime = '-';
+          if (_routeStartTime != null) {
+            final estimatedSeconds = stop['estimated_seconds'] as int? ?? 0;
+            final stopDateTime = _routeStartTime!.add(Duration(seconds: estimatedSeconds));
+            stopTime = _formatDateTimeObj(stopDateTime);
+          }
+
+          // Get fractions for sub-stop generation
+          final prevFraction = i > 0 ? _getFractionForEntry(entries[i - 1]) : 0.0;
+          final currentFraction = _getFractionForEntry(entry);
+          final isExpanded = _expandedSegmentIndex == segIdx;
+          final isLoading = _loadingSegment == segIdx;
+
+          // Sub-stops (shown above this item when expanded)
+          if (isExpanded || isLoading) {
+            timelineItems.add(
+              _buildSubTimeline(width, height, segIdx, isLoading, color),
+            );
+          }
+
+          timelineItems.add(
+            GestureDetector(
+              onTap: () => _onTimelineTap(segIdx, prevFraction, currentFraction),
+              child: _buildTimelineItem(
+                width, height,
+                isExpanded ? Icons.keyboard_arrow_up : Icons.circle,
+                color,
+                stop['name'] as String? ?? 'Unknown',
+                null,
+                stopTime,
+                isLast: isLast,
+              ),
+            ),
+          );
+          break;
+
+        case 'driver':
+          // Get fractions for sub-stop generation
+          final prevFraction = i > 0 ? _getFractionForEntry(entries[i - 1]) : 0.0;
+          final currentFraction = _getFractionForEntry(entry);
+          final isExpanded = _expandedSegmentIndex == segIdx;
+          final isLoading = _loadingSegment == segIdx;
+
+          if (isExpanded || isLoading) {
+            timelineItems.add(
+              _buildSubTimeline(width, height, segIdx, isLoading, Colors.green),
+            );
+          }
+
+          timelineItems.add(
+            GestureDetector(
+              onTap: () => _onTimelineTap(segIdx, prevFraction, currentFraction),
+              child: _buildTimelineItem(
+                width, height,
+                Icons.local_shipping,
+                Colors.green,
+                driverLoc.name.isNotEmpty ? driverLoc.name : 'Current Location',
+                _formatDate(driverLoc.updatedAt),
+                _formatDateTime(driverLoc.updatedAt),
+                isPulsing: !isExpanded,
+                isLast: isLast,
+              ),
+            ),
+          );
+          break;
+
+        case 'destination':
+          // Get fractions for sub-stop generation
+          final prevFraction = i > 0 ? _getFractionForEntry(entries[i - 1]) : 0.0;
+          final currentFraction = 1.0;
+          final isExpanded = _expandedSegmentIndex == segIdx;
+          final isLoading = _loadingSegment == segIdx;
+
+          if (isExpanded || isLoading) {
+            timelineItems.add(
+              _buildSubTimeline(width, height, segIdx, isLoading, Colors.grey),
+            );
+          }
+
+          String destinationTime = '-';
+          if (_routeStartTime != null && _totalRouteDurationSeconds > 0) {
+            final arrivalTime = _routeStartTime!.add(Duration(seconds: _totalRouteDurationSeconds));
+            destinationTime = _formatDateTimeObj(arrivalTime);
+          }
+          timelineItems.add(
+            GestureDetector(
+              onTap: () => _onTimelineTap(segIdx, prevFraction, currentFraction),
+              child: _buildTimelineItem(
+                width, height,
+                Icons.flag,
+                Colors.grey,
+                'Destination',
+                destination.name.isNotEmpty ? destination.name : 'N/A',
+                destinationTime,
+                isLast: true,
+              ),
+            ),
+          );
+          break;
       }
-      timelineItems.add(
-        _buildTimelineItem(
-          width,
-          height,
-          Icons.circle,
-          Colors.green,
-          stop['name'] as String? ?? 'Unknown',
-          null,
-          stopTime,
-        ),
-      );
     }
-
-    // 3. Current location (if vehicle is in transit)
-    if (hasCurrentLocation) {
-      timelineItems.add(
-        _buildTimelineItem(
-          width,
-          height,
-          Icons.local_shipping,
-          Colors.green,
-          driverLoc.name.isNotEmpty ? driverLoc.name : 'Current Location',
-          _formatDate(driverLoc.updatedAt),
-          _formatDateTime(driverLoc.updatedAt),
-          isPulsing: true,
-        ),
-      );
-    }
-
-    // 4. Upcoming intermediate stops
-    for (final stop in upcomingStops) {
-      String stopTime = '-';
-      if (_routeStartTime != null) {
-        final estimatedSeconds = stop['estimated_seconds'] as int? ?? 0;
-        final stopDateTime = _routeStartTime!.add(
-          Duration(seconds: estimatedSeconds),
-        );
-        stopTime = _formatDateTimeObj(stopDateTime);
-      }
-      timelineItems.add(
-        _buildTimelineItem(
-          width,
-          height,
-          Icons.circle,
-          Colors.grey,
-          stop['name'] as String? ?? 'Unknown',
-          null,
-          stopTime,
-        ),
-      );
-    }
-
-    // 5. Destination
-    String destinationTime = '-';
-    if (_routeStartTime != null && _totalRouteDurationSeconds > 0) {
-      final arrivalTime = _routeStartTime!.add(
-        Duration(seconds: _totalRouteDurationSeconds),
-      );
-      destinationTime = _formatDateTimeObj(arrivalTime);
-    }
-    timelineItems.add(
-      _buildTimelineItem(
-        width,
-        height,
-        Icons.flag,
-        Colors.grey,
-        'Destination',
-        destination.name.isNotEmpty ? destination.name : 'N/A',
-        destinationTime,
-        isLast: true,
-      ),
-    );
 
     return Column(children: timelineItems);
+  }
+
+  /// Build the sub-timeline items between two main stops
+  Widget _buildSubTimeline(double width, double height, int segmentIndex, bool isLoading, Color lineColor) {
+    if (isLoading && !_subStopsCache.containsKey(segmentIndex)) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left column — same width as main timeline icon column
+          SizedBox(
+            width: width * 0.08,
+            child: Center(
+              child: Container(width: 2, height: height * 0.04, color: Colors.grey.shade300),
+            ),
+          ),
+          SizedBox(width: width * 0.04),
+          Padding(
+            padding: EdgeInsets.only(top: height * 0.012),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: width * 0.04,
+                  height: width * 0.04,
+                  child: const CircularProgressIndicator(strokeWidth: 1.5),
+                ),
+                SizedBox(width: width * 0.02),
+                Text('Loading...', style: TextStyle(fontSize: width * 0.03, color: Colors.grey)),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    final subStops = _subStopsCache[segmentIndex];
+    if (subStops == null || subStops.isEmpty) return const SizedBox.shrink();
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      child: Column(
+        children: subStops.map((sub) {
+          String subTime = '-';
+          if (_routeStartTime != null) {
+            final seconds = sub['estimated_seconds'] as int? ?? 0;
+            final dt = _routeStartTime!.add(Duration(seconds: seconds));
+            subTime = _formatDateTimeObj(dt);
+          }
+          return _buildSubTimelineItem(
+            width, height,
+            sub['name'] as String? ?? 'Unknown',
+            subTime,
+            lineColor,
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  /// Single sub-timeline item (smaller dot, lighter style)
+  Widget _buildSubTimelineItem(
+    double width, double height,
+    String name, String time, Color lineColor,
+  ) {
+    final dotSize = width * 0.025;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Left column — same width as main timeline, centered line + dot
+        SizedBox(
+          width: width * 0.08,
+          child: Column(
+            children: [
+              Container(width: 2, height: height * 0.015, color: Colors.grey.shade300),
+              Container(
+                width: dotSize,
+                height: dotSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: lineColor.withValues(alpha: 0.6), width: 1.5),
+                  color: Colors.white,
+                ),
+              ),
+              Container(width: 2, height: height * 0.015, color: Colors.grey.shade300),
+            ],
+          ),
+        ),
+        SizedBox(width: width * 0.04),
+        // Content — vertically centered with the dot
+        Expanded(
+          child: Container(
+            height: height * 0.03 + dotSize,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: width * 0.033,
+                      color: Colors.grey.shade600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                SizedBox(width: width * 0.02),
+                Text(
+                  time,
+                  style: TextStyle(
+                    fontSize: width * 0.03,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   String _formatDateTime(String? dateTimeStr) {
@@ -1321,9 +1599,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       width: width * 0.08,
       height: width * 0.08,
       decoration: BoxDecoration(
-        color: iconColor == Colors.green
-            ? Colors.green
-            : Colors.grey.shade400,
+        color: iconColor == Colors.green ? Colors.green : Colors.grey.shade400,
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
@@ -1358,7 +1634,11 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: Colors.green.withValues(
-                                    alpha: (1.0 - (_pulseAnimation.value - 1.0) / 1.5) * 0.4,
+                                    alpha:
+                                        (1.0 -
+                                            (_pulseAnimation.value - 1.0) /
+                                                1.5) *
+                                        0.4,
                                   ),
                                 ),
                               ),
