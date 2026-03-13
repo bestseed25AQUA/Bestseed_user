@@ -6,6 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:seedsuser/app/booking/view/booking_detail_screen.dart';
 import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/notification/notification_details_screen.dart';
@@ -179,16 +180,32 @@ class NotificationService {
     }
 
     BigPictureStyleInformation? bigPictureStyle;
+    List<DarwinNotificationAttachment>? iosAttachments;
+
     if (imageUrl != null && imageUrl.isNotEmpty) {
       try {
         print('Loading notification image from: $imageUrl');
         final http.Response response = await http.get(Uri.parse(imageUrl));
         if (response.statusCode == 200) {
+          // Android: BigPictureStyleInformation
           bigPictureStyle = BigPictureStyleInformation(
             ByteArrayAndroidBitmap(response.bodyBytes),
             contentTitle: notification.title,
             summaryText: notification.body,
           );
+
+          // iOS: Save image to temp file for attachment
+          if (Platform.isIOS) {
+            try {
+              final tempDir = await getTemporaryDirectory();
+              final filePath = '${tempDir.path}/notif_${DateTime.now().millisecondsSinceEpoch}.jpg';
+              final file = File(filePath);
+              await file.writeAsBytes(response.bodyBytes);
+              iosAttachments = [DarwinNotificationAttachment(filePath)];
+            } catch (e) {
+              print('Error creating iOS notification attachment: $e');
+            }
+          }
         } else {
           print('Failed to load notification image: HTTP ${response.statusCode}');
         }
@@ -212,10 +229,11 @@ class NotificationService {
       styleInformation: bigPictureStyle,
     );
 
-    const iosDetails = DarwinNotificationDetails(
+    DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
+      attachments: iosAttachments,
     );
 
     NotificationDetails details = NotificationDetails(

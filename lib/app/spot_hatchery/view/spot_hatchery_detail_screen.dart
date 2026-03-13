@@ -169,29 +169,50 @@ class _SpotHatcheryDetailScreenState extends State<SpotHatcheryDetailScreen> {
 
                   // Info rows
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       if (hatchery.broodstock != null)
-                        _buildInfoRow(
-                          Icons.inventory_2,
-                          "Broodstock",
-                          "${hatchery.broodstock} Pieces",
+                        Expanded(
+                          child: _buildInfoRow(
+                            Icons.inventory_2,
+                            "Broodstock",
+                            "${hatchery.broodstock} Pieces",
+                          ),
                         ),
                       if (hatchery.price != null)
-                        _buildInfoRow(
-                          Icons.currency_rupee,
-                          "Price",
-                          "₹${hatchery.price}",
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.center,
+                            child: _buildInfoRow(
+                              Icons.currency_rupee,
+                              "Price",
+                              "₹${hatchery.price}",
+                            ),
+                          ),
                         ),
                     ],
                   ),
 
-                  if (hatchery.locationName != null) ...[
+                  if (hatchery.locationName != null || hatchery.branchName != null) ...[
                     const SizedBox(height: 12),
-                    _buildInfoRow(
-                      Icons.location_on,
-                      "Location",
-                      hatchery.locationName!,
+                    Row(
+                      children: [
+                        if (hatchery.locationName != null)
+                          Expanded(
+                            child: _buildInfoRow(
+                              Icons.location_on,
+                              "Location",
+                              hatchery.locationName!,
+                            ),
+                          ),
+                        if (hatchery.branchName != null)
+                          Expanded(
+                            child: _buildInfoRow(
+                              Icons.business,
+                              "Branch",
+                              hatchery.branchName!,
+                            ),
+                          ),
+                      ],
                     ),
                   ],
 

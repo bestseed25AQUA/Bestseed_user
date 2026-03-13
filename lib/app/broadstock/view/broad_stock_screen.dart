@@ -196,6 +196,8 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
             fillColor: Color(0xffF3F4F6),
             hintText: 'Search for hatcheries...',
             border: InputBorder.none,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(vertical: 8),
             suffixIcon: Container(
               margin: const EdgeInsets.all(3),
               decoration: BoxDecoration(
@@ -404,10 +406,12 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
 
               const SizedBox(height: 12),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [buildStatusChip(data)],
-              ),
+              // Hide status chip for "Available" when available date is empty
+              if (!(data.status == BroodstockStatus.available && data.availableOn.isEmpty))
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [buildStatusChip(data)],
+                ),
             ],
           ),
         ),

@@ -72,6 +72,8 @@ class _SplashScreenState extends State<SplashScreen>
     String? token = await AuthLocalStorage.getToken();
 
     if (token != null && token.isNotEmpty) {
+      // Re-register FCM token on every app launch to keep it fresh
+      NotificationService().registerToken();
       Get.off(() => DashboardScreen());
       // Navigate to notification detail if app was opened via notification tap
       Future.delayed(const Duration(milliseconds: 500), () {

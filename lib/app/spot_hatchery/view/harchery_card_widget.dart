@@ -4,10 +4,10 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/booking_hatchery_widget.dart';
-import 'package:seedsuser/app/model/location_model.dart';
+
 import 'package:seedsuser/app/spot_hatchery/view/spot_hatchery_detail_screen.dart';
 import 'package:seedsuser/app/model/spot_hatchery_model.dart';
-import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
+
 import 'package:seedsuser/app/utils/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -47,13 +47,13 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
     super.dispose();
   }
 
-  final SeedsPriceController controller = Get.put(SeedsPriceController());
   @override
   Widget build(BuildContext context) {
     final hatchery = widget.spotHatchery;
     final validImages = hatchery.images;
     print("Spot Hatchery Images: $validImages");
     final bool hasLocation = hatchery.locationName?.isNotEmpty ?? false;
+    final bool hasBranch = hatchery.branchName?.isNotEmpty ?? false;
     final bool hasStock =
         hatchery.broodstock != null && hatchery.broodstock! > 0;
 
@@ -257,41 +257,36 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                   const SizedBox(height: 8),
 
                   // // Location
-                  if (hasLocation || hasStock)
+                  if (hasLocation || hasBranch || hasStock)
                     LayoutBuilder(
                       builder: (context, constraints) {
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 📍 Location
                             if (hasLocation)
                               Expanded(
                                 flex: 3,
-                                child: Builder(
-                                  builder: (context) {
-                                    Location? location;
-                                    try {
-                                      location = controller.locations
-                                          .firstWhere(
-                                            (e) =>
-                                                e.id.toString() ==
-                                                hatchery.locationId.toString(),
-                                          );
-                                    } catch (_) {}
-
-                                    return _buildCompactInfoRow(
-                                      Icons.location_on,
-                                      hatchery.locationName ?? '',
-                                    );
-                                  },
+                                child: _buildCompactInfoRow(
+                                  Icons.location_on,
+                                  hatchery.locationName ?? '',
                                 ),
                               ),
 
-                            // spacing only when both exist
-                            if (hasLocation && hasStock)
+                            if (hasLocation && hasBranch)
                               const SizedBox(width: 8),
 
-                            // 📦 Broodstock
+                            if (hasBranch)
+                              Expanded(
+                                flex: 3,
+                                child: _buildCompactInfoRow(
+                                  Icons.business,
+                                  hatchery.branchName ?? '',
+                                ),
+                              ),
+
+                            if ((hasLocation || hasBranch) && hasStock)
+                              const SizedBox(width: 8),
+
                             if (hasStock)
                               Expanded(
                                 flex: 2,

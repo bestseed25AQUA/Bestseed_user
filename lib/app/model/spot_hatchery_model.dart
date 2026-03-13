@@ -38,6 +38,7 @@ class SpotHatchery {
   final String categoryName;
   final String? price;
   final String? locationName;
+  final String? branchName;
   final int? broodstock;
   final bool isSpot;
   final String? availableOn;
@@ -56,6 +57,7 @@ class SpotHatchery {
     required this.categoryName,
     this.price,
     required this.locationName,
+    this.branchName,
     this.broodstock,
     required this.isSpot,
     this.availableOn,
@@ -75,6 +77,7 @@ class SpotHatchery {
     categoryName: json["category_name"] ?? "",
     price: json['price']?.toString(),
     locationName: json["location_name"],
+    branchName: json["branch_name"],
     isSpot: json["is_spot"] ?? false,
     availableOn: json["available_on"],
     description: json["description"],
@@ -100,6 +103,7 @@ class SpotHatchery {
     "category_name": categoryName,
     "price": price,
     "location_name": locationName,
+    "branch_name": branchName,
     "is_spot": isSpot,
     "available_on": availableOn,
     "description": description,

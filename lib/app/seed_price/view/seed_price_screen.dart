@@ -228,30 +228,31 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                         child: seedBanners.isNotEmpty
                             ? Stack(
                                 children: [
-                                  Image.network(
-                                    seedBanners.first.url,
-                                    width:
-                                        MediaQuery.of(context).size.width * .9,
+                                  SizedBox(
+                                    width: MediaQuery.of(context).size.width * .9,
                                     height: 80,
-                                    fit: BoxFit.cover,
-                                    loadingBuilder:
-                                        (context, child, loadingProgress) {
-                                          if (loadingProgress == null)
-                                            return child;
-                                          return CustomShimmer(
-                                            width:
-                                                MediaQuery.of(context).size.width * .9,
-                                            height: 80,
-                                            borderRadius: BorderRadius.circular(12),
-                                          );
-                                        },
-                                    errorBuilder: (_, __, ___) => Image.asset(
-                                      'assets/images/wanted_banner.png',
-                                      width:
-                                          MediaQuery.of(context).size.width *
-                                          .9,
-                                      height: 80,
-                                      fit: BoxFit.cover,
+                                    child: Image.network(
+                                      seedBanners.first.url,
+                                      fit: BoxFit.fill,
+                                      loadingBuilder:
+                                          (context, child, loadingProgress) {
+                                            if (loadingProgress == null)
+                                              return child;
+                                            return CustomShimmer(
+                                              width:
+                                                  MediaQuery.of(context).size.width * .9,
+                                              height: 80,
+                                              borderRadius: BorderRadius.circular(12),
+                                            );
+                                          },
+                                      errorBuilder: (_, __, ___) => Image.asset(
+                                        'assets/images/wanted_banner.png',
+                                        width:
+                                            MediaQuery.of(context).size.width *
+                                            .9,
+                                        height: 80,
+                                        fit: BoxFit.fill,
+                                      ),
                                     ),
                                   ),
                                 ],

@@ -24,6 +24,7 @@ class VehicleAvailabilityDetailScreen extends StatefulWidget {
 class _VehicleAvailabilityDetailScreenState
     extends State<VehicleAvailabilityDetailScreen> {
   bool _isViewMoreExpanded = false;
+  final GlobalKey _viewMoreKey = GlobalKey();
 
   bool _isVideo(String url) {
     final lower = url.toLowerCase();
@@ -71,7 +72,9 @@ class _VehicleAvailabilityDetailScreenState
                   height: 180,
                   child: MediaCarouselWidget(
                     mediaUrls: validImages,
-                    mediaTypes: validImages.map((url) => _isVideo(url) ? 'video' : 'image').toList(),
+                    mediaTypes: validImages
+                        .map((url) => _isVideo(url) ? 'video' : 'image')
+                        .toList(),
                     height: 180,
                     borderRadius: 14,
                     title: vehicle.vehicleName,
@@ -175,19 +178,25 @@ class _VehicleAvailabilityDetailScreenState
 
                   // Info rows
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       if (vehicle.availableSpace != null)
-                        _buildInfoRow(
-                          Icons.inventory_2,
-                          "Available Space",
-                          "${vehicle.availableSpace} seeds",
+                        Expanded(
+                          child: _buildInfoRow(
+                            Icons.inventory_2,
+                            "Available Space",
+                            "${vehicle.availableSpace} seeds",
+                          ),
                         ),
                       if (vehicle.price != null)
-                        _buildInfoRow(
-                          Icons.currency_rupee,
-                          "Price",
-                          "₹${vehicle.price}",
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.center,
+                            child: _buildInfoRow(
+                              Icons.currency_rupee,
+                              "Price",
+                              "₹${vehicle.price}",
+                            ),
+                          ),
                         ),
                     ],
                   ),
@@ -227,7 +236,8 @@ class _VehicleAvailabilityDetailScreenState
                               ),
                             ),
                           ),
-                        if (vehicle.startDate != null && vehicle.endDate != null)
+                        if (vehicle.startDate != null &&
+                            vehicle.endDate != null)
                           const SizedBox(width: 12),
                         if (vehicle.endDate != null)
                           Expanded(
@@ -263,12 +273,28 @@ class _VehicleAvailabilityDetailScreenState
                     ),
                   ],
 
-                  if (vehicle.locationName != null) ...[
+                  if (vehicle.locationName != null ||
+                      vehicle.branchName != null) ...[
                     const SizedBox(height: 12),
-                    _buildInfoRow(
-                      Icons.location_on,
-                      "Location",
-                      vehicle.locationName!,
+                    Row(
+                      children: [
+                        if (vehicle.locationName != null)
+                          Expanded(
+                            child: _buildInfoRow(
+                              Icons.location_on,
+                              "Location",
+                              vehicle.locationName!,
+                            ),
+                          ),
+                        if (vehicle.branchName != null)
+                          Expanded(
+                            child: _buildInfoRow(
+                              Icons.business,
+                              "Branch",
+                              vehicle.branchName!,
+                            ),
+                          ),
+                      ],
                     ),
                   ],
 
@@ -357,10 +383,7 @@ class _VehicleAvailabilityDetailScreenState
       children: [
         Text(
           "Route",
-          style: GoogleFonts.roboto(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
+          style: GoogleFonts.roboto(fontSize: 14, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -386,15 +409,13 @@ class _VehicleAvailabilityDetailScreenState
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.arrow_forward,
-                    size: 14,
-                    color: Colors.grey[600],
-                  ),
+                  Icon(Icons.arrow_forward, size: 14, color: Colors.grey[600]),
                   const SizedBox(width: 4),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: isLast
                           ? AppColors.primary.withOpacity(0.1)
@@ -419,9 +440,12 @@ class _VehicleAvailabilityDetailScreenState
                           location.name,
                           style: GoogleFonts.roboto(
                             fontSize: 12,
-                            fontWeight:
-                                isLast ? FontWeight.w600 : FontWeight.w500,
-                            color: isLast ? AppColors.primary : Colors.grey[700],
+                            fontWeight: isLast
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                            color: isLast
+                                ? AppColors.primary
+                                : Colors.grey[700],
                           ),
                         ),
                       ],
@@ -446,6 +470,18 @@ class _VehicleAvailabilityDetailScreenState
             setState(() {
               _isViewMoreExpanded = !_isViewMoreExpanded;
             });
+            if (_isViewMoreExpanded) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final context = _viewMoreKey.currentContext;
+                if (context != null) {
+                  Scrollable.ensureVisible(
+                    context,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                }
+              });
+            }
           },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -478,6 +514,7 @@ class _VehicleAvailabilityDetailScreenState
 
         // Expandable content
         AnimatedCrossFade(
+          key: _viewMoreKey,
           firstChild: const SizedBox.shrink(),
           secondChild: _buildSelectedHatcheryContent(selectedHatchery),
           crossFadeState: _isViewMoreExpanded
@@ -490,7 +527,9 @@ class _VehicleAvailabilityDetailScreenState
   }
 
   /// Build the selected/parent hatchery content
-  Widget _buildSelectedHatcheryContent(SelectedVehicleHatchery selectedHatchery) {
+  Widget _buildSelectedHatcheryContent(
+    SelectedVehicleHatchery selectedHatchery,
+  ) {
     return Container(
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(16),
@@ -514,10 +553,7 @@ class _VehicleAvailabilityDetailScreenState
             const SizedBox(height: 4),
             Text(
               selectedHatchery.categoryName!,
-              style: GoogleFonts.roboto(
-                fontSize: 13,
-                color: Colors.grey[600],
-              ),
+              style: GoogleFonts.roboto(fontSize: 13, color: Colors.grey[600]),
             ),
           ],
 
@@ -770,9 +806,9 @@ class _VehicleAvailabilityDetailScreenState
       await launchUrl(uri);
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Cannot launch URL")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Cannot launch URL")));
       }
     }
   }

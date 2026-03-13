@@ -19,6 +19,7 @@ class HomeBannerController extends GetxController {
   var bannersSeedPrice = <BannerItem>[].obs;
   var bannersSpotHatcheries = <BannerItem>[].obs;
   var bannersFarmManagement = <BannerItem>[].obs;
+  var bannersSection1Bg = <BannerItem>[].obs;
 
   @override
   void onInit() {
@@ -31,6 +32,7 @@ class HomeBannerController extends GetxController {
     fetchSeedPriceBanner();
     fetchSpotHatcheriesIcon();
     fetchFarmManagementIcon();
+    fetchSection1Background();
   }
 
   Future<void> fetchBanners() async {
@@ -328,6 +330,40 @@ class HomeBannerController extends GetxController {
       }
     } catch (e) {
       print("Failed to fetch farm management icon: $e");
+    }
+  }
+
+  Future<void> fetchSection1Background() async {
+    try {
+      // Load from cache first
+      try {
+        final cached = await AppCacheHelper.get('home_section1_bg');
+        if (cached != null) {
+          final data = json.decode(cached);
+          HomeBannerModel model = HomeBannerModel.fromJson(data);
+          if (model.status) {
+            bannersSection1Bg.assignAll(model.banners);
+          }
+        }
+      } catch (e) {
+        debugPrint('Cache read failed (home_section1_bg): $e');
+      }
+
+      final response = await getRequest(
+        endPoint: "${NetworkConfig.baseURL}/farmer/home_section1_bg",
+        headers: await buildHeader(),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+        HomeBannerModel model = HomeBannerModel.fromJson(data);
+        if (model.status) {
+          bannersSection1Bg.assignAll(model.banners);
+        }
+        try { await AppCacheHelper.save('home_section1_bg', response.body); } catch (e) { debugPrint('Cache save failed (home_section1_bg): $e'); }
+      }
+    } catch (e) {
+      print("Failed to fetch section1 background: $e");
     }
   }
 }

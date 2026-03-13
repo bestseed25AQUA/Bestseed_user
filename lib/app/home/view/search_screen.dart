@@ -514,7 +514,8 @@ class _SearchScreenState extends State<SearchScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 0),
       child: Obx(() {
-        // FIX: display only filtered list, not based on original
+        // Always read at least one observable to prevent GetX error
+        final _ = selectedIds.length;
         int total = items.length;
         int displayCount =
             total; // showAllFlag.value ? total : (total > 4 ? 4 : total);

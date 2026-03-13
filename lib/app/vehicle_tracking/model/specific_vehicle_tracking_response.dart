@@ -45,6 +45,7 @@ class TrackingData {
   final String? vendorMobile;
   final String? vehicleDescription;
   final String? inProgressAt;
+  final List<RouteWaypoint> routeWaypoints;
 
   TrackingData({
     required this.vehicleId,
@@ -60,6 +61,7 @@ class TrackingData {
     this.vendorMobile,
     this.vehicleDescription,
     this.inProgressAt,
+    this.routeWaypoints = const [],
   });
 
   factory TrackingData.fromJson(Map<String, dynamic> json) {
@@ -83,6 +85,10 @@ class TrackingData {
       vendorMobile: json['vendor_mobile']?.toString(),
       vehicleDescription: json['vehicle_description']?.toString(),
       inProgressAt: json['in_progress_at']?.toString(),
+      routeWaypoints: (json['route_waypoints'] as List<dynamic>?)
+              ?.map((e) => RouteWaypoint.fromJson(e))
+              .toList() ??
+          [],
     );
   }
 
@@ -211,4 +217,23 @@ class TimelineItem {
     "date": date,
     "status": status,
   };
+}
+
+// ------------------------------------------------------------
+// ROUTE WAYPOINT (for multi-drop route calculation)
+// ------------------------------------------------------------
+class RouteWaypoint {
+  final double lat;
+  final double lng;
+
+  RouteWaypoint({required this.lat, required this.lng});
+
+  factory RouteWaypoint.fromJson(Map<String, dynamic> json) {
+    return RouteWaypoint(
+      lat: (json['lat'] ?? 0).toDouble(),
+      lng: (json['lng'] ?? 0).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {"lat": lat, "lng": lng};
 }

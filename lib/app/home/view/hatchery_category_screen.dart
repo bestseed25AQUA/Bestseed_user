@@ -48,6 +48,9 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
   );
 
   final HomeController _homeController = Get.find<HomeController>();
+  bool _showSimilar = false;
+  final GlobalKey _similarKey = GlobalKey();
+
   @override
   void initState() {
     initCall();
@@ -298,103 +301,115 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
                   if (similarList.isEmpty) return SizedBox();
 
                   return Column(
+                    key: _similarKey,
                     children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            'Similar Hatcheries',
-                            style: GoogleFonts.roboto(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _showSimilar = !_showSimilar;
+                              });
+                              if (!_showSimilar) return;
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                Scrollable.ensureVisible(
+                                  _similarKey.currentContext!,
+                                  duration: const Duration(milliseconds: 400),
+                                  curve: Curves.easeInOut,
+                                );
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  "View More Similar Hatcheries",
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Icon(
+                                  _showSimilar
+                                      ? Icons.keyboard_arrow_up
+                                      : Icons.keyboard_arrow_down,
+                                  color: Colors.white,
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: List.generate(similarList.length, (index) {
-                            final hatchery = similarList[index];
+                      if (_showSimilar)
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: List.generate(similarList.length, (index) {
+                              final hatchery = similarList[index];
+                              final String categoryName = resolvedCategoryName(hatchery);
+                              final String locationName = hatchery.location ?? '';
+                              final String image = hatchery.image ?? "";
+                              final String? availableDate =
+                                  hatchery.availableOn != null &&
+                                          hatchery.availableOn!.trim().isNotEmpty
+                                      ? hatchery.availableOn
+                                      : null;
+                              final Color statusColor = _getSimilarStatusColor(hatchery.status);
 
-                            // ⭐ PRE-COMPUTE SAFE VALUES
-                            final String categoryName = resolvedCategoryName(
-                              hatchery,
-                            ); // your helper function
-                            final String locationName =
-                                hatchery.location ?? ''; // your helper function
-
-                            // ⭐ IMAGE SAFE
-                            final String image = hatchery.image ?? "";
-
-                            // ⭐ DATE SAFE
-                            final String? availableDate =
-                                hatchery.availableOn != null &&
-                                    hatchery.availableOn!.trim().isNotEmpty
-                                ? hatchery.availableOn
-                                : null;
-
-                            // ⭐ STATUS COLOR SAFE
-                            final String statusLower = hatchery.status
-                                .toLowerCase();
-
-                            final Color statusColor = statusLower == "open"
-                                ? const Color(0xff25A652)
-                                : statusLower == "coming soon"
-                                ? const Color(0xff007DFE)
-                                : const Color(0xffE31B1B);
-
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 16,
-                              ),
-                              child: SizedBox(
-                                height: 230,
-                                width: 160,
-
-                                child: HatcheryCard(
-                                  index: index,
-                                  width: 160,
-                                  height: 295,
-                                  ontap: () {
-                                    // Use uniqueId for API call, fallback to id if uniqueId is not available
-                                    final hatcheryIdForApi =
-                                        hatchery.uniqueId.isNotEmpty
-                                        ? hatchery.uniqueId
-                                        : hatchery.id.toString();
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            HatcheryCateogryScreen(
-                                              hatcheryId: hatcheryIdForApi,
-                                              hatcheryName: hatchery
-                                                  .hatcheryName
-                                                  .toString(),
-                                            ),
-                                      ),
-                                    );
-                                  },
-
-                                  /// ⭐ No nullable — model is safe
-                                  id: hatchery.id.toString(),
-                                  uniqueId: hatchery.uniqueId,
-                                  imagePath: image,
-
-                                  title: hatchery.hatcheryName,
-                                  location: locationName,
-                                  type: categoryName,
-                                  status: hatchery.status,
-                                  statusColor: statusColor,
-                                  availableUntil: availableDate,
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 16,
                                 ),
-                              ),
-                            );
-                          }),
+                                child: SizedBox(
+                                  height: 230,
+                                  width: 160,
+                                  child: HatcheryCard(
+                                    index: index,
+                                    width: 160,
+                                    height: 295,
+                                    ontap: () {
+                                      final hatcheryIdForApi =
+                                          hatchery.uniqueId.isNotEmpty
+                                              ? hatchery.uniqueId
+                                              : hatchery.id.toString();
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              HatcheryCateogryScreen(
+                                                hatcheryId: hatcheryIdForApi,
+                                                hatcheryName: hatchery.hatcheryName.toString(),
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                    id: hatchery.id.toString(),
+                                    uniqueId: hatchery.uniqueId,
+                                    imagePath: image,
+                                    title: hatchery.hatcheryName,
+                                    location: locationName,
+                                    type: categoryName,
+                                    status: hatchery.status,
+                                    statusColor: statusColor,
+                                    availableUntil: availableDate,
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
                         ),
-                      ),
                     ],
                   );
                 }),
@@ -405,6 +420,16 @@ class _HatcheryCateogryScreenState extends State<HatcheryCateogryScreen> {
       ),
     );
   }
+
+  Color _getSimilarStatusColor(String status) {
+    final lower = status.toLowerCase();
+    if (lower == 'available' || lower == 'open') return const Color(0xff25A652);
+    if (lower == 'coming soon') return const Color(0xff007DFE);
+    if (lower == 'upcoming') return const Color(0xff6F42C1);
+    if (lower == 'shortly available') return const Color(0xffF4A100);
+    return const Color(0xffE31B1B);
+  }
+
 }
 
 class HarcheryCardWidget extends StatefulWidget {

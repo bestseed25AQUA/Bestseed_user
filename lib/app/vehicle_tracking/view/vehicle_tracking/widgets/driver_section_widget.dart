@@ -17,6 +17,7 @@ class DeliveryUpdateWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('🔍 DeliveryUpdateWidget → travelCost: "$travelCost", expectedDelivery: "$expectedDelivery"');
     return Container(
       padding: const EdgeInsets.all(16),
       width: double.infinity,
@@ -34,13 +35,16 @@ class DeliveryUpdateWidget extends StatelessWidget {
           ),
           SizedBox(height: 20),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              BoxCustom(title: 'Travel cost', subtitle: travelCost),
-              SizedBox(width: MediaQuery.of(context).size.width * .02),
-              BoxCustom(
-                title: 'Delivery Expected on',
-                subtitle: expectedDelivery,
+              Expanded(
+                child: BoxCustom(title: 'Travel cost', subtitle: travelCost),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: BoxCustom(
+                  title: 'Delivery Expected on',
+                  subtitle: expectedDelivery,
+                ),
               ),
             ],
           ),
@@ -59,7 +63,6 @@ class BoxCustom extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: MediaQuery.of(context).size.width * .43,
       padding: EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Color(0xffF6F6F6),

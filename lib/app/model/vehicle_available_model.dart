@@ -30,6 +30,7 @@ class VehicleAvailability {
   final String? description;
   final int? locationId;
   final String? locationName;
+  final String? branchName;
   final List<VehicleLocation> locations;
   final bool isVehicle;
   final String? availableOn;
@@ -57,6 +58,7 @@ class VehicleAvailability {
     this.description,
     this.locationId,
     this.locationName,
+    this.branchName,
     required this.locations,
     required this.isVehicle,
     this.availableOn,
@@ -82,6 +84,7 @@ class VehicleAvailability {
       description: json['description'],
       locationId: json['location_id'],
       locationName: json['location_name'],
+      branchName: json['branch_name'],
       locations: json['locations'] == null
           ? []
           : List<VehicleLocation>.from(

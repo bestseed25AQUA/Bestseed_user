@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -18,7 +19,7 @@ import 'package:seedsuser/app/updates/view/widgets/post_shimmer_widget.dart';
 import 'package:seedsuser/app/utils/app_size.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:readmore/readmore.dart';
+
 
 class UpdatesScreen extends StatefulWidget {
   UpdatesScreen({super.key});
@@ -149,6 +150,30 @@ class PostWidget extends StatefulWidget {
 }
 
 class _PostWidgetState extends State<PostWidget> {
+  bool _isExpanded = false;
+  bool _needsExpand = false;
+  final GlobalKey _htmlKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkIfNeedsExpand();
+    });
+  }
+
+  void _checkIfNeedsExpand() {
+    final renderBox = _htmlKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox != null && renderBox.hasSize) {
+      final contentHeight = renderBox.size.height;
+      if (contentHeight > 42 && !_needsExpand) {
+        setState(() {
+          _needsExpand = true;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -244,28 +269,51 @@ class _PostWidgetState extends State<PostWidget> {
                   ),
                 ),
                 // Post Text
+                if (widget.postData?.caption != null && widget.postData!.caption!.trim().isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                  child: ReadMoreText(
-                    widget.postData?.caption ?? '',
-                    trimLines: 2,
-                    colorClickableText: Colors.blue,
-                    trimMode: TrimMode.Line,
-                    trimCollapsedText: ' View More',
-                    trimExpandedText: ' View Less',
-                    style: GoogleFonts.roboto(fontSize: 14),
-                    moreStyle: GoogleFonts.roboto(
-                      fontSize: 14,
-                      color: Colors.blue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    lessStyle: GoogleFonts.roboto(
-                      fontSize: 14,
-                      color: Colors.blue,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (!_isExpanded && _needsExpand)
+                        SizedBox(
+                          height: 42,
+                          child: Wrap(
+                            clipBehavior: Clip.hardEdge,
+                            children: [
+                              HtmlWidget(
+                                widget.postData?.caption ?? '',
+                                textStyle: GoogleFonts.roboto(fontSize: 14),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        HtmlWidget(
+                          key: _needsExpand ? null : _htmlKey,
+                          widget.postData?.caption ?? '',
+                          textStyle: GoogleFonts.roboto(fontSize: 14),
+                        ),
+                      if (_needsExpand)
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _isExpanded = !_isExpanded;
+                            });
+                          },
+                          child: Text(
+                            _isExpanded ? ' View Less' : ' View More',
+                            style: GoogleFonts.roboto(
+                              fontSize: 14,
+                              color: Colors.blue,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
+                if (widget.postData?.caption != null && widget.postData!.caption!.trim().isNotEmpty)
                 SizedBox(height: 10),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -327,10 +375,9 @@ class _PostWidgetState extends State<PostWidget> {
                   children: [
                     InkWell(
                       onTap: () async {
-                        final phone =
-                            widget.postData?.callUrl ??
-                            "0000000000"; // Replace key if needed
-                        final Uri callUri = Uri(scheme: 'tel', path: phone);
+                        final callUrl = widget.postData?.callUrl?.toString() ?? '';
+                        if (callUrl.isEmpty) return;
+                        final Uri callUri = Uri.parse(callUrl);
 
                         if (await canLaunchUrl(callUri)) {
                           await launchUrl(
@@ -351,11 +398,8 @@ class _PostWidgetState extends State<PostWidget> {
                     // WHATSAPP BUTTON
                     InkWell(
                       onTap: () async {
-                        final phone =
-                            widget.postData?.whatsappUrl ??
-                            ""; // Should be number only
-                        final whatsappUrl = "https://wa.me/$phone";
-
+                        final whatsappUrl = widget.postData?.whatsappUrl?.toString() ?? '';
+                        if (whatsappUrl.isEmpty) return;
                         final Uri uri = Uri.parse(whatsappUrl);
 
                         if (await canLaunchUrl(uri)) {

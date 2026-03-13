@@ -256,12 +256,25 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
                   ),
                   const SizedBox(height: 8),
 
-                  // Location
-                  if (hatchery.locationName?.isNotEmpty ?? false)
-                    _buildInfoRow(
-                      Icons.location_on,
-                      hatchery.locationName ?? '',
-                    ),
+                  // Location & Branch
+                  Row(
+                    children: [
+                      if (hatchery.locationName?.isNotEmpty ?? false)
+                        Expanded(
+                          child: _buildInfoRow(
+                            Icons.location_on,
+                            hatchery.locationName ?? '',
+                          ),
+                        ),
+                      if (hatchery.branchName?.isNotEmpty ?? false)
+                        Expanded(
+                          child: _buildInfoRow(
+                            Icons.business,
+                            hatchery.branchName ?? '',
+                          ),
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
 
                   if (hatchery.availableSpace != null)

@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/best_deals/view/best_deals_screen.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
-import 'package:seedsuser/app/common/infinite_image_scroll.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/farm_management/farm_home/farm_home_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
@@ -180,15 +180,20 @@ class _HomePageState extends State<HomePage>
             ),
 
             // ── Section 1: Vehicle Banner + Menu Items + Contact Us ──
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.white, Color(0xFFB3E5FC), Colors.white],
-                ),
-              ),
-              child: Column(
+            Obx(() {
+              final section1Bg = _homeBannerController.bannersSection1Bg;
+              return Container(
+                decoration: section1Bg.isNotEmpty && section1Bg.first.type == 'image'
+                    ? BoxDecoration(
+                        image: DecorationImage(
+                          image: NetworkImage(section1Bg.first.url),
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : const BoxDecoration(
+                        color: Colors.white,
+                      ),
+                child: Column(
                 children: [
                   const SizedBox(height: 12),
                   // Vehicle Availability Banner
@@ -204,30 +209,36 @@ class _HomePageState extends State<HomePage>
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: homeBanners.isNotEmpty
-                              ? Image.network(
-                                  homeBanners.first.url,
-                                  width: AppSize.width * .9,
-                                  height: AppSize.height * .15,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return Shimmer.fromColors(
-                                      baseColor: Colors.grey.shade300,
-                                      highlightColor: Colors.grey.shade100,
-                                      child: Container(
+                              ? homeBanners.first.type == 'video'
+                                  ? _AutoLoopBannerVideo(
+                                      url: homeBanners.first.url,
+                                      height: AppSize.height * .15,
+                                      width: AppSize.width * .9,
+                                    )
+                                  : Image.network(
+                                      homeBanners.first.url,
+                                      width: AppSize.width * .9,
+                                      height: AppSize.height * .15,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return Shimmer.fromColors(
+                                          baseColor: Colors.grey.shade300,
+                                          highlightColor: Colors.grey.shade100,
+                                          child: Container(
+                                            width: AppSize.width * .9,
+                                            height: AppSize.height * .15,
+                                            color: Colors.white,
+                                          ),
+                                        );
+                                      },
+                                      errorBuilder: (_, __, ___) => Image.asset(
+                                        'assets/images/home_banner.jpeg',
                                         width: AppSize.width * .9,
                                         height: AppSize.height * .15,
-                                        color: Colors.white,
+                                        fit: BoxFit.cover,
                                       ),
-                                    );
-                                  },
-                                  errorBuilder: (_, __, ___) => Image.asset(
-                                    'assets/images/home_banner.jpeg',
-                                    width: AppSize.width * .9,
-                                    height: AppSize.height * .15,
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
+                                    )
                               : Shimmer.fromColors(
                                   baseColor: Colors.grey.shade50,
                                   highlightColor: Colors.grey.shade100,
@@ -251,9 +262,13 @@ class _HomePageState extends State<HomePage>
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.start,
                           children: [
-                            SizedBox(
+                            Container(
                               height: boxesHeight,
                               width: MediaQuery.of(context).size.width * .35,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.black.withOpacity(.1), width: 1),
+                              ),
                               child: _buildMenuItemMedicine(
                                 'FC Farm Medicine for fishes ',
                                 'assets/images/fc_prawn.png',
@@ -279,6 +294,7 @@ class _HomePageState extends State<HomePage>
                                             Navigator.push(context, AppAnimations.fade(SpotHatcheryScreen()));
                                           },
                                           networkImageUrl: spotIcons.isNotEmpty ? spotIcons.first.url : null,
+                                          networkMediaType: spotIcons.isNotEmpty ? spotIcons.first.type : null,
                                         );
                                       }),
                                     ),
@@ -298,6 +314,7 @@ class _HomePageState extends State<HomePage>
                                             }
                                           },
                                           networkImageUrl: farmIcons.isNotEmpty ? farmIcons.first.url : null,
+                                          networkMediaType: farmIcons.isNotEmpty ? farmIcons.first.type : null,
                                         );
                                       }),
                                     ),
@@ -317,17 +334,12 @@ class _HomePageState extends State<HomePage>
                   ),
                 ],
               ),
-            ),
+            );
+            }),
 
             // ── Section 2: Hatcheries + Seed Request ──
             Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.white, Color(0xFF81D4FA), Color(0xFFB3E5FC)],
-                ),
-              ),
+              color: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -396,13 +408,7 @@ class _HomePageState extends State<HomePage>
 
             // ── Section 3: Today Prices + Suppliers ──
             Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFFB3E5FC), Color(0xFF81D4FA), Color(0xFFB3E5FC)],
-                ),
-              ),
+              color: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 children: [
@@ -414,13 +420,7 @@ class _HomePageState extends State<HomePage>
 
             // ── Section 4: Medicine News + Updates ──
             Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFFB3E5FC), Color(0xFFE1F5FE), Colors.white],
-                ),
-              ),
+              color: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 children: [
@@ -546,6 +546,7 @@ class _HomePageState extends State<HomePage>
     String iconPath,
     VoidCallback onTap, {
     String? networkImageUrl,
+    String? networkMediaType,
   }) {
     return InkWell(
       onTap: onTap,
@@ -567,25 +568,31 @@ class _HomePageState extends State<HomePage>
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: networkImageUrl != null
-              ? Image.network(
-                  networkImageUrl,
-                  width: double.infinity,
-                  height: double.infinity,
-                  fit: BoxFit.fill,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Image.asset(
-                      iconPath,
-                      fit: BoxFit.contain,
+              ? networkMediaType == 'video'
+                  ? _AutoLoopBannerVideo(
+                      url: networkImageUrl,
+                      height: double.infinity,
                       width: double.infinity,
-                    );
-                  },
-                  errorBuilder: (_, __, ___) => Image.asset(
-                    iconPath,
-                    fit: BoxFit.contain,
-                    width: double.infinity,
-                  ),
-                )
+                    )
+                  : Image.network(
+                      networkImageUrl,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.fill,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Image.asset(
+                          iconPath,
+                          fit: BoxFit.contain,
+                          width: double.infinity,
+                        );
+                      },
+                      errorBuilder: (_, __, ___) => Image.asset(
+                        iconPath,
+                        fit: BoxFit.contain,
+                        width: double.infinity,
+                      ),
+                    )
               : Image.asset(
                   iconPath,
                   fit: BoxFit.contain,
@@ -597,7 +604,7 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _buildMenuItemMedicine(
-    String text,
+    String defaultText,
     String iconPath,
     VoidCallback onTap,
   ) {
@@ -609,13 +616,12 @@ class _HomePageState extends State<HomePage>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           color: Colors.white,
-          // border: Border.all(color: Colors.black.withOpacity(.1), width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(.1), // soft shadow
-              blurRadius: 1, // smooth blur
-              spreadRadius: 1, // light spread
-              offset: const Offset(0, 1), // shadow below the card
+              color: Colors.black.withOpacity(.1),
+              blurRadius: 1,
+              spreadRadius: 1,
+              offset: const Offset(0, 1),
             ),
           ],
           gradient: LinearGradient(
@@ -643,49 +649,77 @@ class _HomePageState extends State<HomePage>
                 textAlign: TextAlign.start,
               ),
             ),
-            const SizedBox(height: 10),
-            SizedBox(
-              // width: MediaQuery.of(context).size.width * .2,
-              child: Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.roboto(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-                textAlign: TextAlign.start,
-              ),
-            ),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 0, bottom: 0),
-                child: InkWell(
-                  onTap: () {
-                    _homeBannerController.fetchBannersBackground();
-                  },
-                  child: Obx(() {
-                    return ImageCarousel(
-                      placeHolder: 'assets/images/fc_prawn.png',
-                      images: _homeBannerController.bannersMedicine.isEmpty
-                          ? [iconPath]
-                          : List.generate(
-                              _homeBannerController.bannersMedicine.length,
-                              (index) => _homeBannerController
-                                  .bannersMedicine[index]
-                                  .url,
+              child: Obx(() {
+                final banners = _homeBannerController.bannersMedicine;
+                if (banners.isEmpty) {
+                  return Column(
+                    children: [
+                      const SizedBox(height: 10),
+                      Text(
+                        defaultText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        textAlign: TextAlign.start,
+                      ),
+                      Expanded(
+                        child: Image.asset(iconPath, fit: BoxFit.cover),
+                      ),
+                    ],
+                  );
+                }
+                return CarouselSlider.builder(
+                  itemCount: banners.length,
+                  options: CarouselOptions(
+                    height: double.infinity,
+                    autoPlay: true,
+                    enlargeCenterPage: false,
+                    viewportFraction: 1.0,
+                    enableInfiniteScroll: banners.length > 1,
+                    autoPlayInterval: const Duration(seconds: 3),
+                    autoPlayAnimationDuration: const Duration(milliseconds: 800),
+                    scrollDirection: Axis.horizontal,
+                  ),
+                  itemBuilder: (context, index, realIndex) {
+                    final banner = banners[index];
+                    return Column(
+                      children: [
+                        const SizedBox(height: 10),
+                        Text(
+                          banner.title.isNotEmpty ? banner.title : defaultText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.roboto(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          textAlign: TextAlign.start,
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                banner.url,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                errorBuilder: (_, __, ___) =>
+                                    Image.asset(iconPath, fit: BoxFit.cover),
+                              ),
                             ),
-                      height: 160,
-                      isNetwork: _homeBannerController.bannersMedicine.isEmpty
-                          ? false
-                          : true,
-                      // imageWidth: 70,
+                          ),
+                        ),
+                      ],
                     );
-                  }),
-                ),
-              ),
+                  },
+                );
+              }),
             ),
-            // Expanded(child: Image.asset(iconPath, fit: BoxFit.cover)),
           ],
         ),
       ),
@@ -805,8 +839,9 @@ class _HomePageState extends State<HomePage>
 class _AutoLoopBannerVideo extends StatefulWidget {
   final String url;
   final double height;
+  final double? width;
 
-  const _AutoLoopBannerVideo({required this.url, required this.height});
+  const _AutoLoopBannerVideo({required this.url, required this.height, this.width});
 
   @override
   State<_AutoLoopBannerVideo> createState() => _AutoLoopBannerVideoState();
@@ -854,9 +889,16 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo> {
     }
 
     return SizedBox(
-      width: double.infinity,
+      width: widget.width ?? double.infinity,
       height: widget.height,
-      child: VideoPlayer(_videoController),
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          width: _videoController.value.size.width,
+          height: _videoController.value.size.height,
+          child: VideoPlayer(_videoController),
+        ),
+      ),
     );
   }
 }

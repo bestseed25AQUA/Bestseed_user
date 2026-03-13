@@ -267,192 +267,192 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
               ),
             ),
 
-            // SizedBox(height: 8),
-            // Padding(
-            //   padding: const EdgeInsets.all(8.0),
-            //   child: InkWell(
-            //     onTap: () async {
-            //       print(currentPosition?.latitude);
-            //       print(currentPosition?.longitude);
-            //       if (addLocationLoading) {
-            //         return;
-            //       }
-            //       // return;
-            //       if (currentPosition == null ||
-            //           currentPosition?.latitude == null ||
-            //           currentPosition?.longitude == null) {
-            //         currentPosition = await getCurrentLocation();
-            //       }
+            SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: InkWell(
+                onTap: () async {
+                  print(currentPosition?.latitude);
+                  print(currentPosition?.longitude);
+                  if (addLocationLoading) {
+                    return;
+                  }
+                  // return;
+                  if (currentPosition == null ||
+                      currentPosition?.latitude == null ||
+                      currentPosition?.longitude == null) {
+                    currentPosition = await getCurrentLocation();
+                  }
 
-            //       if (currentPosition?.latitude != null &&
-            //           currentPosition?.longitude != null) {
-            //         await Get.to(
-            //           () => GoogleMapSearchPlacesScreen(
-            //             latitude: currentPosition!.latitude,
-            //             longitude: currentPosition!.longitude,
-            //             ontapSelectLocation: (location, fullAddress) async {
-            //               List<Placemark> placemarks =
-            //                   await placemarkFromCoordinates(
-            //                     location.latitude,
-            //                     location.longitude,
-            //                   );
-            //               Placemark place = placemarks.first;
-            //               List<String> parts = [];
+                  if (currentPosition?.latitude != null &&
+                      currentPosition?.longitude != null) {
+                    await Get.to(
+                      () => GoogleMapSearchPlacesScreen(
+                        latitude: currentPosition!.latitude,
+                        longitude: currentPosition!.longitude,
+                        ontapSelectLocation: (location, fullAddress) async {
+                          List<Placemark> placemarks =
+                              await placemarkFromCoordinates(
+                                location.latitude,
+                                location.longitude,
+                              );
+                          Placemark place = placemarks.first;
+                          List<String> parts = [];
 
-            //               if (place.name != null && place.name!.isNotEmpty) {
-            //                 parts.add(place.name!);
-            //               }
+                          if (place.name != null && place.name!.isNotEmpty) {
+                            parts.add(place.name!);
+                          }
 
-            //               if (place.street != null &&
-            //                   place.street!.isNotEmpty &&
-            //                   place.street != place.name) {
-            //                 parts.add(place.street!);
-            //               }
+                          if (place.street != null &&
+                              place.street!.isNotEmpty &&
+                              place.street != place.name) {
+                            parts.add(place.street!);
+                          }
 
-            //               if (place.subLocality != null &&
-            //                   place.subLocality!.isNotEmpty) {
-            //                 parts.add(place.subLocality!);
-            //               }
+                          if (place.subLocality != null &&
+                              place.subLocality!.isNotEmpty) {
+                            parts.add(place.subLocality!);
+                          }
 
-            //               if (place.locality != null &&
-            //                   place.locality!.isNotEmpty) {
-            //                 parts.add(place.locality!);
-            //               }
+                          if (place.locality != null &&
+                              place.locality!.isNotEmpty) {
+                            parts.add(place.locality!);
+                          }
 
-            //               if (place.subAdministrativeArea != null &&
-            //                   place.subAdministrativeArea!.isNotEmpty) {
-            //                 parts.add(place.subAdministrativeArea!);
-            //               }
+                          if (place.subAdministrativeArea != null &&
+                              place.subAdministrativeArea!.isNotEmpty) {
+                            parts.add(place.subAdministrativeArea!);
+                          }
 
-            //               if (place.administrativeArea != null &&
-            //                   place.administrativeArea!.isNotEmpty) {
-            //                 parts.add(place.administrativeArea!);
-            //               }
+                          if (place.administrativeArea != null &&
+                              place.administrativeArea!.isNotEmpty) {
+                            parts.add(place.administrativeArea!);
+                          }
 
-            //               if (place.postalCode != null &&
-            //                   place.postalCode!.isNotEmpty) {
-            //                 parts.add(place.postalCode!);
-            //               }
+                          if (place.postalCode != null &&
+                              place.postalCode!.isNotEmpty) {
+                            parts.add(place.postalCode!);
+                          }
 
-            //               if (place.country != null &&
-            //                   place.country!.isNotEmpty) {
-            //                 parts.add(place.country!);
-            //               }
+                          if (place.country != null &&
+                              place.country!.isNotEmpty) {
+                            parts.add(place.country!);
+                          }
 
-            //               String fullAddress = parts.toSet().join(', ');
+                          String fullAddress = parts.toSet().join(', ');
 
-            //               fullAddress = fullAddress
-            //                   .replaceAll(RegExp(r', ,'), ',')
-            //                   .replaceAll(RegExp(r',,'), ',')
-            //                   .trim();
-            //               if (fullAddress.endsWith(',')) {
-            //                 fullAddress = fullAddress.substring(
-            //                   0,
-            //                   fullAddress.length - 1,
-            //                 );
-            //               }
-            //               setState(() {
-            //                 addLocationLoading = true;
-            //               });
+                          fullAddress = fullAddress
+                              .replaceAll(RegExp(r', ,'), ',')
+                              .replaceAll(RegExp(r',,'), ',')
+                              .trim();
+                          if (fullAddress.endsWith(',')) {
+                            fullAddress = fullAddress.substring(
+                              0,
+                              fullAddress.length - 1,
+                            );
+                          }
+                          setState(() {
+                            addLocationLoading = true;
+                          });
 
-            //               // Build location name with proper context
-            //               List<String> locationParts = [];
-            //               if (place.subLocality != null && place.subLocality!.isNotEmpty) {
-            //                 locationParts.add(place.subLocality!);
-            //               }
-            //               if (place.locality != null && place.locality!.isNotEmpty) {
-            //                 locationParts.add(place.locality!);
-            //               }
-            //               if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
-            //                 locationParts.add(place.administrativeArea!);
-            //               }
-            //               String locationName = locationParts.toSet().join(', ');
-            //               if (locationName.startsWith(', ')) {
-            //                 locationName = locationName.substring(2);
-            //               }
+                          // Build location name with proper context
+                          List<String> locationParts = [];
+                          if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+                            locationParts.add(place.subLocality!);
+                          }
+                          if (place.locality != null && place.locality!.isNotEmpty) {
+                            locationParts.add(place.locality!);
+                          }
+                          if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) {
+                            locationParts.add(place.administrativeArea!);
+                          }
+                          String locationName = locationParts.toSet().join(', ');
+                          if (locationName.startsWith(', ')) {
+                            locationName = locationName.substring(2);
+                          }
 
-            //               Map response = await _locationController.addLocation(
-            //                 latitude: location.latitude.toString(),
-            //                 longitude: location.longitude.toString(),
-            //                 locationName: locationName,
-            //                 fullAddress: fullAddress,
-            //                 farmerId:
-            //                     _profileController.profile.value?.id
-            //                         .toString() ??
-            //                     "",
-            //               );
-            //               try {
-            //                 _locationController.selectedLocationId.value =
-            //                     response['data']["id"]?.toString() ?? '';
-            //                 _locationController.selectedCity.value =
-            //                     response['data']["title"]?.toString() ?? '';
-            //                 // Update coordinates for accurate weather
-            //                 _locationController.selectedLatiude.value =
-            //                     location.latitude.toString();
-            //                 _locationController.selectedLongitude.value =
-            //                     location.longitude.toString();
-            //               } catch (e) {
-            //                 print(e.toString());
-            //               }
-            //               _homeController.changeHomeData(
-            //                 _homeController.selectedCategoryId.value,
-            //                 _locationController.selectedLocationId.value,
-            //               );
+                          Map response = await _locationController.addLocation(
+                            latitude: location.latitude.toString(),
+                            longitude: location.longitude.toString(),
+                            locationName: locationName,
+                            fullAddress: fullAddress,
+                            farmerId:
+                                _profileController.profile.value?.id
+                                    .toString() ??
+                                "",
+                          );
+                          try {
+                            _locationController.selectedLocationId.value =
+                                response['data']["id"]?.toString() ?? '';
+                            _locationController.selectedCity.value =
+                                response['data']["title"]?.toString() ?? '';
+                            // Update coordinates for accurate weather
+                            _locationController.selectedLatiude.value =
+                                location.latitude.toString();
+                            _locationController.selectedLongitude.value =
+                                location.longitude.toString();
+                          } catch (e) {
+                            print(e.toString());
+                          }
+                          _homeController.changeHomeData(
+                            _homeController.selectedCategoryId.value,
+                            _locationController.selectedLocationId.value,
+                          );
 
-            //               setState(() {
-            //                 addLocationLoading = false;
-            //               });
-            //               Get.back();
-            //             },
-            //           ),
-            //         );
-            //       }
-            //     },
-            //     child: Container(
-            //       decoration: BoxDecoration(
-            //         color: AppColors.primary,
-            //         borderRadius: BorderRadius.circular(12),
-            //         border: Border.all(width: 1),
-            //         boxShadow: [
-            //           BoxShadow(
-            //             color: Colors.grey.withOpacity(.2),
-            //             offset: Offset(1, 2),
-            //           ),
-            //         ],
-            //       ),
-            //       child: Padding(
-            //         padding: const EdgeInsets.symmetric(
-            //           vertical: 10,
-            //           horizontal: 9,
-            //         ),
-            //         child: Row(
-            //           children: [
-            //             isCurrentLocationLoading
-            //                 ? Icon(Icons.add_location, color: Colors.white)
-            //                 : (addLocationLoading
-            //                       ? SizedBox(
-            //                           height: 20,
-            //                           width: 20,
-            //                           child: CircularProgressIndicator(
-            //                             strokeWidth: 2,
-            //                             color: Colors.white,
-            //                           ),
-            //                         )
-            //                       : Icon(
-            //                           Icons.add_location,
-            //                           color: Colors.white,
-            //                         )),
-            //             SizedBox(width: 10),
-            //             Text(
-            //               "Add New Location",
-            //               style: TextStyle(color: Colors.white),
-            //             ),
-            //           ],
-            //         ),
-            //       ),
-            //     ),
-            //   ),
-            // ),
+                          setState(() {
+                            addLocationLoading = false;
+                          });
+                          Get.back();
+                        },
+                      ),
+                    );
+                  }
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(.2),
+                        offset: Offset(1, 2),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 9,
+                    ),
+                    child: Row(
+                      children: [
+                        isCurrentLocationLoading
+                            ? Icon(Icons.add_location, color: Colors.white)
+                            : (addLocationLoading
+                                  ? SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Icon(
+                                      Icons.add_location,
+                                      color: Colors.white,
+                                    )),
+                        SizedBox(width: 10),
+                        Text(
+                          "Add New Location",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
             // Show current selected location if available
             if (_locationController.selectedCity.value.isNotEmpty)
               Padding(

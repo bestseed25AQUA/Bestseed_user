@@ -117,8 +117,7 @@ class _GoogleMapSearchPlacesScreenState
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
+    return Scaffold(
         body: Stack(
           children: [
             GoogleMap(
@@ -398,7 +397,6 @@ class _GoogleMapSearchPlacesScreenState
             ),
           ],
         ),
-      ),
     );
   }
 

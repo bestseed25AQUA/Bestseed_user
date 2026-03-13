@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -145,9 +146,9 @@ class _ClimateDetailScreenState extends State<ClimateDetailScreen> {
                         if (singleNewDetailController.isLoading.value) {
                           return medicineShimmer();
                         }
-                        return Text(
+                        return HtmlWidget(
                           data?.data?.description ?? '',
-                          style: GoogleFonts.roboto(
+                          textStyle: GoogleFonts.roboto(
                             fontSize: 12,
                             color: Colors.grey,
                             fontWeight: FontWeight.w600,

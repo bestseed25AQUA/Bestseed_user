@@ -247,10 +247,20 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
 
     /// -------- Route + Intermediate Stops using single Directions API call --------
     if (_pickupLatLng != null && _destinationLatLng != null) {
+      // Convert route waypoints (intermediate drops) to LatLng for multi-drop routing
+      final waypoints = _trackingData!.routeWaypoints
+          .where((wp) => wp.lat != 0 && wp.lng != 0)
+          .map((wp) => LatLng(wp.lat, wp.lng))
+          .toList();
+
+      debugPrint('🗺️ Route params: pickup=$_pickupLatLng, dest=$_destinationLatLng, '
+          'driver=$_currentLatLng, waypoints=${waypoints.length}: $waypoints');
+
       final routeData = await GoogleMapsService.getRouteWithStops(
         origin: _pickupLatLng!,
         destination: _destinationLatLng!,
         driverPosition: _currentLatLng,
+        routeWaypoints: waypoints,
       );
 
       if (routeData.isNotEmpty) {
@@ -588,6 +598,8 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
                       _buildVehicleStatus(width, height),
                       SizedBox(height: height * 0.01),
                       _buildDeliveryInfo(width, height),
+                      SizedBox(height: height * 0.015),
+                      _buildTravelCostRow(width),
                       SizedBox(height: height * 0.025),
                       _buildLocationTimeline(width, height),
                     ],
@@ -1164,6 +1176,61 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     );
   }
 
+  Widget _buildTravelCostRow(double width) {
+    if (_trackingData == null) return const SizedBox.shrink();
+    final travelCost = _trackingData!.travelCost;
+    final expectedDelivery = _trackingData!.expectedDelivery;
+    if (travelCost == 'N/A' && (expectedDelivery == 'N/A' || expectedDelivery.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+    return Row(
+      children: [
+        if (travelCost != 'N/A')
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xffF6F6F6),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Travel cost',
+                      style: TextStyle(color: const Color(0xff374151), fontSize: width * 0.035)),
+                  const SizedBox(height: 5),
+                  Text('₹$travelCost',
+                      style: TextStyle(fontSize: width * 0.035, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ),
+        if (travelCost != 'N/A' && expectedDelivery != 'N/A' && expectedDelivery.isNotEmpty)
+          const SizedBox(width: 8),
+        if (expectedDelivery != 'N/A' && expectedDelivery.isNotEmpty)
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xffF6F6F6),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Delivery Expected on',
+                      style: TextStyle(color: const Color(0xff374151), fontSize: width * 0.035)),
+                  const SizedBox(height: 5),
+                  Text(expectedDelivery,
+                      style: TextStyle(fontSize: width * 0.035, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   /// Build the ordered list of all main timeline entries with their segment index.
   /// Each entry: { 'type': pickup|stop|driver|destination, 'data': ..., 'segmentIndex': int }
   List<Map<String, dynamic>> _buildOrderedTimelineEntries() {
@@ -1176,7 +1243,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     List<Map<String, dynamic>> entries = [];
     int segIdx = 0;
 
-    // Pickup (segment 0 — no expand for pickup itself)
+    // Pickup (segment 0)
     entries.add({'type': 'pickup', 'segmentIndex': segIdx});
 
     // Passed stops
@@ -1294,23 +1361,38 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         case 'pickup':
           String pickupTime = '-';
           if (_trackingData!.inProgressAt != null && _trackingData!.inProgressAt!.isNotEmpty) {
-            pickupTime = _trackingData!.inProgressAt!;
+            pickupTime = _format24to12(_trackingData!.inProgressAt!);
           } else if (_routeStartTime != null) {
             pickupTime = _formatDateTimeObj(_routeStartTime!);
           } else {
             pickupTime = _formatDateTime(driverLoc.updatedAt);
           }
+
+          // Get fractions for sub-stop generation
+          final pickupNextFraction = entries.length > 1 ? _getFractionForEntry(entries[1]) : 0.0;
+          final isPickupExpanded = _expandedSegmentIndex == segIdx;
+          final isPickupLoading = _loadingSegment == segIdx;
+
           timelineItems.add(
-            _buildTimelineItem(
-              width, height,
-              Icons.location_on,
-              hasCurrentLocation ? Colors.green : Colors.grey,
-              'Pickup started from',
-              pickup.name.isNotEmpty ? pickup.name : 'N/A',
-              pickupTime,
-              isFirst: true,
+            GestureDetector(
+              onTap: () => _onTimelineTap(segIdx, 0.0, pickupNextFraction),
+              child: _buildTimelineItem(
+                width, height,
+                isPickupExpanded ? Icons.keyboard_arrow_up : Icons.location_on,
+                hasCurrentLocation ? Colors.green : Colors.grey,
+                'Pickup started from',
+                pickup.name.isNotEmpty ? pickup.name : 'N/A',
+                pickupTime,
+                isFirst: true,
+              ),
             ),
           );
+
+          if (isPickupExpanded || isPickupLoading) {
+            timelineItems.add(
+              _buildSubTimeline(width, height, segIdx, isPickupLoading, Colors.green),
+            );
+          }
           break;
 
         case 'stop':
@@ -1329,13 +1411,6 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           final isExpanded = _expandedSegmentIndex == segIdx;
           final isLoading = _loadingSegment == segIdx;
 
-          // Sub-stops (shown above this item when expanded)
-          if (isExpanded || isLoading) {
-            timelineItems.add(
-              _buildSubTimeline(width, height, segIdx, isLoading, color),
-            );
-          }
-
           timelineItems.add(
             GestureDetector(
               onTap: () => _onTimelineTap(segIdx, prevFraction, currentFraction),
@@ -1350,6 +1425,13 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
               ),
             ),
           );
+
+          // Sub-stops shown below this stop item
+          if (isExpanded || isLoading) {
+            timelineItems.add(
+              _buildSubTimeline(width, height, segIdx, isLoading, color),
+            );
+          }
           break;
 
         case 'driver':
@@ -1358,12 +1440,6 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           final currentFraction = _getFractionForEntry(entry);
           final isExpanded = _expandedSegmentIndex == segIdx;
           final isLoading = _loadingSegment == segIdx;
-
-          if (isExpanded || isLoading) {
-            timelineItems.add(
-              _buildSubTimeline(width, height, segIdx, isLoading, Colors.green),
-            );
-          }
 
           timelineItems.add(
             GestureDetector(
@@ -1380,6 +1456,13 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
               ),
             ),
           );
+
+          // Sub-stops shown below driver item
+          if (isExpanded || isLoading) {
+            timelineItems.add(
+              _buildSubTimeline(width, height, segIdx, isLoading, Colors.green),
+            );
+          }
           break;
 
         case 'destination':
@@ -1565,6 +1648,20 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     }
   }
 
+  /// Convert "HH:mm" (24h) string to "hh:mm AM/PM" (12h) format
+  String _format24to12(String time24) {
+    try {
+      final parts = time24.split(':');
+      final hour24 = int.parse(parts[0]);
+      final minute = parts[1];
+      final hour = hour24 > 12 ? hour24 - 12 : (hour24 == 0 ? 12 : hour24);
+      final amPm = hour24 >= 12 ? 'PM' : 'AM';
+      return '${hour.toString().padLeft(2, '0')}:$minute $amPm';
+    } catch (_) {
+      return time24;
+    }
+  }
+
   String _formatDateTimeObj(DateTime dateTime) {
     final hour = dateTime.hour > 12
         ? dateTime.hour - 12
@@ -1652,11 +1749,31 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
                   )
                 : iconCircle,
             if (!isLast)
-              Container(
-                width: 2,
-                height: height * 0.05,
-                color: Colors.grey.shade300,
-              ),
+              Builder(builder: (context) {
+                double lineHeight;
+                if (subtitle != null && subtitle.isNotEmpty) {
+                  // Measure subtitle lines to adjust connecting line height
+                  final textSpan = TextSpan(
+                    text: subtitle,
+                    style: TextStyle(fontSize: width * 0.034),
+                  );
+                  final tp = TextPainter(text: textSpan, textDirection: TextDirection.ltr, maxLines: 2);
+                  tp.layout(maxWidth: width * 0.55);
+                  final lines = tp.computeLineMetrics().length;
+                  if (lines >= 2) {
+                    lineHeight = height * 0.071;
+                  } else {
+                    lineHeight = height * 0.061;
+                  }
+                } else {
+                  lineHeight = height * 0.035;
+                }
+                return Container(
+                  width: 2,
+                  height: lineHeight,
+                  color: Colors.grey.shade300,
+                );
+              }),
           ],
         ),
         SizedBox(width: width * 0.04),
@@ -1673,6 +1790,8 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
                       children: [
                         Text(
                           title,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: width * 0.038,
                             fontWeight: FontWeight.w600,
@@ -1746,7 +1865,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
                         ),
                 ],
               ),
-              if (!isLast) SizedBox(height: height * 0.01),
+              if (!isLast) SizedBox(height: height * 0.0),
             ],
           ),
         ),
