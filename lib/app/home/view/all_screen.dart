@@ -211,9 +211,11 @@ class _HomePageState extends State<HomePage>
                           child: homeBanners.isNotEmpty
                               ? homeBanners.first.type == 'video'
                                   ? _AutoLoopBannerVideo(
+                                      key: ValueKey('home_${homeBanners.first.url}'),
                                       url: homeBanners.first.url,
                                       height: AppSize.height * .15,
                                       width: AppSize.width * .9,
+                                      initDelay: 0,
                                     )
                                   : Image.network(
                                       homeBanners.first.url,
@@ -295,6 +297,7 @@ class _HomePageState extends State<HomePage>
                                           },
                                           networkImageUrl: spotIcons.isNotEmpty ? spotIcons.first.url : null,
                                           networkMediaType: spotIcons.isNotEmpty ? spotIcons.first.type : null,
+                                          videoInitDelay: 1000,
                                         );
                                       }),
                                     ),
@@ -315,6 +318,7 @@ class _HomePageState extends State<HomePage>
                                           },
                                           networkImageUrl: farmIcons.isNotEmpty ? farmIcons.first.url : null,
                                           networkMediaType: farmIcons.isNotEmpty ? farmIcons.first.type : null,
+                                          videoInitDelay: 2000,
                                         );
                                       }),
                                     ),
@@ -547,6 +551,7 @@ class _HomePageState extends State<HomePage>
     VoidCallback onTap, {
     String? networkImageUrl,
     String? networkMediaType,
+    int videoInitDelay = 0,
   }) {
     return InkWell(
       onTap: onTap,
@@ -569,10 +574,16 @@ class _HomePageState extends State<HomePage>
           borderRadius: BorderRadius.circular(16),
           child: networkImageUrl != null
               ? networkMediaType == 'video'
-                  ? _AutoLoopBannerVideo(
-                      url: networkImageUrl,
-                      height: double.infinity,
-                      width: double.infinity,
+                  ? LayoutBuilder(
+                      builder: (context, constraints) {
+                        return _AutoLoopBannerVideo(
+                          key: ValueKey(networkImageUrl),
+                          url: networkImageUrl,
+                          height: constraints.maxHeight,
+                          width: constraints.maxWidth,
+                          initDelay: videoInitDelay,
+                        );
+                      },
                     )
                   : Image.network(
                       networkImageUrl,
@@ -840,40 +851,82 @@ class _AutoLoopBannerVideo extends StatefulWidget {
   final String url;
   final double height;
   final double? width;
+  final int initDelay;
 
-  const _AutoLoopBannerVideo({required this.url, required this.height, this.width});
+  const _AutoLoopBannerVideo({super.key, required this.url, required this.height, this.width, this.initDelay = 0});
 
   @override
   State<_AutoLoopBannerVideo> createState() => _AutoLoopBannerVideoState();
 }
 
-class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo> {
-  late VideoPlayerController _videoController;
+class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo> with WidgetsBindingObserver {
+  VideoPlayerController? _videoController;
   bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeVideo();
+    WidgetsBinding.instance.addObserver(this);
+    if (widget.initDelay > 0) {
+      Future.delayed(Duration(milliseconds: widget.initDelay), () {
+        if (mounted) _initializeVideo();
+      });
+    } else {
+      _initializeVideo();
+    }
   }
 
-  void _initializeVideo() {
-    _videoController = VideoPlayerController.networkUrl(Uri.parse(widget.url))
-      ..setLooping(true)
-      ..setVolume(0) // Muted like a GIF
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() {
-            _isInitialized = true;
-          });
-          _videoController.play();
-        }
-      });
+  Future<void> _initializeVideo() async {
+    try {
+      final controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+      _videoController = controller;
+      await controller.initialize();
+      if (!mounted) { controller.dispose(); return; }
+      await controller.setLooping(true);
+      await controller.setVolume(0);
+      await controller.play();
+      // Auto-resume if system pauses the video
+      controller.addListener(_autoResume);
+      if (mounted) {
+        setState(() { _isInitialized = true; });
+      }
+    } catch (e) {
+      debugPrint('Video init failed: $e');
+    }
+  }
+
+  void _autoResume() {
+    final vc = _videoController;
+    if (vc != null && _isInitialized && mounted) {
+      if (!vc.value.isPlaying && vc.value.isInitialized && !vc.value.isBuffering) {
+        vc.play();
+      }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _isInitialized) {
+      _videoController?.play();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _AutoLoopBannerVideo oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      _videoController?.removeListener(_autoResume);
+      _videoController?.dispose();
+      _isInitialized = false;
+      _initializeVideo();
+    }
   }
 
   @override
   void dispose() {
-    _videoController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    _videoController?.removeListener(_autoResume);
+    _videoController?.dispose();
     super.dispose();
   }
 
@@ -894,9 +947,9 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo> {
       child: FittedBox(
         fit: BoxFit.cover,
         child: SizedBox(
-          width: _videoController.value.size.width,
-          height: _videoController.value.size.height,
-          child: VideoPlayer(_videoController),
+          width: _videoController!.value.size.width,
+          height: _videoController!.value.size.height,
+          child: VideoPlayer(_videoController!),
         ),
       ),
     );
