@@ -128,6 +128,17 @@ class _HomePageState extends State<HomePage>
               children: [
                 Obx(() {
                   if (_homeBannerController.bannersBackGround.isEmpty) {
+                    if (_homeBannerController.isLoading.value) {
+                      return Shimmer.fromColors(
+                        baseColor: Colors.grey.shade300,
+                        highlightColor: Colors.grey.shade100,
+                        child: Container(
+                          width: double.infinity,
+                          height: AppSize.height * .09,
+                          color: Colors.white,
+                        ),
+                      );
+                    }
                     return Image.asset(
                       'assets/images/best_seed_bottom.png',
                       width: double.infinity,
@@ -241,15 +252,25 @@ class _HomePageState extends State<HomePage>
                                         fit: BoxFit.cover,
                                       ),
                                     )
-                              : Shimmer.fromColors(
-                                  baseColor: Colors.grey.shade50,
-                                  highlightColor: Colors.grey.shade100,
-                                  child: Container(
-                                    width: AppSize.width * .9,
-                                    height: AppSize.height * .15,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                              : _homeBannerController.isHomeLoading.value
+                                  ? Shimmer.fromColors(
+                                      baseColor: Colors.grey.shade300,
+                                      highlightColor: Colors.grey.shade100,
+                                      child: Container(
+                                        width: AppSize.width * .9,
+                                        height: AppSize.height * .15,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                    )
+                                  : Image.asset(
+                                      'assets/images/home_banner.jpeg',
+                                      width: AppSize.width * .9,
+                                      height: AppSize.height * .15,
+                                      fit: BoxFit.cover,
+                                    ),
                         ),
                       ),
                     );
@@ -289,6 +310,7 @@ class _HomePageState extends State<HomePage>
                                     Expanded(
                                       child: Obx(() {
                                         final spotIcons = _homeBannerController.bannersSpotHatcheries;
+                                        final loading = _homeBannerController.isSpotLoading.value;
                                         return _buildMenuItem(
                                           'Spot \nHatcheries',
                                           'assets/images/hatchery_icon.png',
@@ -298,6 +320,7 @@ class _HomePageState extends State<HomePage>
                                           networkImageUrl: spotIcons.isNotEmpty ? spotIcons.first.url : null,
                                           networkMediaType: spotIcons.isNotEmpty ? spotIcons.first.type : null,
                                           videoInitDelay: 1000,
+                                          isLoading: loading,
                                         );
                                       }),
                                     ),
@@ -305,6 +328,7 @@ class _HomePageState extends State<HomePage>
                                     Expanded(
                                       child: Obx(() {
                                         final farmIcons = _homeBannerController.bannersFarmManagement;
+                                        final loading = _homeBannerController.isFarmLoading.value;
                                         return _buildMenuItem(
                                           'Farm \nManagement',
                                           'assets/images/farm.png',
@@ -319,6 +343,7 @@ class _HomePageState extends State<HomePage>
                                           networkImageUrl: farmIcons.isNotEmpty ? farmIcons.first.url : null,
                                           networkMediaType: farmIcons.isNotEmpty ? farmIcons.first.type : null,
                                           videoInitDelay: 2000,
+                                          isLoading: loading,
                                         );
                                       }),
                                     ),
@@ -552,6 +577,7 @@ class _HomePageState extends State<HomePage>
     String? networkImageUrl,
     String? networkMediaType,
     int videoInitDelay = 0,
+    bool isLoading = false,
   }) {
     return InkWell(
       onTap: onTap,
@@ -592,22 +618,77 @@ class _HomePageState extends State<HomePage>
                       fit: BoxFit.fill,
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) return child;
-                        return Image.asset(
-                          iconPath,
-                          fit: BoxFit.contain,
-                          width: double.infinity,
+                        return Shimmer.fromColors(
+                          baseColor: Colors.grey.shade300,
+                          highlightColor: Colors.grey.shade100,
+                          child: Container(
+                            width: double.infinity,
+                            height: double.infinity,
+                            color: Colors.white,
+                          ),
                         );
                       },
-                      errorBuilder: (_, __, ___) => Image.asset(
-                        iconPath,
-                        fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Container(
                         width: double.infinity,
+                        height: double.infinity,
+                        color: Colors.grey.shade100,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Image.asset(iconPath, height: 40, fit: BoxFit.contain),
+                            const SizedBox(height: 6),
+                            Text(
+                              text.replaceAll('\n', ' '),
+                              style: GoogleFonts.roboto(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[600]),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                       ),
                     )
-              : Image.asset(
-                  iconPath,
-                  fit: BoxFit.contain,
-                  width: double.infinity,
+              : Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    if (isLoading)
+                      Shimmer.fromColors(
+                        baseColor: Colors.grey.shade300,
+                        highlightColor: Colors.grey.shade100,
+                        child: Container(
+                          width: double.infinity,
+                          height: double.infinity,
+                          color: Colors.white,
+                        ),
+                      )
+                    else
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            iconPath,
+                            height: 40,
+                            fit: BoxFit.contain,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            text.replaceAll('\n', ' '),
+                            style: GoogleFonts.roboto(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[600],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                  ],
                 ),
         ),
       ),

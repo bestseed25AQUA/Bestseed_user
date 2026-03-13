@@ -4,9 +4,9 @@ class NetworkConfig {
   // ----------------------------------------------------------------
   static const baseURL =
       // "https://antiquewhite-alpaca-433299.hostingersite.com/api";
-      "https://aliceblue-wallaby-326294.hostingersite.com/api";
+      "https://bestseed.in/api";
 
-  static const imageURL = "https://aliceblue-wallaby-326294.hostingersite.com";
+  static const imageURL = "http://bestseed.in";
 
   static const googleApiKey = 'AIzaSyBkrsDyM5XzvbiOjgzrQ2grE7q1MhE1XZQ';
   static const googleApiKey2 = "AIzaSyDLVwCSkXWOjo49WNNwx7o0DSwomoFvbP0";

@@ -1,111 +1,188 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/access_management_screen.dart';
 
 class SetupAccessGuideScreen extends StatelessWidget {
   const SetupAccessGuideScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    final headerHeight = topPadding + 220;
+
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: CustomAppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: AppColors.primary,
-        elevation: 0,
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Get.back(),
-        ),
-        title: Text(
-          'Set Up Access Guide',
-          style: GoogleFonts.roboto(color: Colors.white),
-        ),
-      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         child: Column(
           children: [
-            const SizedBox(height: 10),
-            // Illustration
-            Image.asset(
-              'assets/images/access_granted.png',
-              height: 200,
-              fit: BoxFit.contain,
-            ),
-            const SizedBox(height: 28),
-            // Heading
-            Text(
-              "Set Up Access for Your Farm",
-              textAlign: TextAlign.center,
-              style: GoogleFonts.roboto(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+            // Blue header with app bar + image
+            Container(
+              width: double.infinity,
+              height: headerHeight,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [AppColors.primary, Color(0xFF0060A0)],
+                ),
+              ),
+              child: Column(
+                children: [
+                  SizedBox(height: topPadding),
+                  // App bar
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 0,
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        Text(
+                          'Access Setup',
+                          style: GoogleFonts.roboto(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Image
+                  Expanded(
+                    child: Image.asset(
+                      'assets/images/access_granted.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              "Follow these simple steps to add a manager or partner to your farm.",
-              textAlign: TextAlign.center,
-              style: GoogleFonts.roboto(fontSize: 14, color: Colors.grey[600]),
+            // White card content - overlaps blue header
+            Transform.translate(
+              offset: const Offset(0, -24),
+              child: Container(
+                width: double.infinity,
+                constraints: BoxConstraints(
+                  minHeight:
+                      MediaQuery.of(context).size.height - headerHeight + 24,
+                ),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+                child: Column(
+                  children: [
+                    Text(
+                      "Follow These Steps to Give Access",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.roboto(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    // Step 1
+                    _buildStep(
+                      stepNumber: "1",
+                      title: "Step 1",
+                      items: [
+                        _StepItem(
+                          title: "Set Access",
+                          description:
+                              "Choose who you want to give access to  Manager or Partner",
+                        ),
+                        _StepItem(
+                          title: "Select what they can do",
+                          description: "View / Edit / Add",
+                        ),
+                        _StepItem(
+                          title: "Set how long the access should stay active",
+                          description: "Choose Days or Weeks",
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Step 2
+                    _buildStep(
+                      stepNumber: "2",
+                      title: "Step 2",
+                      items: [
+                        _StepItem(
+                          title: "Create a QR code with a PIN",
+                          description:
+                              "We'll generate a QR code and password. Share both with the person to give them access.",
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Step 3
+                    _buildStep(
+                      stepNumber: "3",
+                      title: "Step 3",
+                      items: [
+                        _StepItem(
+                          title: "Send the QR code and password on WhatsApp.",
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                    // Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AccessManagementScreen(),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "Setup access",
+                              style: GoogleFonts.roboto(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.arrow_forward,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 32),
-            // Step 1
-            _buildStep(
-              stepNumber: "1",
-              title: "Go to Manage Access",
-              description:
-                  "Navigate to the 'Manage Access' section from your farm dashboard.",
-            ),
-            const SizedBox(height: 20),
-            // Step 2
-            _buildStep(
-              stepNumber: "2",
-              title: "Add Manager or Partner",
-              description:
-                  "Select 'Add Manager' or 'Add Partner' to invite someone.",
-            ),
-            const SizedBox(height: 20),
-            // Step 3
-            _buildStep(
-              stepNumber: "3",
-              title: "Enter Details & Submit",
-              description:
-                  "Fill in the required details and submit to grant access.",
-            ),
-            const SizedBox(height: 40),
           ],
-        ),
-      ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 30),
-        child: SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 0,
-            ),
-            child: Text(
-              "Go to Manage Access",
-              style: GoogleFonts.roboto(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ),
         ),
       ),
     );
@@ -114,16 +191,15 @@ class SetupAccessGuideScreen extends StatelessWidget {
   Widget _buildStep({
     required String stepNumber,
     required String title,
-    required String description,
+    required List<_StepItem> items,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Blue circle with step number
         Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
+          width: 32,
+          height: 32,
+          decoration: const BoxDecoration(
             color: AppColors.primary,
             shape: BoxShape.circle,
           ),
@@ -131,33 +207,54 @@ class SetupAccessGuideScreen extends StatelessWidget {
           child: Text(
             stepNumber,
             style: GoogleFonts.roboto(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
         ),
-        const SizedBox(width: 16),
-        // Title and description
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const SizedBox(height: 4),
               Text(
                 title,
                 style: GoogleFonts.roboto(
                   fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                style: GoogleFonts.roboto(
-                  fontSize: 13,
-                  color: Colors.grey[600],
-                  height: 1.4,
+              const SizedBox(height: 8),
+              ...items.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        style: GoogleFonts.roboto(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      if (item.description != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          item.description!,
+                          style: GoogleFonts.roboto(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -166,4 +263,10 @@ class SetupAccessGuideScreen extends StatelessWidget {
       ],
     );
   }
+}
+
+class _StepItem {
+  final String title;
+  final String? description;
+  _StepItem({required this.title, this.description});
 }

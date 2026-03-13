@@ -113,10 +113,10 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
                   ListView.builder(
                     reverse: true,
                     padding: const EdgeInsets.only(
-                      top: 10,
-                      right: 10,
-                      bottom: 5,
-                      left: 5,
+                      top: 12,
+                      right: 12,
+                      bottom: 12,
+                      left: 12,
                     ),
                     itemCount: farmSections.length,
                     itemBuilder: (context, index) {
@@ -224,9 +224,18 @@ class FarmCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.all(0),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.grey.shade200,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+            BoxShadow(
+              offset: const Offset(1, 3),
+              color: Colors.grey.withOpacity(.3),
+              blurRadius: 5,
+            ),
+          ],
       ),
       child: Column(
         children: [
@@ -262,8 +271,13 @@ class FarmCard extends StatelessWidget {
                           },
 
                           onTapAccessSetup: () {
+                            final rootNav = Navigator.of(context, rootNavigator: true);
                             Navigator.pop(context);
-                            Get.to(() => SetupAccessGuideScreen());
+                            rootNav.push(
+                              MaterialPageRoute(
+                                builder: (_) => const SetupAccessGuideScreen(),
+                              ),
+                            );
                           },
 
                           onPartners: () {

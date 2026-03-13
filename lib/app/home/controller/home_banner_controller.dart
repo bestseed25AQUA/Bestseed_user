@@ -18,7 +18,10 @@ class HomeBannerController extends GetxController {
   var bannersHome = <BannerItem>[].obs;
   var bannersSeedPrice = <BannerItem>[].obs;
   var bannersSpotHatcheries = <BannerItem>[].obs;
+  var isSpotLoading = true.obs;
   var bannersFarmManagement = <BannerItem>[].obs;
+  var isFarmLoading = true.obs;
+  var isHomeLoading = true.obs;
   var bannersSection1Bg = <BannerItem>[].obs;
 
   @override
@@ -199,6 +202,7 @@ class HomeBannerController extends GetxController {
 
   Future<void> fetchHomeBanner() async {
     try {
+      isHomeLoading.value = true;
       // Load from cache first
       try {
         final cached = await AppCacheHelper.get('home_banner');
@@ -228,6 +232,8 @@ class HomeBannerController extends GetxController {
       }
     } catch (e) {
       print("Failed to fetch home banner: $e");
+    } finally {
+      isHomeLoading.value = false;
     }
   }
 
@@ -267,6 +273,7 @@ class HomeBannerController extends GetxController {
 
   Future<void> fetchSpotHatcheriesIcon() async {
     try {
+      isSpotLoading.value = true;
       // Load from cache first
       try {
         final cached = await AppCacheHelper.get('spot_hatcheries_icon');
@@ -296,11 +303,14 @@ class HomeBannerController extends GetxController {
       }
     } catch (e) {
       print("Failed to fetch spot hatcheries icon: $e");
+    } finally {
+      isSpotLoading.value = false;
     }
   }
 
   Future<void> fetchFarmManagementIcon() async {
     try {
+      isFarmLoading.value = true;
       // Load from cache first
       try {
         final cached = await AppCacheHelper.get('farm_management_icon');
@@ -330,6 +340,8 @@ class HomeBannerController extends GetxController {
       }
     } catch (e) {
       print("Failed to fetch farm management icon: $e");
+    } finally {
+      isFarmLoading.value = false;
     }
   }
 
