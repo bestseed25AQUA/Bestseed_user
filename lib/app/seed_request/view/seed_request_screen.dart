@@ -10,6 +10,7 @@ import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/model/hatchery_filter_model.dart';
 import 'package:seedsuser/app/model/category_model.dart';
+import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/seed_request/controller/seed_request_controller.dart';
 import 'package:seedsuser/app/common/custom_dropdown.dart';
 import '../../home/model/brand_model.dart' show BrandModel;
@@ -37,6 +38,34 @@ class _SeedRequestsFormScreenState extends State<SeedRequestsFormScreen> {
 
   // Dropdown selections
   Category? _selectedCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    _autoFillUserData();
+  }
+
+  void _autoFillUserData() {
+    try {
+      final profileController = Get.find<ProfileController>();
+      final profile = profileController.profile.value;
+
+      if (profile != null) {
+        final firstName = profile.firstName ?? '';
+        final lastName = profile.lastName ?? '';
+        final fullName = '$firstName $lastName'.trim();
+        if (fullName.isNotEmpty) {
+          _nameController.text = fullName;
+        }
+
+        if (profile.mobile != null && profile.mobile!.isNotEmpty) {
+          _phoneController.text = profile.mobile!;
+        }
+      }
+    } catch (e) {
+      debugPrint('Profile not available for auto-fill: $e');
+    }
+  }
 
   String _packingDate = 'DD/MM/YYYY';
   String _packingDateForApi = ''; // Store date in YYYY-MM-DD format for API

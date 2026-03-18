@@ -283,6 +283,13 @@ class NotificationService {
         }
         break;
 
+      case 'driver_approaching':
+        final bookingId = data['booking_id'];
+        if (bookingId != null) {
+          Get.to(() => BookingDetailScreen(bookingId: bookingId));
+        }
+        break;
+
       default:
         print('Unknown notification type: $type');
     }
