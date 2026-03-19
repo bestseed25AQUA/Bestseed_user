@@ -172,7 +172,8 @@ class MyBookingController extends GetxController {
     }
   }
 
-  Future<void> cancelBooking(String bookingId, String reason) async {
+  Future<void> cancelBooking(String bookingId, String reason,
+      {String? otherReason}) async {
     try {
       // isDetailLoading(true);
       Get.dialog(
@@ -183,10 +184,18 @@ class MyBookingController extends GetxController {
       );
       final headers = await buildHeader();
 
+      final body = <String, dynamic>{
+        "booking_id": bookingId,
+        "reason_code": reason,
+      };
+      if (otherReason != null && otherReason.isNotEmpty) {
+        body["other_reason"] = otherReason;
+      }
+
       final response = await postRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/cancel-booking",
         headers: headers,
-        body: {"booking_id": bookingId, "reason_code": reason},
+        body: body,
       );
       print({"booking_id": bookingId, "reason_code": reason});
       print('status code');

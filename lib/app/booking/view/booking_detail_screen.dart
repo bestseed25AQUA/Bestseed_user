@@ -1104,11 +1104,13 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     ];
 
     String selectedReason = reasons[0];
+    final otherReasonController = TextEditingController();
 
     Get.bottomSheet(
       StatefulBuilder(
         builder: (context, setState) {
           final w = MediaQuery.sizeOf(context).width;
+          final isOther = selectedReason == "Other";
 
           return Container(
             padding: const EdgeInsets.all(20),
@@ -1139,7 +1141,10 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => Get.back(),
+                      onTap: () {
+                        otherReasonController.dispose();
+                        Get.back();
+                      },
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
@@ -1212,16 +1217,55 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                     ),
                   );
                 }),
+                // Text field for "Other" reason
+                if (isOther) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: otherReasonController,
+                    maxLines: 3,
+                    maxLength: 500,
+                    decoration: InputDecoration(
+                      hintText: "Please describe your reason...",
+                      hintStyle: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: Colors.grey.shade400,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide:
+                            const BorderSide(color: Color(0xFFEF4444)),
+                      ),
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
                     onPressed: () {
+                      if (isOther &&
+                          otherReasonController.text.trim().isEmpty) {
+                        return; // Don't submit without reason text
+                      }
                       Navigator.pop(context);
                       controller.cancelBooking(
                         bookingId,
                         (reasons.indexOf(selectedReason) + 1).toString(),
+                        otherReason: isOther
+                            ? otherReasonController.text.trim()
+                            : null,
                       );
                     },
                     style: ElevatedButton.styleFrom(
