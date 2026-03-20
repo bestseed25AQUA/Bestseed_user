@@ -131,7 +131,7 @@ class BookingReviewContent extends StatelessWidget {
                       const Divider(),
                       _buildInfoRow('Dropping location', location),
                       const Divider(),
-                      _buildInfoRow('Preferred Date', date),
+                      _buildInfoRow('Preferred Delivery Date', date),
                     ],
                   ),
                 ),

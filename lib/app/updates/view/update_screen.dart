@@ -376,7 +376,12 @@ class _PostWidgetState extends State<PostWidget> {
                     InkWell(
                       onTap: () async {
                         final callUrl = widget.postData?.callUrl?.toString() ?? '';
-                        if (callUrl.isEmpty) return;
+                        if (callUrl.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Contact number not available")),
+                          );
+                          return;
+                        }
                         final Uri callUri = Uri.parse(callUrl);
 
                         if (await canLaunchUrl(callUri)) {
@@ -399,7 +404,12 @@ class _PostWidgetState extends State<PostWidget> {
                     InkWell(
                       onTap: () async {
                         final whatsappUrl = widget.postData?.whatsappUrl?.toString() ?? '';
-                        if (whatsappUrl.isEmpty) return;
+                        if (whatsappUrl.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("WhatsApp number not available")),
+                          );
+                          return;
+                        }
                         final Uri uri = Uri.parse(whatsappUrl);
 
                         if (await canLaunchUrl(uri)) {
@@ -429,8 +439,15 @@ class _PostWidgetState extends State<PostWidget> {
                       color: Colors.blue,
                       onPressed: () async {
                         final fbPage =
-                            widget.postData?.facebookUrl ??
-                            ""; // Example: https://facebook.com/xyz
+                            widget.postData?.facebookUrl?.toString() ?? '';
+                        if (fbPage.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Facebook link not available"),
+                            ),
+                          );
+                          return;
+                        }
                         final Uri uri = Uri.parse(fbPage);
 
                         if (await canLaunchUrl(uri)) {
@@ -451,9 +468,18 @@ class _PostWidgetState extends State<PostWidget> {
                 ),
                 TextButton.icon(
                   onPressed: () {
+                    final link = widget.postData?.shareLink ?? '';
+                    if (link.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Share link not available"),
+                        ),
+                      );
+                      return;
+                    }
                     Share.share(
-                      widget.postData?.shareLink ?? '',
-                      subject: 'Vehicle Tracking Info',
+                      link,
+                      subject: widget.postData?.hatcheryName ?? 'Bestseed Update',
                     );
                   },
                   icon: const Icon(Icons.share, size: 18),

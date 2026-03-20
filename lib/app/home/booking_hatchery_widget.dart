@@ -334,7 +334,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
 
             _buildDateField(
               controller: _dateController,
-              label: "Preferred date",
+              label: "Preferred delivery date",
               hint: "DD/MM/YYYY",
             ),
             const SizedBox(height: 15),

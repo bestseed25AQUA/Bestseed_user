@@ -96,7 +96,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
       body: Obx(() {
         PriceModel? priceData = controller.priceData.value;
 
-        if ((priceData == null || priceData.prices.isEmpty) && !_dialogShown) {
+        if ((priceData == null || priceData.prices.isEmpty) && !_dialogShown && !controller.isLoading.value) {
           _dialogShown = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Get.dialog(

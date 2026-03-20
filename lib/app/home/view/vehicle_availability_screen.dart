@@ -422,59 +422,37 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
             ),
           ),
 
-          // 📍 Location Filter Chips
+          // 📍 Location Filter Chips (All + Current Location only)
           Obx(() {
             if (controller.isLoading.value) {
               return const SizedBox.shrink();
             }
 
-            final locations = _getUniqueLocations();
-
             return Container(
               height: 50,
               padding: const EdgeInsets.only(bottom: 12),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount:
-                    locations.length + 2, // +2 for "All" and "Current Location"
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    // "All" chip
-                    return _buildLocationChip(
-                      label: "All",
-                      isSelected: _selectedLocation == null,
-                      onTap: () {
-                        setState(() {
-                          _selectedLocation = null;
-                        });
-                      },
-                    );
-                  } else if (index == 1) {
-                    // "Current Location" chip
-                    return _buildLocationChip(
-                      label: "Current Location",
-                      icon: Icons.my_location,
-                      isSelected: _selectedLocation == "current",
-                      isLoading: _isLoadingLocation,
-                      onTap: () {
-                        _getCurrentLocation();
-                      },
-                    );
-                  } else {
-                    // Other locations from data
-                    final location = locations[index - 2];
-                    return _buildLocationChip(
-                      label: location,
-                      isSelected: _selectedLocation == location,
-                      onTap: () {
-                        setState(() {
-                          _selectedLocation = location;
-                        });
-                      },
-                    );
-                  }
-                },
+              child: Row(
+                children: [
+                  const SizedBox(width: 16),
+                  _buildLocationChip(
+                    label: "All",
+                    isSelected: _selectedLocation == null,
+                    onTap: () {
+                      setState(() {
+                        _selectedLocation = null;
+                      });
+                    },
+                  ),
+                  _buildLocationChip(
+                    label: "Current Location",
+                    icon: Icons.my_location,
+                    isSelected: _selectedLocation == "current",
+                    isLoading: _isLoadingLocation,
+                    onTap: () {
+                      _getCurrentLocation();
+                    },
+                  ),
+                ],
               ),
             );
           }),

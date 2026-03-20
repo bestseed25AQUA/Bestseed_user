@@ -920,6 +920,15 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
               fontWeight: FontWeight.bold,
             ),
           ),
+          SizedBox(width: width * 0.02),
+          Text(
+            '#${widget.bookingId}',
+            style: TextStyle(
+              fontSize: width * 0.035,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade600,
+            ),
+          ),
           Spacer(),
           RefreshButton(onTap: _refreshData),
         ],
