@@ -556,7 +556,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             final booking = _bookingController.inProgressBooking;
             if (booking == null) return const SizedBox();
             final inProgressCount = _bookingController.inProgressBookingCount;
-            return GestureDetector(
+            return _LiveTrackingFAB(
+              count: inProgressCount,
               onTap: () {
                 if (inProgressCount == 1) {
                   Get.to(() => VehicleTrackingMapScreen(
@@ -566,103 +567,318 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Get.to(() => const VehicleTrackingPage());
                 }
               },
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+            );
+          }),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          bottomNavigationBar: Obx(() {
+            final currentIdx = controller.currentIndex.value;
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.local_shipping_outlined,
-                        color: AppColors.primary, size: 28),
-                    const SizedBox(width: 10),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Pickup Started",
-                          style: GoogleFonts.roboto(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 16,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: 8,
+                    bottom: MediaQuery.of(context).padding.bottom + 6,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: List.generate(icons.length, (index) {
+                      final isSelected = index == currentIdx;
+                      return Expanded(
+                        child: InkWell(
+                          onTap: () => controller.changeIndex(index),
+                          splashColor: Colors.transparent,
+                          highlightColor: Colors.transparent,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Active indicator
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeOut,
+                                height: 3,
+                                width: isSelected ? 24 : 0,
+                                margin: const EdgeInsets.only(bottom: 6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              // Icon
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: EdgeInsets.all(isSelected ? 0 : 0),
+                                child: Image.asset(
+                                  isSelected
+                                      ? filledIcon[index]
+                                      : icons[index],
+                                  height: isSelected ? 26 : 22,
+                                  width: isSelected ? 26 : 22,
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : Colors.grey.shade500,
+                                  errorBuilder: (_, __, ___) =>
+                                      const SizedBox(height: 22, width: 22),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              // Label
+                              Text(
+                                labels[index],
+                                style: GoogleFonts.roboto(
+                                  fontSize: isSelected ? 11 : 10,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : Colors.grey.shade500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
                         ),
-                        Text(
-                          "Vehicle Status",
-                          style: GoogleFonts.roboto(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_ios,
-                        size: 16, color: AppColors.primary),
-                  ],
+                      );
+                    }),
+                  ),
                 ),
               ),
             );
           }),
-          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-          bottomNavigationBar: Obx(
-            () => ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(0),
-                topRight: Radius.circular(0),
-              ),
-              child: BottomNavigationBar(
-                currentIndex: controller.currentIndex.value,
-                selectedItemColor: Color(0xff0076BE),
-                unselectedItemColor: Colors.black,
-                backgroundColor: Colors.white, // AppColors.primary,
-                type: BottomNavigationBarType.fixed,
-                selectedFontSize: 12,
-                unselectedFontSize: 12,
-                selectedLabelStyle: GoogleFonts.roboto(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-                unselectedLabelStyle: GoogleFonts.roboto(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                ),
-                onTap: (index) => controller.changeIndex(index),
-                items: List.generate(
-                  icons.length,
-                  (index) => BottomNavigationBarItem(
-                    icon: Image.asset(
-                      index == controller.currentIndex.value
-                          ? filledIcon[index]
-                          : icons[index],
+        ),
+      ),
+    );
+  }
+}
 
-                      color: !(2 == controller.currentIndex.value)
-                          ? Color(0xff0076BE)
-                          : null,
-                      errorBuilder: (context, error, stackTrace) {
-                        return SizedBox();
-                      },  
-                      height: index == controller.currentIndex.value? 30:25,
-                      width:  index == controller.currentIndex.value? 30:25,
-                    ),
-                    label: labels[index],
-                    backgroundColor: Colors.black87,
-                  ),
+// ═══════════════════════════════════════════════════════════════════════════
+// LIVE TRACKING FAB — animated floating card with glow + pulse + slide-in
+// ═══════════════════════════════════════════════════════════════════════════
+class _LiveTrackingFAB extends StatefulWidget {
+  final int count;
+  final VoidCallback onTap;
+
+  const _LiveTrackingFAB({required this.count, required this.onTap});
+
+  @override
+  State<_LiveTrackingFAB> createState() => _LiveTrackingFABState();
+}
+
+class _LiveTrackingFABState extends State<_LiveTrackingFAB>
+    with TickerProviderStateMixin {
+  late AnimationController _slideController;
+  late AnimationController _glowController;
+  late AnimationController _pulseController;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _glowAnimation;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Slide in from right
+    _slideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(1.5, 0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOutBack,
+    ));
+    _slideController.forward();
+
+    // Breathing glow
+    _glowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+    _glowAnimation = Tween<double>(begin: 0.15, end: 0.35).animate(
+      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
+    );
+
+    // Pulse for live dot
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _slideController.dispose();
+    _glowController.dispose();
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _slideAnimation,
+      child: AnimatedBuilder(
+        animation: _glowAnimation,
+        builder: (context, child) {
+          return GestureDetector(
+            onTap: widget.onTap,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0EA5E9), Color(0xFF0077C8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0077C8)
+                        .withValues(alpha: _glowAnimation.value),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 4),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Truck icon with white circle bg
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        const Icon(Icons.local_shipping_rounded,
+                            color: Colors.white, size: 22),
+                        // Count badge
+                        if (widget.count > 1)
+                          Positioned(
+                            top: 2,
+                            right: 2,
+                            child: Container(
+                              width: 16,
+                              height: 16,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFFF6B35),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${widget.count}',
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Text
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Pulsing live dot
+                          AnimatedBuilder(
+                            animation: _pulseAnimation,
+                            builder: (context, _) {
+                              return Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF4ADE80)
+                                      .withValues(alpha: _pulseAnimation.value),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF4ADE80)
+                                          .withValues(
+                                              alpha:
+                                                  _pulseAnimation.value * 0.5),
+                                      blurRadius: 6,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            "Live Tracking",
+                            style: GoogleFonts.roboto(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.count > 1
+                            ? "${widget.count} active deliveries"
+                            : "Tap to track vehicle",
+                        style: GoogleFonts.roboto(
+                          fontSize: 11,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(Icons.chevron_right_rounded,
+                      size: 20, color: Colors.white70),
+                ],
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

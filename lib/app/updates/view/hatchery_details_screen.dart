@@ -155,28 +155,8 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.location_on,
-                                  color: Colors.blue,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    hasData ? (data[0].locationName ?? '') : '',
-                                    style: GoogleFonts.roboto(
-                                      fontSize: 13,
-                                      color: Colors.grey[600],
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
-                                ),
-                              ],
-                            ),
+
+
                           ],
                         ),
                       ),

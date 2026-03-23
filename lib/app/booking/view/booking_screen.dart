@@ -548,7 +548,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: CustomAppBar(
         title: Text(
           'My Bookings',
@@ -895,240 +895,293 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
     VoidCallback ontap,
     VoidCallback ontapTryAgain,
   ) {
-    // Status color
-    Color statusColor = Colors.green;
     final String status = data.status?['label']?.toString() ?? '';
-    if (status.toLowerCase() == "pending") {
-      statusColor = Colors.orange;
-    } else if (status.toLowerCase() == "cancelled") {
-      statusColor = Colors.red;
+    final statusLower = status.toLowerCase();
+
+    // Status styling
+    Color statusColor;
+    Color statusBg;
+    IconData statusIcon;
+    if (statusLower == "pending") {
+      statusColor = const Color(0xFFF59E0B);
+      statusBg = const Color(0xFFFFF7ED);
+      statusIcon = Icons.schedule_rounded;
+    } else if (statusLower == "cancelled") {
+      statusColor = const Color(0xFFEF4444);
+      statusBg = const Color(0xFFFEE2E2);
+      statusIcon = Icons.cancel_outlined;
+    } else if (statusLower == "delivered") {
+      statusColor = const Color(0xFF10B981);
+      statusBg = const Color(0xFFD1FAE5);
+      statusIcon = Icons.check_circle_outline_rounded;
+    } else if (statusLower == "in transit" || statusLower == "in progress") {
+      statusColor = const Color(0xFF3B82F6);
+      statusBg = const Color(0xFFDBEAFE);
+      statusIcon = Icons.local_shipping_rounded;
+    } else {
+      statusColor = const Color(0xFF0077C8);
+      statusBg = const Color(0xFFE0F2FE);
+      statusIcon = Icons.info_outline_rounded;
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // -------------------- TOP ROW --------------------
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-                decoration: BoxDecoration(
-                  color: Color(0xffEEF2FF),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  data.isSpot?.value == 1
-                      ? "Spot Hatchery"
-                      : data.isSpot?.value == 2
-                      ? "Vehicle Availability"
-                      : 'Hatchery',
-                  style: GoogleFonts.roboto(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
+    final isCancelled = statusLower == "cancelled";
+
+    return InkWell(
+      onTap: isCancelled ? ontapTryAgain : ontap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // ── Header: Type + Status ──
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: statusBg.withValues(alpha: 0.5),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
                 ),
               ),
-              // Status Badge
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: InkWell(
-                  onTap: () {
-                    print(data.status.toString());
-                  },
-                  child: Text(
-                    (status.toString()).capitalizeFirst ?? '',
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      data.isSpot?.value == 1
+                          ? "Spot Hatchery"
+                          : data.isSpot?.value == 2
+                              ? "Vehicle"
+                              : 'Hatchery',
+                      style: GoogleFonts.roboto(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "#${data.bookingId}",
                     style: GoogleFonts.roboto(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: statusColor,
+                      color: Colors.grey.shade500,
                     ),
                   ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // -------------------- ID + DATETIME --------------------
-          Row(
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "ID: ${data.bookingId}",
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                ),
-              ),
-              Spacer(),
-              if (data.deliveryDatetime.isNotEmpty)
-                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
-              SizedBox(width: 3),
-              if (data.deliveryDatetime.isNotEmpty)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "Dilivery Date",
-                    style: GoogleFonts.roboto(
-                      fontSize: 14,
-                      color: Colors.grey.shade700,
-                      fontWeight: FontWeight.w500,
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusBg,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(statusIcon, size: 14, color: statusColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          status.capitalizeFirst ?? '',
+                          style: GoogleFonts.roboto(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: statusColor,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-            ],
-          ),
-
-          const SizedBox(height: 0),
-
-          // -------------------- HATCHERY NAME --------------------
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  data.hatcheryName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.roboto(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                ],
               ),
-              SizedBox(width: 8),
-              Text(
-                data.deliveryDatetime,
-                style: GoogleFonts.roboto(
-                  fontSize: 14,
-                  color: Colors.grey.shade700,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          Text(
-            data.categoryName,
-            style: GoogleFonts.roboto(
-              fontSize: 13,
-              color: Colors.grey.shade600,
-            ),
-          ),
-
-          const SizedBox(height: 5),
-
-          // -------------------- PIECES + DATE --------------------
-          Row(
-            children: [
-              Image.asset(
-                'assets/images/pieces_icon.png',
-                height: 25,
-                width: 25,
-                errorBuilder: (context, error, stackTrace) {
-                  return SizedBox(height: 20, width: 20);
-                },
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  "${data.noOfPieces} Pieces",
-                  style: GoogleFonts.roboto(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-
-              if (data.packingDate.isNotEmpty)
-                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
-              const SizedBox(width: 6),
-              Text(
-                data.packingDate,
-                style: GoogleFonts.roboto(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 5),
-          if (data.droppingLocation.isNotEmpty)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.location_on, size: 22, color: Colors.grey),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    data.droppingLocation,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.roboto(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
             ),
 
-          const SizedBox(height: 10),
-
-          // -------------------- VIEW DETAILS BUTTON --------------------
-          InkWell(
-            onTap: (status.toLowerCase() == "cancelled")
-                ? ontapTryAgain
-                : ontap,
-            child: Material(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(20),
-              elevation: 1,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  (status.toLowerCase() == "cancelled")
-                      ? "Try Again"
-                      : "View Details",
-                  style: GoogleFonts.roboto(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade800,
+            // ── Body ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Hatchery name + delivery date
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              data.hatcheryName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.roboto(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            if (data.categoryName.isNotEmpty)
+                              Text(
+                                data.categoryName,
+                                style: GoogleFonts.roboto(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (data.deliveryDatetime.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F7FF),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.calendar_today_rounded,
+                                  size: 12, color: Colors.grey.shade600),
+                              const SizedBox(width: 4),
+                              Text(
+                                data.deliveryDatetime,
+                                style: GoogleFonts.roboto(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
-                ),
+
+                  const SizedBox(height: 10),
+
+                  // Info chips row
+                  Row(
+                    children: [
+                      _bookingInfoChip(
+                        Icons.inventory_2_outlined,
+                        "${data.noOfPieces} pcs",
+                      ),
+                      const SizedBox(width: 8),
+                      if (data.packingDate.isNotEmpty)
+                        _bookingInfoChip(
+                          Icons.event_outlined,
+                          data.packingDate,
+                        ),
+                      const SizedBox(width: 8),
+                      if (data.droppingLocation.isNotEmpty)
+                        Expanded(
+                          child: _bookingInfoChip(
+                            Icons.location_on_outlined,
+                            data.droppingLocation,
+                            expanded: true,
+                          ),
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Action button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 40,
+                    child: isCancelled
+                        ? OutlinedButton.icon(
+                            onPressed: ontapTryAgain,
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            label: Text(
+                              "Try Again",
+                              style: GoogleFonts.roboto(
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFEF4444),
+                              side:
+                                  const BorderSide(color: Color(0xFFEF4444)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          )
+                        : ElevatedButton(
+                            onPressed: ontap,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF0F7FF),
+                              foregroundColor: const Color(0xFF0077C8),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Text(
+                              "View Details",
+                              style: GoogleFonts.roboto(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bookingInfoChip(IconData icon, String text, {bool expanded = false}) {
+    final child = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFB),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.grey.shade500),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              text,
+              style: GoogleFonts.roboto(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade700,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
       ),
     );
+    return expanded ? child : child;
   }
 }
 

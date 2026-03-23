@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/view/booking_screen.dart';
 import 'package:seedsuser/app/common/app_color.dart';
-import 'package:seedsuser/app/common/custom_best_seed_background.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/controller/logout_controller.dart';
@@ -23,570 +22,580 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final LogoutController logoutController = Get.put(LogoutController());
   final ProfileController profileController = Get.put(ProfileController());
+
   @override
   Widget build(BuildContext context) {
-    Widget divider = Divider(height: 1);
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 0,
-        backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            Get.back();
-          },
-        ),
-        title: Text(
-          'Profile',
-          style: GoogleFonts.roboto(fontWeight: FontWeight.bold, fontSize: 17),
-        ),
-        bottom: PreferredSize(
-          preferredSize: Size(double.infinity, 90),
-          child: Column(
-            children: const [
-              // leave space for status bar & toolbar
-              ProfileHeader(),
-              SizedBox(height: 20),
-            ],
-          ),
-        ),
-        flexibleSpace: FlexibleSpaceBar(
-          background: SizedBox(height: 0),
-          // background: Column(
-          //   children: const [
-          //     SizedBox(
-          //       height: kToolbarHeight + 0,
-          //     ), // leave space for status bar & toolbar
-          //     ProfileHeader(),
-          //   ],
-          // ),
-        ),
-      ),
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: const Color(0xFFF5F7FA),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(height: 5),
-
-            // / Collapsible SliverAppBar
-            // SliverAppBar(
-            //   pinned: true,
-            //   expandedHeight: 180,
-            //   backgroundColor: AppColors.primary,
-            //   leading: IconButton(
-            //     icon: const Icon(Icons.arrow_back, color: Colors.white),
-            //     onPressed: () {
-            //       Get.back();
-            //     },
-            //   ),
-            //   title: Text(
-            //     'Profile',
-            //     style: GoogleFonts.roboto(
-            //       color: Colors.white,
-            //       fontWeight: FontWeight.bold,
-            //     ),
-            //   ),
-            //   flexibleSpace: FlexibleSpaceBar(
-            //     background: Column(
-            //       children: const [
-            //         SizedBox(
-            //           height: kToolbarHeight + 0,
-            //         ), // leave space for status bar & toolbar
-            //         ProfileHeader(),
-            //       ],
-            //     ),
-            //   ),
-            // ),
-            // ProfileHeader(),
-            SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10, left: 15, right: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _menuItem(
-                    'assets/images/booking_icon.png',
-                    'Bookings',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => MyBookingScreen()),
-                      );
-                    },
+            // ── Blue Header with curve ────────────────────────────────
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                _ProfileHeaderBackground(
+                    profileController: profileController),
+                // Back button
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 8,
+                  left: 8,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Get.back(),
                   ),
-                  _menuItem(
-                    'assets/images/vehicle_icon.png',
-                    'Vehicle Tracking',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => VehicleTrackingPage()),
-                      );
-                    },
+                ),
+                // Title
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 16,
+                  left: 56,
+                  child: Text(
+                    'Profile',
+                    style: GoogleFonts.roboto(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
                   ),
-                  _menuItem(
-                    'assets/images/help_icon.png',
-                    'Help',
-                    onTap: () {},
-                  ),
-                ],
-              ),
+                ),
+                // Quick Actions floating card
+                Positioned(
+                  bottom: -36,
+                  left: 20,
+                  right: 20,
+                  child: _quickActions(context),
+                ),
+              ],
             ),
 
-            SizedBox(height: 16),
+            const SizedBox(height: 56),
 
-            /// Body List
-            Container(
-              margin: EdgeInsets.symmetric(horizontal: 20),
-              padding: EdgeInsets.only(bottom: 10, left: 15, right: 10),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    // ignore: deprecated_member_use
-                    color: Colors.black.withOpacity(0.15),
-                    offset: const Offset(0, -2), // 🔥 TOP shadow
-                    blurRadius: 6,
+                // Settings Section
+                _settingsSection(context),
+
+                const SizedBox(height: 12),
+
+                // Logout
+                _logoutSection(context),
+
+                const SizedBox(height: 30),
+
+                // App version
+                Text(
+                  'Bestseed v1.0.0',
+                  style: GoogleFonts.roboto(
+                    fontSize: 12,
+                    color: Colors.grey.shade400,
                   ),
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    offset: const Offset(0, 2), // bottom shadow
-                    blurRadius: 6,
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 16),
-                  ProfileMenuItem(
-                    icon: Icons.notifications_none,
-                    title: AppLocalizations.of(context).notifications,
-                    onTap: () {
-                      Get.to(() => NotificationsScreen());
-                    },
-                  ),
-                  divider,
-                  ProfileMenuItem(
-                    icon: Icons.description_outlined,
-                    title: AppLocalizations.of(context).terms_conditions,
-                    onTap: () {
-                      // Get.to(() => VehicleTrackingPage());
-                    },
-                  ),
-                  divider,
-                  ProfileMenuItem(
-                    icon: FontAwesomeIcons.language,
-                    title: AppLocalizations.of(context).change_languages,
-                    onTap: () {
-                      Get.to(() => LanguageSelectionScreen());
-                    },
-                  ),
-                  divider,
-                  ProfileMenuItem(
-                    icon: Icons.privacy_tip_outlined,
-                    title: AppLocalizations.of(context).privacy_policy,
-                    onTap: () {},
-                  ),
-                  divider,
-                  ProfileMenuItem(
-                    icon: Icons.star_border,
-                    title: AppLocalizations.of(context).rate_us,
-                    onTap: () {},
-                  ),
-                  divider,
-                  ProfileMenuItem(
-                    icon: Icons.share_outlined,
-                    title: AppLocalizations.of(context).share_app,
-                    onTap: () {},
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 10),
-            Container(
-              margin: EdgeInsets.symmetric(horizontal: 20),
-              padding: EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    // ignore: deprecated_member_use
-                    color: Colors.black.withOpacity(0.15),
-                    offset: const Offset(0, -2), // 🔥 TOP shadow
-                    blurRadius: 6,
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    offset: const Offset(0, 2), // bottom shadow
-                    blurRadius: 6,
-                  ),
-                ],
-              ),
-              child: Obx(() {
-                return logoutController.isLoading.value
-                    ? Center(child: CircularProgressIndicator())
-                    : ProfileMenuItem(
-                        iconColor: AppColors.primary,
-                        titleColor: AppColors.primary,
-                        icon: Icons.logout,
-                        title: AppLocalizations.of(context).logout,
-                        onTap: () {
-                          Get.bottomSheet(
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(20),
-                                ),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    "Are you sure you want to logout?",
-                                    style: GoogleFonts.roboto(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          onPressed: () {
-                                            Get.back(); // close bottom sheet
-                                          },
-                                          child: const Text("Cancel"),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: ElevatedButton(
-                                          onPressed: () {
-                                            Get.back();
-                                            logoutController.logout();
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.primary,
-                                            foregroundColor: Colors.white,
-                                          ),
-                                          child: const Text("Logout"),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 10),
-                                ],
-                              ),
-                            ),
-                            isDismissible: true,
-                          );
-                        },
-                        isShow: true,
-                      );
-              }),
-            ),
-            SizedBox(height: 15),
-            CustomBestSeedBackground(),
-            SizedBox(height: 15),
+                ),
+                const SizedBox(height: 30),
           ],
         ),
-        // SliverList(
-        //   delegate: SliverChildListDelegate([
-        //     const SizedBox(height: 16),
-        //     ProfileMenuItem(
-        //       icon: Icons.notifications_none,
-        //       title: AppLocalizations.of(context).notifications,
-        //       onTap: () {
-        //         Get.to(() => NotificationsScreen());
-        //       },
-        //     ),
-        //     ProfileMenuItem(
-        //       icon: Icons.fire_truck_outlined,
-        //       title: AppLocalizations.of(context).tracking,
-        //       onTap: () {
-        //         Get.to(() => VehicleTrackingPage());
-        //       },
-        //     ),
-        //     ProfileMenuItem(
-        //       icon: Icons.menu,
-        //       title: AppLocalizations.of(context).my_bookings,
-        //       onTap: () {
-        //         Get.to(() => MyBookingScreen());
-        //       },
-        //     ),
-        //     ProfileMenuItem(
-        //       icon: Icons.menu,
-        //       title: "Vehicle availability",
-        //       onTap: () {
-        //         Get.to(() => VehicleAvailabilityScreen());
-        //       },
-        //     ),
-        //     ProfileMenuItem(
-        //       icon: Icons.menu,
-        //       title: "Vehicle tracking",
-        //       onTap: () {
-        //         Get.to(() => VehicleTrackingPage());
-        //       },
-        //     ),
-        //     ProfileMenuItem(
-        //       icon: Icons.headset_mic_outlined,
-        //       title: AppLocalizations.of(context).customer_support,
-        //       onTap: () {
-        //         Get.to(() => VehicleTrackingPage());
-        //       },
-        //     ),
-        //     ProfileMenuItem(
-        //       icon: Icons.description_outlined,
-        //       title: AppLocalizations.of(context).terms_conditions,
-        //       onTap: () {
-        //         Get.to(() => VehicleTrackingPage());
-        //       },
-        //     ),
-        //     ProfileMenuItem(
-        //       icon: FontAwesomeIcons.language,
-        //       title: AppLocalizations.of(context).change_languages,
-        //       onTap: () {
-        //         Get.to(() => LanguageSelectionScreen());
-        //       },
-        //     ),
-        //     ProfileMenuItem(
-        //       icon: Icons.privacy_tip_outlined,
-        //       title: AppLocalizations.of(context).privacy_policy,
-        //       onTap: () {},
-        //     ),
-        //     ProfileMenuItem(
-        //       icon: Icons.star_border,
-        //       title: AppLocalizations.of(context).rate_us,
-        //       onTap: () {},
-        //     ),
-        //     ProfileMenuItem(
-        //       icon: Icons.share_outlined,
-        //       title: AppLocalizations.of(context).share_app,
-        //       onTap: () {},
-        //     ),
-        //     Obx(() {
-        //       return logoutController.isLoading.value
-        //           ? Center(child: CircularProgressIndicator())
-        //           : ProfileMenuItem(
-        //               icon: Icons.logout,
-        //               title: AppLocalizations.of(context).logout,
-        //               onTap: () {
-        //                 Get.bottomSheet(
-        //                   Container(
-        //                     padding: const EdgeInsets.all(16),
-        //                     decoration: BoxDecoration(
-        //                       color: Colors.white,
-        //                       borderRadius: const BorderRadius.vertical(
-        //                         top: Radius.circular(20),
-        //                       ),
-        //                     ),
-        //                     child: Column(
-        //                       mainAxisSize: MainAxisSize.min,
-        //                       children: [
-        //                         Text(
-        //                           "Are you sure you want to logout?",
-        //                           style: GoogleFonts.roboto(
-        //                             fontSize: 16,
-        //                             fontWeight: FontWeight.bold,
-        //                           ),
-        //                         ),
-        //                         const SizedBox(height: 20),
-        //                         Row(
-        //                           children: [
-        //                             Expanded(
-        //                               child: OutlinedButton(
-        //                                 onPressed: () {
-        //                                   Get.back(); // close bottom sheet
-        //                                 },
-        //                                 child: const Text("Cancel"),
-        //                               ),
-        //                             ),
-        //                             const SizedBox(width: 10),
-        //                             Expanded(
-        //                               child: ElevatedButton(
-        //                                 onPressed: () {
-        //                                   Get.back();
-        //                                   logoutController.logout();
-        //                                 },
-        //                                 style: ElevatedButton.styleFrom(
-        //                                   backgroundColor: AppColors.primary,
-        //                                   foregroundColor: Colors.white,
-        //                                 ),
-        //                                 child: const Text("Logout"),
-        //                               ),
-        //                             ),
-        //                           ],
-        //                         ),
-        //                         const SizedBox(height: 10),
-        //                       ],
-        //                     ),
-        //                   ),
-        //                   isDismissible: true,
-        //                 );
-        //               },
-        //               isShow: false,
-        //             );
-        //     }),
-        //   ]),
-        // ),  G
       ),
     );
   }
 
-  Widget _menuItem(String image, String label, {required VoidCallback onTap}) {
-    return Expanded(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          margin: EdgeInsets.symmetric(horizontal: 6),
-          padding: EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(image, width: 43, height: 43, fit: BoxFit.contain),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                softWrap: false,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Profile Header Widget
-class ProfileHeader extends StatelessWidget {
-  const ProfileHeader({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final ProfileController controller = Get.find<ProfileController>();
-
-    return Obx(() {
-      final profile = controller.profile.value;
-
-      if (controller.isLoading.value) {
-        return const Center(
-          child: Padding(
-            padding: EdgeInsets.all(12.0),
-            child: CircularProgressIndicator(),
-          ),
-        );
-      }
-
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20.0),
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+  // ── Quick Action Cards ─────────────────────────────────────────────
+  Widget _quickActions(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
           color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              // ignore: deprecated_member_use
-              color: Colors.black.withOpacity(0.15),
-              offset: const Offset(0, -2), // 🔥 TOP shadow
-              blurRadius: 3,
-            ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              offset: const Offset(0, 2), // bottom shadow
-              blurRadius: 3,
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Row(
           children: [
-            // 👤 Profile Image
-            CircleAvatar(
-              radius: 30,
-              backgroundColor: Colors.grey[200],
-              backgroundImage:
-                  (profile?.profileImage != null &&
-                      profile!.profileImage!.isNotEmpty)
-                  ? NetworkImage(profile.profileImage!)
-                  : const AssetImage('assets/images/logo.png') as ImageProvider,
-            ),
-
-            const SizedBox(width: 16),
-
-            // 🧾 Name and Mobile
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    profile != null &&
-                            (profile.firstName != null ||
-                                profile.lastName != null)
-                        ? "${profile.firstName ?? ''} ${profile.lastName ?? ''}"
-                              .trim()
-                        : "No name available",
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.roboto(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 17,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    profile?.mobile ?? "N/A",
-                    style: GoogleFonts.roboto(
-                      color: Colors.black,
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
+            _quickActionItem(
+              icon: Icons.receipt_long_rounded,
+              label: 'Bookings',
+              color: const Color(0xFF3B82F6),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => MyBookingScreen()),
               ),
             ),
+            _quickActionItem(
+              icon: Icons.local_shipping_rounded,
+              label: 'Tracking',
+              color: const Color(0xFF10B981),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => VehicleTrackingPage()),
+              ),
+            ),
+            _quickActionItem(
+              icon: Icons.headset_mic_rounded,
+              label: 'Help',
+              color: const Color(0xFFF59E0B),
+              onTap: () {},
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-            // ✏️ Edit button
-            SizedBox(
-              // width: 90,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Get.to(() => EditProfileScreen());
-                },
-
-                icon: const Icon(Icons.edit, size: 16),
-
-                label: Text('Edit', style: GoogleFonts.roboto(fontSize: 16)),
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                  ),
-                ),
+  Widget _quickActionItem({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Column(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: GoogleFonts.roboto(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
               ),
             ),
           ],
         ),
-      );
-    });
+      ),
+    );
+  }
+
+  // ── Settings Section ───────────────────────────────────────────────
+  Widget _settingsSection(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _menuTile(
+            icon: Icons.notifications_none_rounded,
+            title: AppLocalizations.of(context).notifications,
+            onTap: () => Get.to(() => NotificationsScreen()),
+          ),
+          _divider(),
+          _menuTile(
+            icon: Icons.description_outlined,
+            title: AppLocalizations.of(context).terms_conditions,
+            onTap: () {},
+          ),
+          _divider(),
+          _menuTile(
+            icon: FontAwesomeIcons.language,
+            title: AppLocalizations.of(context).change_languages,
+            onTap: () => Get.to(() => LanguageSelectionScreen()),
+          ),
+          _divider(),
+          _menuTile(
+            icon: Icons.privacy_tip_outlined,
+            title: AppLocalizations.of(context).privacy_policy,
+            onTap: () {},
+          ),
+          _divider(),
+          _menuTile(
+            icon: Icons.star_border_rounded,
+            title: AppLocalizations.of(context).rate_us,
+            onTap: () {},
+          ),
+          _divider(),
+          _menuTile(
+            icon: Icons.share_outlined,
+            title: AppLocalizations.of(context).share_app,
+            onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _menuTile({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Color? iconColor,
+    Color? textColor,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: (iconColor ?? Colors.grey.shade600).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon,
+                  size: 18, color: iconColor ?? Colors.grey.shade700),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: textColor ?? Colors.black87,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                size: 22, color: Colors.grey.shade400),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _divider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Divider(height: 1, color: Colors.grey.shade100),
+    );
+  }
+
+  // ── Logout Section ─────────────────────────────────────────────────
+  Widget _logoutSection(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Obx(() {
+        if (logoutController.isLoading.value) {
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        return InkWell(
+          onTap: () => _showLogoutSheet(context),
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.logout_rounded,
+                      size: 18, color: Color(0xFFEF4444)),
+                ),
+                const SizedBox(width: 14),
+                Text(
+                  AppLocalizations.of(context).logout,
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFFEF4444),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  void _showLogoutSheet(BuildContext context) {
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.logout_rounded,
+                  color: Color(0xFFEF4444), size: 26),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              "Logout",
+              style: GoogleFonts.roboto(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Are you sure you want to logout?",
+              style: GoogleFonts.roboto(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Get.back(),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    child: Text(
+                      "Cancel",
+                      style: GoogleFonts.roboto(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Get.back();
+                      logoutController.logout();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      "Logout",
+                      style: GoogleFonts.roboto(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+      isDismissible: true,
+    );
   }
 }
 
-// Reusable Menu Item Widget
+// ═══════════════════════════════════════════════════════════════════════════
+// PROFILE HEADER BACKGROUND — shown inside SliverAppBar
+// ═══════════════════════════════════════════════════════════════════════════
+class _ProfileHeaderBackground extends StatelessWidget {
+  final ProfileController profileController;
+
+  const _ProfileHeaderBackground({required this.profileController});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipPath(
+      clipper: _CurvedBottomClipper(),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.only(
+          top: MediaQuery.of(context).padding.top + 60,
+          bottom: 90,
+          left: 20,
+          right: 20,
+        ),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0077C8), Color(0xFF3FA9F5)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.zero,
+          child: Obx(() {
+            final profile = profileController.profile.value;
+            final isLoading = profileController.isLoading.value;
+
+            if (isLoading) {
+              return const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              );
+            }
+
+            final name = profile != null &&
+                    (profile.firstName != null || profile.lastName != null)
+                ? "${profile.firstName ?? ''} ${profile.lastName ?? ''}".trim()
+                : "No name available";
+
+            return Row(
+              children: [
+                // Avatar
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white30, width: 3),
+                  ),
+                  child: CircleAvatar(
+                    radius: 36,
+                    backgroundColor: Colors.white24,
+                    backgroundImage: (profile?.profileImage != null &&
+                            profile!.profileImage!.isNotEmpty)
+                        ? NetworkImage(profile.profileImage!)
+                        : null,
+                    child: (profile?.profileImage == null ||
+                            profile!.profileImage!.isEmpty)
+                        ? const Icon(Icons.person_rounded,
+                            size: 36, color: Colors.white70)
+                        : null,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Name + Phone + Edit
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: GoogleFonts.roboto(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        profile?.mobile ?? "N/A",
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          color: Colors.white70,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      InkWell(
+                        onTap: () => Get.to(() => EditProfileScreen()),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white30),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.edit_rounded,
+                                  size: 14, color: Colors.white),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Edit Profile',
+                                style: GoogleFonts.roboto(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }),
+        ),
+      ),
+    );
+  }
+}
+
+// Curved bottom clipper for the blue header
+class _CurvedBottomClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height - 40);
+    path.quadraticBezierTo(
+      size.width / 2, size.height,
+      size.width, size.height - 40,
+    );
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
+// Keep ProfileMenuItem for backward compatibility (used elsewhere)
 class ProfileMenuItem extends StatelessWidget {
   final IconData icon;
   final String title;

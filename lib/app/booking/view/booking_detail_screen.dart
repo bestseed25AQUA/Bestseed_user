@@ -40,7 +40,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       1: 'Pending',
       2: 'Confirmed',
       3: 'Driver Assigned',
-      4: 'In Progress',
+      4: 'In Transit',
       5: 'Delivered',
       6: 'Cancelled',
     };
@@ -462,7 +462,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                                       : Colors.grey.shade400,
                                 ),
                               ),
-                              if (s.label.toLowerCase() == "in progress" &&
+                              if ((s.label.toLowerCase() == "in progress" || s.label.toLowerCase() == "in transit") &&
                                   showVehicleButton)
                                 InkWell(
                                   onTap: onTapCheckVehicleStatus,

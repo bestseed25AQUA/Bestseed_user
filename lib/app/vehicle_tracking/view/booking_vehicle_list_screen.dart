@@ -54,7 +54,7 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: CustomAppBar(
         title: Text(
           'Vehicle tracking',

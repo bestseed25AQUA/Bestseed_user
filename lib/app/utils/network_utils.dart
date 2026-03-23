@@ -2,12 +2,42 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart' hide Response;
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/http.dart';
+import 'package:seedsuser/app/auth/view/login_screen.dart';
 import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/utils/app_names_constants.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
+
+/// Track if we're already handling a 401 to prevent multiple redirects
+bool _isHandling401 = false;
+
+/// Handle 401 Unauthorized — clear token and redirect to login
+Future<void> _handle401() async {
+  if (_isHandling401) return;
+  _isHandling401 = true;
+  try {
+    debugPrint('TOKEN EXPIRED: Clearing session and redirecting to login');
+    await AuthLocalStorage.clear();
+    Get.offAll(() => LoginWithMobileScreen());
+  } finally {
+    // Reset after a short delay to allow navigation to complete
+    Future.delayed(const Duration(seconds: 2), () {
+      _isHandling401 = false;
+    });
+  }
+}
+
+/// Check response for 401 and handle it. Returns true if 401 was detected.
+bool _checkUnauthorized(http.Response response) {
+  if (response.statusCode == 401) {
+    _handle401();
+    return true;
+  }
+  return false;
+}
 
 Future<Map<String, String>> buildHeader() async {
   String token = await AuthLocalStorage.getToken() ?? "";
@@ -45,6 +75,7 @@ Future<http.Response> postRequest({
 
     debugPrint("response status code :${response.statusCode}");
     // debugPrint("response body :${response.body}");
+    _checkUnauthorized(response);
     return response;
   } catch (e, s) {
     print(e);
@@ -76,6 +107,7 @@ Future<http.Response> metaDataPostRequest({
         );
 
     debugPrint("response body :${response.body}");
+    _checkUnauthorized(response);
     return response;
   } catch (e) {
     print(e);
@@ -102,7 +134,8 @@ Future<http.Response> getRequest({
     debugPrint('getRequest URL: $endPoint');
     debugPrint('getRequest status code ${response.statusCode}');
     debugPrint('getRequest status body ${response.body.toString()}');
-     
+
+    _checkUnauthorized(response);
     return response;
   } catch (e) {
     print(e);
@@ -150,6 +183,7 @@ Future<http.Response> patchRequest({
         );
 
     debugPrint("response body :${response.body}");
+    _checkUnauthorized(response);
     return response;
   } catch (e) {
     print(e);
@@ -176,10 +210,11 @@ Future<http.Response> putRequest({
         );
 
     debugPrint("response body :${response.body}");
+    _checkUnauthorized(response);
     return response;
   } catch (e) {
     print(e);
-    debugPrint("-----patchRequest------. $e ");
+    debugPrint("-----putRequest------. $e ");
     rethrow;
   }
 }
@@ -287,10 +322,11 @@ Future<http.Response> deleteRequest({
         );
 
     debugPrint("response body :${response.body}");
+    _checkUnauthorized(response);
     return response;
   } catch (e) {
     print(e);
-    debugPrint("-----postRequest------. $e ");
+    debugPrint("-----deleteRequest------. $e ");
     rethrow;
   }
 }

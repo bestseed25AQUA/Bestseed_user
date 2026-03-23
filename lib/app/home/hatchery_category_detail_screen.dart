@@ -32,6 +32,7 @@ class _HatcheryCategoryDetailScreenState
     extends State<HatcheryCategoryDetailScreen> {
   bool videoStarted = false;
   late ScrollController _unitScrollController;
+
   bool _isVideo(String url) {
     final lower = url.toLowerCase();
     return lower.endsWith('.mp4') ||
@@ -57,23 +58,46 @@ class _HatcheryCategoryDetailScreenState
     }
   }
 
+  Color _getStatusColor(int status) {
+    switch (status) {
+      case 1:
+        return const Color(0xff25A652);
+      case 2:
+        return const Color(0xff007DFE);
+      case 3:
+        return const Color(0xff6F42C1);
+      case 4:
+        return const Color(0xffF4A100);
+      default:
+        return const Color(0xffE31B1B);
+    }
+  }
+
+  IconData _getStatusIcon(int status) {
+    switch (status) {
+      case 1:
+        return Icons.check_circle_outline;
+      case 2:
+        return Icons.schedule;
+      case 3:
+        return Icons.upcoming_outlined;
+      case 4:
+        return Icons.hourglass_bottom;
+      default:
+        return Icons.block;
+    }
+  }
+
   final hatcheryCategoryController = Get.put(HatcheryCategoryController());
 
   @override
   void initState() {
     super.initState();
-
     _unitScrollController = ScrollController();
-
     hatcheryCategoryController.getHatcheryCategoryDetail(
       widget.hatcheryId,
       widget.categoryId,
     );
-
-    // _controller = VideoPlayerController.asset(widget.videoUrl)
-    //   ..initialize().then((_) {
-    //     setState(() {});
-    //   });
   }
 
   @override
@@ -85,7 +109,7 @@ class _HatcheryCategoryDetailScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: CustomAppBar(
         title: Text(
           widget.hatcheryName,
@@ -111,245 +135,385 @@ class _HatcheryCategoryDetailScreenState
         }
 
         final List<String> validImages = detail.images ?? [];
+        final statusCode = detail.status ?? 5;
+        final statusText = _getStatusText(statusCode);
+        final statusColor = _getStatusColor(statusCode);
+        final statusIcon = _getStatusIcon(statusCode);
 
         return SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 8),
+              // Image carousel
               if (validImages.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: SizedBox(
-                    height: 110,
-                    child: MediaCarouselWidget(
-                      mediaUrls: validImages,
-                      mediaTypes: validImages.map((url) => _isVideo(url) ? 'video' : 'image').toList(),
-                      height: 110,
-                      borderRadius: 14,
-                      title: widget.hatcheryName,
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: SizedBox(
+                      height: 180,
+                      child: MediaCarouselWidget(
+                        mediaUrls: validImages,
+                        mediaTypes: validImages
+                            .map((url) => _isVideo(url) ? 'video' : 'image')
+                            .toList(),
+                        height: 180,
+                        borderRadius: 16,
+                        title: widget.hatcheryName,
+                      ),
                     ),
                   ),
                 ),
+
+              const SizedBox(height: 16),
+
+              // Hatchery name + status badge
               Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      detail.hatcheryName ?? "",
-                      style: GoogleFonts.roboto(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-                    if (detail.description != null &&
-                        detail.description!.isNotEmpty)
-                      Text(
-                        detail.description ?? "",
-                        style: GoogleFonts.roboto(fontSize: 14, height: 1.4),
-                      ),
-                    const SizedBox(height: 20),
-
-                    /// 🏷️ Category Name (only show name, not description/gallery/report)
-                    if (detail.category != null) ...[
-                      Text(
-                        detail.category!.name ?? "",
-                        style: GoogleFonts.roboto(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    /// 📄 Hatchery Report
-                    if (detail.report != null &&
-                        detail.report!.isNotEmpty) ...[
-                      Text(
-                        "Hatchery Report",
-                        style: GoogleFonts.roboto(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      InkWell(
-                        onTap: () {
-                          _launchUrl(detail.report!, context);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 16,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: Theme.of(context).primaryColor,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            detail.hatcheryName ?? "",
+                            style: GoogleFonts.roboto(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF1A1A2E),
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Icon(Icons.picture_as_pdf, color: Colors.red),
-                              SizedBox(width: 8),
-                              Text(
-                                "View Report",
-                                style: TextStyle(fontWeight: FontWeight.w600),
+                          if (detail.category != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              detail.category!.name ?? "",
+                              style: GoogleFonts.roboto(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    SizedBox(height: 10),
-
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if ((detail.units?.isNotEmpty ?? false))
-                          ShaderMask(
-                            shaderCallback: (bounds) {
-                              return const LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [Colors.black, Colors.transparent],
-                                stops: [0.9, 1.0],
-                              ).createShader(bounds);
-                            },
-                            blendMode: BlendMode.dstIn,
-                            child: SizedBox(
-                              height: 50,
-                              width: double.infinity,
-                              child: SingleChildScrollView(
-                                controller: _unitScrollController,
-                                scrollDirection: Axis.horizontal,
-                                physics: const NeverScrollableScrollPhysics(),
-                                child: Padding(
-                                  padding: EdgeInsets.only(right: 16),
-                                  child: _buildInfoUnitRow(
-                                    "assets/images/unit_icon.png",
-                                    "Units",
-                                    detail.units!
-                                        .where(
-                                          (u) => (u.branch!.name!.isNotEmpty),
-                                        )
-                                        .map((u) => u.branch!.name ?? '')
-                                        .toList(),
+                            ),
+                          ],
+                          if (detail.location?.name != null) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(Icons.location_on_outlined,
+                                    size: 14, color: Colors.grey[500]),
+                                const SizedBox(width: 4),
+                                Text(
+                                  detail.location!.name!,
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 13,
+                                    color: Colors.grey[500],
                                   ),
                                 ),
-                              ),
-                            ),
-                          ),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildInfoRow(
-                              Icons.water_drop_outlined,
-                              "Broodstock",
-                              "${detail.broodstock ?? 0} Pieces",
-                            ),
-
-                            _buildInfoRow(
-                              Icons.date_range,
-                              "Available Date ",
-                              detail.availableOn != null
-                                  ? formatDate(detail.availableOn!)
-                                  : '',
+                              ],
                             ),
                           ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Status badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: statusColor.withOpacity(0.3),
+                          width: 1,
                         ),
-                        const SizedBox(height: 12),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildInfoRow(
-                              Icons.money,
-                              "Price",
-                              "₹${detail.price ?? ''}",
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(statusIcon, size: 14, color: statusColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            statusText,
+                            style: GoogleFonts.roboto(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: statusColor,
                             ),
-
-                            if (detail.status != null)
-                              _buildInfoRow(
-                                Icons.info_outline,
-                                "Status",
-                                _getStatusText(detail.status!),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        _actionButton(
-                          label: "Call Now",
-                          icon: 'assets/images/phone.png',
-                          color: AppColors.primary,
-                          onTap: () => _makePhoneCall(detail.callUrl),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(16),
-                            bottomLeft: Radius.circular(16),
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        _actionButton(
-                          label: "WhatsApp",
-                          icon: 'assets/images/whatsApp.png',
-                          color: Colors.white,
-                          textColor: Colors.green,
-                          borderColor: Colors.green,
-                          onTap: () =>
-                              _launchUrl(detail.whatsappUrl ?? '', context),
-                        ),
-                        const SizedBox(width: 4),
-                        _actionButton(
-                          label: "Book Now",
-                          icon: 'assets/images/Lightning.png',
-                          color: AppColors.primary,
-                          borderRadius: const BorderRadius.only(
-                            topRight: Radius.circular(16),
-                            bottomRight: Radius.circular(16),
-                          ),
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (BuildContext context) {
-                                return Container(
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(20.0),
-                                    ),
-                                  ),
-                                  child: BookingBottomSheet(
-                                    price: detail.price?.toString() ?? '',
-                                    categoryId: widget.categoryId,
-                                    hatcheryId: detail.id.toString(),
-                                    hatcheryName: detail.hatcheryName ?? '',
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                    SizedBox(height: 20),
                   ],
                 ),
               ),
+
+              // Description
+              if (detail.description != null &&
+                  detail.description!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    detail.description!,
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+
+              // Info cards grid
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildInfoCard(
+                        icon: Icons.water_drop_outlined,
+                        iconColor: const Color(0xFF0077C8),
+                        label: 'Broodstock',
+                        value: '${detail.broodstock ?? 0} Pcs',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildInfoCard(
+                        icon: Icons.currency_rupee,
+                        iconColor: const Color(0xFF25A652),
+                        label: 'Price',
+                        value: '\u20B9${detail.price ?? 'N/A'}',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildInfoCard(
+                        icon: Icons.calendar_today_outlined,
+                        iconColor: const Color(0xFF6F42C1),
+                        label: 'Available Date',
+                        value: detail.availableOn != null
+                            ? formatDate(detail.availableOn!)
+                            : 'N/A',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildInfoCard(
+                        icon: statusIcon,
+                        iconColor: statusColor,
+                        label: 'Status',
+                        value: statusText,
+                        valueColor: statusColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Units section
+              if (detail.units != null && detail.units!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.withOpacity(0.15)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Image.asset(
+                              'assets/images/unit_icon.png',
+                              width: 18,
+                              height: 18,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Units',
+                              style: GoogleFonts.roboto(
+                                fontSize: 13,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: detail.units!
+                              .where((u) =>
+                                  u.branch?.name != null &&
+                                  u.branch!.name!.isNotEmpty)
+                              .map((u) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Text(
+                                      u.branch!.name!,
+                                      style: GoogleFonts.roboto(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
+              // Hatchery Report
+              if (detail.report != null && detail.report!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: InkWell(
+                    onTap: () => _launchUrl(detail.report!, context),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border:
+                            Border.all(color: Colors.grey.withOpacity(0.15)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.picture_as_pdf,
+                                color: Colors.red, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Hatchery Report',
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  'Tap to view full report',
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 12,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.arrow_forward_ios,
+                              size: 14, color: Colors.grey[400]),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 24),
+
+              // Action buttons
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    _actionButton(
+                      label: "Call Now",
+                      icon: 'assets/images/phone.png',
+                      color: AppColors.primary,
+                      onTap: () => _makePhoneCall(detail.callUrl),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        bottomLeft: Radius.circular(16),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    _actionButton(
+                      label: "WhatsApp",
+                      icon: 'assets/images/whatsApp.png',
+                      color: Colors.white,
+                      textColor: Colors.green,
+                      borderColor: Colors.green,
+                      onTap: () =>
+                          _launchUrl(detail.whatsappUrl ?? '', context),
+                    ),
+                    const SizedBox(width: 4),
+                    _actionButton(
+                      label: "Book Now",
+                      icon: 'assets/images/Lightning.png',
+                      color: AppColors.primary,
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(16),
+                        bottomRight: Radius.circular(16),
+                      ),
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (BuildContext context) {
+                            return Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(20.0),
+                                ),
+                              ),
+                              child: BookingBottomSheet(
+                                price: detail.price?.toString() ?? '',
+                                categoryId: widget.categoryId,
+                                hatcheryId: detail.id.toString(),
+                                hatcheryName: detail.hatcheryName ?? '',
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
             ],
           ),
         );
@@ -357,75 +521,57 @@ class _HatcheryCategoryDetailScreenState
     );
   }
 
-  Widget _buildInfoUnitRow(
-    String assetPath,
-    String label,
-    List<String> branches,
-  ) {
-    if (branches.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.roboto(fontSize: 14, color: Colors.grey[600]),
-        ),
-
-        const SizedBox(height: 4),
-
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              assetPath,
-              width: 16,
-              height: 16,
-              color: Colors.grey, // optional
-            ),
-            const SizedBox(width: 6),
-            Text(
-              branches.join(', '),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.roboto(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+  Widget _buildInfoCard({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+    Color? valueColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withOpacity(0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 16, color: iconColor),
               ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: AppColors.primary),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.roboto(fontSize: 14, color: Colors.grey[600]),
-            ),
-            SizedBox(
-              width: MediaQuery.of(context).size.width * .3,
-              child: Text(
-                value,
+              const SizedBox(width: 8),
+              Text(
+                label,
                 style: GoogleFonts.roboto(
-                  fontSize: 14,
+                  fontSize: 12,
+                  color: Colors.grey[500],
                   fontWeight: FontWeight.w500,
                 ),
-                overflow: TextOverflow.ellipsis,
               ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.roboto(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: valueColor ?? const Color(0xFF1A1A2E),
             ),
-          ],
-        ),
-      ],
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 
@@ -442,7 +588,7 @@ class _HatcheryCategoryDetailScreenState
       child: InkWell(
         onTap: onTap,
         child: Container(
-          height: 37,
+          height: 44,
           decoration: BoxDecoration(
             color: color,
             borderRadius: borderRadius,
@@ -483,63 +629,33 @@ class _HatcheryCategoryDetailScreenState
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Cannot launch URL")));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("Cannot launch URL")));
     }
   }
 }
 
 String formatDate(DateTime date) {
   const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
   ];
-
   String day = date.day.toString().padLeft(2, '0');
   String month = months[date.month - 1];
   String year = date.year.toString();
-
   return "$day $month $year";
 }
 
 Future<void> _makePhoneCall(String phoneNumber) async {
-  // Clean the phone number (remove any non-digit characters except +)
   final cleanedNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
-
-  if (cleanedNumber.isEmpty) {
-    debugPrint("Invalid phone number: $phoneNumber");
-    return;
-  }
-
+  if (cleanedNumber.isEmpty) return;
   final Uri uri = Uri(scheme: 'tel', path: cleanedNumber);
-
   try {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      debugPrint("Could not launch phone dialer for: $cleanedNumber");
-      // Optional: Show a snackbar or dialog to the user
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(content: Text('Cannot make phone call to $cleanedNumber')),
-      // );
     }
   } catch (e) {
-    debugPrint("Error making phone call  ");
-    // Optional: Show error to user
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   SnackBar(content: Text('Error making phone call  ')),
-    // );
+    debugPrint("Error making phone call");
   }
 }
 
@@ -556,68 +672,6 @@ String _formatDuration(Duration duration) {
   final seconds = twoDigits(duration.inSeconds.remainder(60));
   return '$minutes:$seconds';
 }
-
-// Future<void> _makePhoneCall(String phoneNumber) async {
-//   // Clean the phone number (remove any non-digit characters except +)
-//   final cleanedNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
-
-//   if (cleanedNumber.isEmpty) {
-//     debugPrint("Invalid phone number: $phoneNumber");
-//     return;
-//   }
-
-//   final Uri uri = Uri(scheme: 'tel', path: cleanedNumber);
-
-//   try {
-//     if (await canLaunchUrl(uri)) {
-//       await launchUrl(uri, mode: LaunchMode.externalApplication);
-//     } else {
-//       debugPrint("Could not launch phone dialer for: $cleanedNumber");
-//       // Optional: Show a snackbar or dialog to the user
-//       // ScaffoldMessenger.of(context).showSnackBar(
-//       //   SnackBar(content: Text('Cannot make phone call to $cleanedNumber')),
-//       // );
-//     }
-//   } catch (e) {
-//     debugPrint("Error making phone call  ");
-//     // Optional: Show error to user
-//     // ScaffoldMessenger.of(context).showSnackBar(
-//     //   SnackBar(content: Text('Error making phone call  ')),
-//     // );
-//   }
-// }
-
-// Widget _buildInfoRow(IconData icon, String label, String value) {
-//   return Row(
-//     children: [
-//       Icon(icon, size: 18, color: AppColors.primary),
-//       const SizedBox(width: 8),
-//       Column(
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         children: [
-//           Text(
-//             label,
-//             style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[600]),
-//           ),
-//           Text(
-//             value,
-//             style: GoogleFonts.roboto(
-//               fontSize: 14,
-//               fontWeight: FontWeight.w500,
-//             ),
-//           ),
-//         ],
-//       ),
-//     ],
-//   );
-// }
-
-// Widget _buildGalleryImage({required String imageUrl}) {
-//   return ClipRRect(
-//     borderRadius: BorderRadius.circular(16.0),
-//     child: Image.asset(imageUrl, fit: BoxFit.cover, height: 108, width: 104),
-//   );
-// }
 
 class HatcheryGalleryCarousel extends StatefulWidget {
   final List<String> images;
@@ -636,7 +690,6 @@ class _HatcheryGalleryCarouselState extends State<HatcheryGalleryCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    print(widget.images.isEmpty);
     if (widget.images.isEmpty) {
       return const Center(child: Text("No images available"));
     }
@@ -648,7 +701,6 @@ class _HatcheryGalleryCarouselState extends State<HatcheryGalleryCarousel> {
           itemCount: widget.images.length,
           itemBuilder: (context, index, realIndex) {
             final img = widget.images[index];
-
             return ClipRRect(
               borderRadius: BorderRadius.circular(14),
               child: Image.network(
@@ -667,7 +719,6 @@ class _HatcheryGalleryCarouselState extends State<HatcheryGalleryCarousel> {
             height: 150,
             enlargeCenterPage: true,
             enableInfiniteScroll: true,
-            // viewportFraction: 0.75,
             autoPlay: false,
             autoPlayInterval: const Duration(seconds: 3),
             onPageChanged: (index, reason) {
@@ -675,10 +726,7 @@ class _HatcheryGalleryCarouselState extends State<HatcheryGalleryCarousel> {
             },
           ),
         ),
-
         const SizedBox(height: 10),
-
-        // Dots Indicator
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: widget.images.asMap().entries.map((entry) {
@@ -688,7 +736,8 @@ class _HatcheryGalleryCarouselState extends State<HatcheryGalleryCarousel> {
               margin: const EdgeInsets.symmetric(horizontal: 3),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _currentIndex == entry.key ? Colors.blue : Colors.grey,
+                color:
+                    _currentIndex == entry.key ? Colors.blue : Colors.grey,
               ),
             );
           }).toList(),

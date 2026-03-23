@@ -241,8 +241,22 @@ class NotificationService {
       iOS: iosDetails,
     );
 
+    // Use a unique notification ID to prevent Android from replacing notifications.
+    // Priority: message data ID > booking ID > message ID > timestamp-based fallback.
+    // notification.hashCode was causing collisions — two notifications with similar
+    // content got the same hash, so tapping the 2nd one opened the 1st one's payload.
+    int notifId;
+    final dataId = message.data['id'] ?? message.data['booking_id'] ?? message.data['notification_id'];
+    if (dataId != null) {
+      notifId = int.tryParse(dataId.toString()) ?? DateTime.now().millisecondsSinceEpoch % 100000;
+    } else if (message.messageId != null) {
+      notifId = message.messageId.hashCode;
+    } else {
+      notifId = DateTime.now().millisecondsSinceEpoch % 100000;
+    }
+
     await _localNotifications.show(
-      id: notification.hashCode,
+      id: notifId,
       title: notification.title,
       body: notification.body,
       notificationDetails: details,

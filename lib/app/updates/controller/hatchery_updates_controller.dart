@@ -62,8 +62,9 @@ class HatcheryUpdatesController extends GetxController {
         debugPrint('Cache read failed (hatchery_home_updates): $e');
       }
 
+      // Do not filter by location — show all updates regardless of location
       String endPoint =
-          "${NetworkConfig.baseURL}/farmer/home-hatchery-updates?category_id=$categoryId&location_id=$locationId";
+          "${NetworkConfig.baseURL}/farmer/home-hatchery-updates?category_id=$categoryId";
 
       final response = await getRequest(
         endPoint: endPoint,

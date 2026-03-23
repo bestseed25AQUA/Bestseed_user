@@ -42,10 +42,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
-  // final MyBookingController bookingController = Get.put(
-  //   MyBookingController(),
-  //   permanent: true,
-  // );
   late AnimationController _controller;
   late Animation<Offset> _leftAnimation;
   late Animation<Offset> _rightAnimation;
@@ -58,13 +54,11 @@ class _HomePageState extends State<HomePage>
   final _homeBannerController = Get.put(HomeBannerController());
   final _hatcheryController = Get.put(HatcheryUpdatesController());
   final _farmListController = Get.put(FarmListController());
-  // late Animation<Offset> _fishAnimation;
 
   @override
   void initState() {
     super.initState();
 
-    // Ensure hatchery updates are fetched for home screen
     if (_hatcheryController.hatcheryHomeData.value == null ||
         (_hatcheryController.hatcheryHomeData.value?.data.isEmpty ?? true)) {
       _hatcheryController.fetchHatcheryHomeUpdate();
@@ -75,19 +69,14 @@ class _HomePageState extends State<HomePage>
       duration: const Duration(seconds: 3),
     )..repeat(reverse: true);
 
-    // _fishAnimation = Tween<Offset>(
-    //   begin: const Offset(0, 0), // start at original position
-    //   end: const Offset(0, -0.5), // move upward (negative Y)
-    // ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-
     _leftAnimation = Tween<Offset>(
       begin: Offset.zero,
-      end: const Offset(0.2, 0), // move slightly to right
+      end: const Offset(0.2, 0),
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     _rightAnimation = Tween<Offset>(
       begin: Offset.zero,
-      end: const Offset(-0.2, 0), // move slightly to left
+      end: const Offset(-0.2, 0),
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
@@ -104,274 +93,30 @@ class _HomePageState extends State<HomePage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      // floatingActionButton: Obx(() {
-      //   if (!bookingController.hasInProgressBooking) {
-      //     return const SizedBox.shrink();
-      //   }
-
-      //   return FloatingActionButton.extended(
-      //     onPressed: () {
-      //       Get.to(() => const MyBookingScreen());
-      //     },
-      //     backgroundColor: Colors.green,
-      //     icon: const Icon(Icons.local_shipping),
-      //     label: const Text("Pickup Started"),
-      //   );
-      // }),
+      backgroundColor: const Color(0xFFF5F7FA),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Section
-            Column(
-              children: [
-                Obx(() {
-                  if (_homeBannerController.bannersBackGround.isEmpty) {
-                    if (_homeBannerController.isLoading.value) {
-                      return Shimmer.fromColors(
-                        baseColor: Colors.grey.shade300,
-                        highlightColor: Colors.grey.shade100,
-                        child: Container(
-                          width: double.infinity,
-                          height: AppSize.height * .09,
-                          color: Colors.white,
-                        ),
-                      );
-                    }
-                    return Image.asset(
-                      'assets/images/best_seed_bottom.png',
-                      width: double.infinity,
-                      fit: BoxFit.contain,
-                      height: AppSize.height * .09,
-                    );
-                  }
-                  final banner = _homeBannerController.bannersBackGround[0];
-                  if (banner.type == 'video') {
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: _AutoLoopBannerVideo(url: banner.url, height: 73),
-                    );
-                  }
-                  return Stack(
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  FullImageScreen(imageUrl: banner.url),
-                            ),
-                          );
-                        },
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: AppSize.height * .08,
-                          child: FittedBox(
-                            fit: BoxFit.fill,
-                            child: Image.network(
-                              banner.url,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.asset(
-                                  'assets/images/best_seed_bottom.png',
-                                  width: double.infinity,
-                                  fit: BoxFit.fill,
-                                  height: AppSize.height * .08,
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                }),
-              ],
+            // ── Hero Banner ──────────────────────────────────────────
+            _heroBanner(),
+
+            // ── Quick Actions Grid ───────────────────────────────────
+            _quickActionsSection(),
+
+            const SizedBox(height: 8),
+
+            // ── Contact Us ───────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ContactUsPage(),
             ),
 
-            // ── Section 1: Vehicle Banner + Menu Items + Contact Us ──
-            Obx(() {
-              final section1Bg = _homeBannerController.bannersSection1Bg;
-              return Container(
-                decoration: section1Bg.isNotEmpty && section1Bg.first.type == 'image'
-                    ? BoxDecoration(
-                        image: DecorationImage(
-                          image: NetworkImage(section1Bg.first.url),
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : const BoxDecoration(
-                        color: Colors.white,
-                      ),
-                child: Column(
-                children: [
-                  const SizedBox(height: 12),
-                  // Vehicle Availability Banner
-                  Obx(() {
-                    final homeBanners = _homeBannerController.bannersHome;
-                    return Container(
-                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () {
-                          Navigator.push(context, AppAnimations.fade(VehicleAvailabilityScreen()));
-                        },
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: homeBanners.isNotEmpty
-                              ? homeBanners.first.type == 'video'
-                                  ? _AutoLoopBannerVideo(
-                                      key: ValueKey('home_${homeBanners.first.url}'),
-                                      url: homeBanners.first.url,
-                                      height: AppSize.height * .15,
-                                      width: AppSize.width * .9,
-                                      initDelay: 0,
-                                    )
-                                  : Image.network(
-                                      homeBanners.first.url,
-                                      width: AppSize.width * .9,
-                                      height: AppSize.height * .15,
-                                      fit: BoxFit.cover,
-                                      loadingBuilder: (context, child, loadingProgress) {
-                                        if (loadingProgress == null) return child;
-                                        return Shimmer.fromColors(
-                                          baseColor: Colors.grey.shade300,
-                                          highlightColor: Colors.grey.shade100,
-                                          child: Container(
-                                            width: AppSize.width * .9,
-                                            height: AppSize.height * .15,
-                                            color: Colors.white,
-                                          ),
-                                        );
-                                      },
-                                      errorBuilder: (_, __, ___) => Image.asset(
-                                        'assets/images/home_banner.jpeg',
-                                        width: AppSize.width * .9,
-                                        height: AppSize.height * .15,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    )
-                              : _homeBannerController.isHomeLoading.value
-                                  ? Shimmer.fromColors(
-                                      baseColor: Colors.grey.shade300,
-                                      highlightColor: Colors.grey.shade100,
-                                      child: Container(
-                                        width: AppSize.width * .9,
-                                        height: AppSize.height * .15,
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                      ),
-                                    )
-                                  : Image.asset(
-                                      'assets/images/home_banner.jpeg',
-                                      width: AppSize.width * .9,
-                                      height: AppSize.height * .15,
-                                      fit: BoxFit.cover,
-                                    ),
-                        ),
-                      ),
-                    );
-                  }),
-                  SizedBox(height: 16),
-                  // Menu Items
-                  Builder(
-                    builder: (context) {
-                      final double boxesHeight = AppSize.height * .19;
-                      return Padding(
-                        padding: const EdgeInsets.only(left: 16.0, right: 16, bottom: 16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            Container(
-                              height: boxesHeight,
-                              width: MediaQuery.of(context).size.width * .35,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.black.withOpacity(.1), width: 1),
-                              ),
-                              child: _buildMenuItemMedicine(
-                                'FC Farm Medicine for fishes ',
-                                'assets/images/fc_prawn.png',
-                                () {
-                                  Navigator.push(context, AppAnimations.fade(const BestDealsScreen()));
-                                },
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: SizedBox(
-                                height: boxesHeight,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    Expanded(
-                                      child: Obx(() {
-                                        final spotIcons = _homeBannerController.bannersSpotHatcheries;
-                                        final loading = _homeBannerController.isSpotLoading.value;
-                                        return _buildMenuItem(
-                                          'Spot \nHatcheries',
-                                          'assets/images/hatchery_icon.png',
-                                          () {
-                                            Navigator.push(context, AppAnimations.fade(SpotHatcheryScreen()));
-                                          },
-                                          networkImageUrl: spotIcons.isNotEmpty ? spotIcons.first.url : null,
-                                          networkMediaType: spotIcons.isNotEmpty ? spotIcons.first.type : null,
-                                          videoInitDelay: 1000,
-                                          isLoading: loading,
-                                        );
-                                      }),
-                                    ),
-                                    SizedBox(height: 8),
-                                    Expanded(
-                                      child: Obx(() {
-                                        final farmIcons = _homeBannerController.bannersFarmManagement;
-                                        final loading = _homeBannerController.isFarmLoading.value;
-                                        return _buildMenuItem(
-                                          'Farm \nManagement',
-                                          'assets/images/farm.png',
-                                          () {
-                                            final farmData = _farmListController.farmList.value?.data;
-                                            if (farmData != null && farmData.isNotEmpty) {
-                                              Navigator.push(context, AppAnimations.fade(const FarmManagementScreen()));
-                                            } else {
-                                              Navigator.push(context, AppAnimations.fade(const InitialFarmScreen()));
-                                            }
-                                          },
-                                          networkImageUrl: farmIcons.isNotEmpty ? farmIcons.first.url : null,
-                                          networkMediaType: farmIcons.isNotEmpty ? farmIcons.first.type : null,
-                                          videoInitDelay: 2000,
-                                          isLoading: loading,
-                                        );
-                                      }),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                  // Contact Us
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16.0, bottom: 0, right: 16),
-                    child: ContactUsPage(),
-                  ),
-                ],
-              ),
-            );
-            }),
+            const SizedBox(height: 16),
 
-            // ── Section 2: Hatcheries + Seed Request ──
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+            // ── Hatcheries ───────────────────────────────────────────
+            _sectionCard(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   HatcheryWidget(
                     onViewAllTap: () {
@@ -385,7 +130,8 @@ class _HomePageState extends State<HomePage>
                         context,
                         AppAnimations.fade(
                           HatcheryFilterScreen(
-                            title: _homeController.selectedCateogryName.value.isEmpty
+                            title: _homeController
+                                    .selectedCateogryName.value.isEmpty
                                 ? "Hatchery"
                                 : _homeController.selectedCateogryName.value,
                           ),
@@ -393,184 +139,409 @@ class _HomePageState extends State<HomePage>
                       );
                     },
                   ),
-                  SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 0),
-                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          offset: Offset(1, 2),
-                          spreadRadius: 1,
-                          blurRadius: 3,
-                          color: Colors.grey.withOpacity(.4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Seed Request',
-                          style: GoogleFonts.roboto(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 17,
-                          ),
-                        ),
-                        IconButton(
-                          padding: EdgeInsets.all(0),
-                          onPressed: () {
-                            Navigator.push(context, AppAnimations.slideLeftToRight(SeedRequestsFormScreen()));
-                          },
-                          icon: Icon(Icons.arrow_forward, color: AppColors.primary),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 16),
+                  _seedRequestCard(),
                 ],
               ),
             ),
 
-            // ── Section 3: Today Prices + Suppliers ──
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+            const SizedBox(height: 16),
+
+            // ── Today's Prices + Suppliers ────────────────────────────
+            _sectionCard(
               child: Column(
                 children: [
                   TodayPricesWidget(),
+                  const SizedBox(height: 8),
                   HatcherySuppliersWidget(),
                 ],
               ),
             ),
 
-            // ── Section 4: Medicine News + Updates ──
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+            const SizedBox(height: 16),
+
+            // ── Medicine News + Hatchery Updates ─────────────────────
+            _sectionCard(
               child: Column(
                 children: [
-                  Obx(() {
-                    return Column(
-                      children: [
-                        if ((_newsSpecificController.newsSpecificHomeData.value?.data?.length ?? 0) != 0)
-                          _buildSectionHeader('Medicine News', () {
-                            dashboardCtrl.changeIndex(3);
-                          }),
-                        if ((_newsSpecificController.newsSpecificHomeData.value?.data?.length ?? 0) != 0)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: List.generate(
-                                (_newsSpecificController.newsSpecificHomeData.value?.data?.length ?? 0) <= 2
-                                    ? (_newsSpecificController.newsSpecificHomeData.value?.data?.length ?? 0)
-                                    : 2,
-                                (index) {
-                                  final data = _newsSpecificController.newsSpecificHomeData.value?.data?[index];
-                                  return Expanded(
-                                    child: _buildNewsCard(
-                                      data?.medicineName ?? "",
-                                      data?.subtitle ?? data?.curesFor ?? "",
-                                      data?.mediaPath ?? "",
-                                      'medicine$index',
-                                      () {
-                                        Navigator.push(
-                                          context,
-                                          PageRouteBuilder(
-                                            transitionDuration: const Duration(milliseconds: 600),
-                                            reverseTransitionDuration: const Duration(milliseconds: 600),
-                                            pageBuilder: (_, __, ___) => MedicineDetailScreen(
-                                              id: data?.id.toString() ?? '',
-                                              title: data?.medicineName.toString() ?? '',
-                                              subtitle: data?.subtitle ?? data?.curesFor ?? "",
-                                              imageUrl: data?.mediaPath ?? "",
-                                              tag: 'medicine$index',
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      mediaFiles: data?.mediaFiles,
-                                      mediaTypes: data?.mediaTypes,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  }),
-                  SizedBox(height: 16),
+                  _medicineNewsSection(),
+                  const SizedBox(height: 16),
                   HatcheryUpdatesWidget(),
-                  SizedBox(height: 100),
                 ],
               ),
             ),
+
+            const SizedBox(height: 100),
           ],
         ),
       ),
     );
   }
 
-  Widget buildCard({
-    required String title,
-    required String icon,
-    String? overlayIcon,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: GoogleFonts.roboto(
-                color: Colors.black,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+  // ═══════════════════════════════════════════════════════════════════════
+  // HERO BANNER — full-width top banner
+  // ═══════════════════════════════════════════════════════════════════════
+  Widget _heroBanner() {
+    return Obx(() {
+      final bgBanners = _homeBannerController.bannersBackGround;
+      if (bgBanners.isEmpty) {
+        if (_homeBannerController.isLoading.value) {
+          return Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+            child: Container(
+              width: double.infinity,
+              height: AppSize.height * .08,
+              color: Colors.white,
+            ),
+          );
+        }
+        return Image.asset(
+          'assets/images/best_seed_bottom.png',
+          width: double.infinity,
+          fit: BoxFit.contain,
+          height: AppSize.height * .08,
+        );
+      }
+      final banner = bgBanners[0];
+      if (banner.type == 'video') {
+        return ClipRRect(
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+          child: _AutoLoopBannerVideo(url: banner.url, height: 73),
+        );
+      }
+      return GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => FullImageScreen(imageUrl: banner.url),
+            ),
+          );
+        },
+        child: SizedBox(
+          width: double.infinity,
+          height: AppSize.height * .08,
+          child: FittedBox(
+            fit: BoxFit.fill,
+            child: Image.network(
+              banner.url,
+              errorBuilder: (_, __, ___) => Image.asset(
+                'assets/images/best_seed_bottom.png',
+                width: double.infinity,
+                fit: BoxFit.fill,
+                height: AppSize.height * .08,
               ),
             ),
-            const SizedBox(width: 10),
-            const Icon(Icons.arrow_circle_right, color: Colors.black, size: 24),
-            const SizedBox(width: 10),
-            overlayIcon != null
-                ? Stack(
-                    children: [
-                      Image.asset(icon, height: 80),
-                      Positioned(
-                        top: 28,
-                        left: 32,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
+          ),
+        ),
+      );
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // QUICK ACTIONS — Vehicle banner + 3 feature cards
+  // ═══════════════════════════════════════════════════════════════════════
+  Widget _quickActionsSection() {
+    return Obx(() {
+      final section1Bg = _homeBannerController.bannersSection1Bg;
+      return Container(
+        decoration: section1Bg.isNotEmpty && section1Bg.first.type == 'image'
+            ? BoxDecoration(
+                image: DecorationImage(
+                  image: NetworkImage(section1Bg.first.url),
+                  fit: BoxFit.cover,
+                ),
+              )
+            : const BoxDecoration(color: Color(0xFFF5F7FA)),
+        child: Column(
+          children: [
+            const SizedBox(height: 14),
+            // Vehicle Banner
+            _vehicleBanner(),
+            const SizedBox(height: 14),
+            // Feature Grid
+            _featureGrid(),
+            const SizedBox(height: 14),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _vehicleBanner() {
+    return Obx(() {
+      final homeBanners = _homeBannerController.bannersHome;
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.push(
+                context, AppAnimations.fade(VehicleAvailabilityScreen()));
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: homeBanners.isNotEmpty
+                  ? homeBanners.first.type == 'video'
+                      ? _AutoLoopBannerVideo(
+                          key: ValueKey('home_${homeBanners.first.url}'),
+                          url: homeBanners.first.url,
+                          height: AppSize.height * .15,
+                          width: double.infinity,
+                          initDelay: 0,
+                        )
+                      : Image.network(
+                          homeBanners.first.url,
+                          width: double.infinity,
+                          height: AppSize.height * .15,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, progress) {
+                            if (progress == null) return child;
+                            return _shimmerBox(
+                                double.infinity, AppSize.height * .15);
+                          },
+                          errorBuilder: (_, __, ___) => Image.asset(
+                            'assets/images/home_banner.jpeg',
+                            width: double.infinity,
+                            height: AppSize.height * .15,
+                            fit: BoxFit.cover,
                           ),
-                          child: Image.asset(overlayIcon, height: 20),
+                        )
+                  : _homeBannerController.isHomeLoading.value
+                      ? _shimmerBox(double.infinity, AppSize.height * .15)
+                      : Image.asset(
+                          'assets/images/home_banner.jpeg',
+                          width: double.infinity,
+                          height: AppSize.height * .15,
+                          fit: BoxFit.cover,
                         ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _featureGrid() {
+    final double cardHeight = AppSize.height * .22;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          // Best Deals card
+          SizedBox(
+            height: cardHeight,
+            width: MediaQuery.of(context).size.width * .35,
+            child: _bestDealsCard(),
+          ),
+          const SizedBox(width: 10),
+          // Spot Hatcheries + Farm Management
+          Expanded(
+            child: SizedBox(
+              height: cardHeight,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Obx(() {
+                      final spotIcons =
+                          _homeBannerController.bannersSpotHatcheries;
+                      final loading =
+                          _homeBannerController.isSpotLoading.value;
+                      return _featureCard(
+                        'Spot Hatcheries',
+                        'assets/images/hatchery_icon.png',
+                        () => Navigator.push(
+                            context, AppAnimations.fade(SpotHatcheryScreen())),
+                        networkImageUrl:
+                            spotIcons.isNotEmpty ? spotIcons.first.url : null,
+                        networkMediaType:
+                            spotIcons.isNotEmpty ? spotIcons.first.type : null,
+                        videoInitDelay: 1000,
+                        isLoading: loading,
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: Obx(() {
+                      final farmIcons =
+                          _homeBannerController.bannersFarmManagement;
+                      final loading =
+                          _homeBannerController.isFarmLoading.value;
+                      return _featureCard(
+                        'Farm Management',
+                        'assets/images/farm.png',
+                        () {
+                          final farmData =
+                              _farmListController.farmList.value?.data;
+                          if (farmData != null && farmData.isNotEmpty) {
+                            Navigator.push(context,
+                                AppAnimations.fade(const FarmManagementScreen()));
+                          } else {
+                            Navigator.push(context,
+                                AppAnimations.fade(const InitialFarmScreen()));
+                          }
+                        },
+                        networkImageUrl:
+                            farmIcons.isNotEmpty ? farmIcons.first.url : null,
+                        networkMediaType:
+                            farmIcons.isNotEmpty ? farmIcons.first.type : null,
+                        videoInitDelay: 2000,
+                        isLoading: loading,
+                      );
+                    }),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // BEST DEALS CARD — left column with carousel
+  // ═══════════════════════════════════════════════════════════════════════
+  Widget _bestDealsCard() {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () =>
+          Navigator.push(context, AppAnimations.fade(const BestDealsScreen())),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: const LinearGradient(
+            colors: [Colors.white, Color(0xFFE8F6FF), Color(0xFF6AD7FF)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          children: [
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFD700),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'Best Deals',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.roboto(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Obx(() {
+                final banners = _homeBannerController.bannersMedicine;
+                if (banners.isEmpty) {
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset('assets/images/fc_prawn.png',
+                          height: 50, fit: BoxFit.contain),
+                      const SizedBox(height: 4),
+                      Text(
+                        'FC Farm Medicine',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.roboto(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
-                  )
-                : Image.asset(icon, height: 80),
+                  );
+                }
+                return CarouselSlider.builder(
+                  itemCount: banners.length,
+                  options: CarouselOptions(
+                    height: double.infinity,
+                    autoPlay: true,
+                    enlargeCenterPage: false,
+                    viewportFraction: 1.0,
+                    enableInfiniteScroll: banners.length > 1,
+                    autoPlayInterval: const Duration(seconds: 3),
+                    autoPlayAnimationDuration:
+                        const Duration(milliseconds: 800),
+                  ),
+                  itemBuilder: (context, index, _) {
+                    final banner = banners[index];
+                    return Column(
+                      children: [
+                        const SizedBox(height: 6),
+                        Text(
+                          banner.title.isNotEmpty
+                              ? banner.title
+                              : 'FC Farm Medicine',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.roboto(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Image.network(
+                                banner.url,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                errorBuilder: (_, __, ___) => Image.asset(
+                                    'assets/images/fc_prawn.png',
+                                    fit: BoxFit.cover),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              }),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMenuItem(
+  // ═══════════════════════════════════════════════════════════════════════
+  // FEATURE CARD — Spot Hatcheries / Farm Management
+  // ═══════════════════════════════════════════════════════════════════════
+  Widget _featureCard(
     String text,
     String iconPath,
     VoidCallback onTap, {
@@ -581,23 +552,22 @@ class _HomePageState extends State<HomePage>
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           color: Colors.white,
+          border: Border.all(color: Colors.black.withOpacity(0.08)),
           boxShadow: [
             BoxShadow(
-              // ignore: deprecated_member_use
-              color: Colors.black.withOpacity(.1),
-              blurRadius: 1,
-              spreadRadius: 0,
-              offset: const Offset(0, 1),
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           child: networkImageUrl != null
               ? networkMediaType == 'video'
                   ? LayoutBuilder(
@@ -616,201 +586,110 @@ class _HomePageState extends State<HomePage>
                       width: double.infinity,
                       height: double.infinity,
                       fit: BoxFit.fill,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Shimmer.fromColors(
-                          baseColor: Colors.grey.shade300,
-                          highlightColor: Colors.grey.shade100,
-                          child: Container(
-                            width: double.infinity,
-                            height: double.infinity,
-                            color: Colors.white,
-                          ),
-                        );
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return _shimmerBox(double.infinity, double.infinity);
                       },
-                      errorBuilder: (_, __, ___) => Container(
-                        width: double.infinity,
-                        height: double.infinity,
-                        color: Colors.grey.shade100,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.asset(iconPath, height: 40, fit: BoxFit.contain),
-                            const SizedBox(height: 6),
-                            Text(
-                              text.replaceAll('\n', ' '),
-                              style: GoogleFonts.roboto(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[600]),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
+                      errorBuilder: (_, __, ___) =>
+                          _featureCardFallback(iconPath, text),
                     )
-              : Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      height: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    if (isLoading)
-                      Shimmer.fromColors(
-                        baseColor: Colors.grey.shade300,
-                        highlightColor: Colors.grey.shade100,
-                        child: Container(
-                          width: double.infinity,
-                          height: double.infinity,
-                          color: Colors.white,
-                        ),
-                      )
-                    else
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset(
-                            iconPath,
-                            height: 40,
-                            fit: BoxFit.contain,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            text.replaceAll('\n', ' '),
-                            style: GoogleFonts.roboto(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[600],
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
+              : isLoading
+                  ? _shimmerBox(double.infinity, double.infinity)
+                  : _featureCardFallback(iconPath, text),
         ),
       ),
     );
   }
 
-  Widget _buildMenuItemMedicine(
-    String defaultText,
-    String iconPath,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Ink(
-        padding: EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(.1),
-              blurRadius: 1,
-              spreadRadius: 1,
-              offset: const Offset(0, 1),
+  Widget _featureCardFallback(String iconPath, String text) {
+    return Container(
+      color: Colors.grey.shade50,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(iconPath, height: 36, fit: BoxFit.contain),
+          const SizedBox(height: 4),
+          Text(
+            text.replaceAll('\n', ' '),
+            style: GoogleFonts.roboto(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[600],
             ),
-          ],
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // SEED REQUEST CARD — gradient CTA
+  // ═══════════════════════════════════════════════════════════════════════
+  Widget _seedRequestCard() {
+    return InkWell(
+      onTap: () => Navigator.push(
+          context, AppAnimations.slideLeftToRight(SeedRequestsFormScreen())),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
           gradient: LinearGradient(
-            colors: [Colors.white, Colors.white, Color(0xff6AD7FF)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            colors: [
+              AppColors.primary.withOpacity(0.05),
+              AppColors.primary.withOpacity(0.12),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          border: Border.all(
+            color: AppColors.primary.withOpacity(0.2),
           ),
         ),
-        child: Column(
+        child: Row(
           children: [
             Container(
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.yellow,
-                borderRadius: BorderRadius.circular(20),
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
               ),
-              padding: EdgeInsets.only(top: 5, bottom: 5, left: 10, right: 10),
-              child: Text(
-                'Best Deals',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.roboto(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.start,
+              child: Icon(Icons.spa_outlined,
+                  color: AppColors.primary, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Seed Request',
+                    style: GoogleFonts.roboto(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    'Request seeds from hatcheries',
+                    style: GoogleFonts.roboto(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
               ),
             ),
-            Expanded(
-              child: Obx(() {
-                final banners = _homeBannerController.bannersMedicine;
-                if (banners.isEmpty) {
-                  return Column(
-                    children: [
-                      const SizedBox(height: 10),
-                      Text(
-                        defaultText,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.roboto(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        textAlign: TextAlign.start,
-                      ),
-                      Expanded(
-                        child: Image.asset(iconPath, fit: BoxFit.cover),
-                      ),
-                    ],
-                  );
-                }
-                return CarouselSlider.builder(
-                  itemCount: banners.length,
-                  options: CarouselOptions(
-                    height: double.infinity,
-                    autoPlay: true,
-                    enlargeCenterPage: false,
-                    viewportFraction: 1.0,
-                    enableInfiniteScroll: banners.length > 1,
-                    autoPlayInterval: const Duration(seconds: 3),
-                    autoPlayAnimationDuration: const Duration(milliseconds: 800),
-                    scrollDirection: Axis.horizontal,
-                  ),
-                  itemBuilder: (context, index, realIndex) {
-                    final banner = banners[index];
-                    return Column(
-                      children: [
-                        const SizedBox(height: 10),
-                        Text(
-                          banner.title.isNotEmpty ? banner.title : defaultText,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.roboto(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          textAlign: TextAlign.start,
-                        ),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                banner.url,
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                errorBuilder: (_, __, ___) =>
-                                    Image.asset(iconPath, fit: BoxFit.cover),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              }),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.arrow_forward_rounded,
+                  color: Colors.white, size: 18),
             ),
           ],
         ),
@@ -818,27 +697,132 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  Widget _buildSectionHeader(String title, VoidCallback ontap) {
+  // ═══════════════════════════════════════════════════════════════════════
+  // MEDICINE NEWS SECTION
+  // ═══════════════════════════════════════════════════════════════════════
+  Widget _medicineNewsSection() {
+    return Obx(() {
+      final newsData = _newsSpecificController.newsSpecificHomeData.value?.data;
+      if (newsData == null || newsData.isEmpty) return const SizedBox.shrink();
+
+      return Column(
+        children: [
+          _sectionHeader('Medicine News', () {
+            dashboardCtrl.changeIndex(3);
+          }),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: List.generate(
+              newsData.length <= 2 ? newsData.length : 2,
+              (index) {
+                final data = newsData[index];
+                return Expanded(
+                  child: _newsCard(
+                    data.medicineName ?? "",
+                    data.subtitle ?? data.curesFor ?? "",
+                    data.mediaPath ?? "",
+                    'medicine$index',
+                    () {
+                      Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          transitionDuration:
+                              const Duration(milliseconds: 600),
+                          reverseTransitionDuration:
+                              const Duration(milliseconds: 600),
+                          pageBuilder: (_, __, ___) => MedicineDetailScreen(
+                            id: data.id.toString(),
+                            title: data.medicineName.toString(),
+                            subtitle: data.subtitle ?? data.curesFor ?? "",
+                            imageUrl: data.mediaPath ?? "",
+                            tag: 'medicine$index',
+                          ),
+                        ),
+                      );
+                    },
+                    mediaFiles: data.mediaFiles,
+                    mediaTypes: data.mediaTypes,
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════
+
+  Widget _sectionCard({required Widget child}) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _sectionHeader(String title, VoidCallback onTap) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           title,
-          style: GoogleFonts.roboto(fontSize: 17, fontWeight: FontWeight.bold),
+          style: GoogleFonts.roboto(
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-
-        TextButton(
-          onPressed: ontap,
-          child: Text(
-            "View all",
-            style: GoogleFonts.roboto(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              "View all",
+              style: GoogleFonts.roboto(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _shimmerBox(double width, double height) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade200,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
     );
   }
 
@@ -851,12 +835,12 @@ class _HomePageState extends State<HomePage>
         lowerUrl.endsWith('.avi');
   }
 
-  Widget _buildNewsCard(
+  Widget _newsCard(
     String title,
     String? subtitle,
     String imageUrl,
     String tag,
-    VoidCallback ontap, {
+    VoidCallback onTap, {
     List<String>? mediaFiles,
     List<String>? mediaTypes,
   }) {
@@ -868,34 +852,32 @@ class _HomePageState extends State<HomePage>
         : [_isVideoUrl(imageUrl) ? 'video' : 'image'];
 
     return Padding(
-      padding: EdgeInsetsGeometry.only(right: 6, left: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(14.85),
+            borderRadius: BorderRadius.circular(14),
             child: AspectRatio(
               aspectRatio: 1,
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: Colors.white.withOpacity(.7),
-                  border: Border.all(width: .1, color: Colors.grey),
-                  boxShadow: [BoxShadow(color: Colors.grey)],
+                  borderRadius: BorderRadius.circular(14),
+                  color: Colors.grey.shade100,
                 ),
                 child: MiniMediaCarousel(
                   mediaUrls: urls,
                   mediaTypes: types,
                   height: double.infinity,
-                  borderRadius: 12,
-                  onTap: ontap,
+                  borderRadius: 14,
+                  onTap: onTap,
                 ),
               ),
             ),
           ),
           const SizedBox(height: 8),
           Padding(
-            padding: const EdgeInsets.only(left: 5),
+            padding: const EdgeInsets.only(left: 4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -908,12 +890,12 @@ class _HomePageState extends State<HomePage>
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (subtitle != null)
+                if (subtitle != null && subtitle.isNotEmpty)
                   Text(
                     subtitle,
                     style: GoogleFonts.roboto(
-                      fontSize: 14,
-                      color: Color(0xff7D7272),
+                      fontSize: 13,
+                      color: const Color(0xff7D7272),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -934,15 +916,22 @@ class _AutoLoopBannerVideo extends StatefulWidget {
   final double? width;
   final int initDelay;
 
-  const _AutoLoopBannerVideo({super.key, required this.url, required this.height, this.width, this.initDelay = 0});
+  const _AutoLoopBannerVideo(
+      {super.key,
+      required this.url,
+      required this.height,
+      this.width,
+      this.initDelay = 0});
 
   @override
   State<_AutoLoopBannerVideo> createState() => _AutoLoopBannerVideoState();
 }
 
-class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo> with WidgetsBindingObserver {
+class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
+    with WidgetsBindingObserver {
   VideoPlayerController? _videoController;
   bool _isInitialized = false;
+  ModalRoute? _route;
 
   @override
   void initState() {
@@ -957,19 +946,30 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo> with Widgets
     }
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _route = ModalRoute.of(context);
+  }
+
   Future<void> _initializeVideo() async {
     try {
-      final controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+      final controller =
+          VideoPlayerController.networkUrl(Uri.parse(widget.url));
       _videoController = controller;
       await controller.initialize();
-      if (!mounted) { controller.dispose(); return; }
+      if (!mounted) {
+        controller.dispose();
+        return;
+      }
       await controller.setLooping(true);
       await controller.setVolume(0);
       await controller.play();
-      // Auto-resume if system pauses the video
       controller.addListener(_autoResume);
       if (mounted) {
-        setState(() { _isInitialized = true; });
+        setState(() {
+          _isInitialized = true;
+        });
       }
     } catch (e) {
       debugPrint('Video init failed: $e');
@@ -978,8 +978,13 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo> with Widgets
 
   void _autoResume() {
     final vc = _videoController;
-    if (vc != null && _isInitialized && mounted) {
-      if (!vc.value.isPlaying && vc.value.isInitialized && !vc.value.isBuffering) {
+    if (vc != null &&
+        _isInitialized &&
+        mounted &&
+        (_route?.isCurrent ?? false)) {
+      if (!vc.value.isPlaying &&
+          vc.value.isInitialized &&
+          !vc.value.isBuffering) {
         vc.play();
       }
     }
@@ -987,7 +992,9 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo> with Widgets
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _isInitialized) {
+    if (state == AppLifecycleState.resumed &&
+        _isInitialized &&
+        (_route?.isCurrent ?? false)) {
       _videoController?.play();
     }
   }

@@ -88,6 +88,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   DateTime _lastRefreshedAt = DateTime.now();
   bool _isRefreshing = false;
   Timer? _timeAgoTimer;
+  Timer? _autoRefreshTimer;
 
   // Pulse animation for vehicle icon
   late AnimationController _pulseController;
@@ -111,6 +112,12 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     // Update "Updated X mins ago" text every 30 seconds
     _timeAgoTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) setState(() {});
+    });
+    // Auto-refresh tracking data and ETA every 2 minutes
+    _autoRefreshTimer = Timer.periodic(const Duration(minutes: 2), (_) {
+      if (mounted && !_isRefreshing) {
+        _refreshData();
+      }
     });
   }
 
@@ -247,27 +254,40 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
 
     /// -------- Route + Intermediate Stops using single Directions API call --------
     if (_pickupLatLng != null && _destinationLatLng != null) {
-      // Convert route waypoints (intermediate drops) to LatLng for multi-drop routing
-      final waypoints = _trackingData!.routeWaypoints
+      // Separate waypoints into delivered (completed) and remaining (pending/in-progress)
+      final allWaypoints = _trackingData!.routeWaypoints
           .where((wp) => wp.lat != 0 && wp.lng != 0)
+          .toList();
+      final remainingWaypoints = allWaypoints
+          .where((wp) => !wp.isCompleted)
           .map((wp) => LatLng(wp.lat, wp.lng))
           .toList();
 
-      debugPrint('🗺️ Route params: pickup=$_pickupLatLng, dest=$_destinationLatLng, '
-          'driver=$_currentLatLng, waypoints=${waypoints.length}: $waypoints');
+      // When driver position is available, calculate route from DRIVER → remaining stops → destination.
+      // This gives accurate ETA because it uses the actual road from where the driver IS,
+      // not the shortest path from pickup which may be a completely different road.
+      // Example: Chennai → Vijayawada(delivered) → Amalapuram
+      //   Old: origin=Chennai, waypoints=[], dest=Amalapuram → shortest direct route (WRONG)
+      //   New: origin=DriverPos(near Vijayawada), waypoints=[], dest=Amalapuram → actual road (CORRECT)
+      final routeOrigin = _currentLatLng ?? _pickupLatLng!;
+      final useDriverAsOrigin = _currentLatLng != null;
+
+      debugPrint('🗺️ Route params: origin=$routeOrigin (driver=$useDriverAsOrigin), '
+          'dest=$_destinationLatLng, remainingWaypoints=${remainingWaypoints.length}, '
+          'totalWaypoints=${allWaypoints.length}');
 
       final routeData = await GoogleMapsService.getRouteWithStops(
-        origin: _pickupLatLng!,
+        origin: routeOrigin,
         destination: _destinationLatLng!,
-        driverPosition: _currentLatLng,
-        routeWaypoints: waypoints,
+        driverPosition: useDriverAsOrigin ? null : _currentLatLng,
+        routeWaypoints: remainingWaypoints,
       );
 
       if (routeData.isNotEmpty) {
-        final completedPoints =
-            routeData['completed_points'] as List<LatLng>? ?? [];
         final remainingPointsRoute =
             routeData['remaining_points'] as List<LatLng>? ?? [];
+        final completedFromApi =
+            routeData['completed_points'] as List<LatLng>? ?? [];
         _routeStops = routeData['stops'] as List<Map<String, dynamic>>? ?? [];
         _totalRouteDurationSeconds =
             routeData['total_duration_seconds'] as int? ?? 0;
@@ -276,34 +296,67 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
                 ?.cast<double>() ??
             [];
 
-        final driverFraction =
-            routeData['driver_progress_fraction'] as double? ?? 0.0;
         final remainingSeconds =
             routeData['remaining_duration_seconds'] as int? ?? 0;
 
-        _estimatedDuration = _formatDuration(remainingSeconds);
+        if (useDriverAsOrigin) {
+          // Route was calculated from driver → destination, so the ENTIRE
+          // route duration IS the remaining ETA (no fraction math needed)
+          _estimatedDuration = _formatDuration(_totalRouteDurationSeconds);
 
-        // Calculate estimated route start time from driver's last update
-        final driverLoc = _trackingData!.driverLocation;
-        if (_currentLatLng != null &&
-            driverLoc.updatedAt != null &&
-            driverLoc.updatedAt!.isNotEmpty) {
-          try {
-            final updatedAt = DateTime.parse(driverLoc.updatedAt!);
-            final elapsedSeconds = (driverFraction * _totalRouteDurationSeconds)
-                .round();
-            _routeStartTime = updatedAt.subtract(
-              Duration(seconds: elapsedSeconds),
+          // Route start time = driver's last update (journey is "starting" from driver)
+          final driverLoc = _trackingData!.driverLocation;
+          if (driverLoc.updatedAt != null && driverLoc.updatedAt!.isNotEmpty) {
+            try {
+              _routeStartTime = DateTime.parse(driverLoc.updatedAt!);
+            } catch (_) {}
+          }
+
+          // Green solid line: pickup → driver (simple straight connection, not road-following)
+          polylines.add(
+            Polyline(
+              polylineId: const PolylineId('completed'),
+              points: [_pickupLatLng!, _currentLatLng!],
+              color: Colors.green.withOpacity(0.5),
+              width: 4,
+            ),
+          );
+          // Blue dashed line: driver → remaining waypoints → destination (road-following)
+          final allRoutePoints = [...completedFromApi, ...remainingPointsRoute];
+          if (allRoutePoints.isNotEmpty) {
+            polylines.add(
+              Polyline(
+                polylineId: const PolylineId('remaining'),
+                points: allRoutePoints,
+                color: const Color(0xFF0077C8),
+                width: 5,
+                patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+              ),
             );
-          } catch (_) {}
-        }
+          }
+        } else if (_currentLatLng != null && completedFromApi.isNotEmpty) {
+          // Fallback: route from pickup with driver as waypoint (original logic)
+          final driverFraction =
+              routeData['driver_progress_fraction'] as double? ?? 0.0;
+          _estimatedDuration = _formatDuration(remainingSeconds);
 
-        if (_currentLatLng != null && completedPoints.isNotEmpty) {
+          final driverLoc = _trackingData!.driverLocation;
+          if (driverLoc.updatedAt != null && driverLoc.updatedAt!.isNotEmpty) {
+            try {
+              final updatedAt = DateTime.parse(driverLoc.updatedAt!);
+              final elapsedSeconds =
+                  (driverFraction * _totalRouteDurationSeconds).round();
+              _routeStartTime = updatedAt.subtract(
+                Duration(seconds: elapsedSeconds),
+              );
+            } catch (_) {}
+          }
+
           // Green solid line: pickup to driver position (completed)
           polylines.add(
             Polyline(
               polylineId: const PolylineId('completed'),
-              points: completedPoints,
+              points: completedFromApi,
               color: Colors.green,
               width: 5,
             ),
@@ -321,6 +374,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
             );
           }
         } else if (remainingPointsRoute.isNotEmpty) {
+          _estimatedDuration = _formatDuration(remainingSeconds);
           // No current location — full route as dashed blue
           polylines.add(
             Polyline(
@@ -2001,6 +2055,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   void dispose() {
     _pulseController.dispose();
     _timeAgoTimer?.cancel();
+    _autoRefreshTimer?.cancel();
     _smallMapController?.dispose();
     _expandedMapController?.dispose();
     super.dispose();

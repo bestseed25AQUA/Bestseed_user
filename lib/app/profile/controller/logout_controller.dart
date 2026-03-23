@@ -32,21 +32,20 @@ class LogoutController extends GetxController {
         },
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        // Logout success, clear local storage
-        await AuthLocalStorage.clear();
-        CustomToast.success("Logged out successfully");
+      // Clear local storage and navigate to login regardless of API response
+      // (even if token is expired/invalid, we should still log out locally)
+      await AuthLocalStorage.clear();
 
-        // Navigate to login
-        Get.offAll(() => const LoginWithMobileScreen());
-      } else {
-        CustomToast.error(
-          "Logout failed  ${response.reasonPhrase}",
-        );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        CustomToast.success("Logged out successfully");
       }
+
+      Get.offAll(() => const LoginWithMobileScreen());
     } catch (e) {
-      debugPrint("Logout Error  ");
-      CustomToast.error("Something went wrong");
+      debugPrint("Logout Error: $e");
+      // Even if API call fails (network error etc), clear token and go to login
+      await AuthLocalStorage.clear();
+      Get.offAll(() => const LoginWithMobileScreen());
     } finally {
       isLoading.value = false;
     }

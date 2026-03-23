@@ -11,6 +11,7 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 
 class SeedsPriceController extends GetxController {
   var isLoading = false.obs;
+  var isPriceLoading = true.obs; // Dedicated loading state for price table
 
   Rx<PriceModel?> priceData = Rx<PriceModel?>(null);
   Rx<PriceModel?> homePriceData = Rx<PriceModel?>(null);
@@ -28,6 +29,7 @@ class SeedsPriceController extends GetxController {
   }
 
   Future<void> fetchData() async {
+    isPriceLoading.value = true;
     await Future.wait([getLocations(), getCategories()]);
 
     if (locations.isNotEmpty) {
@@ -178,6 +180,7 @@ class SeedsPriceController extends GetxController {
 
   Future<void> getPrices() async {
     if (selectedLocation.value == null || selectedCategory.value == null) {
+      isPriceLoading.value = false;
       return;
     }
 
@@ -186,21 +189,22 @@ class SeedsPriceController extends GetxController {
     final cacheKey = 'seed_prices_${catId}_$locId';
 
     try {
-      isLoading.value = true;
+      isPriceLoading.value = true;
 
-      // Load from cache first
+      // Load from cache first for instant display
       final cached = await AppCacheHelper.get(cacheKey);
       if (cached != null) {
         try {
           final data = jsonDecode(cached);
           priceData.value = PriceModel.fromJson(data);
+          isPriceLoading.value = false; // Show cached data immediately
           debugPrint('[Cache] Loaded prices from cache for cat=$catId loc=$locId');
         } catch (e) {
           debugPrint('[Cache] Error parsing cached prices: $e');
         }
       }
 
-      // Fetch from API
+      // Fetch from API (updates silently if cache was shown)
       final response = await getRequest(
         endPoint:
             "${NetworkConfig.baseURL}/farmer/prices?category_id=$catId&location_id=$locId",
@@ -210,7 +214,6 @@ class SeedsPriceController extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         priceData.value = PriceModel.fromJson(data);
-        // Save to cache
         await AppCacheHelper.save(cacheKey, response.body);
         debugPrint('[API] Loaded prices & cached for cat=$catId loc=$locId');
       } else {
@@ -223,7 +226,7 @@ class SeedsPriceController extends GetxController {
         CustomToast.error("Something went wrong");
       }
     } finally {
-      isLoading.value = false;
+      isPriceLoading.value = false;
     }
   }
 

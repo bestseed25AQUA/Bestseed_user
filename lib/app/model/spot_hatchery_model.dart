@@ -40,6 +40,7 @@ class SpotHatchery {
   final String? locationName;
   final String? branchName;
   final int? broodstock;
+  final int? noOfPieces;
   final bool isSpot;
   final String? availableOn;
   final String? description;
@@ -59,6 +60,7 @@ class SpotHatchery {
     required this.locationName,
     this.branchName,
     this.broodstock,
+    this.noOfPieces,
     required this.isSpot,
     this.availableOn,
     this.description,
@@ -84,6 +86,9 @@ class SpotHatchery {
     broodstock: json["broodstock"] is int
             ? json["broodstock"]
             : int.tryParse(json["broodstock"]?.toString() ?? ''),
+    noOfPieces: json["no_of_pieces"] is int
+            ? json["no_of_pieces"]
+            : int.tryParse(json["no_of_pieces"]?.toString() ?? ''),
     images: json["images"] == null
         ? []
         : List<String>.from(json["images"].map((x) => x)),
@@ -105,6 +110,7 @@ class SpotHatchery {
     "location_name": locationName,
     "branch_name": branchName,
     "is_spot": isSpot,
+    "no_of_pieces": noOfPieces,
     "available_on": availableOn,
     "description": description,
     "images": List<dynamic>.from(images.map((x) => x)),

@@ -46,7 +46,7 @@ class _SpotHatcheryDetailScreenState extends State<SpotHatcheryDetailScreen> {
     final validImages = hatchery.images;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: CustomAppBar(
         title: Text(
           hatchery.hatcheryName,
@@ -167,52 +167,116 @@ class _SpotHatcheryDetailScreenState extends State<SpotHatcheryDetailScreen> {
                     const SizedBox(height: 16),
                   ],
 
-                  // Info rows
+                  // Info cards grid - Row 1: Broodstock + Price
                   Row(
                     children: [
                       if (hatchery.broodstock != null)
                         Expanded(
-                          child: _buildInfoRow(
-                            Icons.inventory_2,
-                            "Broodstock",
-                            "${hatchery.broodstock} Pieces",
+                          child: _buildInfoCard(
+                            icon: Icons.water_drop_outlined,
+                            iconColor: const Color(0xFF0077C8),
+                            label: 'Broodstock',
+                            value: '${hatchery.broodstock}',
                           ),
                         ),
+                      if (hatchery.broodstock != null && hatchery.price != null)
+                        const SizedBox(width: 10),
                       if (hatchery.price != null)
                         Expanded(
-                          child: Align(
-                            alignment: Alignment.center,
-                            child: _buildInfoRow(
-                              Icons.currency_rupee,
-                              "Price",
-                              "₹${hatchery.price}",
-                            ),
+                          child: _buildInfoCard(
+                            icon: Icons.currency_rupee,
+                            iconColor: const Color(0xFF25A652),
+                            label: 'Price',
+                            value: '\u20B9${hatchery.price}',
                           ),
                         ),
                     ],
                   ),
 
-                  if (hatchery.locationName != null || hatchery.branchName != null) ...[
-                    const SizedBox(height: 12),
+                  // Row 2: No of Pieces
+                  if (hatchery.noOfPieces != null && hatchery.noOfPieces! > 0) ...[
+                    const SizedBox(height: 10),
                     Row(
                       children: [
-                        if (hatchery.locationName != null)
-                          Expanded(
-                            child: _buildInfoRow(
-                              Icons.location_on,
-                              "Location",
-                              hatchery.locationName!,
-                            ),
+                        Expanded(
+                          child: _buildInfoCard(
+                            icon: Icons.inventory_2_outlined,
+                            iconColor: const Color(0xFFF4A100),
+                            label: 'No of Pieces',
+                            value: '${hatchery.noOfPieces} Pieces',
                           ),
-                        if (hatchery.branchName != null)
-                          Expanded(
-                            child: _buildInfoRow(
-                              Icons.business,
-                              "Branch",
-                              hatchery.branchName!,
-                            ),
-                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(child: SizedBox()),
                       ],
+                    ),
+                  ],
+
+                  // Branch (fallback to location)
+                  if ((hatchery.branchName?.isNotEmpty ?? false) ||
+                      (hatchery.locationName?.isNotEmpty ?? false)) ...[
+                    const SizedBox(height: 10),
+                    _buildInfoCard(
+                      icon: Icons.business,
+                      iconColor: const Color(0xFF6F42C1),
+                      label: 'Branch',
+                      value: (hatchery.branchName?.isNotEmpty ?? false)
+                          ? hatchery.branchName!
+                          : hatchery.locationName!,
+                    ),
+                  ],
+
+                  // Available on date - prominent
+                  if (hatchery.availableOn != null &&
+                      hatchery.availableOn!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xff25A652).withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xff25A652).withOpacity(0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xff25A652).withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.event_available,
+                                size: 18, color: Color(0xff25A652)),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Available On',
+                                style: GoogleFonts.roboto(
+                                  fontSize: 12,
+                                  color: const Color(0xff25A652),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _formatDate(hatchery.availableOn!),
+                                style: GoogleFonts.roboto(
+                                  fontSize: 16,
+                                  color: const Color(0xff25A652),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
 
@@ -531,29 +595,56 @@ class _SpotHatcheryDetailScreenState extends State<SpotHatcheryDetailScreen> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 18, color: AppColors.primary),
-        const SizedBox(width: 6),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[600]),
-            ),
-            Text(
-              value,
-              style: GoogleFonts.roboto(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+  Widget _buildInfoCard({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withOpacity(0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 16, color: iconColor),
               ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: GoogleFonts.roboto(
+                  fontSize: 12,
+                  color: Colors.grey[500],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.roboto(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF1A1A2E),
             ),
-          ],
-        ),
-      ],
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 

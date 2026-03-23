@@ -225,15 +225,36 @@ class TimelineItem {
 class RouteWaypoint {
   final double lat;
   final double lng;
+  final int status; // 4=in-progress, 5=delivered, 6=cancelled
+  final int priority;
+  final String name;
 
-  RouteWaypoint({required this.lat, required this.lng});
+  RouteWaypoint({
+    required this.lat,
+    required this.lng,
+    this.status = 4,
+    this.priority = 0,
+    this.name = '',
+  });
+
+  /// Whether this stop has already been delivered or cancelled
+  bool get isCompleted => status == 5 || status == 6;
 
   factory RouteWaypoint.fromJson(Map<String, dynamic> json) {
     return RouteWaypoint(
       lat: (json['lat'] ?? 0).toDouble(),
       lng: (json['lng'] ?? 0).toDouble(),
+      status: json['status'] ?? 4,
+      priority: json['priority'] ?? 0,
+      name: json['name'] ?? '',
     );
   }
 
-  Map<String, dynamic> toJson() => {"lat": lat, "lng": lng};
+  Map<String, dynamic> toJson() => {
+    "lat": lat,
+    "lng": lng,
+    "status": status,
+    "priority": priority,
+    "name": name,
+  };
 }

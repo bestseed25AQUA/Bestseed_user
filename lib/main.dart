@@ -61,7 +61,7 @@ class MyApp extends StatelessWidget {
               child: GetMaterialApp(
                 navigatorKey: navigatorKey,
                 debugShowCheckedModeBanner: false,
-                title: 'Seeds User',
+                title: 'Bestseed',
                 locale: languageController.currentLocale.value,
                 fallbackLocale: const Locale('en', 'US'),
                 localizationsDelegates: [

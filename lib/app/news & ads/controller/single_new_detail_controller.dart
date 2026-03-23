@@ -20,6 +20,7 @@ class SingleNewDetailController extends GetxController {
 
   Future<void> fetch({required String type, required String id}) async {
     try {
+      singleDetailData.value = null; // Clear stale data from previous navigation
       isLoading.value = true;
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/news/$id?type=$type",

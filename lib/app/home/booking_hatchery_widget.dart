@@ -9,6 +9,7 @@ import 'package:seedsuser/app/common/custom_dropdown.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/home/booking_review_widget.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
+import 'package:seedsuser/app/model/category_model.dart' as cat_model;
 import 'package:seedsuser/app/home/controller/location_controller.dart';
 import 'package:seedsuser/app/home/map_search_screen.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
@@ -219,6 +220,64 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               icon: Icons.phone_android,
               keyboardType: TextInputType.phone,
               maxLength: 10,
+            ),
+            // Category (auto-filled, read-only)
+            Builder(
+              builder: (context) {
+                String categoryName = '';
+                try {
+                  final homeCtrl = Get.find<HomeController>();
+                  final catId = int.tryParse(widget.categoryId) ?? 0;
+                  final cat = homeCtrl.categories.firstWhere(
+                    (c) => c.id == catId,
+                    orElse: () => cat_model.Category(id: -1, categoryName: ''),
+                  );
+                  if (cat.id != -1) categoryName = cat.categoryName;
+                } catch (_) {}
+
+                if (categoryName.isEmpty) return const SizedBox.shrink();
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Category",
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.category_outlined, size: 18, color: Colors.grey[500]),
+                            const SizedBox(width: 10),
+                            Text(
+                              categoryName,
+                              style: GoogleFonts.roboto(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
             // _buildDropdownField(
             //   label: "Unit",

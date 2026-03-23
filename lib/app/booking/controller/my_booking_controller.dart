@@ -200,9 +200,9 @@ class MyBookingController extends GetxController {
       print({"booking_id": bookingId, "reason_code": reason});
       print('status code');
       print(response.statusCode);
-      final body = jsonDecode(response.body);
-      print(body);
-      if (body["status"] == true) {
+      final responseBody = jsonDecode(response.body);
+      print(responseBody);
+      if (responseBody["status"] == true) {
         isDetailLoading(false);
         CustomToast.success('Cancelled');
         await fetchBookingDetail(bookingId);
