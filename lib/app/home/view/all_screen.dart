@@ -427,7 +427,7 @@ class _HomePageState extends State<HomePage>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           gradient: const LinearGradient(
-            colors: [Colors.white, Color(0xFFE8F6FF), Color(0xFF6AD7FF)],
+            colors: [Colors.white, Color(0xFFE8F6FF)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

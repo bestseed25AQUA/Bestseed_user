@@ -11,7 +11,7 @@ class SpotHatcheryBannerController extends GetxController {
 
   @override
   void onInit() {
-    super.onInit();
+    super.onInit();                
     fetchBanners();
   }
 

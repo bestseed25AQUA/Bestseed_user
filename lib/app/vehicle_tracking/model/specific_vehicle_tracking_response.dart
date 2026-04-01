@@ -191,6 +191,8 @@ class TimelineItem {
   final String time;
   final String date;
   final String status; // completed / pending
+  final double? lat;
+  final double? lng;
 
   TimelineItem({
     required this.title,
@@ -198,6 +200,8 @@ class TimelineItem {
     required this.time,
     required this.date,
     required this.status,
+    this.lat,
+    this.lng,
   });
 
   factory TimelineItem.fromJson(Map<String, dynamic> json) {
@@ -207,6 +211,8 @@ class TimelineItem {
       time: json['time'] ?? '',
       date: json['date'] ?? '',
       status: json['status'] ?? '',
+      lat: (json['lat'] as num?)?.toDouble(),
+      lng: (json['lng'] as num?)?.toDouble(),
     );
   }
 
@@ -216,6 +222,8 @@ class TimelineItem {
     "time": time,
     "date": date,
     "status": status,
+    "lat": lat,
+    "lng": lng,
   };
 }
 
@@ -228,6 +236,7 @@ class RouteWaypoint {
   final int status; // 4=in-progress, 5=delivered, 6=cancelled
   final int priority;
   final String name;
+  final bool isBefore; // true = driver has already passed this waypoint
 
   RouteWaypoint({
     required this.lat,
@@ -235,6 +244,7 @@ class RouteWaypoint {
     this.status = 4,
     this.priority = 0,
     this.name = '',
+    this.isBefore = false,
   });
 
   /// Whether this stop has already been delivered or cancelled
@@ -247,6 +257,7 @@ class RouteWaypoint {
       status: json['status'] ?? 4,
       priority: json['priority'] ?? 0,
       name: json['name'] ?? '',
+      isBefore: json['is_before'] ?? false,
     );
   }
 
@@ -256,5 +267,6 @@ class RouteWaypoint {
     "status": status,
     "priority": priority,
     "name": name,
+    "is_before": isBefore,
   };
 }

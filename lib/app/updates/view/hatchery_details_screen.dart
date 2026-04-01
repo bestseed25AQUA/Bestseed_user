@@ -25,7 +25,6 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
   @override
   void initState() {
     initFunc();
-
     super.initState();
   }
 
@@ -91,7 +90,7 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: const Color.fromARGB(255, 214, 232, 243),
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(

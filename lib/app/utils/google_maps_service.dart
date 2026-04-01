@@ -14,12 +14,20 @@ class GoogleMapsService {
     required LatLng origin,
     required LatLng destination,
     List<LatLng>? waypoints,
+    bool useViaWaypoints = false,
   }) async {
     try {
       String waypointsStr = '';
       if (waypoints != null && waypoints.isNotEmpty) {
-        waypointsStr =
-            '&waypoints=${waypoints.map((wp) => '${wp.latitude},${wp.longitude}').join('|')}';
+        if (useViaWaypoints) {
+          // "via:" influences the route to pass through these roads
+          // without creating mandatory stops (no loops/backtracking)
+          waypointsStr =
+              '&waypoints=${waypoints.map((wp) => 'via:${wp.latitude},${wp.longitude}').join('|')}';
+        } else {
+          waypointsStr =
+              '&waypoints=${waypoints.map((wp) => '${wp.latitude},${wp.longitude}').join('|')}';
+        }
       }
 
       final url =
@@ -120,14 +128,14 @@ class GoogleMapsService {
     }
   }
 
-  /// Reverse geocode coordinates to get neighborhood/area name.
-  /// Prefers sublocality (e.g. "Kothaguda", "Madhapur") over city ("Hyderabad").
+  /// Reverse geocode coordinates to get a recognizable town/city name.
+  /// Prefers locality/town names over tiny neighborhoods or hamlets.
   static Future<String?> reverseGeocode(LatLng location) async {
     try {
       final url =
           'https://maps.googleapis.com/maps/api/geocode/json'
           '?latlng=${location.latitude},${location.longitude}'
-          '&result_type=sublocality_level_1|sublocality|neighborhood|locality|administrative_area_level_3'
+          '&result_type=locality|administrative_area_level_3|administrative_area_level_2|sublocality_level_1|sublocality|neighborhood'
           '&language=en'
           '&key=$_apiKey';
 
@@ -140,13 +148,14 @@ class GoogleMapsService {
       final results = data['results'] as List;
       if (results.isEmpty) return null;
 
-      // Priority: sublocality > neighborhood > locality (city)
+      // Priority: recognizable town/city > mandal/sub-district > small locality
       const priority = [
+        'locality',
+        'administrative_area_level_3',
+        'administrative_area_level_2',
         'sublocality_level_1',
         'sublocality',
         'neighborhood',
-        'locality',
-        'administrative_area_level_3',
       ];
 
       for (final type in priority) {
@@ -497,10 +506,22 @@ class GoogleMapsService {
     final segmentDist = endDist - startDist;
     if (segmentDist <= 0) return [];
 
-    final interval = segmentDist / (count + 1);
-    List<Map<String, dynamic>> subStops = [];
+    final segmentKm = segmentDist / 1000;
+    final desiredCount = segmentKm >= 220
+        ? 7
+        : segmentKm >= 160
+        ? 6
+        : segmentKm >= 120
+        ? 5
+        : segmentKm >= 80
+        ? 4
+        : count;
+    final targetCount = max(count, desiredCount);
+    final candidateCount = min(max(targetCount * 4, 8), 24);
+    final interval = segmentDist / (candidateCount + 1);
+    List<Map<String, dynamic>> candidates = [];
 
-    for (int i = 1; i <= count; i++) {
+    for (int i = 1; i <= candidateCount; i++) {
       final targetDist = startDist + interval * i;
       final point = _interpolatePointOnPolyline(
         targetDist,
@@ -508,25 +529,25 @@ class GoogleMapsService {
         cumulativeDistances,
       );
       final fraction = targetDist / totalDist;
-      subStops.add({
+      candidates.add({
         'location': point,
         'estimated_seconds': (totalDurationSeconds * fraction).round(),
         'distance_fraction': fraction,
       });
     }
 
-    // Reverse geocode all sub-stops in parallel
+    // Reverse geocode many candidate points, then keep the best ordered localities.
     final names = await Future.wait(
-      subStops.map((s) => reverseGeocode(s['location'] as LatLng)),
+      candidates.map((s) => reverseGeocode(s['location'] as LatLng)),
     );
-    for (int i = 0; i < subStops.length; i++) {
-      subStops[i]['name'] = names[i] ?? 'Unknown';
+    for (int i = 0; i < candidates.length; i++) {
+      candidates[i]['name'] = names[i] ?? 'Unknown';
     }
 
-    // Remove duplicates and unknowns
+    // Remove duplicates/unknowns while preserving route order.
     List<Map<String, dynamic>> unique = [];
     Set<String> seen = {};
-    for (var stop in subStops) {
+    for (var stop in candidates) {
       final name = stop['name'] as String;
       if (name != 'Unknown' && !seen.contains(name)) {
         unique.add(stop);
@@ -534,7 +555,29 @@ class GoogleMapsService {
       }
     }
 
-    return unique;
+    if (unique.length <= targetCount) {
+      return unique;
+    }
+
+    // Keep a broader but still readable set of towns/cities in route order.
+    final trimmed = <Map<String, dynamic>>[];
+    final step = (unique.length - 1) / (targetCount - 1);
+    for (int i = 0; i < targetCount; i++) {
+      trimmed.add(unique[(i * step).round()]);
+    }
+
+    // Final de-duplication after thinning.
+    final finalStops = <Map<String, dynamic>>[];
+    final finalNames = <String>{};
+    for (final stop in trimmed) {
+      final name = stop['name'] as String;
+      if (!finalNames.contains(name)) {
+        finalStops.add(stop);
+        finalNames.add(name);
+      }
+    }
+
+    return finalStops;
   }
 
   /// Decode polylines from all steps in a Directions API leg

@@ -472,7 +472,7 @@ class _GoogleMapSearchPlacesScreenState
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Text(
-                          "Add Location",
+                          "Please confirm your location",
                           style: TextStyle(fontSize: 16, color: Colors.white),
                         ),
                         const SizedBox(width: 5),

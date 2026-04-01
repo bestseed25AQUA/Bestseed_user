@@ -240,7 +240,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              "Booking #${data.bookingUId}",
+              "Booking #${data.bookingId}",
               style: GoogleFonts.robotoMono(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
