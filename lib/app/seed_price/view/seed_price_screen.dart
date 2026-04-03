@@ -29,7 +29,14 @@ class SeedPricesScreen extends StatefulWidget {
 
 class _SeedPricesScreenState extends State<SeedPricesScreen> {
   final SeedsPriceController controller = Get.put(SeedsPriceController());
+  final ScrollController _priceScrollController = ScrollController();
   bool _dialogShown = false;
+
+  @override
+  void dispose() {
+    _priceScrollController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -413,7 +420,9 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                               height: MediaQuery.of(context).size.height * .42,
                               child: Scrollbar(
                                 thumbVisibility: true,
+                                controller: _priceScrollController,
                                 child: ListView.builder(
+                                  controller: _priceScrollController,
                                   padding: const EdgeInsets.only(right: 10),
                                   itemCount: priceData.prices.length,
                                   shrinkWrap: true,

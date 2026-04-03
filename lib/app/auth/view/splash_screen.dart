@@ -71,6 +71,8 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(seconds: 3));
     String? token = await AuthLocalStorage.getToken();
 
+    debugPrint("Splash token check: ${token != null && token.isNotEmpty ? 'Token found (${token.substring(0, token.length > 10 ? 10 : token.length)}...)' : 'No token'}");
+
     if (token != null && token.isNotEmpty) {
       // Re-register FCM token on every app launch to keep it fresh
       NotificationService().registerToken();

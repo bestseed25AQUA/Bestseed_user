@@ -40,7 +40,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       1: 'Pending',
       2: 'Confirmed',
       3: 'Driver Assigned',
-      4: 'In Transit',
+      4: 'In Journey',
       5: 'Delivered',
       6: 'Cancelled',
     };
@@ -50,7 +50,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   bool isPending(int status) => status == 1;
   bool isConfirmed(int status) => status == 2;
   bool isDriverAssigned(int status) => status == 3;
-  bool isInProgress(int status) => status == 4;
+  bool isInJourney(int status) => status == 4;
   bool isDelivered(int status) => status == 5;
   bool isCancelled(int status) => status == 6;
 
@@ -73,7 +73,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     if (isPending(status)) return Icons.schedule_rounded;
     if (isConfirmed(status)) return Icons.check_circle_outline_rounded;
     if (isDriverAssigned(status)) return Icons.local_shipping_outlined;
-    if (isInProgress(status)) return Icons.route_rounded;
+    if (isInJourney(status)) return Icons.route_rounded;
     if (isDelivered(status)) return Icons.task_alt_rounded;
     return Icons.info_outline_rounded;
   }
@@ -462,7 +462,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                                       : Colors.grey.shade400,
                                 ),
                               ),
-                              if ((s.label.toLowerCase() == "in progress" || s.label.toLowerCase() == "in transit") &&
+                              if ((s.label.toLowerCase() == "in progress" || s.label.toLowerCase() == "in journey" || s.label.toLowerCase() == "in journey") &&
                                   showVehicleButton)
                                 InkWell(
                                   onTap: onTapCheckVehicleStatus,
@@ -735,7 +735,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             _infoRow(
               Icons.calendar_today_rounded,
               "Delivery Date",
-              data.bookingDateTime,
+              data.bookingDateTime.split(' ').first,
             ),
             _infoDivider(),
             _infoRow(

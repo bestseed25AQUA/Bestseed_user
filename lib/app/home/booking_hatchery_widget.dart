@@ -51,6 +51,19 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
   double? _dropLat;
   double? _dropLng;
 
+  String _getCategoryName() {
+    try {
+      final homeCtrl = Get.find<HomeController>();
+      final catId = int.tryParse(widget.categoryId) ?? 0;
+      final cat = homeCtrl.categories.firstWhere(
+        (c) => c.id == catId,
+        orElse: () => cat_model.Category(id: -1, categoryName: ''),
+      );
+      if (cat.id != -1) return cat.categoryName;
+    } catch (_) {}
+    return '';
+  }
+
   Future<Position?> getCurrentLocation() async {
     currentPosition = await _getCurrentLocation();
     return currentPosition;
@@ -510,6 +523,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                         bottomSheetContext: context,
                         estimatedPrice: estimatePrice ?? "",
                         categoryId: widget.categoryId,
+                        categoryName: _getCategoryName(),
                         isSpotHatchery: isSpotHatchery,
                         isVehicleHatchery: isVehicleHatchery,
                         name: _nameController.text,

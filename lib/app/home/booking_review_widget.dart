@@ -19,6 +19,7 @@ class BookingReviewContent extends StatelessWidget {
       hatcheryName,
       locationId,
       categoryId,
+      categoryName,
       estimatedPrice;
   final BuildContext bottomSheetContext;
   final bool isSpotHatchery;
@@ -42,6 +43,7 @@ class BookingReviewContent extends StatelessWidget {
     required this.isSpotHatchery,
     required this.isVehicleHatchery,
     required this.categoryId,
+    required this.categoryName,
     required this.estimatedPrice,
     required this.bottomSheetContext,
   });
@@ -117,6 +119,10 @@ class BookingReviewContent extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
 
+                      if (categoryName.isNotEmpty) ...[
+                        _buildInfoRow('Category', categoryName),
+                        const Divider(),
+                      ],
                       _buildInfoRow('Name', name),
                       const Divider(),
                       _buildInfoRow('Phone Number', phone),

@@ -361,7 +361,7 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: CustomAppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -396,20 +396,20 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
                         setState(() => _searchController.clear());
                       },
                     ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 3),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.blue),
-                      ),
-                      child: InkWell(
-                        onTap: startRecording,
-                        child: Padding(
-                          padding: EdgeInsets.all(3),
-                          child: Icon(Icons.mic, color: Colors.blue, size: 30),
-                        ),
-                      ),
+                  Container(
+                    padding: EdgeInsets.only(
+                      left: 3,
+                      right: 3,
+                      bottom: 0,
+                      top: 0,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.blue),
+                    ),
+                    child: InkWell(
+                      onTap: startRecording,
+                      child: Icon(Icons.mic, color: Colors.blue, size: 30),
                     ),
                   ),
                 ],

@@ -107,22 +107,16 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                         Get.to(() => BroodStockScreen());
                       }
                     },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          banner.url,
-                          width: double.infinity,
-                          height: heightCarousel,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              // ignore: deprecated_member_use
-                              Container(color: Colors.grey.withOpacity(.3)),
-                        ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        banner.url,
+                        width: double.infinity,
+                        height: heightCarousel,
+                        fit: BoxFit.fill,
+                        errorBuilder: (_, __, ___) =>
+                            // ignore: deprecated_member_use
+                            Container(color: Colors.grey.withOpacity(.3)),
                       ),
                     ),
                   );
@@ -132,12 +126,9 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                   onTap: () {
                     Get.to(() => FullScreenVideoPlayer(videoUrl: banner.url));
                   },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: VideoPlayerBanner(url: banner.url,height: heightCarousel,),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: VideoPlayerBanner(url: banner.url, height: heightCarousel),
                   ),
                 );
               },

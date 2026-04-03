@@ -38,8 +38,9 @@ class VehicleAvaibalityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isActive = status.toLowerCase() == 'in transit' ||
-        status.toLowerCase() == 'in progress';
+    final isActive = status.toLowerCase() == 'in journey' ||
+        status.toLowerCase() == 'in progress' ||
+        status.toLowerCase() == 'in journey';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

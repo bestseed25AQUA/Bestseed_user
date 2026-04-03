@@ -1,30 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
+import 'package:sms_autofill/sms_autofill.dart';
 import 'package:seedsuser/app/auth/controller/otp_verify_controller.dart';
-import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String phoneNumber;
-  final String otp; // OTP received from API
 
   const OtpVerificationScreen({
     super.key,
     required this.phoneNumber,
-    required this.otp,
   });
 
   @override
   State<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
 }
 
-class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
+class _OtpVerificationScreenState extends State<OtpVerificationScreen>
+    with CodeAutoFill {
   late TextEditingController _otpController;
   final OtpVerifyController otpController = Get.put(OtpVerifyController());
 
@@ -32,21 +29,50 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   void initState() {
     super.initState();
 
-    // Autofill OTP from API
-    _otpController = TextEditingController(text: '');
+    _otpController = TextEditingController();
 
     otpController.phoneNumber.value = widget.phoneNumber;
-    // otpController.otp.value = widget.otp; // set OTP in controller
+    otpController.otp.value = '';
 
     // Start the 2-minute timer since OTP was just sent
     otpController.startResendTimer();
+
+    // Log app signature for backend verification
+    SmsAutoFill().getAppSignature.then((signature) {
+      debugPrint('SMS App Signature: $signature');
+    });
+
+    // Listen for incoming SMS and auto-fill OTP (regex matches 6-digit code)
+    listenForCode(smsCodeRegexPattern: '\\d{6}');
   }
 
-  // @override
-  // void dispose() {
-  //   _otpController.dispose();
-  //   super.dispose();
-  // }
+  void _extractAndFillOtp(String message) {
+    // Match 6-digit code from SMS like: "<#> Your Best Seed verification code is 123456"
+    final regex = RegExp(r'\b(\d{6})\b');
+    final match = regex.firstMatch(message);
+    if (match != null) {
+      final otpCode = match.group(1)!;
+      _otpController.text = otpCode;
+      otpController.otp.value = otpCode;
+      setState(() {});
+    }
+  }
+
+  @override
+  void codeUpdated() {
+    // Called when SMS is received and code is extracted
+    if (code != null && code!.isNotEmpty) {
+      _extractAndFillOtp(code!);
+    }
+  }
+
+  @override
+  void dispose() {
+    cancel(); // Stop listening for SMS
+    unregisterListener();
+    _otpController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +105,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             ),
             const SizedBox(height: 30),
 
-            // OTP Input (pre-filled)
+            // OTP Input
             PinCodeTextField(
               appContext: context,
               length: 6,
@@ -98,6 +124,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               ),
               onChanged: (value) {
                 otpController.otp.value = value;
+              },
+              onCompleted: (value) {
+                // Auto-verify when all 6 digits are filled
+                otpController.verifyOtp();
               },
             ),
 

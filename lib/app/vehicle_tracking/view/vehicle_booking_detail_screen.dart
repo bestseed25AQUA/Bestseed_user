@@ -40,13 +40,14 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
       "1": 'Pending',
       "2": 'Confirmed',
       "3": 'Driver Assigned',
-      "4": 'In Transit',
+      "4": 'In Journey',
       "5": 'Delivered',
       "6": 'Cancelled',
       "Pending": 'Pending',
       "Confirmed": 'Confirmed',
       "Driver_assigned": 'Driver Assigned',
-      "In_progress": 'In Transit',
+      "In_progress": 'In Journey',
+      "In_journey": 'In Journey',
       "Delivered": 'Delivered',
       "Cancelled": 'Cancelled',
     };
@@ -66,7 +67,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
     return status == "3";
   }
 
-  bool isInProgress(String status) {
+  bool isInJourney(String status) {
     return status == "4";
   }
 
@@ -515,7 +516,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
                   if (s.title != 'delivered')
                     Container(
                       width: 2,
-                      height: s.title.contains('progress') ? 45 : 30,
+                      height: s.title.contains('progress') || s.title.contains('journey') ? 45 : 30,
                       color: s.completed == 1 ? Colors.green : Colors.grey,
                     ),
                 ],
@@ -540,7 +541,7 @@ class _BookingDetailsScreenState extends State<BookingDetailsScreen> {
                       ),
                     ),
                     SizedBox(height: 5),
-                    if (s.title.contains('progress'))
+                    if (s.title.contains('progress') || s.title.contains('journey'))
                       InkWell(
                         onTap: ontapCheckVehicleStatus,
                         child: Text(

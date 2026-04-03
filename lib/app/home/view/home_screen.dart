@@ -221,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 _homeBannerController.fetchBannersTop();
                                 await _homeController.changeHomeData(
                                   _homeController.selectedCategoryId.value,
-                                  _locationController.selectedLocationId.value,
+                                _locationController.selectedLocationId.value,
                                 );
                               },
                               child: const HomePage(),

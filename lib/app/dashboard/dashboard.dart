@@ -632,7 +632,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   height: isSelected ? 26 : 22,
                                   width: isSelected ? 26 : 22,
                                   color: isSelected
-                                      ? AppColors.primary
+                                      ? (index == 2 ? null : AppColors.primary)
                                       : Colors.grey.shade500,
                                   errorBuilder: (_, __, ___) =>
                                       const SizedBox(height: 22, width: 22),

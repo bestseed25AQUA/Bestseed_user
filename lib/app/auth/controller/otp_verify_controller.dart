@@ -107,14 +107,22 @@ class OtpVerifyController extends GetxController {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print("=======token at login time=========");
-        print('=====${data['token'].toString()}====');
+        // Extract token — check common response structures
+        final token = data['token'] ?? data['access_token'] ?? data['data']?['token'];
+        final mobile = data['mobile'] ?? data['data']?['mobile'] ?? phoneNumber.value;
+
+        debugPrint("=======token at login time=========");
+        debugPrint('=====token: $token====');
+
         // Save token & mobile locally
-        if (data['token'] != null) {
+        if (token != null) {
           await AuthLocalStorage.saveUserData(
-            token: data['token'],
-            mobile: data['mobile'] ?? phoneNumber.value,
+            token: token.toString(),
+            mobile: mobile.toString(),
           );
+          debugPrint("Token saved successfully");
+        } else {
+          debugPrint("WARNING: No token found in response! Full response: ${response.body}");
         }
 
         CustomToast.success("OTP verified successfully");

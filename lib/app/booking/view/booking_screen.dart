@@ -914,7 +914,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
       statusColor = const Color(0xFF10B981);
       statusBg = const Color(0xFFD1FAE5);
       statusIcon = Icons.check_circle_outline_rounded;
-    } else if (statusLower == "in transit" || statusLower == "in progress") {
+    } else if (statusLower == "in journey" || statusLower == "in progress" || statusLower == "in journey") {
       statusColor = const Color(0xFF3B82F6);
       statusBg = const Color(0xFFDBEAFE);
       statusIcon = Icons.local_shipping_rounded;

@@ -6,7 +6,6 @@ import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/booking_hatchery_widget.dart';
 import 'package:seedsuser/app/home/view/vehicle_availability_detail_screen.dart';
 import 'package:seedsuser/app/model/vehicle_available_model.dart';
-import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 import 'package:seedsuser/app/utils/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -24,7 +23,6 @@ class VehicleHatcheryCardWidget extends StatefulWidget {
 }
 
 class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
-  bool isPressed = false;
   late PageController _pageController;
   int _currentPage = 0;
 
@@ -50,32 +48,17 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
     super.dispose();
   }
 
-  final SeedsPriceController controller = Get.put(SeedsPriceController());
-
   @override
   Widget build(BuildContext context) {
     final hatchery = widget.vehicleAvailability;
-    final validImages =
-        hatchery.images; // Images are already filtered in the model
-
-      print("Valid Images: $validImages");
+    final validImages = hatchery.images;
+    // Use branch if available, otherwise fall back to location
+    final String? displayBranch = (hatchery.branchName?.isNotEmpty ?? false)
+        ? hatchery.branchName
+        : hatchery.locationName;
+    final bool hasBranch = displayBranch?.isNotEmpty ?? false;
 
     return GestureDetector(
-      onTapDown: (_) {
-        setState(() {
-          isPressed = true;
-        });
-      },
-      onTapUp: (_) {
-        setState(() {
-          isPressed = false;
-        });
-      },
-      onTapCancel: () {
-        setState(() {
-          isPressed = false;
-        });
-      },
       onTap: () {
         Get.to(
           () => VehicleAvailabilityDetailScreen(
@@ -83,40 +66,40 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
           ),
         );
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeInOut,
+      child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16.0),
-          border: Border.all(color: Colors.grey.shade200),
           boxShadow: [
             BoxShadow(
-              // ignore: deprecated_member_use
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 3,
-              spreadRadius: 1,
-              offset: const Offset(1, 1),
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image carousel with auto-scroll
+            // Image section with available date badge
             Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(10.0),
               child: Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                     child: SizedBox(
-                      height: 110,
+                      height: 140,
                       width: double.infinity,
                       child: validImages.isEmpty
-                          ? Container(color: Colors.grey.withOpacity(.2))
+                          ? Container(
+                              color: Colors.grey.withOpacity(.08),
+                              child: Center(
+                                child: Icon(Icons.image_outlined,
+                                    size: 40, color: Colors.grey[300]),
+                              ),
+                            )
                           : validImages.length == 1
                           ? (_isVideo(validImages.first))
                               ? InlineVideoPlayer(
@@ -126,17 +109,20 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
                               : Image.network(
                                   validImages.first,
                                   width: double.infinity,
-                                  height: 110,
+                                  height: 140,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, _, __) =>
-                                      Container(color: Colors.grey.withOpacity(.2)),
+                                  errorBuilder: (context, _, __) => Container(
+                                    color: Colors.grey.withOpacity(.08),
+                                    child: Center(
+                                      child: Icon(Icons.broken_image,
+                                          size: 40, color: Colors.grey[300]),
+                                    ),
+                                  ),
                                 )
                           : PageView.builder(
                               controller: _pageController,
                               onPageChanged: (index) {
-                                setState(() {
-                                  _currentPage = index;
-                                });
+                                setState(() => _currentPage = index);
                               },
                               itemCount: validImages.length,
                               itemBuilder: (context, index) {
@@ -150,18 +136,57 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
                                 return Image.network(
                                   url,
                                   width: double.infinity,
-                                  height: 110,
+                                  height: 140,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, _, __) {
+                                  loadingBuilder:
+                                      (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
                                     return Container(
-                                      color: Colors.grey.withOpacity(.2),
+                                      color: Colors.grey.withOpacity(.08),
+                                      child: const Center(
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2),
+                                      ),
                                     );
                                   },
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: Colors.grey.withOpacity(.08),
+                                  ),
                                 );
                               },
                             ),
                     ),
                   ),
+                  // Available date badge on image
+                  if (hatchery.availableOn != null)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xff25A652),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.check_circle,
+                                color: Colors.white, size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              formatDate(hatchery.availableOn ?? ''),
+                              style: GoogleFonts.roboto(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   // Image indicator dots
                   if (validImages.length > 1)
                     Positioned(
@@ -189,168 +214,154 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
                 ],
               ),
             ),
-            // ✅ Details Section
+
+            // Content section
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Location routing visualization for vehicle
                   if (hatchery.locations.isNotEmpty)
-                    _buildLocationRouting(
-                      hatchery.locations.cast<VehicleLocation>(),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _buildLocationRouting(
+                        hatchery.locations.cast<VehicleLocation>(),
+                      ),
                     ),
 
-                  const SizedBox(height: 8),
+                  // Vehicle name
+                  Text(
+                    hatchery.vehicleName,
+                    style: GoogleFonts.roboto(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF1A1A2E),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
 
-                  // Header Row
+                  // Category name + Branch
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-
                     children: [
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          hatchery.hatcheryName,
+                      if (hatchery.categoryName != null)
+                        Text(
+                          hatchery.categoryName!,
                           style: GoogleFonts.roboto(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            color: Colors.grey[600],
                           ),
                         ),
-                      ),
-                      SizedBox(width: 16),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Color(0xff3A7D51),
-                          borderRadius: BorderRadius.circular(30.0),
+                      if (hatchery.categoryName != null && hasBranch)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: Icon(Icons.circle,
+                              size: 4, color: Colors.grey[400]),
                         ),
+                      if (hasBranch)
+                        Flexible(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.business,
+                                  size: 13, color: Colors.grey[500]),
+                              const SizedBox(width: 3),
+                              Flexible(
+                                child: Text(
+                                  displayBranch!,
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 13,
+                                    color: Colors.grey[600],
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Available on date - prominent display
+                  if (hatchery.availableOn != null &&
+                      hatchery.availableOn!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Container(
+                        width: double.infinity,
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 2,
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xff25A652).withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xff25A652).withOpacity(0.2),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(
-                              Icons.check_circle,
-                              color: Colors.white,
-                              size: 18,
+                            const Icon(Icons.event_available,
+                                size: 16, color: Color(0xff25A652)),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Available on ',
+                              style: GoogleFonts.roboto(
+                                fontSize: 13,
+                                color: const Color(0xff25A652),
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                            const SizedBox(width: 6),
-                            SizedBox(
-                              width: MediaQuery.of(context).size.width * .4,
-                              child: Text(
-                                "Available on ${formatDate(hatchery.availableOn ?? '')}",
-                                style: GoogleFonts.roboto(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                            Text(
+                              formatDate(hatchery.availableOn!),
+                              style: GoogleFonts.roboto(
+                                fontSize: 13,
+                                color: const Color(0xff25A652),
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Location & Branch
-                  Row(
-                    children: [
-                      if (hatchery.locationName?.isNotEmpty ?? false)
-                        Expanded(
-                          child: _buildInfoRow(
-                            Icons.location_on,
-                            hatchery.locationName ?? '',
-                          ),
-                        ),
-                      if (hatchery.branchName?.isNotEmpty ?? false)
-                        Expanded(
-                          child: _buildInfoRow(
-                            Icons.business,
-                            hatchery.branchName ?? '',
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  if (hatchery.availableSpace != null)
-                    _buildAvailableSpace(hatchery.availableSpace),
-                  const SizedBox(height: 8),
-                  if (hatchery.availableOn != null) ...[
-                    const SizedBox(height: 4),
-
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final screenWidth = MediaQuery.of(context).size.width;
-                        final fontScale = screenWidth < 360 ? 11.0 : 12.5;
-
-                        return Row(
-                          children: [
-                            // START DATE (no border)
-                            SizedBox(
-                              width: constraints.maxWidth * 0.49,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  "Start Date ${_getStartDate(hatchery.availableOn)}",
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.roboto(
-                                    fontSize: fontScale,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.grey[800],
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(width: 6),
-
-                            // END DATE (with border)
-                            SizedBox(
-                              width: constraints.maxWidth * 0.48,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  "End Date ${_getEndDate(hatchery.availableOn, days: 3)}",
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.roboto(
-                                    fontSize: fontScale - 0.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
                     ),
-                  ],
+
+                  // Info chips row
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      if (hatchery.availableSpace != null &&
+                          hatchery.availableSpace! > 0)
+                        _buildLabeledChip(
+                          'Space Available',
+                          '${hatchery.availableSpace} seeds',
+                          Icons.inventory_2_outlined,
+                        ),
+                      if (hatchery.locationName?.isNotEmpty ?? false)
+                        _buildLabeledChip(
+                          'Location',
+                          hatchery.locationName!,
+                          Icons.location_on,
+                        ),
+                      if (hatchery.startDate != null)
+                        _buildLabeledChip(
+                          'Start Date',
+                          _formatFullDate(hatchery.startDate!),
+                          Icons.calendar_today,
+                        ),
+                      if (hatchery.endDate != null)
+                        _buildLabeledChip(
+                          'End Date',
+                          _formatFullDate(hatchery.endDate!),
+                          Icons.calendar_today,
+                        ),
+                    ],
+                  ),
+
                   const SizedBox(height: 12),
+
+                  // Action buttons
                   Row(
                     children: [
                       _actionButton(
@@ -359,8 +370,8 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
                         color: AppColors.primary,
                         onTap: () => _makePhoneCall(hatchery.callUrl),
                         borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          bottomLeft: Radius.circular(16),
+                          topLeft: Radius.circular(14),
+                          bottomLeft: Radius.circular(14),
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -379,8 +390,8 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
                         icon: 'assets/images/Lightning.png',
                         color: AppColors.primary,
                         borderRadius: const BorderRadius.only(
-                          topRight: Radius.circular(16),
-                          bottomRight: Radius.circular(16),
+                          topRight: Radius.circular(14),
+                          bottomRight: Radius.circular(14),
                         ),
                         onTap: () {
                           showModalBottomSheet(
@@ -422,129 +433,131 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
     );
   }
 
-  DateTime? _parseDate(String? date) {
-    if (date == null || date.isEmpty) return null;
-    try {
-      return DateTime.parse(date);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  String _getStartDate(String? availableOn) {
-    final date = _parseDate(availableOn);
-    if (date == null) return '';
-    return DateFormat('dd/MM/yyyy').format(date);
-  }
-
-  String _getEndDate(String? availableOn, {int days = 3}) {
-    final date = _parseDate(availableOn);
-    if (date == null) return '';
-    final endDate = date.add(Duration(days: days));
-    return DateFormat('dd/MM/yyyy').format(endDate);
-  }
-
   Widget _buildLocationRouting(List<VehicleLocation> locations) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Build rows dynamically based on how locations wrap
-        LayoutBuilder(
-          builder: (context, constraints) {
-            return Wrap(
-              spacing: 6,
-              runSpacing: 8,
-              children: [
-                // Truck icon at the start
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.local_shipping,
-                        size: 16,
-                        color: AppColors.primary,
-                      ),
-                    ],
-                  ),
-                ),
-                // Generate location chips with arrows
-                ...List.generate(locations.length, (index) {
-                  final location = locations[index];
-                  final isLast = index == locations.length - 1;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Wrap(
+          spacing: 6,
+          runSpacing: 8,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                Icons.local_shipping,
+                size: 16,
+                color: AppColors.primary,
+              ),
+            ),
+            ...List.generate(locations.length, (index) {
+              final location = locations[index];
+              final isLast = index == locations.length - 1;
 
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Arrow before location (except for first one)
-                      if (index > 0)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Icon(
-                            Icons.arrow_forward,
-                            size: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      // Location chip
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isLast
-                              ? AppColors.primary.withOpacity(0.1)
-                              : Colors.grey[100],
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: isLast
-                                ? AppColors.primary.withOpacity(0.3)
-                                : Colors.grey[300]!,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.location_on,
-                              size: 14,
-                              color: isLast
-                                  ? AppColors.primary
-                                  : Colors.grey[600],
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              location.name,
-                              style: GoogleFonts.roboto(
-                                fontSize: 11,
-                                fontWeight: isLast
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                                color: isLast
-                                    ? AppColors.primary
-                                    : Colors.grey[700],
-                              ),
-                            ),
-                          ],
-                        ),
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (index > 0)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        Icons.arrow_forward,
+                        size: 14,
+                        color: Colors.grey[600],
                       ),
-                    ],
-                  );
-                }),
-              ],
-            );
-          },
-        ),
-      ],
+                    ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isLast
+                          ? AppColors.primary.withOpacity(0.1)
+                          : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: isLast
+                            ? AppColors.primary.withOpacity(0.3)
+                            : Colors.grey[300]!,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          size: 14,
+                          color: isLast
+                              ? AppColors.primary
+                              : Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          location.name,
+                          style: GoogleFonts.roboto(
+                            fontSize: 11,
+                            fontWeight: isLast
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                            color: isLast
+                                ? AppColors.primary
+                                : Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            }),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildLabeledChip(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7FA),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.primary),
+          const SizedBox(width: 5),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.roboto(
+                  fontSize: 9,
+                  color: Colors.grey[500],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                value,
+                style: GoogleFonts.roboto(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1A1A2E),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -589,6 +602,15 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
     );
   }
 
+  String _formatFullDate(String dateString) {
+    try {
+      DateTime date = DateFormat("yyyy-MM-dd").parse(dateString);
+      return DateFormat("dd/MM/yyyy").format(date);
+    } catch (e) {
+      return dateString;
+    }
+  }
+
   Future<void> _makePhoneCall(String? url) async {
     if (url == null) return;
     final Uri uri = Uri.parse(url);
@@ -607,59 +629,6 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
       ).showSnackBar(const SnackBar(content: Text("Cannot launch URL")));
     }
   }
-
-  Widget _buildInfoRow(IconData icon, String label) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: AppColors.primary),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            label,
-            style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[600]),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAvailableSpace(int? space) {
-    if (space == null || space <= 0) {
-      return const SizedBox.shrink();
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.inventory_2, size: 18, color: Colors.green),
-          const SizedBox(width: 6),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "$space seeds",
-                style: GoogleFonts.roboto(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                "No. of Space available",
-                style: GoogleFonts.roboto(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 String formatDate(String dateString) {
@@ -667,6 +636,6 @@ String formatDate(String dateString) {
     DateTime date = DateFormat("yyyy-MM-dd").parse(dateString);
     return DateFormat("dd MMM").format(date);
   } catch (e) {
-    return dateString; // fallback (no crash)
+    return dateString;
   }
 }

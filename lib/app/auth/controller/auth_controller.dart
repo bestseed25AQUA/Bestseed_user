@@ -36,7 +36,6 @@ class AuthController extends GetxController {
         Get.to(
           () => OtpVerificationScreen(
             phoneNumber: phoneNumber.value,
-            otp: data['otp_debug'].toString(),
           ),
         );
 
