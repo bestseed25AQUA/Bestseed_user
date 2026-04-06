@@ -140,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen>
                 final categories = _homeController.categories;
                 if (categories.isEmpty || _tabController == null) {
                   return DefaultTabController(
-                    length: categories.length,
+                    length: 5,
                     child: TabBar(
                       tabAlignment: TabAlignment.start,
                       isScrollable: true,
@@ -214,7 +214,6 @@ class _HomeScreenState extends State<HomeScreen>
                         child: const HomePage(),
                       ),
                       ...categories
-                          .take(4)
                           .map(
                             (e) => CustomRefereshIndicator(
                               onRefresh: () async {

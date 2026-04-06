@@ -125,10 +125,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
               onChanged: (value) {
                 otpController.otp.value = value;
               },
-              onCompleted: (value) {
-                // Auto-verify when all 6 digits are filled
-                otpController.verifyOtp();
-              },
             ),
 
             const SizedBox(height: 30),

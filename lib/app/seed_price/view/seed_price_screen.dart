@@ -14,11 +14,12 @@ import 'package:seedsuser/app/model/category_model.dart';
 import 'package:seedsuser/app/model/location_model.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
+import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 import 'package:seedsuser/app/seed_price/widget/seed_price_banner_widget.dart';
 import 'package:seedsuser/app/seed_price/widget/seed_wanted_banner_widget.dart';
 import 'package:seedsuser/app/utils/app_size.dart';
-import 'package:seedsuser/app/wanted/view/wanted_screen.dart';
+
 import 'package:seedsuser/app/model/price_model.dart';
 
 class SeedPricesScreen extends StatefulWidget {
@@ -29,6 +30,7 @@ class SeedPricesScreen extends StatefulWidget {
 
 class _SeedPricesScreenState extends State<SeedPricesScreen> {
   final SeedsPriceController controller = Get.put(SeedsPriceController());
+  final HomeBannerController bannerController = Get.find<HomeBannerController>();
   final ScrollController _priceScrollController = ScrollController();
   bool _dialogShown = false;
 
@@ -217,21 +219,30 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 6),
-                InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () {
-                    Get.to(WantedCropBuyersScreen());
-                  },
-                  child: ClipRRect(
+                Obx(() {
+                  if (bannerController.bannersSeedPrice.isEmpty) {
+                    return const SizedBox();
+                  }
+                  final banner = bannerController.bannersSeedPrice.first;
+                  return ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.asset(
-                      'assets/images/wanted_banner.png',
+                    child: Image.network(
+                      banner.url,
                       width: MediaQuery.of(context).size.width * .9,
                       height: 110,
                       fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return CustomShimmer(
+                          width: MediaQuery.of(context).size.width * .9,
+                          height: 110,
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) =>
+                          const SizedBox(),
                     ),
-                  ),
-                ),
+                  );
+                }),
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 0,

@@ -144,16 +144,14 @@ class VehicleTrackingController extends GetxController {
   Rx<SpecificVehicleTrackingResponse?> specificVehicle =
       Rx<SpecificVehicleTrackingResponse?>(null);
 
-  Future<void> fetchSpecificVehicleTracking(String vehicleId) async {
+  Future<void> fetchSpecificVehicleTracking(String vehicleId, {bool silent = false}) async {
     try {
-      specificLoading.value = true;
+      if (!silent) specificLoading.value = true;
 
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/vehicle_tracking/$vehicleId",
         headers: await buildHeader(),
       );
-
-      print("Specific Vehicle Res: ${response.body}");
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
@@ -166,10 +164,7 @@ class VehicleTrackingController extends GetxController {
       print("❌ Error: $e");
       print(s);
     } finally {
-      // if (specificVehicle.value == null) {
-      //   // specificVehicleTrackingDummyData();
-      // }
-      specificLoading.value = false;
+      if (!silent) specificLoading.value = false;
     }
   }
 

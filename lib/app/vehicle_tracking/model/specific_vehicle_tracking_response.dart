@@ -10,10 +10,21 @@ class SpecificVehicleTrackingResponse {
   });
 
   factory SpecificVehicleTrackingResponse.fromJson(Map<String, dynamic> json) {
+    TrackingData? trackingData;
+
+    // Legacy format: { "data": { ... tracking fields ... } }
+    if (json['data'] != null && json['data'] is Map) {
+      trackingData = TrackingData.fromJson(json['data']);
+    }
+    // New format: { "booking": {...}, "timeline": [...], "route_waypoints": [...] }
+    else if (json['booking'] != null && json['booking'] is Map) {
+      trackingData = TrackingData.fromBookingResponse(json);
+    }
+
     return SpecificVehicleTrackingResponse(
       status: json['status'] ?? false,
       message: json['message'] ?? '',
-      data: json['data'] != null ? TrackingData.fromJson(json['data']) : null,
+      data: trackingData,
     );
   }
 
@@ -64,6 +75,60 @@ class TrackingData {
     this.routeWaypoints = const [],
   });
 
+  /// Parse from new API format: { "booking": {...}, "timeline": [...], "route_waypoints": [...] }
+  factory TrackingData.fromBookingResponse(Map<String, dynamic> json) {
+    final booking = json['booking'] as Map<String, dynamic>;
+    final pickup = booking['pickup'] as Map<String, dynamic>? ?? {};
+    final destination = booking['destination'] as Map<String, dynamic>? ?? {};
+    final currentLocation = booking['current_location'] as Map<String, dynamic>? ?? {};
+    final driver = booking['driver'] as Map<String, dynamic>? ?? {};
+
+    return TrackingData(
+      vehicleId: driver['driver_id'] ?? 0,
+      bookingId: booking['booking_id'] ?? 0,
+      travelCost: booking['price']?.toString() ?? 'N/A',
+      expectedDelivery: booking['delivery_datetime']?.toString() ?? 'N/A',
+      pickup: LocationPoint(
+        name: pickup['location_name'] ?? '',
+        lat: double.tryParse(pickup['lat']?.toString() ?? '') ?? 0,
+        lng: double.tryParse(pickup['lng']?.toString() ?? '') ?? 0,
+        updatedAt: pickup['vehicle_started_date'],
+      ),
+      drop: LocationPoint(
+        name: destination['location_name'] ?? '',
+        lat: double.tryParse(destination['lat']?.toString() ?? '') ?? 0,
+        lng: double.tryParse(destination['lng']?.toString() ?? '') ?? 0,
+      ),
+      driverLocation: LocationPoint(
+        name: currentLocation['location_name'] ?? '',
+        lat: double.tryParse(currentLocation['lat']?.toString() ?? '') ?? 0,
+        lng: double.tryParse(currentLocation['lng']?.toString() ?? '') ?? 0,
+        updatedAt: currentLocation['updated_at'],
+      ),
+      driverDetails: DriverDetails(
+        driverName: driver['driver_name'] ?? '',
+        driverPhone: driver['driver_mobile'] ?? '',
+        vehicleNumber: driver['vehicle_number'] ?? '',
+        driverImage: '',
+      ),
+      deliveryUpdates: DeliveryUpdates(
+        deliveryExpected: booking['delivery_datetime'] ?? '',
+        note: booking['vendor_booking_description'] ?? '',
+      ),
+      timeline: (json['timeline'] as List<dynamic>?)
+              ?.map((e) => TimelineItem.fromJson(e))
+              .toList() ??
+          [],
+      vendorMobile: null,
+      vehicleDescription: booking['vendor_vehicle_description']?.toString(),
+      inProgressAt: pickup['in_progress_at']?.toString(),
+      routeWaypoints: (json['route_waypoints'] as List<dynamic>?)
+              ?.map((e) => RouteWaypoint.fromJson(e))
+              .toList() ??
+          [],
+    );
+  }
+
   factory TrackingData.fromJson(Map<String, dynamic> json) {
     return TrackingData(
       vehicleId: json['vehicle_id'] ?? 0,
@@ -112,8 +177,10 @@ class LocationPoint {
   final double lat;
   final double lng;
   final String? updatedAt;
+  final bool isMoving;
+  final double speedKmh;
 
-  LocationPoint({required this.name, required this.lat, required this.lng, this.updatedAt,});
+  LocationPoint({required this.name, required this.lat, required this.lng, this.updatedAt, this.isMoving = true, this.speedKmh = 0,});
 
   factory LocationPoint.fromJson(Map<String, dynamic> json) {
     return LocationPoint(
@@ -121,10 +188,12 @@ class LocationPoint {
       lat: (json['lat'] ?? 0).toDouble(),
       lng: (json['lng'] ?? 0).toDouble(),
       updatedAt: json['updated_at'],
+      isMoving: json['is_moving'] ?? true,
+      speedKmh: (json['speed_kmh'] ?? 0).toDouble(),
     );
   }
 
-  Map<String, dynamic> toJson() => {"name": name, "lat": lat, "lng": lng, "updated_at": updatedAt, };
+  Map<String, dynamic> toJson() => {"name": name, "lat": lat, "lng": lng, "updated_at": updatedAt, "is_moving": isMoving, "speed_kmh": speedKmh, };
 }
 
 // ------------------------------------------------------------

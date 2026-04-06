@@ -95,14 +95,17 @@ class OtpVerifyController extends GetxController {
 
       final body = {"mobile": phoneNumber.value, "otp_code": otp.value};
 
-      http.Response response = await postRequest(
-        endPoint: "${NetworkConfig.baseURL}/farmer/verify-otp",
-        body: body,
-        headers: {'Content-Type': 'application/json'},
-      );
+      // Use http.post directly to avoid the global 401 interceptor
+      // which redirects to login on wrong OTP
+      http.Response response = await http
+          .post(
+            Uri.parse("${NetworkConfig.baseURL}/farmer/verify-otp"),
+            body: jsonEncode(body),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 30));
 
       debugPrint("Verify OTP Response: ${response.body}");
-       
 
       final data = jsonDecode(response.body);
 

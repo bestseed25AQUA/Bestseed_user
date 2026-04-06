@@ -78,5 +78,10 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Disable Impeller to fix image decoding failures on OnePlus/OxygenOS devices -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
     </application>
 </manifest>

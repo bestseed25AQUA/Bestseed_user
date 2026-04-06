@@ -7,7 +7,7 @@ class NetworkConfig {
       // "http://192.168.0.104:8000/api";
       "https://bestseed.in/api";
 
-  static const imageURL = "http://bestseed.in";
+  static const imageURL = "https://bestseed.in";
   // static const imageURL = "http://127.0.0.1:8000";
 
   static const googleApiKey = 'AIzaSyBkrsDyM5XzvbiOjgzrQ2grE7q1MhE1XZQ';

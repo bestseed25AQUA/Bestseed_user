@@ -4,7 +4,10 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
-import 'package:seedsuser/app/auth/view/splash_screen.dart'; 
+import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
+import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
+import 'package:seedsuser/app/auth/view/splash_screen.dart';
+import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/language/controller/language_controller.dart';
 import 'package:seedsuser/app/notification/notification_service.dart';
 import 'package:seedsuser/app/utils/app_size.dart';
@@ -24,25 +27,29 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   HttpOverrides.global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Force hybrid composition (AndroidViewSurface) — the default
+  // SurfaceProducer backend renders blank tiles on Adreno GPU devices.
+  final mapsImplementation = GoogleMapsFlutterPlatform.instance;
+  if (mapsImplementation is GoogleMapsFlutterAndroid) {
+    mapsImplementation.useAndroidViewSurface = true;
+  }
+
+  // Only do the minimum sync work before runApp so UI appears instantly.
+  // Firebase, notifications, and storage are initialized in the splash screen.
+  Get.put(LanguageController());
+  Get.put(HomeBannerController(), permanent: true);
+  runApp(const MyApp());
+}
+
+/// Called from SplashScreen to finish heavy async initialization.
+Future<void> initializeApp() async {
   await Firebase.initializeApp();
   await GetStorage.init();
 
-  // Initialize Notification Service
   final notificationService = NotificationService();
   await notificationService.initialize();
-
-  // Subscribe to broadcast topic for admin notifications
   await notificationService.subscribeToTopic('all_users');
-  
-
-  Get.put(LanguageController());
-  // SystemChrome.setSystemUIOverlayStyle(
-  //   const SystemUiOverlayStyle(
-  //     statusBarColor: AppColors.primary,
-  //     statusBarIconBrightness: Brightness.light,
-  //   ),
-  // );
-  runApp(const MyApp());
 }
 
 

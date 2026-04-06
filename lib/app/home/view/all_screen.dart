@@ -5,6 +5,7 @@ import 'package:seedsuser/app/best_deals/view/best_deals_screen.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:seedsuser/app/common/safe_network_image.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/farm_management/farm_home/farm_home_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
@@ -51,7 +52,7 @@ class _HomePageState extends State<HomePage>
   final _newsSpecificController = Get.put(NewsSpecificController());
   final _seedsPriceController = Get.put(SeedsPriceController());
   final _homeController = Get.put(HomeController());
-  final _homeBannerController = Get.put(HomeBannerController());
+  final _homeBannerController = Get.find<HomeBannerController>();
   final _hatcheryController = Get.put(HatcheryUpdatesController());
   final _farmListController = Get.put(FarmListController());
 
@@ -184,6 +185,8 @@ class _HomePageState extends State<HomePage>
   Widget _heroBanner() {
     return Obx(() {
       final bgBanners = _homeBannerController.bannersBackGround;
+      debugPrint('🔵 _heroBanner Obx: bgBanners.length=${bgBanners.length}, '
+          'isLoading=${_homeBannerController.isLoading.value}');
       if (bgBanners.isEmpty) {
         if (_homeBannerController.isLoading.value) {
           return Shimmer.fromColors(
@@ -204,6 +207,7 @@ class _HomePageState extends State<HomePage>
         );
       }
       final banner = bgBanners[0];
+      debugPrint('🔵 _heroBanner: type=${banner.type}, url=${banner.url}');
       if (banner.type == 'video') {
         return ClipRRect(
           borderRadius: const BorderRadius.only(
@@ -225,16 +229,18 @@ class _HomePageState extends State<HomePage>
         child: SizedBox(
           width: double.infinity,
           height: AppSize.height * .08,
-          child: FittedBox(
-            fit: BoxFit.fill,
-            child: Image.network(
-              banner.url,
-              errorBuilder: (_, __, ___) => Image.asset(
-                'assets/images/best_seed_bottom.png',
-                width: double.infinity,
-                fit: BoxFit.fill,
-                height: AppSize.height * .08,
-              ),
+          child: SafeNetworkImage(
+            imageUrl: banner.url,
+            width: double.infinity,
+            height: AppSize.height * .08,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => _shimmerBox(
+                double.infinity, AppSize.height * .08),
+            onFinalError: (context, url, error) => Image.asset(
+              'assets/images/best_seed_bottom.png',
+              width: double.infinity,
+              fit: BoxFit.cover,
+              height: AppSize.height * .08,
             ),
           ),
         ),
@@ -248,33 +254,46 @@ class _HomePageState extends State<HomePage>
   Widget _quickActionsSection() {
     return Obx(() {
       final section1Bg = _homeBannerController.bannersSection1Bg;
-      return Container(
-        decoration: section1Bg.isNotEmpty && section1Bg.first.type == 'image'
-            ? BoxDecoration(
-                image: DecorationImage(
-                  image: NetworkImage(section1Bg.first.url),
-                  fit: BoxFit.cover,
-                ),
-              )
-            : const BoxDecoration(color: Color(0xFFF5F7FA)),
-        child: Column(
-          children: [
-            const SizedBox(height: 14),
-            // Vehicle Banner
-            _vehicleBanner(),
-            const SizedBox(height: 14),
-            // Feature Grid
-            _featureGrid(),
-            const SizedBox(height: 14),
-          ],
-        ),
+      debugPrint('🟢 _quickActions Obx: section1Bg=${section1Bg.length}, '
+          'home=${_homeBannerController.bannersHome.length}, '
+          'spot=${_homeBannerController.bannersSpotHatcheries.length}, '
+          'farm=${_homeBannerController.bannersFarmManagement.length}');
+      return Stack(
+        children: [
+          if (section1Bg.isNotEmpty && section1Bg.first.type == 'image')
+            Positioned.fill(
+              child: SafeNetworkImage(
+                imageUrl: section1Bg.first.url,
+                fit: BoxFit.cover,
+              ),
+            )
+          else
+            Positioned.fill(child: Container(color: const Color(0xFFF5F7FA))),
+          Column(
+            children: [
+              const SizedBox(height: 14),
+              // Vehicle Banner
+              _vehicleBanner(),
+              const SizedBox(height: 14),
+              // Feature Grid
+              _featureGrid(),
+              const SizedBox(height: 14),
+            ],
+          ),
+        ],
       );
     });
   }
 
+
+
+
   Widget _vehicleBanner() {
     return Obx(() {
       final homeBanners = _homeBannerController.bannersHome;
+      debugPrint('🟡 _vehicleBanner: count=${homeBanners.length}, '
+          'isLoading=${_homeBannerController.isHomeLoading.value}'
+          '${homeBanners.isNotEmpty ? ", type=${homeBanners.first.type}, url=${homeBanners.first.url}" : ""}');
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: InkWell(
@@ -305,17 +324,14 @@ class _HomePageState extends State<HomePage>
                           width: double.infinity,
                           initDelay: 0,
                         )
-                      : Image.network(
-                          homeBanners.first.url,
+                      : SafeNetworkImage(
+                          imageUrl: homeBanners.first.url,
                           width: double.infinity,
                           height: AppSize.height * .15,
                           fit: BoxFit.cover,
-                          loadingBuilder: (context, child, progress) {
-                            if (progress == null) return child;
-                            return _shimmerBox(
-                                double.infinity, AppSize.height * .15);
-                          },
-                          errorBuilder: (_, __, ___) => Image.asset(
+                          placeholder: (context, url) => _shimmerBox(
+                              double.infinity, AppSize.height * .15),
+                          onFinalError: (_, __, ___) => Image.asset(
                             'assets/images/home_banner.jpeg',
                             width: double.infinity,
                             height: AppSize.height * .15,
@@ -338,82 +354,119 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _featureGrid() {
-    final double cardHeight = AppSize.height * .22;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          // Best Deals card
-          SizedBox(
+  final double cardHeight = AppSize.height * .22;
+
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: Row(
+      children: [
+        // Best Deals card
+        SizedBox(
+          height: cardHeight,
+          width: MediaQuery.of(context).size.width * .35,
+          child: _bestDealsCard(),
+        ),
+
+        const SizedBox(width: 10),
+
+        // Spot Hatcheries + Farm Management
+        Expanded(
+          child: SizedBox(
             height: cardHeight,
-            width: MediaQuery.of(context).size.width * .35,
-            child: _bestDealsCard(),
-          ),
-          const SizedBox(width: 10),
-          // Spot Hatcheries + Farm Management
-          Expanded(
-            child: SizedBox(
-              height: cardHeight,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: Obx(() {
-                      final spotIcons =
-                          _homeBannerController.bannersSpotHatcheries;
-                      final loading =
-                          _homeBannerController.isSpotLoading.value;
-                      return _featureCard(
-                        'Spot Hatcheries',
-                        'assets/images/hatchery_icon.png',
-                        () => Navigator.push(
-                            context, AppAnimations.fade(SpotHatcheryScreen())),
-                        networkImageUrl:
-                            spotIcons.isNotEmpty ? spotIcons.first.url : null,
-                        networkMediaType:
-                            spotIcons.isNotEmpty ? spotIcons.first.type : null,
-                        videoInitDelay: 1000,
-                        isLoading: loading,
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 10),
-                  Expanded(
-                    child: Obx(() {
-                      final farmIcons =
-                          _homeBannerController.bannersFarmManagement;
-                      final loading =
-                          _homeBannerController.isFarmLoading.value;
-                      return _featureCard(
-                        'Farm Management',
-                        'assets/images/farm.png',
-                        () {
-                          final farmData =
-                              _farmListController.farmList.value?.data;
-                          if (farmData != null && farmData.isNotEmpty) {
-                            Navigator.push(context,
-                                AppAnimations.fade(const FarmManagementScreen()));
-                          } else {
-                            Navigator.push(context,
-                                AppAnimations.fade(const InitialFarmScreen()));
-                          }
-                        },
-                        networkImageUrl:
-                            farmIcons.isNotEmpty ? farmIcons.first.url : null,
-                        networkMediaType:
-                            farmIcons.isNotEmpty ? farmIcons.first.type : null,
-                        videoInitDelay: 2000,
-                        isLoading: loading,
-                      );
-                    }),
-                  ),
-                ],
-              ),
+            child: Column(
+              children: [
+                // 🔹 Spot Hatcheries
+                Expanded(
+                  child: Obx(() {
+                    final spotIcons =
+                        _homeBannerController.bannersSpotHatcheries;
+
+                    final loading =
+                        _homeBannerController.isSpotLoading.value;
+
+                    return Column(
+                      children: [
+                        // 🔍 DEBUG TEXT
+                        Text(
+                          "Spot count: ${spotIcons.length}",
+                          style: const TextStyle(fontSize: 10),
+                        ),
+
+                        // 🔥 IMPORTANT: Expanded here
+                        Expanded(
+                          child: _featureCard(
+                            'Spot Hatcheries',
+                            'assets/images/hatchery_icon.png',
+                            () => Navigator.push(
+                              context,
+                              AppAnimations.fade(SpotHatcheryScreen()),
+                            ),
+                            networkImageUrl: spotIcons.isNotEmpty
+                                ? spotIcons.first.url
+                                : null,
+                            networkMediaType: spotIcons.isNotEmpty
+                                ? spotIcons.first.type
+                                : null,
+                            videoInitDelay: 1000,
+                            isLoading: loading,
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
+                ),
+
+                const SizedBox(height: 10),
+
+                // 🔹 Farm Management
+                Expanded(
+                  child: Obx(() {
+                    final farmIcons =
+                        _homeBannerController.bannersFarmManagement;
+
+                    final loading =
+                        _homeBannerController.isFarmLoading.value;
+
+                    return _featureCard(
+                      'Farm Management',
+                      'assets/images/farm.png',
+                      () {
+                        final farmData =
+                            _farmListController.farmList.value?.data;
+
+                        if (farmData != null && farmData.isNotEmpty) {
+                          Navigator.push(
+                            context,
+                            AppAnimations.fade(
+                                const FarmManagementScreen()),
+                          );
+                        } else {
+                          Navigator.push(
+                            context,
+                            AppAnimations.fade(
+                                const InitialFarmScreen()),
+                          );
+                        }
+                      },
+                      networkImageUrl: farmIcons.isNotEmpty
+                          ? farmIcons.first.url
+                          : null,
+                      networkMediaType: farmIcons.isNotEmpty
+                          ? farmIcons.first.type
+                          : null,
+                      videoInitDelay: 2000,
+                      isLoading: loading,
+                    );
+                  }),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   // ═══════════════════════════════════════════════════════════════════════
   // BEST DEALS CARD — left column with carousel
@@ -462,6 +515,8 @@ class _HomePageState extends State<HomePage>
             Expanded(
               child: Obx(() {
                 final banners = _homeBannerController.bannersMedicine;
+                debugPrint('🟣 _medicineBanners: count=${banners.length}'
+                    '${banners.isNotEmpty ? ", urls=${banners.map((b) => b.url).toList()}" : ""}');
                 if (banners.isEmpty) {
                   return Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -515,11 +570,13 @@ class _HomePageState extends State<HomePage>
                             padding: const EdgeInsets.only(top: 4),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(10),
-                              child: Image.network(
-                                banner.url,
+                              child: SafeNetworkImage(
+                                imageUrl: banner.url,
                                 fit: BoxFit.cover,
                                 width: double.infinity,
-                                errorBuilder: (_, __, ___) => Image.asset(
+                                placeholder: (context, url) =>
+                                    _shimmerBox(double.infinity, double.infinity),
+                                onFinalError: (_, __, ___) => Image.asset(
                                     'assets/images/fc_prawn.png',
                                     fit: BoxFit.cover),
                               ),
@@ -550,6 +607,11 @@ class _HomePageState extends State<HomePage>
     int videoInitDelay = 0,
     bool isLoading = false,
   }) {
+    final normalizedUrl = networkImageUrl?.trim();
+    final hasNetworkMedia = normalizedUrl != null && normalizedUrl.isNotEmpty;
+    debugPrint('🟠 _featureCard "$text": hasMedia=$hasNetworkMedia, '
+        'mediaType=$networkMediaType, url=$normalizedUrl, isLoading=$isLoading');
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -568,40 +630,55 @@ class _HomePageState extends State<HomePage>
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(14),
-          child: networkImageUrl != null
+          child: hasNetworkMedia
               ? networkMediaType == 'video'
                   ? LayoutBuilder(
                       builder: (context, constraints) {
                         return _AutoLoopBannerVideo(
-                          key: ValueKey(networkImageUrl),
-                          url: networkImageUrl,
+                          key: ValueKey(normalizedUrl),
+                          url: normalizedUrl,
                           height: constraints.maxHeight,
                           width: constraints.maxWidth,
                           initDelay: videoInitDelay,
                         );
                       },
                     )
-                  : Image.network(
-                      networkImageUrl,
+                  : SafeNetworkImage(
+                      imageUrl: normalizedUrl,
                       width: double.infinity,
                       height: double.infinity,
-                      fit: BoxFit.fill,
-                      loadingBuilder: (context, child, progress) {
-                        if (progress == null) return child;
-                        return _shimmerBox(double.infinity, double.infinity);
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) =>
+                          _shimmerBox(double.infinity, double.infinity),
+                      onFinalError: (_, url, error) {
+                        debugPrint(
+                          'Feature card image failed for "$text": '
+                          'url=$normalizedUrl, error=$error',
+                        );
+                        return _featureCardFallback(
+                          iconPath,
+                          text,
+                          fallbackText: 'hello',
+                        );
                       },
-                      errorBuilder: (_, __, ___) =>
-                          _featureCardFallback(iconPath, text),
                     )
               : isLoading
                   ? _shimmerBox(double.infinity, double.infinity)
-                  : _featureCardFallback(iconPath, text),
+                  : _featureCardFallback(
+                      iconPath,
+                      text,
+                      fallbackText: 'hello',
+                    ),
         ),
       ),
     );
   }
 
-  Widget _featureCardFallback(String iconPath, String text) {
+  Widget _featureCardFallback(
+    String iconPath,
+    String text, {
+    String? fallbackText,
+  }) {
     return Container(
       color: Colors.grey.shade50,
       child: Column(
@@ -610,7 +687,7 @@ class _HomePageState extends State<HomePage>
           Image.asset(iconPath, height: 36, fit: BoxFit.contain),
           const SizedBox(height: 4),
           Text(
-            text.replaceAll('\n', ' '),
+            (fallbackText ?? text).replaceAll('\n', ' '),
             style: GoogleFonts.roboto(
               fontSize: 12,
               fontWeight: FontWeight.w600,

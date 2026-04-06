@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'dart:async';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/auth/view/login_screen.dart';
 import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/dashboard/dashboard.dart';
 import 'package:seedsuser/app/notification/notification_service.dart';
-import 'package:seedsuser/app/updates/view/hatchery_details_screen.dart';
-import 'package:app_links/app_links.dart';
+import 'package:seedsuser/main.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -68,7 +66,8 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _checkLoginStatus() async {
-    await Future.delayed(const Duration(seconds: 3));
+    // Run heavy init (Firebase, notifications, storage) while splash animates
+    await initializeApp();
     String? token = await AuthLocalStorage.getToken();
 
     debugPrint("Splash token check: ${token != null && token.isNotEmpty ? 'Token found (${token.substring(0, token.length > 10 ? 10 : token.length)}...)' : 'No token'}");
