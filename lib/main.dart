@@ -50,11 +50,11 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
   @override
   Widget build(BuildContext context){
-    AppSize.init(context);
     return GetBuilder<LanguageController>(
       builder: (languageController) {
         return LayoutBuilder(
           builder: (context, constraints){
+            AppSize.init(context);
             final mediaQueryData = MediaQuery.of(context);
             return MediaQuery(
               data: mediaQueryData.copyWith(textScaler: TextScaler.linear(1.0)),

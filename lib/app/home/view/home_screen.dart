@@ -214,7 +214,6 @@ class _HomeScreenState extends State<HomeScreen>
                         child: const HomePage(),
                       ),
                       ...categories
-                          .take(4)
                           .map(
                             (e) => CustomRefereshIndicator(
                               onRefresh: () async {
