@@ -7,9 +7,47 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:209338267274:android:a647ffae465c004773df73",
+        "android_client_info": {
+          "package_name": "com.app.bestseed"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbnhIl-zpMkxRDm64XN5cdAxcPZjDkEeQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:209338267274:android:cea395611ed401df73df73",
         "android_client_info": {
           "package_name": "com.app.bestseeds"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbnhIl-zpMkxRDm64XN5cdAxcPZjDkEeQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:209338267274:android:af3639c18fe363bd73df73",
+        "android_client_info": {
+          "package_name": "com.example.bestseeds"
         }
       },
       "oauth_client": [],
