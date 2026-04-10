@@ -26,6 +26,10 @@ class BroodStockController extends GetxController {
   final defaultCategory = 'Tiger'.obs;
   final defaultMonthYear = ''.obs;
 
+  /// Tracks the month/year the user has explicitly selected (display string).
+  /// Empty means no user selection yet — fall back to defaultMonthYear.
+  final userSelectedMonthYear = ''.obs;
+
   /// Available months from API (dynamic)
   final availableMonths = <Map<String, String>>[].obs;
   final isMonthsLoading = false.obs;

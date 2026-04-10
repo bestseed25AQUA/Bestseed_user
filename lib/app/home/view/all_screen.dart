@@ -185,8 +185,6 @@ class _HomePageState extends State<HomePage>
   Widget _heroBanner() {
     return Obx(() {
       final bgBanners = _homeBannerController.bannersBackGround;
-      debugPrint('🔵 _heroBanner Obx: bgBanners.length=${bgBanners.length}, '
-          'isLoading=${_homeBannerController.isLoading.value}');
       if (bgBanners.isEmpty) {
         if (_homeBannerController.isLoading.value) {
           return Shimmer.fromColors(
@@ -207,7 +205,6 @@ class _HomePageState extends State<HomePage>
         );
       }
       final banner = bgBanners[0];
-      debugPrint('🔵 _heroBanner: type=${banner.type}, url=${banner.url}');
       if (banner.type == 'video') {
         return ClipRRect(
           borderRadius: const BorderRadius.only(
@@ -254,10 +251,6 @@ class _HomePageState extends State<HomePage>
   Widget _quickActionsSection() {
     return Obx(() {
       final section1Bg = _homeBannerController.bannersSection1Bg;
-      debugPrint('🟢 _quickActions Obx: section1Bg=${section1Bg.length}, '
-          'home=${_homeBannerController.bannersHome.length}, '
-          'spot=${_homeBannerController.bannersSpotHatcheries.length}, '
-          'farm=${_homeBannerController.bannersFarmManagement.length}');
       return Stack(
         children: [
           if (section1Bg.isNotEmpty && section1Bg.first.type == 'image')
@@ -291,9 +284,6 @@ class _HomePageState extends State<HomePage>
   Widget _vehicleBanner() {
     return Obx(() {
       final homeBanners = _homeBannerController.bannersHome;
-      debugPrint('🟡 _vehicleBanner: count=${homeBanners.length}, '
-          'isLoading=${_homeBannerController.isHomeLoading.value}'
-          '${homeBanners.isNotEmpty ? ", type=${homeBanners.first.type}, url=${homeBanners.first.url}" : ""}');
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: InkWell(
@@ -386,12 +376,6 @@ class _HomePageState extends State<HomePage>
 
                     return Column(
                       children: [
-                        // 🔍 DEBUG TEXT
-                        Text(
-                          "Spot count: ${spotIcons.length}",
-                          style: const TextStyle(fontSize: 10),
-                        ),
-
                         // 🔥 IMPORTANT: Expanded here
                         Expanded(
                           child: _featureCard(
@@ -479,11 +463,12 @@ class _HomePageState extends State<HomePage>
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          gradient: const LinearGradient(
-            colors: [Colors.white, Color(0xFFE8F6FF)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          // gradient: const LinearGradient(
+          //   colors: Colors.transparent,
+          //   begin: Alignment.topLeft,
+          //   end: Alignment.bottomRight,
+          // ),
+          color: Colors.transparent,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.06),
@@ -609,9 +594,6 @@ class _HomePageState extends State<HomePage>
   }) {
     final normalizedUrl = networkImageUrl?.trim();
     final hasNetworkMedia = normalizedUrl != null && normalizedUrl.isNotEmpty;
-    debugPrint('🟠 _featureCard "$text": hasMedia=$hasNetworkMedia, '
-        'mediaType=$networkMediaType, url=$normalizedUrl, isLoading=$isLoading');
-
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -643,22 +625,26 @@ class _HomePageState extends State<HomePage>
                         );
                       },
                     )
-                  : SafeNetworkImage(
-                      imageUrl: normalizedUrl,
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) =>
-                          _shimmerBox(double.infinity, double.infinity),
-                      onFinalError: (_, url, error) {
-                        debugPrint(
-                          'Feature card image failed for "$text": '
-                          'url=$normalizedUrl, error=$error',
-                        );
-                        return _featureCardFallback(
-                          iconPath,
-                          text,
-                          fallbackText: 'hello',
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        return SafeNetworkImage(
+                          imageUrl: normalizedUrl,
+                          width: constraints.maxWidth,
+                          height: constraints.maxHeight,
+                          fit: BoxFit.fill,
+                          placeholder: (context, url) => _shimmerBox(
+                              constraints.maxWidth, constraints.maxHeight),
+                          onFinalError: (_, url, error) {
+                            debugPrint(
+                              'Feature card image failed for "$text": '
+                              'url=$normalizedUrl, error=$error',
+                            );
+                            return _featureCardFallback(
+                              iconPath,
+                              text,
+                              fallbackText: 'hello',
+                            );
+                          },
                         );
                       },
                     )

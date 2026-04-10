@@ -281,7 +281,16 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                   if (currentPosition == null ||
                       currentPosition?.latitude == null ||
                       currentPosition?.longitude == null) {
-                    currentPosition = await getCurrentLocation();
+                    setState(() => addLocationLoading = true);
+                    currentPosition = await _getCurrentLocation();
+                    setState(() => addLocationLoading = false);
+                  }
+
+                  if (currentPosition == null) {
+                    CustomToast.show(
+                      message: 'Unable to fetch current location',
+                    );
+                    return;
                   }
 
                   if (currentPosition?.latitude != null &&

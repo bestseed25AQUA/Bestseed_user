@@ -40,37 +40,29 @@ class SafeNetworkImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (_isVideo) {
-      debugPrint('SafeNetworkImage[SKIP]: video URL $imageUrl');
+      
       return onFinalError?.call(context, imageUrl, Exception('video URL')) ??
           placeholder?.call(context, imageUrl) ??
           SizedBox(width: width, height: height);
     }
 
     // DEBUG: red border to see if widget has size
-    Widget child = Container(
+    Widget child = SizedBox(
       width: width,
       height: height,
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.red, width: 2),
-        color: Colors.yellow.withOpacity(0.3),
-      ),
       child: Image.network(
         imageUrl,
         fit: fit,
         gaplessPlayback: true,
         loadingBuilder: (ctx, child, loadingProgress) {
           if (loadingProgress == null) {
-            debugPrint('SafeNetworkImage[LOADED OK]: $imageUrl');
+            
             return child;
           }
-          return const Center(
-            child: CircularProgressIndicator(strokeWidth: 2),
-          );
+          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
         },
         errorBuilder: (ctx, error, stack) {
-          debugPrint(
-            'SafeNetworkImage[ERROR]: $imageUrl\n$error',
-          );
+         
           return Center(
             child: Text(
               'ERR',
@@ -126,7 +118,7 @@ class _IsolateFallbackState extends State<_IsolateFallback> {
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode != 200) {
-        debugPrint('SafeNetworkImage(fallback): HTTP ${response.statusCode} for $url');
+       
         return null;
       }
 
@@ -135,7 +127,7 @@ class _IsolateFallbackState extends State<_IsolateFallback> {
         _DecodeTask(response.bodyBytes),
       );
       if (pixels == null) {
-        debugPrint('SafeNetworkImage(fallback): decodeImage returned null for $url');
+       
         return null;
       }
 
@@ -174,8 +166,11 @@ class _IsolateFallbackState extends State<_IsolateFallback> {
           );
         }
 
-        return widget.onFinalError
-                ?.call(ctx, widget.imageUrl, Exception('decode failed')) ??
+        return widget.onFinalError?.call(
+              ctx,
+              widget.imageUrl,
+              Exception('decode failed'),
+            ) ??
             widget.placeholder?.call(ctx, widget.imageUrl) ??
             SizedBox(width: widget.width, height: widget.height);
       },

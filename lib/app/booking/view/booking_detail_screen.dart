@@ -464,33 +464,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                               ),
                               if ((s.label.toLowerCase() == "in progress" || s.label.toLowerCase() == "in journey" || s.label.toLowerCase() == "in journey") &&
                                   showVehicleButton)
-                                InkWell(
+                                _PulsingTrackButton(
                                   onTap: onTapCheckVehicleStatus,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.location_on_outlined,
-                                            size: 14,
-                                            color: AppColors.primary),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          "Track",
-                                          style: GoogleFonts.poppins(
-                                            color: AppColors.primary,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
                                 ),
                             ],
                           ),
@@ -1292,6 +1267,147 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         },
       ),
       isScrollControlled: true,
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Animated "Track" button used in the journey timeline.
+//
+// Self-contained stateful widget so the parent screen doesn't need to
+// add a TickerProviderStateMixin or manage extra animation state.
+// Continuously pulses two things:
+//   1. A halo behind the pill that fades from 30% → 0% opacity and grows
+//      slightly (live "ripple" feel)
+//   2. The pill background opacity from 10% → 25% (subtle attention pull)
+// Tap forwards to [onTap].
+class _PulsingTrackButton extends StatefulWidget {
+  final VoidCallback onTap;
+
+  const _PulsingTrackButton({required this.onTap});
+
+  @override
+  State<_PulsingTrackButton> createState() => _PulsingTrackButtonState();
+}
+
+class _PulsingTrackButtonState extends State<_PulsingTrackButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+  late final Animation<double> _opacity;
+  late final Animation<double> _bgOpacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+
+    final curve = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+
+    // Halo grows from 1.0× to 1.6× the pill size
+    _scale = Tween<double>(begin: 1.0, end: 1.6).animate(curve);
+
+    // Halo fades from 30% → 0%
+    _opacity = Tween<double>(begin: 0.30, end: 0.0).animate(curve);
+
+    // Pill background gently breathes between 10% → 25% → 10%
+    _bgOpacity = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.10, end: 0.25)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 0.25, end: 0.10)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 50,
+      ),
+    ]).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: widget.onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              // Pulsing halo behind the pill
+              Transform.scale(
+                scale: _scale.value,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: _opacity.value),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  // Match the pill's outer size so the halo grows from
+                  // exactly its edge.
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.location_on_outlined,
+                            size: 14, color: Colors.transparent),
+                        SizedBox(width: 4),
+                        Text(
+                          "Track",
+                          style: TextStyle(
+                            color: Colors.transparent,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // The actual visible pill
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: _bgOpacity.value),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.location_on_outlined,
+                        size: 14, color: AppColors.primary),
+                    const SizedBox(width: 4),
+                    Text(
+                      "Track",
+                      style: GoogleFonts.poppins(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

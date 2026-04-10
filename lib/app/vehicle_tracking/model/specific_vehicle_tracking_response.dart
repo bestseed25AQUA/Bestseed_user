@@ -43,6 +43,11 @@ class TrackingData {
   final int bookingId;
 
   final LocationPoint pickup;
+  // Admin-set pickup location (`vehicle_start_lat`/`lng`). May differ from
+  // `pickup` (which is the driver's actual journey-start position). Null
+  // when admin didn't set a separate pickup. Used by the customer app to
+  // draw the green "approach" line from admin-pickup → driver position.
+  final LocationPoint? adminPickup;
   final LocationPoint drop;
   final LocationPoint driverLocation;
 
@@ -62,6 +67,7 @@ class TrackingData {
     required this.vehicleId,
     required this.bookingId,
     required this.pickup,
+    this.adminPickup,
     required this.drop,
     required this.driverLocation,
     required this.driverDetails,
@@ -137,6 +143,16 @@ class TrackingData {
       expectedDelivery: json['expected_delivery']?.toString() ?? 'N/A',
 
       pickup: LocationPoint.fromJson(json['pickup']),
+      // admin_pickup is optional — only present when admin set vehicle_start_lat
+      // and it differs from the driver's actual journey start. Lat/lng can
+      // both be null in the API payload, in which case we expose null on
+      // the model so callers can short-circuit cleanly.
+      adminPickup: () {
+        final ap = json['admin_pickup'];
+        if (ap is! Map<String, dynamic>) return null;
+        if (ap['lat'] == null || ap['lng'] == null) return null;
+        return LocationPoint.fromJson(ap);
+      }(),
       drop: LocationPoint.fromJson(json['drop']),
       driverLocation: LocationPoint.fromJson(json['driver_location']),
 

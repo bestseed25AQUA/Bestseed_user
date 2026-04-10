@@ -5,9 +5,9 @@ class NetworkConfig {
   static const baseURL =
       // "https://antiquewhite-alpaca-433299.hostingersite.com/api";
       // "http://192.168.0.104:8000/api";
-      "https://bestseed.in/api";
+      "https://aqua.bestseed.in/api";
 
-  static const imageURL = "https://bestseed.in";
+  static const imageURL = "https://aqua.bestseed.in";
   // static const imageURL = "http://127.0.0.1:8000";
 
   static const googleApiKey = 'AIzaSyBkrsDyM5XzvbiOjgzrQ2grE7q1MhE1XZQ';

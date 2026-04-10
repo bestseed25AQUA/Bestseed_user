@@ -4,8 +4,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
-import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
-import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 import 'package:seedsuser/app/auth/view/splash_screen.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/language/controller/language_controller.dart';
@@ -28,12 +26,12 @@ void main() async {
   HttpOverrides.global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Force hybrid composition (AndroidViewSurface) — the default
-  // SurfaceProducer backend renders blank tiles on Adreno GPU devices.
-  final mapsImplementation = GoogleMapsFlutterPlatform.instance;
-  if (mapsImplementation is GoogleMapsFlutterAndroid) {
-    mapsImplementation.useAndroidViewSurface = true;
-  }
+  // Note: previously forced useAndroidViewSurface = true for Adreno GPU
+  // blank-tile workaround. Removed because it forces the OLD hybrid-composition
+  // backend, which causes the GoogleMap to stay blank for several minutes after
+  // the screen opens (polylines render but tiles never load until much later).
+  // The default TLHC SurfaceProducer backend in google_maps_flutter_android 2.18+
+  // is significantly faster and is now correct on Adreno devices.
 
   // Only do the minimum sync work before runApp so UI appears instantly.
   // Firebase, notifications, and storage are initialized in the splash screen.

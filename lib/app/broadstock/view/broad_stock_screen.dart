@@ -24,7 +24,9 @@ class BroodStockScreen extends StatefulWidget {
 
 class _BroodStockScreenState extends State<BroodStockScreen> {
   final BroodStockController controller = Get.put(BroodStockController());
-  RxString selectedMonthYear = "".obs;
+
+  // Convenience getter — keeps all references short.
+  RxString get selectedMonthYear => controller.userSelectedMonthYear;
 
   @override
   void initState() {
@@ -33,18 +35,24 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
   }
 
   void _initializeFilter() {
+    // Only set default when the user hasn't made a selection yet.
     ever(controller.availableMonths, (months) {
       if (months.isNotEmpty && selectedMonthYear.value.isEmpty) {
         _setDefaultMonth();
       }
     });
     ever(controller.defaultMonthYear, (value) {
-      _syncMonthYearFromController(value);
+      // Sync from API default only if the user hasn't picked anything yet.
+      if (selectedMonthYear.value.isEmpty) {
+        _syncMonthYearFromController(value);
+      }
     });
-    if (controller.defaultMonthYear.value.isNotEmpty) {
-      _syncMonthYearFromController(controller.defaultMonthYear.value);
-    } else if (controller.availableMonths.isNotEmpty) {
-      _setDefaultMonth();
+    if (selectedMonthYear.value.isEmpty) {
+      if (controller.defaultMonthYear.value.isNotEmpty) {
+        _syncMonthYearFromController(controller.defaultMonthYear.value);
+      } else if (controller.availableMonths.isNotEmpty) {
+        _setDefaultMonth();
+      }
     }
   }
 
@@ -235,7 +243,9 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
               itemLabel: (month) => month,
               hintText: "Month/Year",
               onChanged: (monthYear) {
-                selectedMonthYear.value = monthYear;
+                // Persist user's choice in the controller so tab switches
+                // don't reset it.
+                controller.userSelectedMonthYear.value = monthYear;
                 final matchingMonth = controller.availableMonths
                     .firstWhereOrNull((m) => m['display'] == monthYear);
                 if (matchingMonth != null) {
@@ -446,9 +456,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
               child: Row(
                 children: [
-                  if (!(data.status == BroodstockStatus.available &&
-                      data.availableOn.isEmpty))
-                    _buildStatusBadge(data),
+                  _buildStatusBadge(data),
                   const Spacer(),
                   Container(
                     padding: const EdgeInsets.all(6),
@@ -520,37 +528,39 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
     IconData icon;
     String label;
 
+    // The API stores the date in `available_on` as a single string like
+    // "Available on 05/04/2026" regardless of status. Extract just the date
+    // portion so each status can render its own prefix + the date.
+    final String dateOnly = data.availableOn
+        .replaceAll('Shortly Available on ', '')
+        .replaceAll('Shortly Available ', '')
+        .replaceAll('Available on ', '')
+        .replaceAll('Available ', '')
+        .trim();
+
     switch (data.status) {
       case BroodstockStatus.available:
-        String dateStr = data.availableOn
-            .replaceAll('Available on ', '')
-            .replaceAll('Available ', '')
-            .trim();
-        label = 'Available $dateStr';
+        label = dateOnly.isEmpty ? 'Available' : 'Available $dateOnly';
         bgColor = const Color(0xFFDCFCE7);
         textColor = const Color(0xFF166534);
         icon = Icons.check_circle_outline_rounded;
         break;
       case BroodstockStatus.comingSoon:
-        label = 'Coming Soon';
+        label = dateOnly.isEmpty ? 'Coming Soon' : 'Coming Soon $dateOnly';
         bgColor = const Color(0xFFDBEAFE);
         textColor = const Color(0xFF1E40AF);
         icon = Icons.schedule_rounded;
         break;
       case BroodstockStatus.upcoming:
-        label = 'Upcoming';
+        label = dateOnly.isEmpty ? 'Upcoming' : 'Upcoming $dateOnly';
         bgColor = const Color(0xFFF3E8FF);
         textColor = const Color(0xFF6B21A8);
         icon = Icons.upcoming_outlined;
         break;
       case BroodstockStatus.shortlyAvailable:
-        String dateStr = data.availableOn
-            .replaceAll('Shortly Available on ', '')
-            .replaceAll('Shortly Available ', '')
-            .replaceAll('Available on ', '')
-            .replaceAll('Available ', '')
-            .trim();
-        label = 'Shortly Available $dateStr';
+        label = dateOnly.isEmpty
+            ? 'Shortly Available'
+            : 'Shortly Available $dateOnly';
         bgColor = const Color(0xFFFFF7ED);
         textColor = const Color(0xFF9A3412);
         icon = Icons.timelapse_rounded;

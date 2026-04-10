@@ -56,12 +56,28 @@ class MapSectionWidget extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
             child: GoogleMap(
+              // Lite mode renders a static bitmap of the map instead of going
+              // through the AndroidView/hybrid-composition pipeline. This screen
+              // is just a tappable preview (the user taps to open FullScreenMapPage),
+              // so we don't need pan/zoom here. Lite mode loads instantly and
+              // avoids the multi-minute blank-tile issue caused by GoogleMap
+              // being embedded in a SingleChildScrollView.
+              liteModeEnabled: true,
               initialCameraPosition: CameraPosition(target: pickup, zoom: 11),
-        
+              // Disable interactions — this is a preview, not an interactive map.
+              zoomControlsEnabled: false,
+              zoomGesturesEnabled: false,
+              scrollGesturesEnabled: false,
+              rotateGesturesEnabled: false,
+              tiltGesturesEnabled: false,
+              myLocationButtonEnabled: false,
+              compassEnabled: false,
+              mapToolbarEnabled: false,
+
               onMapCreated: (controller) {
                 onMapCreated(controller);
               },
-        
+
               markers: {
                 Marker(
                   markerId: const MarkerId("pickup"),
