@@ -1,4 +1,4 @@
-package com.app.bestseeds
+package com.app.bestseed
 
 import io.flutter.embedding.android.FlutterActivity
 

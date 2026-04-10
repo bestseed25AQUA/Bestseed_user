@@ -16,6 +16,7 @@ import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
+import 'package:seedsuser/app/seed_price/view/seed_wanted_screen.dart';
 import 'package:seedsuser/app/seed_price/widget/seed_price_banner_widget.dart';
 import 'package:seedsuser/app/seed_price/widget/seed_wanted_banner_widget.dart';
 import 'package:seedsuser/app/utils/app_size.dart';
@@ -224,22 +225,25 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                     return const SizedBox();
                   }
                   final banner = bannerController.bannersSeedPrice.first;
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      banner.url,
-                      width: MediaQuery.of(context).size.width * .9,
-                      height: 110,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return CustomShimmer(
-                          width: MediaQuery.of(context).size.width * .9,
-                          height: 110,
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) =>
-                          const SizedBox(),
+                  return GestureDetector(
+                    onTap: () => Get.to(() => const SeedWantedScreen()),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        banner.url,
+                        width: MediaQuery.of(context).size.width * .9,
+                        height: 110,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return CustomShimmer(
+                            width: MediaQuery.of(context).size.width * .9,
+                            height: 110,
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) =>
+                            const SizedBox(),
+                      ),
                     ),
                   );
                 }),

@@ -33,8 +33,8 @@ void main() async {
   // The default TLHC SurfaceProducer backend in google_maps_flutter_android 2.18+
   // is significantly faster and is now correct on Adreno devices.
 
-  // Only do the minimum sync work before runApp so UI appears instantly.
-  // Firebase, notifications, and storage are initialized in the splash screen.
+  // Initialize GetStorage here so LanguageController.onInit() can read saved locale.
+  await GetStorage.init();
   Get.put(LanguageController());
   Get.put(HomeBannerController(), permanent: true);
   runApp(const MyApp());
