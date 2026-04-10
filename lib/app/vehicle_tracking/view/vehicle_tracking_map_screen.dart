@@ -28,6 +28,7 @@
 // Built lightweight reroute system (updates only remaining route)
 // Handled long-distance trips efficiently (1000km+ scalability)
 
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -42,15 +43,6 @@ import 'package:seedsuser/app/utils/google_maps_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:seedsuser/app/vehicle_tracking/controller/vehicle_tracking_controller.dart';
 import 'package:seedsuser/app/vehicle_tracking/model/specific_vehicle_tracking_response.dart';
-
-part 'parts/map_initialization.dart';
-part 'parts/map_route.dart';
-part 'parts/map_snap_pipeline.dart';
-part 'parts/map_speed_mode.dart';
-part 'parts/map_animation.dart';
-part 'parts/map_timeline_logic.dart';
-part 'parts/map_widgets.dart';
-part 'parts/map_timeline_widgets.dart';
 
 class VehicleTrackingMapScreen extends StatefulWidget {
   final String bookingId;
@@ -75,12 +67,27 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   // Default location (Hyderabad, India)
   static const LatLng _defaultLocation = LatLng(17.3850, 78.4867);
   static const Duration _liveTrackingPollInterval = Duration(seconds: 7);
+  static const Duration _routeRefreshInterval = Duration(minutes: 5);
+  // Minimum gap between two reroute API calls. 15 seconds is the
+  // responsive-but-safe lower bound: it prevents a flickering GPS from
+  // firing back-to-back reroutes (which would burn API quota and make
+  // the blue line flash), while still letting a real deviation produce
+  // a fresh blue route within about 1 poll interval.
   static const Duration _rerouteCooldown = Duration(seconds: 15);
-  static const Duration _markerAnimationStepDuration = Duration(milliseconds: 40);
-  static const int _markerAnimationSteps = 25; // 25 x 40ms = 1 second
+  static const Duration _markerAnimationStepDuration = Duration(
+    milliseconds: 40,
+  );
+  static const int _markerAnimationSteps = 25; // 25 × 40ms = 1 second
+  // Driver is considered "off route" the moment their perpendicular
+  // distance to the blue polyline exceeds this. 100 m is below the width
+  // of any parallel road, so legitimate lane drift / turn preparation
+  // won't trigger it, but a genuine wrong-turn onto a different road
+  // will. Mode-specific bumps happen in `_rerouteThreshold` below.
   static const double _polylineRerouteThresholdMeters = 100;
+  // Two consecutive polls (≈14 s at 7 s interval) of sustained deviation
+  // are enough to confirm it's a real wrong turn, not a GPS jitter.
+  // Previously was 3 polls which added an extra 7 s of delay.
   static const int _deviationsBeforeReroute = 2;
-  static const Duration _followAutoResumeDelay = Duration(seconds: 8);
 
   late CameraPosition _initialPosition;
   late LatLng _currentVehiclePosition;
@@ -92,15 +99,22 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
 
   Set<Polyline> _polylines = {};
 
+  // Track if map is expanded
   bool _isMapExpanded = false;
+
+  // Loading state for directions
   bool _isLoadingRoute = true;
 
   // Follow mode: camera tracks vehicle with bearing rotation
   bool _isFollowingVehicle = true;
-  bool _isProgrammaticCameraMove = false;
+  bool _isProgrammaticCameraMove = false; // distinguishes user drag vs our animateCamera
   static const double _followZoom = 16.5;
-  static const double _followTilt = 45.0;
+  static const double _followTilt = 45.0; // 3D perspective tilt
 
+  // Auto-resume follow mode after the user has stopped touching the map
+  // for this long. Without this, a single accidental pinch / pan during a
+  // long trip permanently abandons the truck off-screen.
+  static const Duration _followAutoResumeDelay = Duration(seconds: 8);
   Timer? _followResumeTimer;
 
   // Custom markers for small map (smaller size)
@@ -113,85 +127,155 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   BitmapDescriptor? _expandedPickupMarker;
   BitmapDescriptor? _expandedDestinationMarker;
 
-  // LatLng positions
+  // Store LatLng positions for reuse
   LatLng? _pickupLatLng;
+  // Home/pickup MARKER position. Prefers admin_pickup if admin set one
+  // (resolved by lat/lng or by geocoding the name). Falls back to
+  // _pickupLatLng (driver's actual journey start) when admin didn't set
+  // a separate pickup. Decoupled from _pickupLatLng so the route fetch
+  // can still use driver-start as the origin while the marker shows
+  // where admin intended.
   LatLng? _homeMarkerLatLng;
   LatLng? _currentLatLng;
   LatLng? _destinationLatLng;
   LatLng? _lastVehicleMarkerLatLng;
   double _lastVehicleBearing = 0;
 
-  // Segment-based snapping state
+  // Segment-based snapping: track which polyline segment the vehicle is on.
+  // Only search nearby segments (forward) instead of entire route.
   int _currentSegmentIndex = 0;
 
-  // Snap pipeline state
+  // ── SNAP STATE FOR THE PIPELINE ──
+  // Set on every successful snap. Used by:
+  //   - Bearing check  (_lastAcceptedSnap, raw vs snap direction agree?)
+  //   - Parallel filter (raw barely moved but snap jumped far?)
+  //   - Gap protection in render (_lastRenderedSnap)
   LatLng? _lastAcceptedSnap;
   LatLng? _lastAcceptedRaw;
   LatLng? _lastRenderedSnap;
 
-  // Snap idempotency cache
+  // ── SNAP IDEMPOTENCY CACHE ──
+  // _snapToRoute is called multiple times per render frame (animation
+  // steps × 25, plus marker build, plus polyline refresh). Without a
+  // cache, the second call with the same input would observe the
+  // side-effects of the first call — most importantly, Gate 5 buffers
+  // on the first call and confirms on the second, causing the marker
+  // and the polyline to render against different state. That's how
+  // "green cuts through buildings" and "blue where green should be"
+  // appear.
+  //
+  // Cache key is the raw input position. Cache miss → run the full
+  // pipeline once. Cache hit → return the same output, no gate
+  // re-evaluation, no state mutation.
   LatLng? _snapCacheInput;
   LatLng? _snapCacheOutput;
 
+  // Tracking data
   TrackingData? _trackingData;
+
+  // Estimated delivery time from vehicle to destination
   String _estimatedDuration = '';
 
+  // Intermediate route stops
   List<Map<String, dynamic>> _routeStops = [];
   DateTime? _routeStartTime;
   int _totalRouteDurationSeconds = 0;
 
+  // Full polyline data for sub-stop generation
   List<LatLng> _fullPolyline = [];
   List<double> _cumulativeDistances = [];
 
-  // Approach polyline (admin pickup -> driver start)
+  // ── APPROACH POLYLINE (pickup → driver) ──
+  // When the admin sets a pickup location but the driver actually starts
+  // somewhere else (e.g. admin set Vikarabad as pickup but the driver
+  // begins from Madhapur), we draw a separate green line connecting the
+  // admin pickup to the driver's starting position. Fetched once via
+  // Google Directions, drawn as its own polyline so the existing slice
+  // logic for the main route is left untouched.
   List<LatLng> _approachPolyline = [];
 
-  // GPS breadcrumbs (actual driven path)
+  // Actual GPS breadcrumbs — the real path the driver took.
+  // Used for the green completed polyline instead of Directions API route.
   List<LatLng> _driverBreadcrumbs = [];
   DateTime? _lastBreadcrumbTime;
   int _consecutiveDeviations = 0;
 
-  // Point buffer for jitter filtering
+  // Point buffer: hold 3+ points before committing to breadcrumbs.
+  // Removes jitter patterns completely — only commit when direction is confirmed
+  // across at least three consecutive consistent samples.
   List<LatLng> _pointBuffer = [];
+  // Minimum buffered points required before we trust the direction and commit
+  // them to the breadcrumb trail. Bumped from 2 → 3 because two points alone
+  // weren't enough to filter the small "square loop" jitter patterns we saw
+  // in cities (booking 547/548).
   static const int _minBufferCommitPoints = 3;
+  // Track if driver is stationary (from backend is_moving flag + local speed check)
   bool _driverIsMoving = true;
 
+  // ── ACTIVE-DROP GATING ──
+  // For multi-drop trips, this customer's booking is "active" only when the
+  // driver is actually serving it — meaning every earlier-priority drop has
+  // been completed. While earlier drops are still pending, the truck is
+  // serving someone else, so we hide the vehicle marker on this screen
+  // (otherwise the customer sees the truck moving toward another customer's
+  // drop and gets misled). True when no uncompleted earlier-priority drops
+  // exist in routeWaypoints.
   bool _isActiveDrop = true;
 
-  // Speed-based dynamic behavior
+  // Speed-based dynamic behavior: auto-adjusts for city vs highway.
+  // Updated every GPS poll. All thresholds derive from _currentMode.
   double _estimatedSpeedKmh = 0;
   LatLng? _lastSpeedCalcPos;
   DateTime? _lastSpeedCalcTime;
+  // Mode stability: prevent flickering between city/suburban/highway.
+  // Mode only changes after 3 consecutive polls agree on a new mode.
   int _currentMode = 0; // 0=city, 1=suburban, 2=highway
   int _pendingMode = 0;
   int _pendingModeCount = 0;
-  static const int _modeChangeThreshold = 3;
+  static const int _modeChangeThreshold = 3; // polls needed to switch
 
   // Expandable sub-timelines
   int? _expandedSegmentIndex;
   Map<int, List<Map<String, dynamic>>> _subStopsCache = {};
   int? _loadingSegment;
 
-  // Fixed timeline (Layer 1: Business milestones - NEVER changes)
+  // ── FIXED TIMELINE (Layer 1: Business milestones — NEVER changes) ──
+  // Generated once from full pickup→destination route, persisted to storage.
   List<Map<String, dynamic>> _fixedStops = [];
   bool _isLoadingFixedStops = true;
   bool _fixedStopsGenerated = false;
-  int _currentStopIndex = -1;
-  Map<int, String> _passedStopTimes = {};
+  int _currentStopIndex = -1; // -1 = not started, 0 = at/past first stop, etc.
+  Map<int, String> _passedStopTimes = {}; // Locked times for passed stops
 
-  // Full pickup->destination polyline for fixed stop generation
+  // Full pickup→destination polyline (for fixed stop generation)
   List<LatLng> _fullRoutePolyline = [];
   List<double> _fullRouteCumulativeDistances = [];
   int _fullRouteDurationSeconds = 0;
 
-  // Live remaining duration to drop
+  // Live "remaining duration to drop" from Google. Refreshed on every
+  // route fetch / reroute / refresh poll. Used by `_getTimeForFraction`
+  // to anchor FUTURE stop ETAs on `now + remainingDuration` instead of
+  // `journey_start + fraction × original`, so a halt at any stop pushes
+  // every downstream stop forward by the halt duration automatically.
   int _remainingDurationSeconds = 0;
 
-  // Preserved historical green path across reroutes
+  // Preserved historical green path — the portion of the journey the
+  // truck has already driven, as it was *before* the most recent reroute.
+  //
+  // When a reroute fires, `_fullPolyline` gets replaced with the new
+  // `currentDriver → drop` route, wiping the original pickup→truck
+  // geometry. Without a snapshot, the segment-slice green would
+  // degenerate to `[fullPolyline[0], snap]` on the very next poll —
+  // the customer would see the travelled line DISAPPEAR back to a
+  // tiny stub at the truck, losing everything the driver had covered.
+  //
+  // On every reroute we append the current segment slice
+  // (`_fullPolyline.sublist(0, _currentSegmentIndex + 1)` + current snap)
+  // to this list BEFORE replacing `_fullPolyline`. The live refresh
+  // then prepends this list to the new segment slice so the green
+  // line continuously covers pickup → deviation point → current truck
+  // position.
   final List<LatLng> _preservedGreenPath = [];
-
-  // Highest fraction driver has ever reached on _fullRoutePolyline
-  double _maxDriverFractionReached = 0.0;
 
   // Refresh state
   DateTime _lastRefreshedAt = DateTime.now();
@@ -210,6 +294,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   void initState() {
     super.initState();
 
+    // Setup pulse animation for vehicle icon
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -219,11 +304,19 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       end: 2.5,
     ).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeOut));
 
+    // Update "Updated X mins ago" text every 30 seconds
     _timeAgoTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) setState(() {});
     });
 
-    // Initialise first, then start live polling so there's no race condition
+    // Initialise FIRST, then start live polling. Without this, the live
+    // timer fires concurrently with the (slow, async) Google Directions
+    // call inside `_initializeMap` and both flows mutate `_currentLatLng`,
+    // `_currentSegmentIndex`, and the snap pipeline state in interleaved
+    // order. Result: on screen reopen the first frame shows the BLUE
+    // line covering the travelled portion (because the slice index hasn't
+    // been seeded yet) until the race resolves a few polls later. Deferring
+    // the timer guarantees init runs to completion before the first poll.
     _initializeMap().whenComplete(() {
       if (!mounted) return;
       _liveTrackingTimer = Timer.periodic(_liveTrackingPollInterval, (_) {
@@ -232,6 +325,2007 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         }
       });
     });
+  }
+
+  Future<void> _initializeMap() async {
+    // Fetch tracking data
+    await controller.fetchSpecificVehicleTracking(widget.bookingId);
+
+    _trackingData = controller.specificVehicle.value?.data;
+    if (_trackingData == null) {
+      setState(() {
+        _isLoadingRoute = false;
+      });
+      return;
+    }
+
+    final driverLoc = _trackingData!.driverLocation;
+
+    // Get current vehicle position from API
+    if (driverLoc.lat != 0 && driverLoc.lng != 0) {
+      _currentVehiclePosition = LatLng(driverLoc.lat, driverLoc.lng);
+    } else {
+      _currentVehiclePosition = _defaultLocation;
+    }
+
+    // Set initial camera position - will be updated to fit all markers
+    _initialPosition = CameraPosition(
+      target: _currentVehiclePosition,
+      zoom: 10.0,
+    );
+
+    // Load custom markers first (both sizes)
+    await _loadCustomMarkers();
+
+    // Then setup markers and routes
+    await _setupMarkersAndPolylines();
+
+    setState(() {
+      _lastRefreshedAt = DateTime.now();
+    });
+  }
+
+  Future<void> _refreshData({bool forceRouteRefresh = false}) async {
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+
+    try {
+      await controller.fetchSpecificVehicleTracking(widget.bookingId, silent: true);
+      final newData = controller.specificVehicle.value?.data;
+
+      if (newData != null) {
+        final oldPickup = _trackingData?.pickup;
+        final oldDrop = _trackingData?.drop;
+        final previousVehiclePosition = _currentLatLng;
+        _trackingData = newData;
+
+        final driverLoc = newData.driverLocation;
+        if (driverLoc.lat != 0 && driverLoc.lng != 0) {
+          final newPos = LatLng(driverLoc.lat, driverLoc.lng);
+
+          // ── STALE-POLL GUARD ──
+          // The backend rejects spike updates with HTTP 422, leaving
+          // bookings.driver_lat unchanged. The next poll then returns the
+          // same coordinates we already processed last time. If we let
+          // those re-flow through the pipeline, the snap can drift, the
+          // marker can flicker between two positions, and a long
+          // rejection streak followed by an accepted point produces a
+          // visible "snap back to pickup → straight line forward" jump.
+          //
+          // Skip processing entirely when the new position is within ~2 m
+          // of the previously rendered position. The marker holds, no
+          // index update, no breadcrumb noise. We still tick the refresh
+          // timestamp so the "Updated X ago" UI keeps moving.
+          if (previousVehiclePosition != null &&
+              _haversineMeters(previousVehiclePosition, newPos) < 2) {
+            // Same coordinates as last poll — backend has nothing new.
+            _lastRefreshedAt = DateTime.now();
+            return; // exits the try block; finally still runs
+          }
+
+          _currentVehiclePosition = newPos;
+          _currentLatLng = newPos;
+
+          // Update speed estimate for dynamic thresholds (city vs highway)
+          _updateSpeedEstimate(newPos);
+
+          // ── Use backend is_moving flag to stop drawing when stationary ──
+          _driverIsMoving = newData.driverLocation.isMoving;
+
+          // ── Collect GPS breadcrumb (actual path driven) ──
+          // Pipeline: filter → validate → buffer → snap → commit
+          // CITY: strict snapping, never raw GPS, higher thresholds
+          // HIGHWAY: relaxed snapping, allow raw GPS, lower thresholds
+          final now = DateTime.now();
+          final secSinceLast = _lastBreadcrumbTime != null
+              ? now.difference(_lastBreadcrumbTime!).inSeconds
+              : 999;
+          if (_driverBreadcrumbs.isEmpty) {
+            // Seed with pickup + current position (always snapped)
+            if (_pickupLatLng != null) {
+              _driverBreadcrumbs.add(_pickupLatLng!);
+            }
+            _driverBreadcrumbs.add(_snapToRoute(newPos));
+            _lastBreadcrumbTime = now;
+            _pointBuffer.clear();
+          } else if (!_driverIsMoving) {
+            // ── STATIONARY: don't update polyline at all ──
+            // Backend confirmed driver is not moving — skip breadcrumb entirely.
+            // This prevents GPS drift from drawing noise while parked/stopped.
+            _pointBuffer.clear();
+          } else {
+            final lastPos = _driverBreadcrumbs.last;
+            final meters = _haversineMeters(lastPos, newPos);
+
+            // ── STEP 1: Filter — skip if not real movement ──
+            if (meters < _breadcrumbMinDistance) {
+              // Below noise floor — skip entirely
+            }
+            // ── STEP 2: Validate — reject impossible movements ──
+            else {
+              // Speed gate: 56 m/s ≈ 200 km/h, matches the backend cap.
+              // Was 28 m/s (~100 km/h) which falsely flagged cars/buses
+              // doing 130-150 km/h on expressways as spikes.
+              final isSpeedSpike = secSinceLast > 0 && secSinceLast <= 60 && meters / secSinceLast > 56;
+              final isAbsoluteSpike = meters > 500 && secSinceLast < 5;
+
+              // Direction jitter: reject sharp reversals (>120°) on short hops
+              bool isJitter = false;
+              if (_driverBreadcrumbs.length >= 2 && meters < 200) {
+                final prev = _driverBreadcrumbs[_driverBreadcrumbs.length - 2];
+                final curr = _driverBreadcrumbs.last;
+                final anglePrev = _getBearing(prev, curr);
+                final angleNext = _getBearing(curr, newPos);
+                var diff = (angleNext - anglePrev).abs();
+                if (diff > 180) diff = 360 - diff;
+                // CITY: reject >100° reversals (tighter), HIGHWAY: >140° (more lenient for curves)
+                final jitterThreshold = _currentMode == 0 ? 100.0 : (_currentMode == 1 ? 120.0 : 140.0);
+                if (diff > jitterThreshold) isJitter = true;
+              }
+
+              // Backward movement rejection: ignore backward moves <30m
+              bool isBackward = false;
+              if (_driverBreadcrumbs.length >= 2 && meters < 30) {
+                final prev = _driverBreadcrumbs[_driverBreadcrumbs.length - 2];
+                final prevToCurr = _getBearing(prev, _driverBreadcrumbs.last);
+                final currToNew = _getBearing(_driverBreadcrumbs.last, newPos);
+                var diff = (currToNew - prevToCurr).abs();
+                if (diff > 180) diff = 360 - diff;
+                if (diff > 150) isBackward = true; // going backwards
+              }
+
+              // Multi-point cluster suppression: check last 3 points, not just last 1
+              bool isZigZag = false;
+              if (_driverBreadcrumbs.length >= 3 && meters < 50) {
+                // Check if returning to 2-points-ago position
+                final pt2 = _driverBreadcrumbs[_driverBreadcrumbs.length - 2];
+                final pt3 = _driverBreadcrumbs[_driverBreadcrumbs.length - 3];
+                final distBackTo2 = _haversineMeters(newPos, pt2);
+                final distBackTo3 = _haversineMeters(newPos, pt3);
+                if (distBackTo2 < 15 || distBackTo3 < 15) isZigZag = true;
+              }
+
+              // Freeze near pickup: first 50m from pickup, GPS is unstable
+              bool isTooCloseToPickup = false;
+              if (_pickupLatLng != null && _driverBreadcrumbs.length <= 3) {
+                final distFromPickup = _haversineMeters(newPos, _pickupLatLng!);
+                if (distFromPickup < 50) isTooCloseToPickup = true;
+              }
+
+              // ── LARGE-DISTANCE GUARD ──
+              // If this point is far from the last committed breadcrumb
+              // (e.g. >120m city / >250m highway), do NOT trust it on its
+              // own. Force it through the buffer so the next point can
+              // confirm the direction. A single far point with no
+              // confirmation = either GPS spike or driver teleport.
+              final largeJumpThreshold = _currentMode == 0 ? 120.0 : (_currentMode == 1 ? 200.0 : 350.0);
+              final bool isLargeJump = meters > largeJumpThreshold;
+
+              if (isSpeedSpike || isAbsoluteSpike || isJitter || isZigZag || isBackward) {
+                debugPrint('🚫 GPS filter: ${meters.toStringAsFixed(0)}m in ${secSinceLast}s '
+                    'spike=$isSpeedSpike jitter=$isJitter zigzag=$isZigZag backward=$isBackward');
+                _pointBuffer.clear(); // bad point invalidates buffer
+              } else if (isLargeJump && _pointBuffer.isEmpty) {
+                // First sighting of a large jump — buffer it but don't
+                // commit. The next point must confirm the direction.
+                debugPrint('⏳ Large jump (${meters.toStringAsFixed(0)}m) '
+                    '— buffering, waiting for confirmation');
+                _pointBuffer.add(newPos);
+              } else if (isTooCloseToPickup) {
+                // Don't draw breadcrumbs yet — GPS still settling
+              } else {
+                // ── STEP 3: Buffer — delay commit until 3 consistent points ──
+                _pointBuffer.add(newPos);
+
+                // Wait for at least [_minBufferCommitPoints] (3) buffered
+                // points before committing anything. Two points alone weren't
+                // enough to filter the small "square loop" jitter we saw in
+                // bookings 547/548 — three is the sweet spot.
+                if (_pointBuffer.length >= _minBufferCommitPoints) {
+                  // Check buffer consistency: all points should flow in same direction
+                  bool bufferConsistent = true;
+                  for (int i = 1; i < _pointBuffer.length; i++) {
+                    final d = _haversineMeters(_pointBuffer[i - 1], _pointBuffer[i]);
+                    if (d < 5) { bufferConsistent = false; break; } // clustered
+                  }
+                  if (_pointBuffer.length >= 3) {
+                    final b1 = _getBearing(_pointBuffer[0], _pointBuffer[1]);
+                    final b2 = _getBearing(_pointBuffer[1], _pointBuffer[2]);
+                    var angleDiff = (b2 - b1).abs();
+                    if (angleDiff > 180) angleDiff = 360 - angleDiff;
+                    if (angleDiff > 90) bufferConsistent = false;
+                  }
+
+                  if (bufferConsistent) {
+                    // ── STEP 4: Snap — mode-dependent strategy ──
+                    for (final bufferedPos in _pointBuffer) {
+                      final snapped = _snapToRoute(bufferedPos);
+                      final snapDist = _haversineMeters(bufferedPos, snapped);
+
+                      if (_currentMode == 0) {
+                        // ── CITY MODE: ALWAYS use snapped point, NEVER raw GPS ──
+                        // If snap fails in city → hold last known good position
+                        // This prevents lines cutting through buildings
+                        if (snapDist <= _snapThreshold) {
+                          _driverBreadcrumbs.add(snapped);
+                        }
+                        // else: snap failed in city — hold position, don't add raw
+                      } else if (_currentMode == 1) {
+                        // ── SUBURBAN MODE: prefer snapped, fallback to raw if deviated ──
+                        if (snapDist <= _snapThreshold) {
+                          _driverBreadcrumbs.add(snapped);
+                        } else if (_consecutiveDeviations >= _deviationsBeforeReroute) {
+                          _driverBreadcrumbs.add(bufferedPos); // confirmed off-route
+                        }
+                      } else {
+                        // ── HIGHWAY MODE: allow raw GPS (GPS accurate, roads wide) ──
+                        if (snapDist <= _snapThreshold) {
+                          _driverBreadcrumbs.add(snapped);
+                        } else {
+                          _driverBreadcrumbs.add(bufferedPos); // raw OK on highway
+                        }
+                      }
+                    }
+                    _lastBreadcrumbTime = now;
+                    _pointBuffer.clear();
+                  } else {
+                    // Buffer inconsistent — keep only latest point, discard old noise
+                    _pointBuffer = [_pointBuffer.last];
+                  }
+                }
+
+                if (_driverBreadcrumbs.length > 500) {
+                  _downsampleBreadcrumbs();
+                }
+              }
+            }
+          }
+        }
+
+        // Check if route endpoints changed (rare — usually only driver moves)
+        final pickupChanged = oldPickup?.name != newData.pickup.name;
+        final dropChanged = oldDrop?.name != newData.drop.name;
+        final routeChanged = pickupChanged || dropChanged;
+
+        if (routeChanged) {
+          // Route rebuild — reset route-related state
+          _routeStops = [];
+          _routeStartTime = null;
+          _totalRouteDurationSeconds = 0;
+          _estimatedDuration = '';
+          _fullPolyline = [];
+          _cumulativeDistances = [];
+          _approachPolyline = [];
+          _currentSegmentIndex = 0;
+          _expandedSegmentIndex = null;
+          _subStopsCache = {};
+          _loadingSegment = null;
+          // Reset fixed timeline so it regenerates from new full route
+          _fixedStopsGenerated = false;
+          _fixedStops = [];
+          _currentStopIndex = -1;
+          _fullRoutePolyline = [];
+          _fullRouteCumulativeDistances = [];
+          _fullRouteDurationSeconds = 0;
+          _passedStopTimes = {};
+          // Clear cached stops so they regenerate
+          SharedPreferences.getInstance().then((prefs) {
+            prefs.remove('fixed_stops_${widget.bookingId}');
+            prefs.remove('stop_index_${widget.bookingId}');
+            prefs.remove('passed_stop_times_${widget.bookingId}');
+          });
+
+          // Only reset breadcrumbs if PICKUP changed (new journey origin).
+          // If only destination changed, keep the driven path — it's still
+          // valid history.
+          if (pickupChanged) {
+            _driverBreadcrumbs = [];
+            _lastBreadcrumbTime = null;
+            _pointBuffer.clear();
+            // Historical reroute snapshots belong to the PREVIOUS journey.
+            // A new pickup invalidates all of them.
+            _preservedGreenPath.clear();
+            // The fraction-watermark belongs to the PREVIOUS route.
+            // Resetting allows the new route's fraction search to start
+            // from 0 instead of being pinned to the old route's progress.
+            _maxDriverFractionReached = 0.0;
+            // Reset the snap pipeline state — a new journey origin means
+            // previous bearing/parallel references are stale.
+            _lastAcceptedSnap = null;
+            _lastAcceptedRaw = null;
+            _lastRenderedSnap = null;
+            _snapCacheInput = null;
+            _snapCacheOutput = null;
+            // Wipe any leftover green-polyline cache from older app versions
+            // (the timeline-from-API system that was removed) so nothing stale
+            // resurfaces on the new journey.
+            SharedPreferences.getInstance().then((prefs) {
+              prefs.remove('green_polyline_v2_${widget.bookingId}');
+              prefs.remove('green_signature_v2_${widget.bookingId}');
+              prefs.remove('green_polyline_${widget.bookingId}');
+              prefs.remove('green_signature_${widget.bookingId}');
+            });
+          }
+
+          await _setupMarkersAndPolylines();
+        } else {
+          // Silent update — only move vehicle marker if REAL movement detected.
+          // GPS noise (< threshold) is ignored to prevent:
+          //   - truck flickering back and forth
+          //   - wrong bearing/direction from noise
+          //   - green line not growing (breadcrumbs skip noise)
+          //
+          // PHYSICAL movement wins over the backend's `is_moving` flag.
+          // The backend computes `is_moving` as "net displacement >30 m from
+          // a 60 s-old tracking row", which can report false negatives when:
+          //   - Only 1-2 tracking rows exist (no 60 s-old anchor yet)
+          //   - Backend is rejecting spike updates so the old anchor stays
+          //   - Driver is crawling in traffic (<30 m/min)
+          //
+          // Previously `!is_moving` short-circuited the position update and
+          // snapped the marker back to `animateFrom`, which froze the marker
+          // at its last-rendered position even while new GPS was arriving.
+          // Now we let `moveDist >= _breadcrumbMinDistance` be the primary
+          // gate — if the GPS actually moved farther than the noise floor,
+          // animate to the new position regardless of what the flag says.
+          final animateFrom = _lastVehicleMarkerLatLng ?? previousVehiclePosition;
+          if (animateFrom != null && _currentLatLng != null) {
+            final moveDist = _haversineMeters(animateFrom, _currentLatLng!);
+            if (moveDist >= _breadcrumbMinDistance) {
+              // Real physical movement above the noise floor — animate
+              // regardless of the backend's `is_moving` flag.
+              _animateVehicleMarker(animateFrom, _currentLatLng!);
+            } else {
+              // Move under the noise floor — hold position to avoid
+              // jitter. This is also where `is_moving=false` lands for
+              // genuinely parked trucks (their moves are under threshold).
+              _currentLatLng = animateFrom;
+              _refreshCompletedPolylineFromTimeline();
+            }
+          } else {
+            _buildMarkers();
+            _refreshCompletedPolylineFromTimeline();
+          }
+
+          // Update driver location timestamp for route start recalculation
+          if (driverLoc.updatedAt != null && driverLoc.updatedAt!.isNotEmpty) {
+            try {
+              _routeStartTime = DateTime.parse(driverLoc.updatedAt!);
+            } catch (_) {}
+          }
+
+          // ── REROUTE DETECTION (consecutive deviation) ──
+          // Track deviation over multiple polls to avoid false triggers.
+          // Only reroutes blue line — green breadcrumbs stay untouched.
+          if (_currentLatLng != null) {
+            final polylinePoints = _polylines
+                .where((p) => p.polylineId.value != 'completed')
+                .expand((p) => p.points)
+                .toList();
+            if (polylinePoints.isNotEmpty) {
+              final deviation = _minDistanceToPolyline(
+                _currentLatLng!,
+                polylinePoints,
+              );
+
+              // ── REROUTE GUARD: never reroute when slow or stationary ──
+              // A parked truck with drifting GPS will look "deviated" even
+              // though the driver hasn't moved. Reroutes triggered in that
+              // state burn API quota AND can snap blue to a wrong road if
+              // GPS happens to drift onto a parallel street.
+              //
+              // Trust the app's own exponentially-smoothed speed estimate
+              // (`_estimatedSpeedKmh`), NOT the backend's `is_moving` flag.
+              // The flag is false-negative-prone (see `_refreshData` marker
+              // logic) and can block legitimate reroutes when the truck is
+              // actually doing 40 km/h on a different road.
+              final bool tooSlowToReroute = _estimatedSpeedKmh < 5;
+
+              if (deviation > _rerouteThreshold && !tooSlowToReroute) {
+                _consecutiveDeviations++;
+                debugPrint(
+                  '📡 Deviation: ${deviation.toStringAsFixed(0)}m '
+                  '(threshold=${_rerouteThreshold.toStringAsFixed(0)}m, '
+                  '${_consecutiveDeviations}/$_deviationsBeforeReroute, '
+                  'speed=${_estimatedSpeedKmh.toStringAsFixed(0)}km/h)',
+                );
+
+                // Immediate reroute if deviation > 1.5x threshold — clearly wrong road.
+                // Otherwise wait for 3 consecutive polls to confirm (avoid GPS noise triggers).
+                final shouldReroute = (deviation > _rerouteThreshold * 1.5 || _consecutiveDeviations >= _deviationsBeforeReroute)
+                    && _shouldRefreshRoute(forceRefresh: forceRouteRefresh);
+
+                if (shouldReroute) {
+                  _consecutiveDeviations = 0;
+                  await _rerouteFromDriverPosition();
+                }
+              } else {
+                if (tooSlowToReroute && deviation > _rerouteThreshold) {
+                  debugPrint('⏸️ Deviation ignored: stationary/slow '
+                      '(speed=${_estimatedSpeedKmh.toStringAsFixed(0)}km/h)');
+                }
+                // Driver back on route — cancel reroute trigger
+                if (_consecutiveDeviations > 0) {
+                  debugPrint('✅ Driver back on route — deviation reset');
+                }
+                _consecutiveDeviations = 0;
+              }
+            }
+          }
+
+          // Check if driver reached the next stop (sequential progression)
+          if (_currentLatLng != null) _updateProgress(_currentLatLng!);
+        }
+
+      }
+
+      setState(() {
+        _lastRefreshedAt = DateTime.now();
+      });
+    } finally {
+      if (mounted) setState(() => _isRefreshing = false);
+    }
+  }
+
+  Future<void> _loadCustomMarkers() async {
+    // Small map markers (smaller size for compact view)
+    _smallTruckMarker =
+        await CustomMarkerHelper.getTruckMarker(size: 40);
+    _smallPickupMarker =
+        await CustomMarkerHelper.getStartLocationMarkerFromAsset(size: 26);
+    _smallDestinationMarker =
+        await CustomMarkerHelper.getDropLocationMarkerFromAsset(size: 26);
+
+    // Expanded map markers (bigger size for full screen view)
+    _expandedTruckMarker =
+        await CustomMarkerHelper.getTruckMarker(size: 64);
+    _expandedPickupMarker =
+        await CustomMarkerHelper.getStartLocationMarkerFromAsset(size: 30);
+    _expandedDestinationMarker =
+        await CustomMarkerHelper.getDropLocationMarkerFromAsset(size: 30);
+  }
+
+  Future<void> _setupMarkersAndPolylines() async {
+    if (_trackingData == null) return;
+    _markerAnimationTimer?.cancel();
+
+    final pickup = _trackingData!.pickup;
+    final driverLoc = _trackingData!.driverLocation;
+    final destination = _trackingData!.drop;
+
+    Set<Polyline> polylines = {};
+
+    /// -------- Get Pickup Coordinates --------
+    if (pickup.lat != 0 && pickup.lng != 0) {
+      _pickupLatLng = LatLng(pickup.lat, pickup.lng);
+    } else if (pickup.name.isNotEmpty) {
+      _pickupLatLng = await GoogleMapsService.geocodeAddress(pickup.name);
+    }
+
+    /// -------- Get Current Location Coordinates --------
+    if (driverLoc.lat != 0 && driverLoc.lng != 0) {
+      _currentLatLng = LatLng(driverLoc.lat, driverLoc.lng);
+    }
+
+    /// -------- Resolve HOME MARKER (admin pickup if set, else driver pickup) --------
+    /// Marker position is split from the route origin. Route fetch keeps
+    /// using _pickupLatLng (driver's actual journey start) so geometry is
+    /// unaffected. Marker shows where admin intended to start.
+    final adminPickup = _trackingData?.adminPickup;
+    if (adminPickup != null &&
+        adminPickup.lat != 0 &&
+        adminPickup.lng != 0) {
+      _homeMarkerLatLng = LatLng(adminPickup.lat, adminPickup.lng);
+    } else {
+      _homeMarkerLatLng = _pickupLatLng;
+    }
+
+    /// -------- Get Destination Coordinates --------
+    if (destination.lat != 0 && destination.lng != 0) {
+      _destinationLatLng = LatLng(destination.lat, destination.lng);
+    } else if (destination.name.isNotEmpty) {
+      _destinationLatLng = await GoogleMapsService.geocodeAddress(
+        destination.name,
+      );
+    }
+
+    // ── Determine whether this customer's booking is the ACTIVE drop ──
+    // Previously this was gated on uncompleted earlier-priority waypoints,
+    // which hid the truck for priority 2/3/+ bookings while priority 1 was
+    // still in progress (e.g. Hyd→Gnt via BZA). Customers want to see the
+    // truck for ALL their bookings regardless of priority, so the gate is
+    // always open. Field kept so the existing _buildMarkers check works.
+    _isActiveDrop = true;
+
+    // Build markers for both small and expanded views
+    _buildMarkers();
+
+    /// -------- APPROACH POLYLINE: admin pickup → driver --------
+    /// When the admin set a separate pickup location that differs from
+    /// where the driver actually started moving, draw a green line from
+    /// admin_pickup → driver via Google Directions.
+    ///
+    /// Resolving admin pickup coordinates is a 3-step lookup:
+    ///   1. Use admin_pickup.lat/lng directly if they exist AND differ
+    ///      from the driver position by more than 20 m (= "real place").
+    ///   2. If admin_pickup has a name but the lat/lng are missing or
+    ///      identical to the driver position, the admin entered a place
+    ///      name without picking coordinates. Geocode the name to get
+    ///      real coordinates.
+    ///   3. If both lat/lng AND name are missing, admin didn't set a
+    ///      separate pickup → skip the approach line entirely.
+    ///
+    /// Distance doesn't matter once we have real coordinates — 200 m or
+    /// 2000 km, the line is drawn the same way.
+    if (adminPickup != null &&
+        _currentLatLng != null &&
+        _approachPolyline.isEmpty) {
+      LatLng? adminLatLng;
+
+      // Step 1: try admin_pickup.lat/lng directly
+      if (adminPickup.lat != 0 && adminPickup.lng != 0) {
+        final candidate = LatLng(adminPickup.lat, adminPickup.lng);
+        if (_haversineMeters(candidate, _currentLatLng!) > 20) {
+          adminLatLng = candidate;
+          debugPrint('🟢 Admin pickup from lat/lng: $candidate');
+        }
+      }
+
+      // Step 2: fall back to geocoding the name if coordinates were
+      // missing OR matched the driver position (admin typed a name
+      // but didn't pick a real point on the map).
+      if (adminLatLng == null && adminPickup.name.isNotEmpty) {
+        // Skip geocoding if the admin name is identical to the driver
+        // pickup name — that means there's no separate admin pickup at
+        // all, just the same place under a different label.
+        final pickupName = _trackingData?.pickup.name ?? '';
+        if (adminPickup.name.trim().toLowerCase() !=
+            pickupName.trim().toLowerCase()) {
+          try {
+            debugPrint('🟢 Geocoding admin pickup name: "${adminPickup.name}"');
+            final geocoded =
+                await GoogleMapsService.geocodeAddress(adminPickup.name);
+            if (geocoded != null &&
+                _haversineMeters(geocoded, _currentLatLng!) > 20) {
+              adminLatLng = geocoded;
+              debugPrint('🟢 Admin pickup geocoded to: $geocoded');
+            } else {
+              debugPrint('🟢 Geocoding returned null or too close to driver');
+            }
+          } catch (e) {
+            debugPrint('⚠️ Admin pickup geocoding failed: $e');
+          }
+        }
+      }
+
+      // Step 3: fetch the approach polyline if we resolved coordinates
+      if (adminLatLng != null) {
+        try {
+          final approach = await GoogleMapsService.getDirections(
+            origin: adminLatLng,
+            destination: _currentLatLng!,
+          );
+          if (approach.length >= 2) {
+            _approachPolyline = approach;
+            final distAdminToDriver =
+                _haversineMeters(adminLatLng, _currentLatLng!);
+            debugPrint('🟢 Approach polyline fetched: '
+                '${approach.length} points '
+                '(${distAdminToDriver.toStringAsFixed(0)}m admin→driver)');
+          }
+        } catch (e) {
+          debugPrint('⚠️ Approach polyline fetch failed: $e');
+        }
+      } else {
+        debugPrint('🟢 Approach skipped: no separate admin pickup');
+      }
+    }
+
+    /// -------- Route + Intermediate Stops using single Directions API call --------
+    if (_pickupLatLng != null && _destinationLatLng != null) {
+      // Separate waypoints into delivered (completed) and remaining (pending/in-progress)
+      // Sorted by priority so polyline follows the intended delivery order
+      final allWaypoints = _trackingData!.routeWaypoints
+          .where((wp) => wp.lat != 0 && wp.lng != 0)
+          .toList()
+        ..sort((a, b) => a.priority.compareTo(b.priority));
+      final remainingWaypoints = allWaypoints
+          .where((wp) => !wp.isCompleted)
+          .map((wp) => LatLng(wp.lat, wp.lng))
+          .toList();
+
+      // ALWAYS route from PICKUP → DESTINATION so _fullPolyline contains the
+      // complete road path. driverPosition is passed separately for progress/ETA.
+      // Green line = breadcrumbs (actual GPS trail), NOT route split.
+      // Blue line = remaining route from API (driver → destination on-road).
+      final routeOrigin = _pickupLatLng!;
+
+      // Detect if driver has essentially arrived at destination
+      final bool driverAtDestination = _currentLatLng != null &&
+          _destinationLatLng != null &&
+          _haversineMeters(_currentLatLng!, _destinationLatLng!) < 30;
+
+      debugPrint(
+        '🗺️ Route params: origin=$routeOrigin (always pickup), '
+        'driverPos=$_currentLatLng, atDest=$driverAtDestination, '
+        'dest=$_destinationLatLng, remainingWaypoints=${remainingWaypoints.length}, '
+        'totalWaypoints=${allWaypoints.length}',
+      );
+
+      final routeData = await GoogleMapsService.getRouteWithStops(
+        origin: routeOrigin,
+        destination: _destinationLatLng!,
+        driverPosition: _currentLatLng,
+        routeWaypoints: remainingWaypoints,
+      );
+
+      if (routeData.isNotEmpty) {
+        final remainingPointsRoute =
+            routeData['remaining_points'] as List<LatLng>? ?? [];
+        _routeStops = routeData['stops'] as List<Map<String, dynamic>>? ?? [];
+        _totalRouteDurationSeconds =
+            routeData['total_duration_seconds'] as int? ?? 0;
+        _fullPolyline = routeData['polyline_points'] as List<LatLng>? ?? [];
+        _cumulativeDistances =
+            (routeData['cumulative_distances'] as List?)?.cast<double>() ?? [];
+
+        final remainingSeconds =
+            routeData['remaining_duration_seconds'] as int? ?? 0;
+        _remainingDurationSeconds = remainingSeconds;
+
+        // Route start time from driver's last update
+        final driverLocData = _trackingData!.driverLocation;
+        if (driverLocData.updatedAt != null && driverLocData.updatedAt!.isNotEmpty) {
+          try {
+            _routeStartTime = DateTime.parse(driverLocData.updatedAt!);
+          } catch (_) {}
+        }
+
+        // ── WARM UP PIPELINE STATE FROM TIMELINE HISTORY ──
+        // After a fresh load (screen reopen, app restart) all 7-gate
+        // pipeline state is null/zero. The slice renderer would draw
+        // from segment 0 even if the truck has been driving for an hour,
+        // and the first few live snaps would be unstable because the
+        // bearing/parallel/2-point gates have no history to compare
+        // against — that's the "back and come zigzag" symptom.
+        //
+        // Fix: replay the backend's filtered timeline through the SAME
+        // snap pipeline used by live updates. The backend already sorts
+        // (oldest → newest) and already cleans (cluster collapse,
+        // Douglas-Peucker), so it's a clean driving history feed.
+        // After replay, _currentSegmentIndex / _lastAcceptedSnap /
+        // _lastAcceptedRaw are correctly populated as if we'd been
+        // running live the whole time.
+        if (_fullPolyline.length >= 2) {
+          if ((_trackingData?.timeline.isNotEmpty ?? false)) {
+            _replayTimelineThroughPipeline();
+          } else if (_currentLatLng != null) {
+            _initializeSegmentIndex(_currentLatLng!);
+          }
+        }
+
+        if (driverAtDestination && _fullPolyline.length >= 2) {
+          // ── ARRIVED: driver is within 30m of destination ──
+          // Show entire route as green solid (completed). No blue line.
+          polylines.add(
+            Polyline(
+              polylineId: const PolylineId('completed'),
+              points: List<LatLng>.from(_fullPolyline),
+              color: const Color(0xFF34A853),
+              width: 5,
+            ),
+          );
+          _estimatedDuration = '';
+        } else if (_currentLatLng != null) {
+          // ── IN TRANSIT: green = breadcrumbs, blue = remaining route ──
+
+          // Seed breadcrumbs: pickup → current snapped position.
+          // Always snap on seed — prevents initial line through buildings.
+          if (_driverBreadcrumbs.isEmpty) {
+            if (_pickupLatLng != null) {
+              _driverBreadcrumbs.add(_pickupLatLng!);
+            }
+            _driverBreadcrumbs.add(_snapToRoute(_currentLatLng!));
+            _lastBreadcrumbTime = DateTime.now();
+          }
+
+          // GREEN + BLUE: slice the master road polyline at the driver's
+          // CURRENT SEGMENT and join with the exact snapped driver point.
+          //
+          // Why segment index instead of "closest vertex":
+          //   `_getClosestPolylineIndex` returns the nearest VERTEX, which
+          //   can land one vertex ahead of where the driver actually is on
+          //   the segment. When that happens:
+          //     green = [v0..vi+1] then snappedDriver (which sits between
+          //     vi and vi+1) → last segment of green goes BACKWARD →
+        //     visible kink/loop near the truck.
+          //     blue likewise starts one vertex ahead of the driver →
+          //     looks like a parallel duplicate line.
+          //
+          //   `_currentSegmentIndex` is maintained by `_snapToRoute` as the
+          //   *segment start* index (the i in segment [vi, vi+1] that the
+          //   driver is currently inside). It is forward-only, with a jump
+          //   cap to reject single-point teleports. Using it directly as
+          //   the split point guarantees:
+          //     green = [v0..vi] + snappedDriver  (snappedDriver lies
+          //             between vi and vi+1 → continuous, no backward kink)
+          //     blue  = snappedDriver + [vi+1..vN]  (continuous, no gap)
+          if (_fullPolyline.length >= 2) {
+            // Ensure _currentSegmentIndex is fresh for the current driver
+            // position before we read it. _snapToRoute applies the full
+            // 7-gate pipeline; we still apply a render-side gap check
+            // here as a final safety net.
+            final snappedDriver = _snapToRoute(_currentLatLng!);
+
+            // ── GAP PROTECTION (mode-aware) ──
+            // If the new snap is far from the previously rendered snap,
+            // hold the previous frame instead of drawing a long straight
+            // shortcut. Thresholds match realistic per-poll movement at
+            // the 200 km/h backend speed cap:
+            //   city     130 m  (≈ 47 km/h × 10 s)
+            //   suburban 350 m  (≈ 126 km/h × 10 s)
+            //   highway  700 m  (≈ 252 km/h × 10 s — covers a 14 s drop
+            //             at sustained 180 km/h, plus headroom)
+            final double gapMax = _currentMode == 0
+                ? 130
+                : (_currentMode == 1 ? 350 : 700);
+            final bool gapViolation = _lastRenderedSnap != null &&
+                _haversineMeters(_lastRenderedSnap!, snappedDriver) > gapMax;
+            if (gapViolation) {
+              debugPrint('🚫 Gap protection: snap jumped >${gapMax.toStringAsFixed(0)}m, holding frame');
+              polylines = Set<Polyline>.from(_polylines);
+            } else {
+              _lastRenderedSnap = snappedDriver;
+
+              // ── APPROACH (green) — pickup → driver, separate Directions ──
+              // Drawn first so subsequent layers stack on top correctly.
+              if (_approachPolyline.length >= 2) {
+                polylines.add(
+                  Polyline(
+                    polylineId: const PolylineId('approach'),
+                    points: List<LatLng>.from(_approachPolyline),
+                    color: const Color(0xFF34A853),
+                    width: 5,
+                  ),
+                );
+              }
+
+              final splitAt = _currentSegmentIndex
+                  .clamp(0, _fullPolyline.length - 1);
+
+              // Green = historical reroute snapshots
+              //       + pickup → start-of-current-segment → driver position.
+              // See `_preservedGreenPath` docs for why we prepend the
+              // snapshot list: it preserves the pre-reroute history so
+              // the travelled line never collapses after a route change.
+              final greenPoints = <LatLng>[
+                ..._preservedGreenPath,
+                ..._fullPolyline.sublist(0, splitAt + 1),
+                snappedDriver,
+              ];
+              if (greenPoints.length >= 2) {
+                polylines.add(
+                  Polyline(
+                    polylineId: const PolylineId('completed'),
+                    points: greenPoints,
+                    color: const Color(0xFF34A853),
+                    width: 5,
+                  ),
+                );
+              }
+
+              // Blue = driver position → end-of-current-segment → destination.
+              final bluePoints = <LatLng>[
+                snappedDriver,
+                if (splitAt + 1 < _fullPolyline.length)
+                  ..._fullPolyline.sublist(splitAt + 1),
+              ];
+              if (bluePoints.length >= 2) {
+                polylines.add(
+                  Polyline(
+                    polylineId: const PolylineId('remaining'),
+                    points: bluePoints,
+                    color: const Color(0xFF1A73E8),
+                    width: 5,
+                  ),
+                );
+              }
+            }
+          } else if (remainingPointsRoute.length >= 2) {
+            // No full polyline yet — show whatever the API returned as blue.
+            polylines.add(
+              Polyline(
+                polylineId: const PolylineId('remaining'),
+                points: remainingPointsRoute,
+                color: const Color(0xFF1A73E8),
+                width: 5,
+              ),
+            );
+          }
+
+          _estimatedDuration = _formatDuration(remainingSeconds);
+        } else if (_fullPolyline.length >= 2) {
+          // No driver position — full route as solid blue
+          _estimatedDuration = _formatDuration(remainingSeconds);
+          polylines.add(
+            Polyline(
+              polylineId: const PolylineId('full_route'),
+              points: _fullPolyline,
+              color: const Color(0xFF1A73E8),
+              width: 5,
+            ),
+          );
+        }
+      } else {
+        // Directions API failed — keep previous polylines instead of drawing
+        // ugly straight lines. Only use straight-line fallback on first load
+        // when no previous polylines exist at all.
+        debugPrint('❌ Directions API failed — keeping previous polylines');
+        if (_polylines.isNotEmpty) {
+          polylines = Set<Polyline>.from(_polylines);
+        } else {
+          // First load, no previous data — minimal fallback
+          if (_currentLatLng != null) {
+            polylines.add(
+              Polyline(
+                polylineId: const PolylineId('remaining'),
+                points: [_currentLatLng!, _destinationLatLng!],
+                color: const Color(0xFF1A73E8),
+                width: 5,
+              ),
+            );
+          }
+        }
+      }
+    }
+    // ── ADDITIVE BRANCH: NO PICKUP PROVIDED ──
+    // Admin never set a pickup location for this booking. Skip the
+    // pickup→destination route entirely and just draw a blue line from
+    // the driver's current position to the destination. No green line.
+    // Existing functionality (above) is untouched — this branch only runs
+    // when the existing condition fails.
+    else if (_destinationLatLng != null && _currentLatLng != null) {
+      debugPrint('🟦 No pickup provided — routing driver → destination only');
+      final routeData = await GoogleMapsService.getRouteWithStops(
+        origin: _currentLatLng!,
+        destination: _destinationLatLng!,
+      );
+      if (routeData.isNotEmpty) {
+        final pts = routeData['polyline_points'] as List<LatLng>? ?? [];
+        final remainingSeconds =
+            routeData['total_duration_seconds'] as int? ?? 0;
+        if (pts.length >= 2) {
+          polylines.add(
+            Polyline(
+              polylineId: const PolylineId('remaining'),
+              points: pts,
+              color: const Color(0xFF1A73E8),
+              width: 5,
+            ),
+          );
+        }
+        _estimatedDuration = _formatDuration(remainingSeconds);
+      }
+    }
+
+    // ── ADDITIVE POST-STEP: PICKUP→DRIVER GREEN OVERRIDE ──
+    // Whenever admin set a pickup location AND the driver is not right
+    // on top of it, draw the green line as a fresh Directions call from
+    // pickup → driver. No upper distance cap — works for 5 km or 5000 km.
+    // Replaces ONLY the 'completed' polyline. Blue line and all
+    // snap/breadcrumb/segment logic above stay exactly as they were.
+    //
+    // The 200 m floor is just a no-op guard so we don't burn an API call
+    // when the driver is sitting at the pickup point.
+    if (_pickupLatLng != null &&
+        _currentLatLng != null &&
+        _haversineMeters(_pickupLatLng!, _currentLatLng!) > 200) {
+      debugPrint(
+        '🟢 Drawing direct pickup→driver green line '
+        '(${_haversineMeters(_pickupLatLng!, _currentLatLng!).toStringAsFixed(0)}m apart)',
+      );
+      final greenPath = await GoogleMapsService.getDirections(
+        origin: _pickupLatLng!,
+        destination: _currentLatLng!,
+      );
+      if (greenPath.length >= 2) {
+        polylines.removeWhere((p) => p.polylineId.value == 'completed');
+        polylines.add(
+          Polyline(
+            polylineId: const PolylineId('completed'),
+            points: greenPath,
+            color: const Color(0xFF34A853),
+            width: 5,
+          ),
+        );
+      }
+    }
+
+    // Calculate initial camera position to show full route
+    _calculateInitialCameraPosition();
+
+    setState(() {
+      _polylines = polylines;
+      _isLoadingRoute = false;
+      // NOTE: do NOT seed `_lastRouteRefreshAt` here. If we do, the
+      // cooldown gate blocks the first reroute for `_rerouteCooldown`
+      // seconds after setup — and if the customer opens the screen
+      // mid-trip when the driver is already off-route, the first
+      // deviation detected would be silently dropped. Let the first
+      // actual reroute set the timestamp.
+    });
+
+    // ── FIXED TIMELINE: generate once, persist, only update progress ──
+    if (!_fixedStopsGenerated && _pickupLatLng != null && _destinationLatLng != null) {
+      final loaded = await _loadFixedStops();
+      if (loaded) {
+        // Stops from cache — still need full route polyline for time/sub-stops
+        await _fetchFullRoutePolyline();
+      } else {
+        // No cache — generate stops from full route and persist
+        await _fetchFullRouteAndGenerateFixedStops();
+        await _saveFixedStops();
+      }
+      await _loadCurrentStopIndex();
+      _fixedStopsGenerated = true;
+    }
+    // Check if driver reached the next stop
+    if (_currentLatLng != null) _updateProgress(_currentLatLng!);
+  }
+
+  bool _shouldRefreshRoute({bool forceRefresh = false}) {
+    if (forceRefresh) return true;
+    if (_lastRouteRefreshAt == null) return true;
+    return DateTime.now().difference(_lastRouteRefreshAt!) >= _rerouteCooldown;
+  }
+
+  /// Lightweight reroute: fetch new route from DRIVER → DESTINATION,
+  /// update ONLY the blue polyline. NEVER touches green breadcrumbs.
+  /// Called when driver deviates from the suggested route.
+  Future<void> _rerouteFromDriverPosition() async {
+    if (_currentLatLng == null || _destinationLatLng == null) return;
+
+    debugPrint('🔄 Rerouting from driver position...');
+
+    final remainingWaypoints = (_trackingData?.routeWaypoints ?? [])
+        .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isCompleted)
+        .toList()
+      ..sort((a, b) => a.priority.compareTo(b.priority));
+    final wpLatLngs = remainingWaypoints
+        .map((wp) => LatLng(wp.lat, wp.lng))
+        .toList();
+
+    final routeData = await GoogleMapsService.getRouteWithStops(
+      origin: _currentLatLng!,
+      destination: _destinationLatLng!,
+      routeWaypoints: wpLatLngs,
+    );
+
+    if (routeData.isEmpty) {
+      debugPrint('❌ Reroute API failed — keeping current blue');
+      return;
+    }
+
+    // ── SNAPSHOT HISTORICAL GREEN PATH ──
+    // Before we wipe `_fullPolyline`, preserve whatever the truck has
+    // already driven on the old route so the green line doesn't collapse
+    // back to a stub at the current position. Append the old segment
+    // slice + current driver position to `_preservedGreenPath`; the
+    // render path prepends this list to the new segment slice.
+    if (_fullPolyline.length >= 2) {
+      final oldSplit = _currentSegmentIndex.clamp(0, _fullPolyline.length - 1);
+      if (oldSplit > 0) {
+        _preservedGreenPath.addAll(_fullPolyline.sublist(0, oldSplit + 1));
+      }
+      if (_currentLatLng != null) {
+        _preservedGreenPath.add(_currentLatLng!);
+      }
+    }
+
+    // Update route data for new path
+    _fullPolyline = routeData['polyline_points'] as List<LatLng>? ?? [];
+    _cumulativeDistances =
+        (routeData['cumulative_distances'] as List?)?.cast<double>() ?? [];
+    _totalRouteDurationSeconds =
+        routeData['total_duration_seconds'] as int? ?? 0;
+    // Reroute origin = current driver position, so the entire new
+    // duration IS the remaining duration.
+    _remainingDurationSeconds = _totalRouteDurationSeconds;
+
+    // Reset segment index AND snap pipeline state for the new route
+    // geometry — bearing/parallel references no longer apply.
+    _currentSegmentIndex = 0;
+    _lastAcceptedSnap = null;
+    _lastAcceptedRaw = null;
+    _lastRenderedSnap = null;
+    _snapCacheInput = null;
+    _snapCacheOutput = null;
+    if (_currentLatLng != null && _fullPolyline.length >= 2) {
+      _initializeSegmentIndex(_currentLatLng!);
+    }
+
+    // Update ETA (entire new route = remaining time)
+    _estimatedDuration = _formatDuration(_totalRouteDurationSeconds);
+
+    // Replace ONLY blue polyline — green breadcrumbs stay untouched
+    final updatedPolylines = _polylines
+        .where((p) => p.polylineId.value != 'remaining')
+        .toSet();
+
+    if (_fullPolyline.length >= 2) {
+      updatedPolylines.add(
+        Polyline(
+          polylineId: const PolylineId('remaining'),
+          points: List<LatLng>.from(_fullPolyline),
+          color: const Color(0xFF1A73E8),
+          width: 5,
+        ),
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        _polylines = updatedPolylines;
+        _lastRouteRefreshAt = DateTime.now();
+      });
+    }
+
+    // Regenerate timeline stops from the new rerouted polyline so the
+    // location list reflects the actual path the driver is now taking.
+    await _regenerateFixedStopsFromPolyline(_fullPolyline, _totalRouteDurationSeconds);
+
+    debugPrint('✅ Rerouted: ${_fullPolyline.length} points, ETA=$_estimatedDuration');
+  }
+
+  /// Updates polylines on each live position update:
+  ///   - Green solid: actual GPS breadcrumbs (real path the driver drove)
+  ///   - Blue dashed: remaining route from driver → destination (split from _fullPolyline)
+  void _refreshCompletedPolylineFromTimeline() {
+    if (_currentLatLng == null) return;
+
+    // Check if driver arrived at destination — lock completed state
+    if (_destinationLatLng != null &&
+        _haversineMeters(_currentLatLng!, _destinationLatLng!) < 30) {
+      if (_fullPolyline.length >= 2) {
+        final arrivedPolylines = _polylines
+            .where((p) =>
+                p.polylineId.value != 'completed' &&
+                p.polylineId.value != 'remaining')
+            .toSet();
+        arrivedPolylines.add(
+          Polyline(
+            polylineId: const PolylineId('completed'),
+            points: List<LatLng>.from(_fullPolyline),
+            color: const Color(0xFF34A853),
+            width: 5,
+          ),
+        );
+        if (mounted) setState(() => _polylines = arrivedPolylines);
+      }
+      return;
+    }
+
+    final updatedPolylines = _polylines
+        .where((p) =>
+            p.polylineId.value != 'completed' &&
+            p.polylineId.value != 'remaining')
+        .toSet();
+
+    // GREEN + BLUE: slice the master polyline at _currentSegmentIndex
+    // (segment START, not nearest vertex). _snapToRoute applies the full
+    // 7-gate pipeline; we still apply a render-side gap check here as a
+    // final safety net (mode-aware).
+    if (_fullPolyline.length >= 2) {
+      final snappedPos = _snapToRoute(_currentLatLng!);
+
+      // ── GAP PROTECTION (mode-aware) ──
+      // Hold the segment-slice frame when the snap jumps further than the
+      // per-mode threshold (avoids drawing a long shortcut chord). BUT
+      // always advance `_lastRenderedSnap` to the new snap before bailing,
+      // otherwise the comparison anchor stays frozen at the OLD position
+      // and every subsequent poll re-fires the same gap check, leaving
+      // the green line stuck behind the truck until the user hot-reloads.
+      final double gapMax = _currentMode == 0
+          ? 130
+          : (_currentMode == 1 ? 350 : 700);
+      final bool gapHold = _lastRenderedSnap != null &&
+          _haversineMeters(_lastRenderedSnap!, snappedPos) > gapMax;
+      _lastRenderedSnap = snappedPos;
+      if (gapHold) {
+        debugPrint('🚫 Gap protection (live): snap jumped >${gapMax.toStringAsFixed(0)}m, '
+            'holding frame — segment slice will resume next poll');
+        return;
+      }
+
+      final splitAt = _currentSegmentIndex
+          .clamp(0, _fullPolyline.length - 1);
+
+      // GREEN (travelled path) = historical reroute snapshots
+      //                        + pickup-on-current-route → driver
+      // `_currentSegmentIndex` is forward-only and maintained by
+      // `_snapToRoute`, so the segment slice grows monotonically as the
+      // truck advances along the current `_fullPolyline`. Prepending
+      // `_preservedGreenPath` (populated on every reroute) keeps the
+      // pre-reroute history visible so the line never collapses back
+      // to a stub after a route change.
+      final greenPoints = <LatLng>[
+        ..._preservedGreenPath,
+        ..._fullPolyline.sublist(0, splitAt + 1),
+        snappedPos,
+      ];
+      if (greenPoints.length >= 2) {
+        updatedPolylines.add(
+          Polyline(
+            polylineId: const PolylineId('completed'),
+            points: greenPoints,
+            color: const Color(0xFF34A853),
+            width: 5,
+          ),
+        );
+      }
+
+      final bluePoints = <LatLng>[
+        snappedPos,
+        if (splitAt + 1 < _fullPolyline.length)
+          ..._fullPolyline.sublist(splitAt + 1),
+      ];
+      if (bluePoints.length >= 2) {
+        updatedPolylines.add(
+          Polyline(
+            polylineId: const PolylineId('remaining'),
+            points: bluePoints,
+            color: const Color(0xFF1A73E8),
+            width: 5,
+          ),
+        );
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _polylines = updatedPolylines;
+    });
+
+    // NOTE: The live `_maybeRefreshLiveGreenFromDirections` override used
+    // to fire here. It was added back when `_currentSegmentIndex` would
+    // get stuck and stop advancing — the override re-fetched a fresh
+    // pickup→driver Directions polyline so the green line could keep
+    // growing. After the gap-protection latching fix, the segment-slice
+    // path advances reliably on every poll, so the override is no longer
+    // needed AND it was causing the green line to visibly flicker
+    // because the segment-slice (built from `_fullPolyline`) and the
+    // override (built from a fresh API call) produced slightly different
+    // geometries that swapped on each poll. Removed.
+  }
+
+  // Cubic ease-in-out for smooth acceleration/deceleration
+  double _easeInOutCubic(double t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) * (-2 * t + 2) * (-2 * t + 2)) / 2;
+  }
+
+  void _animateVehicleMarker(LatLng from, LatLng to) {
+    _markerAnimationTimer?.cancel();
+    _lastVehicleMarkerLatLng = from;
+
+    if (_haversineMeters(from, to) < 2) {
+      _buildMarkers();
+      if (mounted) setState(() {});
+      return;
+    }
+
+    // Calculate target bearing for smooth rotation
+    final startBearing = _lastVehicleBearing;
+    final endBearing = _getBearing(from, to);
+
+    int step = 0;
+    _markerAnimationTimer = Timer.periodic(_markerAnimationStepDuration, (timer) {
+      step++;
+      final linearT = step / _markerAnimationSteps;
+      final easedT = _easeInOutCubic(linearT);
+
+      // Smooth position interpolation with easing, snapped to route
+      final interpolated = LatLng(
+        from.latitude + (to.latitude - from.latitude) * easedT,
+        from.longitude + (to.longitude - from.longitude) * easedT,
+      );
+      _currentLatLng = _snapToRoute(interpolated);
+
+      // Smooth bearing interpolation (shortest rotation path)
+      double bearingDiff = endBearing - startBearing;
+      if (bearingDiff > 180) bearingDiff -= 360;
+      if (bearingDiff < -180) bearingDiff += 360;
+      _lastVehicleBearing = (startBearing + bearingDiff * easedT) % 360;
+
+      _buildMarkers();
+      _lastVehicleMarkerLatLng = _currentLatLng;
+      if (mounted) setState(() {});
+
+      if (step >= _markerAnimationSteps) {
+        timer.cancel();
+        _currentLatLng = _snapToRoute(to);
+        _lastVehicleBearing = endBearing;
+        _buildMarkers();
+        _lastVehicleMarkerLatLng = _currentLatLng;
+        _refreshCompletedPolylineFromTimeline();
+
+        // Follow mode: animate camera ONCE after marker animation completes.
+        // NOT on every step — that overwhelms tile loader and causes blank map.
+        if (_isFollowingVehicle) {
+          _animateCameraToVehicle();
+        } else {
+          // Edge-detection safety net: if the user disabled follow mode but
+          // the truck is about to leave the viewport, nudge the camera once
+          // so the marker can never silently drift off-screen.
+          _ensureVehicleVisible();
+        }
+      }
+    });
+  }
+
+  /// Re-arm the auto-resume timer every time the user touches the map.
+  /// After `_followAutoResumeDelay` of no further interaction, follow mode
+  /// turns back on and the camera snaps to the truck on the next poll.
+  void _scheduleFollowAutoResume() {
+    _followResumeTimer?.cancel();
+    _followResumeTimer = Timer(_followAutoResumeDelay, () {
+      if (!mounted) return;
+      if (_isFollowingVehicle) return;
+      setState(() => _isFollowingVehicle = true);
+      _animateCameraToVehicle();
+    });
+  }
+
+  /// Edge-detection safety net. Even if the user has follow mode off, if
+  /// the truck is about to leave the visible map area, force a one-shot
+  /// recenter so it never drifts off-screen. The follow flag is NOT
+  /// flipped on — we only nudge the camera once. Called from the live-poll
+  /// path after every accepted position update.
+  Future<void> _ensureVehicleVisible() async {
+    if (_currentLatLng == null) return;
+    if (_isFollowingVehicle) return; // already following — nothing to do
+
+    final controller =
+        _isMapExpanded ? _expandedMapController : _smallMapController;
+    if (controller == null) return;
+
+    try {
+      final region = await controller.getVisibleRegion();
+      final lat = _currentLatLng!.latitude;
+      final lng = _currentLatLng!.longitude;
+      final inside = lat >= region.southwest.latitude &&
+          lat <= region.northeast.latitude &&
+          lng >= region.southwest.longitude &&
+          lng <= region.northeast.longitude;
+      if (inside) return;
+
+      // Truck just crossed out of the viewport. Pan once (no zoom / tilt
+      // change) so the user's manual zoom level is preserved.
+      _isProgrammaticCameraMove = true;
+      await controller.animateCamera(
+        CameraUpdate.newLatLng(_currentLatLng!),
+      );
+      _isProgrammaticCameraMove = false;
+    } catch (e) {
+      _isProgrammaticCameraMove = false;
+      debugPrint('ensureVehicleVisible failed: $e');
+    }
+  }
+
+  /// Animate camera to follow vehicle with bearing rotation and tilt.
+  /// Adjusts zoom based on stable mode: tighter in city, wider on highway.
+  /// Only called when _isFollowingVehicle is true (user hasn't dragged map).
+  void _animateCameraToVehicle() {
+    if (_currentLatLng == null) return;
+
+    final controller = _isMapExpanded ? _expandedMapController : _smallMapController;
+    if (controller == null) return;
+
+    // Dynamic zoom based on stable mode (not raw speed — avoids flickering)
+    final double zoom;
+    switch (_currentMode) {
+      case 2: zoom = 14.5; break;  // highway — wide view
+      case 1: zoom = 15.5; break;  // suburban
+      default: zoom = _followZoom;  // city — close
+    }
+
+    try {
+      _isProgrammaticCameraMove = true;
+      controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: _currentLatLng!,
+            zoom: zoom,
+            bearing: _lastVehicleBearing,
+            tilt: _followTilt,
+          ),
+        ),
+      ).then((_) {
+        _isProgrammaticCameraMove = false;
+      });
+    } catch (e) {
+      _isProgrammaticCameraMove = false;
+      debugPrint('Error animating camera to vehicle: $e');
+    }
+  }
+
+  /// Update speed estimate from GPS positions. Called every poll.
+  /// Uses exponential smoothing + stable mode switching (no flickering).
+  void _updateSpeedEstimate(LatLng newPos) {
+    final now = DateTime.now();
+    if (_lastSpeedCalcPos != null && _lastSpeedCalcTime != null) {
+      final elapsed = now.difference(_lastSpeedCalcTime!).inSeconds;
+      if (elapsed > 0) {
+        final dist = _haversineMeters(_lastSpeedCalcPos!, newPos);
+        final instantSpeed = (dist / elapsed) * 3.6; // km/h
+        // Exponential smoothing (α=0.3): prevents single GPS spike from flipping mode
+        _estimatedSpeedKmh = _estimatedSpeedKmh * 0.7 + instantSpeed * 0.3;
+      }
+    }
+    _lastSpeedCalcPos = newPos;
+    _lastSpeedCalcTime = now;
+
+    // Stable mode switching: only change after 3 consecutive polls agree.
+    // Prevents flickering (e.g., traffic jam on highway → don't switch to city).
+    final int targetMode;
+    if (_estimatedSpeedKmh >= 60) {
+      targetMode = 2; // highway
+    } else if (_estimatedSpeedKmh >= 25) {
+      targetMode = 1; // suburban
+    } else {
+      targetMode = 0; // city
+    }
+
+    if (targetMode != _currentMode) {
+      if (targetMode == _pendingMode) {
+        _pendingModeCount++;
+        if (_pendingModeCount >= _modeChangeThreshold) {
+          _currentMode = targetMode;
+          _pendingModeCount = 0;
+          debugPrint('🚦 Mode switched to ${['city', 'suburban', 'highway'][_currentMode]} '
+              '(speed=${_estimatedSpeedKmh.toStringAsFixed(0)}km/h)');
+        }
+      } else {
+        _pendingMode = targetMode;
+        _pendingModeCount = 1;
+      }
+    } else {
+      // Already in correct mode — reset pending
+      _pendingModeCount = 0;
+    }
+  }
+
+  /// Dynamic snap threshold based on stable mode (not raw speed).
+  /// Tightened per the 7-gate pipeline tuning:
+  ///   city     25 m  (urban GPS noise floor + small margin)
+  ///   suburban 40 m
+  ///   highway  60 m  (sparse polyline + faster movement)
+  double get _snapThreshold {
+    switch (_currentMode) {
+      case 2: return 60;  // highway
+      case 1: return 40;  // suburban
+      default: return 25; // city
+    }
+  }
+
+  /// Dynamic reroute threshold based on stable mode. Aggressive across
+  /// every mode — the user wants new blue polylines to appear as soon
+  /// as the driver physically leaves the planned road, regardless of
+  /// whether it's a narrow city lane or a highway exit.
+  double get _rerouteThreshold {
+    switch (_currentMode) {
+      case 2: return 150;  // highway (was 250)
+      case 1: return 120;  // suburban (was 150)
+      default: return _polylineRerouteThresholdMeters; // 100 m city (was the same)
+    }
+  }
+
+  /// Dynamic breadcrumb min distance based on stable mode.
+  /// City = 20m (GPS noise in Indian cities is 10-30m, must be above noise floor).
+  /// Suburban = 30m, Highway = 50m.
+  double get _breadcrumbMinDistance {
+    switch (_currentMode) {
+      case 2: return 50;  // highway
+      case 1: return 30;  // suburban
+      default: return 20; // city (GPS noise range = 10-30m)
+    }
+  }
+
+  /// Dynamic segment search window based on stable mode.
+  int get _segmentSearchWindow {
+    switch (_currentMode) {
+      case 2: return 50;  // highway
+      case 1: return 20;  // suburban
+      default: return 10; // city
+    }
+  }
+
+  /// Haversine distance in meters between two LatLng points.
+  double _haversineMeters(LatLng a, LatLng b) {
+    const R = 6371000.0; // Earth radius in meters
+    final dLat = (b.latitude - a.latitude) * pi / 180;
+    final dLon = (b.longitude - a.longitude) * pi / 180;
+    final lat1 = a.latitude * pi / 180;
+    final lat2 = b.latitude * pi / 180;
+    final h = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
+    return 2 * R * asin(sqrt(h));
+  }
+
+  /// Returns the minimum distance (meters) from [point] to the current
+  /// polyline, measured against each SEGMENT (not just each vertex).
+  ///
+  /// The vertex-only version was producing false positives on long, sparse
+  /// curves: a driver perfectly on the road but between two distant
+  /// vertices could measure ~100 m to the nearest vertex even though they
+  /// were ~5 m from the actual road. That triggered unnecessary reroutes
+  /// in curves. Projecting onto each segment (`_projectOntoSegment`)
+  /// returns the true perpendicular distance to the line, which is what
+  /// the deviation check actually wants.
+  double _minDistanceToPolyline(LatLng point, List<LatLng> polyline) {
+    if (polyline.isEmpty) return double.infinity;
+    if (polyline.length == 1) return _haversineMeters(point, polyline.first);
+
+    double minDist = double.infinity;
+    for (int i = 0; i < polyline.length - 1; i++) {
+      final projected = _projectOntoSegment(point, polyline[i], polyline[i + 1]);
+      final d = _haversineMeters(point, projected);
+      if (d < minDist) minDist = d;
+    }
+    return minDist;
+  }
+
+  /// Downsample breadcrumbs to prevent memory/render issues on long trips.
+  /// Keeps the oldest half at 1/3 density, preserves the recent half in full detail.
+  void _downsampleBreadcrumbs() {
+    final total = _driverBreadcrumbs.length;
+    final halfIdx = total ~/ 2;
+
+    // Keep every 3rd point in the older half, but ALWAYS keep turning points
+    final older = <LatLng>[];
+    for (int i = 0; i < halfIdx; i++) {
+      if (i % 3 == 0) {
+        older.add(_driverBreadcrumbs[i]);
+      } else if (i >= 1 && i < halfIdx - 1) {
+        // Check if this is a turning point — preserve curve shape
+        final prev = _driverBreadcrumbs[i - 1];
+        final curr = _driverBreadcrumbs[i];
+        final next = _driverBreadcrumbs[i + 1];
+        final b1 = _getBearing(prev, curr);
+        final b2 = _getBearing(curr, next);
+        var diff = (b2 - b1).abs();
+        if (diff > 180) diff = 360 - diff;
+        if (diff > 25) older.add(curr); // turning point — keep it
+      }
+    }
+
+    // Keep all points in the recent half
+    final recent = _driverBreadcrumbs.sublist(halfIdx);
+
+    _driverBreadcrumbs = [...older, ...recent];
+  }
+
+  /// Project point P onto line segment A→B, returning the closest point on AB.
+  LatLng _projectOntoSegment(LatLng p, LatLng a, LatLng b) {
+    final dx = b.latitude - a.latitude;
+    final dy = b.longitude - a.longitude;
+    if (dx == 0 && dy == 0) return a;
+    var t = ((p.latitude - a.latitude) * dx + (p.longitude - a.longitude) * dy) /
+        (dx * dx + dy * dy);
+    t = t.clamp(0.0, 1.0);
+    return LatLng(a.latitude + t * dx, a.longitude + t * dy);
+  }
+
+  /// Segment-based route snapping.
+  /// Only searches nearby segments (forward from current position) instead of
+  /// the entire polyline. This prevents jumping backward or cutting across turns.
+  /// Updates [_currentSegmentIndex] as the vehicle progresses.
+  LatLng _snapToRoute(LatLng raw) {
+    if (_fullPolyline.length < 2) return raw;
+
+    // ── IDEMPOTENCY CACHE ──
+    // Same raw input within a single render frame → return the cached
+    // output without re-running the pipeline. Prevents marker/polyline
+    // desync caused by Gate 5 (2-point stability) confirming on the
+    // second call within the same frame.
+    if (_snapCacheInput != null && _snapCacheOutput != null) {
+      if ((_snapCacheInput!.latitude - raw.latitude).abs() < 1e-7 &&
+          (_snapCacheInput!.longitude - raw.longitude).abs() < 1e-7) {
+        return _snapCacheOutput!;
+      }
+    }
+
+    // Use centralized speed-based threshold (city: 30m, suburban: 50m, highway: 80m)
+    final threshold = _snapThreshold;
+
+    // Dynamic search window based on speed (city: +10, highway: +50)
+    final windowSize = _segmentSearchWindow;
+    final searchStart = _currentSegmentIndex;
+    final searchEnd = (_currentSegmentIndex + windowSize).clamp(0, _fullPolyline.length - 1);
+
+    double minDist = double.infinity;
+    LatLng snapped = raw;
+    int bestIndex = _currentSegmentIndex;
+
+    for (int i = searchStart; i < searchEnd; i++) {
+      final projected = _projectOntoSegment(raw, _fullPolyline[i], _fullPolyline[i + 1]);
+      final dist = _haversineMeters(raw, projected);
+      if (dist < minDist) {
+        minDist = dist;
+        snapped = projected;
+        bestIndex = i;
+      }
+    }
+
+    // If no good match, widen forward window (but NEVER search entire route
+    // — that causes random jumps to future segments or wrong roads)
+    if (minDist > threshold) {
+      final wideEnd = (_currentSegmentIndex + windowSize * 3).clamp(0, _fullPolyline.length - 1);
+      for (int i = searchEnd; i < wideEnd; i++) {
+        final projected = _projectOntoSegment(raw, _fullPolyline[i], _fullPolyline[i + 1]);
+        final dist = _haversineMeters(raw, projected);
+        if (dist < minDist) {
+          minDist = dist;
+          snapped = projected;
+          bestIndex = i;
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    //                      7-GATE SNAP PIPELINE
+    //
+    //   0. Stop filter
+    //   1. Snap-quality (hard threshold, no fallback)
+    //   2. Bearing/direction agreement
+    //   3. Parallel-road sideways filter
+    //   4. Segment continuity (forward-only with U-turn allowance)
+    //   5. 2-point stability confirmation for big jumps
+    //   ↓ accept → commit segment + snap state
+    //
+    // Mode-aware thresholds (city / suburban / highway):
+    //   snap            25 / 40 / 60  m   (in _snapThreshold)
+    //   max forward seg  3 /  8 / 12
+    //   max backward seg                3 (U-turn allowance, all modes)
+    //   bearing reject  75 / 90 / 110 °
+    //   parallel raw   <30 m and snap >80 m → reject
+    // ─────────────────────────────────────────────────────────────────
+
+    // ── GATE 0: Stop filter ──
+    // If the truck is confirmed stationary, hold the previous position.
+    // Prevents drift-while-parked from advancing the segment index or
+    // committing breadcrumb noise.
+    if (!_driverIsMoving) {
+      final hold = _lastAcceptedSnap
+          ?? (_driverBreadcrumbs.isNotEmpty ? _driverBreadcrumbs.last : raw);
+      _snapCacheInput = raw;
+      _snapCacheOutput = hold;
+      return hold;
+    }
+
+    // ── GATE 1: Snap quality (hard threshold, no raw fallback) ──
+    if (minDist > threshold) {
+      debugPrint('🚫 Snap quality fail: ${minDist.toStringAsFixed(0)}m > ${threshold.toStringAsFixed(0)}m (mode=$_currentMode)');
+      final hold = _lastAcceptedSnap
+          ?? (_driverBreadcrumbs.isNotEmpty ? _driverBreadcrumbs.last : raw);
+      _snapCacheInput = raw;
+      _snapCacheOutput = hold;
+      return hold;
+    }
+
+    // ── GATE 2: Bearing/direction agreement ──
+    // The vector from lastAccepted → raw should point the same direction
+    // as lastAccepted → snapped. If they disagree by a wide angle, the
+    // snap pulled the truck onto a perpendicular cross-street.
+    if (_lastAcceptedSnap != null) {
+      final rawHop = _haversineMeters(_lastAcceptedSnap!, raw);
+      if (rawHop > 15) {  // only check when there's meaningful movement
+        final rawBearing = _getBearing(_lastAcceptedSnap!, raw);
+        final snapBearing = _getBearing(_lastAcceptedSnap!, snapped);
+        var diff = (rawBearing - snapBearing).abs();
+        if (diff > 180) diff = 360 - diff;
+        final double maxBearingDiff = _currentMode == 0
+            ? 75
+            : (_currentMode == 1 ? 90 : 110);
+        if (diff > maxBearingDiff) {
+          debugPrint('🚫 Bearing mismatch: ${diff.toStringAsFixed(0)}° > ${maxBearingDiff.toStringAsFixed(0)}° (mode=$_currentMode)');
+          _snapCacheInput = raw;
+          _snapCacheOutput = _lastAcceptedSnap!;
+          return _lastAcceptedSnap!;
+        }
+      }
+    }
+
+    // ── GATE 3: Parallel-road filter ──
+    // Raw GPS barely moved (<30 m) but the snap jumped far (>80 m).
+    // That means the snap latched onto a parallel road or service lane.
+    if (_lastAcceptedSnap != null && _lastAcceptedRaw != null) {
+      final rawHop = _haversineMeters(_lastAcceptedRaw!, raw);
+      final snapHop = _haversineMeters(_lastAcceptedSnap!, snapped);
+      if (rawHop < 30 && snapHop > 80) {
+        debugPrint('🚫 Parallel road: raw=${rawHop.toStringAsFixed(0)}m snap=${snapHop.toStringAsFixed(0)}m');
+        _snapCacheInput = raw;
+        _snapCacheOutput = _lastAcceptedSnap!;
+        return _lastAcceptedSnap!;
+      }
+    }
+
+    // ── (Gate 4 / Gate 5 removed) ──
+    // Earlier versions had a "forward segment cap + 2-point stability
+    // confirmation" pair that buffered large forward jumps and waited
+    // for a second consistent poll before committing. In practice this:
+    //
+    //   - Froze the marker for 20+ seconds during U-turns and fast
+    //     movement, then produced a visible "teleport" when finally
+    //     confirmed.
+    //   - Got into deadlocks when consecutive snaps landed at slightly
+    //     different segments (each one overwrote the pending without
+    //     ever confirming).
+    //   - Couldn't tell legitimate fast movement apart from snap errors
+    //     because the only check was segment count.
+    //
+    // The remaining gates (snap quality, bearing agreement, parallel-
+    // road filter) are individually strong enough to reject the bad-
+    // single-point case Gate 5 was meant to catch:
+    //
+    //   - Bad point on a parallel road → bearing disagrees → Gate 2
+    //   - Bad point with raw barely moved → parallel filter → Gate 3
+    //   - Bad point off the road entirely → snap quality > threshold
+    //     → Gate 1
+    //
+    // So we commit unconditionally once Gates 0-3 pass.
+
+    // ── ALL GATES PASSED — commit ──
+    _currentSegmentIndex = bestIndex;
+    _lastAcceptedSnap = snapped;
+    _lastAcceptedRaw = raw;
+    _snapCacheInput = raw;
+    _snapCacheOutput = snapped;
+    return snapped;
+  }
+
+  double _getBearing(LatLng start, LatLng end) {
+    double lat1 = start.latitude * pi / 180;
+    double lon1 = start.longitude * pi / 180;
+    double lat2 = end.latitude * pi / 180;
+    double lon2 = end.longitude * pi / 180;
+
+    double dLon = lon2 - lon1;
+
+    double y = sin(dLon) * cos(lat2);
+    double x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon);
+
+    double bearing = atan2(y, x);
+    return (bearing * 180 / pi + 360) % 360;
+  }
+
+  int _getClosestPolylineIndex(LatLng current) {
+    if (_fullPolyline.isEmpty) return 0;
+
+    // Search forward from current segment (+30) instead of entire polyline.
+    // Falls back to broader search only if needed.
+    final searchEnd = (_currentSegmentIndex + 30).clamp(0, _fullPolyline.length);
+    double minDist = double.infinity;
+    int index = _currentSegmentIndex;
+
+    for (int i = _currentSegmentIndex; i < searchEnd; i++) {
+      final d = _haversineMeters(_fullPolyline[i], current);
+      if (d < minDist) {
+        minDist = d;
+        index = i;
+      }
+    }
+
+    return index;
+  }
+
+  /// Warm up the snap pipeline state after a fresh load (screen reopen,
+  /// app restart, hot reload) so that the first live poll has a correct
+  /// `_currentSegmentIndex` and a populated `_lastAcceptedSnap` /
+  /// `_lastAcceptedRaw` baseline.
+  ///
+  /// CRITICAL: seed the segment index from `_currentLatLng` (the live
+  /// driver position), NOT from the last timeline point. `bookings.driver_lat`
+  /// updates on every accepted GPS poll, but `vehicle_trackings` rows are
+  /// only inserted on movement ≥25 m, so the last timeline point can be
+  /// several polls behind the actual current position. Seeding from the
+  /// stale timeline position puts `_currentSegmentIndex` BEHIND the truck,
+  /// which makes the first live poll look like a "large forward jump" to
+  /// Gate 5 → buffer → marker frozen at the wrong position. The user sees:
+  ///   - First reload: marker shows wrong (frozen behind actual position)
+  ///   - Wait + reload again: timeline has caught up to driver_lat → marker
+  ///     correct
+  ///
+  /// Fix: always seed from `_currentLatLng`. Use timeline only for
+  /// previous-point bearing/parallel context.
+  void _replayTimelineThroughPipeline() {
+    if (_trackingData == null) return;
+    if (_fullPolyline.length < 2) return;
+    if (_currentLatLng == null) return;
+
+    // 1. Seed segment index from the CURRENT driver position. This is the
+    //    most up-to-date position the backend has.
+    _initializeSegmentIndex(_currentLatLng!);
+
+    // 2. Snap the current position to its segment to get the canonical
+    //    on-route coordinate. Manual projection (we can't call
+    //    `_snapToRoute` here because the gates need state we're about to
+    //    set ourselves).
+    LatLng snappedCurrent = _currentLatLng!;
+    if (_currentSegmentIndex < _fullPolyline.length - 1) {
+      snappedCurrent = _projectOntoSegment(
+        _currentLatLng!,
+        _fullPolyline[_currentSegmentIndex],
+        _fullPolyline[_currentSegmentIndex + 1],
+      );
+    }
+
+    // 3. Extract timeline points to provide bearing/parallel context for
+    //    the very next live poll. Without this, Gate 2 (bearing) and
+    //    Gate 3 (parallel) skip on the first poll because they have no
+    //    `_lastAcceptedRaw` to compare against.
+    final timelinePoints = <LatLng>[];
+    for (final t in _trackingData!.timeline) {
+      final lat = t.lat;
+      final lng = t.lng;
+      if (lat != null && lng != null && lat != 0 && lng != 0) {
+        timelinePoints.add(LatLng(lat, lng));
+      }
+    }
+
+    // 4. Seed snap state. `_lastAcceptedSnap` is the snapped current
+    //    position (where the truck is on the route, right now).
+    //    `_lastAcceptedRaw` is the previous timeline point if available
+    //    so the bearing check has a "previous position" to compare
+    //    against. Falls back to current if there's no history.
+    _lastAcceptedSnap = snappedCurrent;
+    _lastAcceptedRaw = timelinePoints.isNotEmpty
+        ? timelinePoints.last
+        : _currentLatLng;
+
+    // 5. Clear the snap idempotency cache so the next call evaluates
+    //    fresh (we just changed the underlying state out from under it).
+    _snapCacheInput = null;
+    _snapCacheOutput = null;
+
+    debugPrint('✅ Pipeline warmed from current position: '
+        'segment $_currentSegmentIndex / ${_fullPolyline.length - 1} '
+        '(timeline had ${timelinePoints.length} points)');
+  }
+
+  /// Global search of entire polyline to find the correct starting segment.
+  /// Called ONCE on route load so that _snapToRoute and _getClosestPolylineIndex
+  /// start searching from the right position instead of always from 0.
+  void _initializeSegmentIndex(LatLng driverPos) {
+    if (_fullPolyline.length < 2) return;
+    double minDist = double.infinity;
+    int bestIdx = 0;
+    for (int i = 0; i < _fullPolyline.length - 1; i++) {
+      final projected = _projectOntoSegment(driverPos, _fullPolyline[i], _fullPolyline[i + 1]);
+      final d = _haversineMeters(driverPos, projected);
+      if (d < minDist) {
+        minDist = d;
+        bestIdx = i;
+      }
+    }
+    _currentSegmentIndex = bestIdx;
+    debugPrint('📍 Segment index initialized to $bestIdx (dist=${minDist.toStringAsFixed(0)}m)');
+  }
+
+  double _getRouteBearing(LatLng current) {
+    if (_fullPolyline.length < 2) return 0;
+
+    int index = _getClosestPolylineIndex(current);
+
+    // prevent overflow
+    if (index >= _fullPolyline.length - 1) {
+      index = _fullPolyline.length - 2;
+    }
+
+    final start = _fullPolyline[index];
+    final end = _fullPolyline[index + 1];
+
+    return _getBearing(start, end);
+  }
+
+  void _updateVehicleBearing(LatLng? previous, LatLng? current) {
+    if (previous == null || current == null) return;
+    if (_haversineMeters(previous, current) < 2) return;
+    _lastVehicleBearing = _getBearing(previous, current);
+  }
+
+  double _getVehicleBearing() {
+    if (_lastVehicleMarkerLatLng != null && _currentLatLng != null) {
+      _updateVehicleBearing(_lastVehicleMarkerLatLng, _currentLatLng);
+    }
+
+    if (_lastVehicleBearing != 0) {
+      return _lastVehicleBearing;
+    }
+
+    if (_currentLatLng != null && _fullPolyline.isNotEmpty) {
+      return _getRouteBearing(_currentLatLng!);
+    }
+
+    return 0;
+  }
+
+  /// Build markers for both small and expanded map views
+  void _buildMarkers() {
+    if (_trackingData == null) return;
+
+    final pickup = _trackingData!.pickup;
+    final driverLoc = _trackingData!.driverLocation;
+    final destination = _trackingData!.drop;
+
+    Set<Marker> smallMarkers = {};
+    Set<Marker> expandedMarkers = {};
+
+    /// -------- Pickup (home marker) --------
+    /// Uses _homeMarkerLatLng (admin pickup if set, else driver pickup)
+    /// instead of _pickupLatLng so the marker reflects admin's intended
+    /// start location while the route fetch keeps using the driver's
+    /// actual journey start as origin.
+    final homeMarker = _homeMarkerLatLng ?? _pickupLatLng;
+    final adminPickupName = _trackingData?.adminPickup?.name ?? '';
+    final homeMarkerName =
+        adminPickupName.isNotEmpty ? adminPickupName : pickup.name;
+    if (homeMarker != null) {
+      smallMarkers.add(
+        Marker(
+          markerId: const MarkerId('pickup'),
+          position: homeMarker,
+          icon:
+              _smallPickupMarker ??
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          infoWindow: InfoWindow(title: 'Pickup', snippet: homeMarkerName),
+        ),
+      );
+
+      expandedMarkers.add(
+        Marker(
+          markerId: const MarkerId('pickup'),
+          position: homeMarker,
+          icon:
+              _expandedPickupMarker ??
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          infoWindow: InfoWindow(title: 'Pickup', snippet: homeMarkerName),
+        ),
+      );
+    }
+
+    /// -------- Vehicle (ONLY ONCE) --------
+    // Skip the vehicle marker entirely when this booking is not yet the
+    // active drop. The truck is currently serving an earlier-priority drop
+    // for a different customer; showing it here would mislead this customer
+    // into thinking the driver is on the way to them.
+    if (_currentLatLng != null && _isActiveDrop) {
+      final snappedPos = _snapToRoute(_currentLatLng!);
+      final rotationAngle = _getVehicleBearing();
+      final smallIcon = _smallTruckMarker ??
+          BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+      final expandedIcon = _expandedTruckMarker ??
+          BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+
+      smallMarkers.add(
+        Marker(
+          markerId: const MarkerId('vehicle'),
+          position: snappedPos,
+          icon: smallIcon,
+          anchor: const Offset(0.5, 0.5),
+          rotation: rotationAngle,
+          flat: true,
+          infoWindow: InfoWindow(title: 'Vehicle', snippet: driverLoc.name),
+        ),
+      );
+
+      expandedMarkers.add(
+        Marker(
+          markerId: const MarkerId('vehicle'),
+          position: snappedPos,
+          icon: expandedIcon,
+          anchor: const Offset(0.5, 0.5),
+          rotation: rotationAngle,
+          flat: true,
+          infoWindow: InfoWindow(title: 'Vehicle', snippet: driverLoc.name),
+        ),
+      );
+    }
+
+    /// -------- Destination --------
+    if (_destinationLatLng != null) {
+      smallMarkers.add(
+        Marker(
+          markerId: const MarkerId('destination'),
+          position: _destinationLatLng!,
+          icon:
+              _smallDestinationMarker ??
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          infoWindow: InfoWindow(
+            title: 'Destination',
+            snippet: destination.name,
+          ),
+        ),
+      );
+
+      expandedMarkers.add(
+        Marker(
+          markerId: const MarkerId('destination'),
+          position: _destinationLatLng!,
+          icon:
+              _expandedDestinationMarker ??
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          infoWindow: InfoWindow(
+            title: 'Destination',
+            snippet: destination.name,
+          ),
+        ),
+      );
+    }
+
+    _smallMapMarkers = smallMarkers;
+    _expandedMapMarkers = expandedMarkers;
+    _lastVehicleMarkerLatLng = _currentLatLng;
+  }
+
+  /// Calculate initial camera position to show the full route
+  void _calculateInitialCameraPosition() {
+    List<LatLng> points = [];
+
+    if (_pickupLatLng != null) points.add(_pickupLatLng!);
+    if (_currentLatLng != null) points.add(_currentLatLng!);
+    if (_destinationLatLng != null) points.add(_destinationLatLng!);
+
+    if (points.isEmpty) return;
+
+    if (points.length == 1) {
+      _initialPosition = CameraPosition(target: points.first, zoom: 14.0);
+      return;
+    }
+
+    // Calculate center point
+    double minLat = points.first.latitude;
+    double maxLat = minLat;
+    double minLng = points.first.longitude;
+    double maxLng = minLng;
+
+    for (final point in points) {
+      minLat = min(minLat, point.latitude);
+      maxLat = max(maxLat, point.latitude);
+      minLng = min(minLng, point.longitude);
+      maxLng = max(maxLng, point.longitude);
+    }
+
+    final centerLat = (minLat + maxLat) / 2;
+    final centerLng = (minLng + maxLng) / 2;
+
+    // Calculate zoom level based on distance
+    final latDiff = maxLat - minLat;
+    final lngDiff = maxLng - minLng;
+    final maxDiff = max(latDiff, lngDiff);
+
+    double zoom;
+    if (maxDiff > 5) {
+      zoom = 6;
+    } else if (maxDiff > 2) {
+      zoom = 7;
+    } else if (maxDiff > 1) {
+      zoom = 8;
+    } else if (maxDiff > 0.5) {
+      zoom = 9;
+    } else if (maxDiff > 0.2) {
+      zoom = 10;
+    } else if (maxDiff > 0.1) {
+      zoom = 11;
+    } else if (maxDiff > 0.05) {
+      zoom = 12;
+    } else {
+      zoom = 13;
+    }
+
+    _initialPosition = CameraPosition(
+      target: LatLng(centerLat, centerLng),
+      zoom: zoom,
+    );
   }
 
   @override
@@ -244,7 +2338,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       body: SafeArea(
         child: Column(
           children: [
+            /// ================= Header =================
             _buildHeader(context, width, height),
+
+            /// ================= Content =================
             Expanded(
               child: Obx(() {
                 if (controller.specificLoading.value) {
@@ -264,6 +2361,2595 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         ),
       ),
     );
+  }
+
+  /// Default view: Map fills top, draggable bottom sheet with details
+  Widget _buildDefaultView(double width, double height) {
+    return Stack(
+      children: [
+        /// ── Map fills entire background ──
+        Column(
+          children: [Expanded(child: _buildSmallMapSection(width, height))],
+        ),
+
+        /// ── Floating ETA pill on map ──
+        if (_estimatedDuration.isNotEmpty)
+          Positioned(
+            top: height * 0.015,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: width * 0.05,
+                  vertical: width * 0.025,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.12),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    SizedBox(width: width * 0.02),
+                    Text(
+                      'Arriving in ',
+                      style: TextStyle(
+                        fontSize: width * 0.033,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    Text(
+                      // Live-computed adaptive ETA. Shrinks faster when
+                      // the truck beats Google's average expected speed,
+                      // grows when slower. Falls back to the static
+                      // `_estimatedDuration` if the route metadata
+                      // isn't loaded yet (very first frame).
+                      _remainingDurationSeconds > 0
+                          ? _formatDuration(_adaptiveRemainingSeconds())
+                          : _estimatedDuration,
+                      style: TextStyle(
+                        fontSize: width * 0.038,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+        /// ── Expand map button ──
+        Positioned(
+          top: height * 0.015,
+          right: width * 0.04,
+          child: GestureDetector(
+            onTap: () => setState(() => _isMapExpanded = true),
+            child: Container(
+              padding: EdgeInsets.all(width * 0.025),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.fullscreen,
+                size: width * 0.05,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ),
+
+        /// ── Recenter button (visible when follow mode is off) ──
+        if (!_isFollowingVehicle)
+          Positioned(
+            top: height * 0.015,
+            left: width * 0.04,
+            child: GestureDetector(
+              onTap: _centerOnVehicle,
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: width * 0.035,
+                  vertical: width * 0.02,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0077C8),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.my_location,
+                      size: width * 0.04,
+                      color: Colors.white,
+                    ),
+                    SizedBox(width: width * 0.015),
+                    Text(
+                      'Recenter',
+                      style: TextStyle(
+                        fontSize: width * 0.032,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+        /// ── Draggable Bottom Sheet ──
+        DraggableScrollableSheet(
+          initialChildSize: 0.42,
+          minChildSize: 0.15,
+          maxChildSize: 0.85,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: ListView(
+                controller: scrollController,
+                padding: EdgeInsets.zero,
+                children: [
+                  /// Drag handle
+                  Center(
+                    child: Container(
+                      margin: EdgeInsets.only(
+                        top: height * 0.012,
+                        bottom: height * 0.01,
+                      ),
+                      width: width * 0.1,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+
+                  /// Live status bar
+                  _buildLiveStatusBar(width, height),
+
+                  /// Driver card
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: width * 0.04,
+                      vertical: height * 0.008,
+                    ),
+                    child: _buildDriverCard(width, height),
+                  ),
+
+                  /// Vehicle status + delivery info
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: width * 0.04),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildVehicleStatus(width, height),
+                        SizedBox(height: height * 0.008),
+                        _buildDeliveryInfo(width, height),
+                        SizedBox(height: height * 0.012),
+                        _buildTravelCostRow(width),
+                      ],
+                    ),
+                  ),
+
+                  /// Divider
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: height * 0.012),
+                    child: Divider(
+                      color: Colors.grey.shade200,
+                      thickness: 6,
+                      height: 0,
+                    ),
+                  ),
+
+                  /// Timeline
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: width * 0.04),
+                    child: _buildLocationTimeline(width, height),
+                  ),
+
+                  SizedBox(height: height * 0.03),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  String _timeAgoText() {
+    final diff = DateTime.now().difference(_lastRefreshedAt);
+    if (diff.inSeconds < 60) return 'Updated just now';
+    if (diff.inMinutes < 60) {
+      return 'Updated ${diff.inMinutes} min${diff.inMinutes > 1 ? 's' : ''} ago';
+    }
+    return 'Updated ${diff.inHours} hour${diff.inHours > 1 ? 's' : ''} ago';
+  }
+
+  Widget _buildRefreshBar(double width, double height) {
+    if (_trackingData == null) return const SizedBox.shrink();
+
+    final driverLoc = _trackingData!.driverLocation;
+    final locationName = driverLoc.name.isNotEmpty
+        ? driverLoc.name
+        : 'Location not available';
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: width * 0.05,
+        vertical: height * 0.015,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F5F5),
+        border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Arrived $locationName",
+                  style: TextStyle(
+                    fontSize: width * 0.037,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.green.shade700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                SizedBox(height: 2),
+                Text(
+                  _timeAgoText(),
+                  style: TextStyle(
+                    fontSize: width * 0.03,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: width * 0.03),
+          GestureDetector(
+            onTap: _isRefreshing ? null : _refreshData,
+            child: Container(
+              width: width * 0.12,
+              height: width * 0.12,
+              decoration: BoxDecoration(
+                color: const Color(0xFF0077C8),
+                shape: BoxShape.circle,
+              ),
+              child: _isRefreshing
+                  ? Padding(
+                      padding: EdgeInsets.all(width * 0.03),
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(
+                      Icons.refresh,
+                      color: Colors.white,
+                      size: width * 0.06,
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Expanded map view with Last Update card
+  Widget _buildExpandedMapView(double width, double height) {
+    return Stack(
+      children: [
+        // Full screen Google Map
+        GoogleMap(
+          mapType: MapType.normal,
+          initialCameraPosition: _initialPosition,
+          markers: _expandedMapMarkers,
+          polylines: _polylines,
+          myLocationEnabled: false,
+          myLocationButtonEnabled: false,
+          zoomControlsEnabled: true,
+          mapToolbarEnabled: true,
+          scrollGesturesEnabled: true,
+          zoomGesturesEnabled: true,
+          rotateGesturesEnabled: true,
+          tiltGesturesEnabled: true,
+          padding: EdgeInsets.only(
+            bottom: height * 0.16,
+            right: width * 0.02,
+            top: height * 0.02,
+          ),
+          onCameraMoveStarted: () {
+            // Only disable follow mode for USER gestures (drag/zoom/rotate),
+            // not for our programmatic animateCamera calls.
+            if (_isFollowingVehicle && !_isProgrammaticCameraMove) {
+              setState(() => _isFollowingVehicle = false);
+            }
+            _scheduleFollowAutoResume();
+          },
+          onMapCreated: (GoogleMapController controller) {
+            _expandedMapController = controller;
+            Future.delayed(const Duration(milliseconds: 300), () {
+              _fitExpandedMapToAllMarkers();
+            });
+          },
+        ),
+
+        // Loading indicator for route
+        if (_isLoadingRoute)
+          const Center(
+            child: CircularProgressIndicator(color: Color(0xFF0077C8)),
+          ),
+
+        // Center on vehicle button
+        Positioned(
+          bottom: height * 0.3,
+          right: width * 0.04,
+          child: GestureDetector(
+            onTap: _centerOnVehicle,
+            child: Container(
+              padding: EdgeInsets.all(width * 0.03),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.my_location,
+                size: width * 0.06,
+                color: const Color(0xFF0077C8),
+              ),
+            ),
+          ),
+        ),
+
+        // Last Update Card at bottom
+        Positioned(
+          bottom: height * 0.02,
+          left: width * 0.04,
+          right: width * 0.04,
+          child: _buildLastUpdateCard(width, height),
+        ),
+      ],
+    );
+  }
+
+  /// Fit expanded map to show all markers
+  void _fitExpandedMapToAllMarkers() {
+    if (_expandedMapController == null) return;
+
+    List<LatLng> allPoints = [];
+    if (_pickupLatLng != null) allPoints.add(_pickupLatLng!);
+    if (_currentLatLng != null) allPoints.add(_currentLatLng!);
+    if (_destinationLatLng != null) allPoints.add(_destinationLatLng!);
+
+    if (allPoints.isEmpty) return;
+
+    try {
+      double minLat = allPoints.first.latitude;
+      double maxLat = minLat;
+      double minLng = allPoints.first.longitude;
+      double maxLng = minLng;
+
+      for (final point in allPoints) {
+        minLat = min(minLat, point.latitude);
+        maxLat = max(maxLat, point.latitude);
+        minLng = min(minLng, point.longitude);
+        maxLng = max(maxLng, point.longitude);
+      }
+
+      // Add padding to bounds
+      final latPadding = (maxLat - minLat) * 0.2;
+      final lngPadding = (maxLng - minLng) * 0.2;
+
+      // Ensure minimum padding
+      const minPadding = 0.01;
+      final actualLatPadding = max(latPadding, minPadding);
+      final actualLngPadding = max(lngPadding, minPadding);
+
+      _expandedMapController!.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(
+            southwest: LatLng(
+              minLat - actualLatPadding,
+              minLng - actualLngPadding,
+            ),
+            northeast: LatLng(
+              maxLat + actualLatPadding,
+              maxLng + actualLngPadding,
+            ),
+          ),
+          60,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error fitting expanded map to markers: $e');
+    }
+  }
+
+  /// Fit small map to show all markers
+  void _fitSmallMapToAllMarkers() {
+    if (_smallMapController == null) return;
+
+    List<LatLng> allPoints = [];
+    if (_pickupLatLng != null) allPoints.add(_pickupLatLng!);
+    if (_currentLatLng != null) allPoints.add(_currentLatLng!);
+    if (_destinationLatLng != null) allPoints.add(_destinationLatLng!);
+
+    if (allPoints.isEmpty) return;
+
+    try {
+      double minLat = allPoints.first.latitude;
+      double maxLat = minLat;
+      double minLng = allPoints.first.longitude;
+      double maxLng = minLng;
+
+      for (final point in allPoints) {
+        minLat = min(minLat, point.latitude);
+        maxLat = max(maxLat, point.latitude);
+        minLng = min(minLng, point.longitude);
+        maxLng = max(maxLng, point.longitude);
+      }
+
+      // Add padding to bounds
+      final latPadding = (maxLat - minLat) * 0.2;
+      final lngPadding = (maxLng - minLng) * 0.2;
+
+      // Ensure minimum padding
+      const minPadding = 0.01;
+      final actualLatPadding = max(latPadding, minPadding);
+      final actualLngPadding = max(lngPadding, minPadding);
+
+      _smallMapController!.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(
+            southwest: LatLng(
+              minLat - actualLatPadding,
+              minLng - actualLngPadding,
+            ),
+            northeast: LatLng(
+              maxLat + actualLatPadding,
+              maxLng + actualLngPadding,
+            ),
+          ),
+          40,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error fitting small map to markers: $e');
+    }
+  }
+
+  Widget _buildHeader(BuildContext context, double width, double height) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: width * 0.04,
+        vertical: height * 0.012,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () {
+              if (_isMapExpanded) {
+                setState(() => _isMapExpanded = false);
+              } else {
+                Navigator.pop(context);
+              }
+            },
+            child: Container(
+              padding: EdgeInsets.all(width * 0.02),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.arrow_back_ios_new,
+                size: width * 0.04,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          SizedBox(width: width * 0.03),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Vehicle tracking',
+                style: TextStyle(
+                  fontSize: width * 0.045,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
+              ),
+              Text(
+                'Order #${widget.bookingId}',
+                style: TextStyle(
+                  fontSize: width * 0.03,
+                  color: Colors.grey.shade500,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          RefreshButton(onTap: _refreshData),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSmallMapSection(double width, double height) {
+    return Stack(
+      children: [
+        GoogleMap(
+          mapType: MapType.normal,
+          initialCameraPosition: _initialPosition,
+          markers: _smallMapMarkers,
+          polylines: _polylines,
+          myLocationEnabled: false,
+          myLocationButtonEnabled: false,
+          zoomControlsEnabled: false,
+          mapToolbarEnabled: false,
+          scrollGesturesEnabled: true,
+          zoomGesturesEnabled: true,
+          rotateGesturesEnabled: true,
+          tiltGesturesEnabled: true,
+          padding: EdgeInsets.only(bottom: height * 0.15),
+          onCameraMoveStarted: () {
+            // Only disable follow mode for USER gestures (drag/zoom/rotate),
+            // not for our programmatic animateCamera calls.
+            if (_isFollowingVehicle && !_isProgrammaticCameraMove) {
+              setState(() => _isFollowingVehicle = false);
+            }
+            _scheduleFollowAutoResume();
+          },
+          onMapCreated: (GoogleMapController controller) {
+            _smallMapController = controller;
+            Future.delayed(const Duration(milliseconds: 300), () {
+              _fitSmallMapToAllMarkers();
+            });
+          },
+        ),
+        if (_isLoadingRoute)
+          Container(
+            color: Colors.white.withValues(alpha: 0.5),
+            child: const Center(
+              child: CircularProgressIndicator(color: Color(0xFF0077C8)),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Live status bar with pulsing dot and location
+  Widget _buildLiveStatusBar(double width, double height) {
+    if (_trackingData == null) return const SizedBox.shrink();
+
+    final driverLoc = _trackingData!.driverLocation;
+    final locationName = driverLoc.name.isNotEmpty
+        ? driverLoc.name
+        : 'Tracking...';
+
+    return Container(
+      margin: EdgeInsets.symmetric(
+        horizontal: width * 0.04,
+        vertical: height * 0.005,
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: width * 0.04,
+        vertical: width * 0.03,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade100),
+      ),
+      child: Row(
+        children: [
+          // Pulsing live dot
+          SizedBox(
+            width: 12,
+            height: 12,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                AnimatedBuilder(
+                  animation: _pulseAnimation,
+                  builder: (context, child) {
+                    return Container(
+                      width: 12 * _pulseAnimation.value * 0.6,
+                      height: 12 * _pulseAnimation.value * 0.6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.green.withValues(
+                          alpha:
+                              (1.0 - (_pulseAnimation.value - 1.0) / 1.5) * 0.3,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: width * 0.03),
+          Text(
+            'LIVE',
+            style: TextStyle(
+              fontSize: width * 0.028,
+              fontWeight: FontWeight.w800,
+              color: Colors.green.shade700,
+              letterSpacing: 1.2,
+            ),
+          ),
+          SizedBox(width: width * 0.03),
+          Expanded(
+            child: Text(
+              locationName,
+              style: TextStyle(
+                fontSize: width * 0.033,
+                color: Colors.green.shade800,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Text(
+            _timeAgoText(),
+            style: TextStyle(
+              fontSize: width * 0.028,
+              color: Colors.green.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Modern driver card with avatar, info, and call button
+  Widget _buildDriverCard(double width, double height) {
+    if (_trackingData == null) return const SizedBox.shrink();
+
+    final driver = _trackingData!.driverDetails;
+    final driverName = driver.driverName.isNotEmpty
+        ? driver.driverName
+        : 'Not assigned';
+    final vehicleNumber = driver.vehicleNumber.isNotEmpty
+        ? driver.vehicleNumber
+        : 'N/A';
+    final driverPhone = driver.driverPhone;
+
+    return Container(
+      padding: EdgeInsets.all(width * 0.035),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Driver avatar
+          Container(
+            width: width * 0.13,
+            height: width * 0.13,
+            decoration: BoxDecoration(
+              color: const Color(0xFF0077C8).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: driver.driverImage.isNotEmpty
+                ? ClipOval(
+                    child: Image.network(
+                      driver.driverImage,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.person,
+                        size: width * 0.07,
+                        color: const Color(0xFF0077C8),
+                      ),
+                    ),
+                  )
+                : Icon(
+                    Icons.person,
+                    size: width * 0.07,
+                    color: const Color(0xFF0077C8),
+                  ),
+          ),
+          SizedBox(width: width * 0.035),
+          // Driver info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  driverName,
+                  style: TextStyle(
+                    fontSize: width * 0.04,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.local_shipping_outlined,
+                      size: width * 0.035,
+                      color: Colors.grey.shade500,
+                    ),
+                    SizedBox(width: width * 0.015),
+                    Text(
+                      vehicleNumber,
+                      style: TextStyle(
+                        fontSize: width * 0.033,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Call button
+          if (driverPhone.isNotEmpty)
+            GestureDetector(
+              onTap: () async {
+                final uri = Uri(scheme: 'tel', path: driverPhone);
+                if (await canLaunchUrl(uri)) await launchUrl(uri);
+              },
+              child: Container(
+                padding: EdgeInsets.all(width * 0.03),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Icon(
+                  Icons.phone,
+                  size: width * 0.05,
+                  color: Colors.green.shade700,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDriverDetails(double width, double height) {
+    if (_trackingData == null) return const SizedBox.shrink();
+
+    final driver = _trackingData!.driverDetails;
+    final driverName = driver.driverName.isNotEmpty
+        ? driver.driverName
+        : 'Not assigned';
+    final driverMobile = driver.driverPhone.isNotEmpty
+        ? '+91${driver.driverPhone}'
+        : 'N/A';
+    final vehicleNumber = driver.vehicleNumber.isNotEmpty
+        ? driver.vehicleNumber
+        : 'N/A';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Driver Details',
+          style: TextStyle(
+            fontSize: width * 0.042,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        SizedBox(height: height * 0.015),
+        Wrap(
+          spacing: width * 0.08,
+          runSpacing: height * 0.016,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            _infoItem(
+              icon: Icons.person_outline,
+              text: driverName,
+              width: width,
+            ),
+            _infoItem(
+              icon: Icons.phone_outlined,
+              text: driverMobile,
+              width: width,
+            ),
+            _infoItem(
+              icon: Icons.local_shipping_outlined,
+              text: vehicleNumber,
+              width: width,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _infoItem({
+    required IconData icon,
+    required String text,
+    required double width,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: width * 0.05, color: Colors.grey.shade700),
+        SizedBox(width: width * 0.02),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: width * 0.038,
+            color: Colors.grey.shade800,
+          ),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVehicleStatus(double width, double height) {
+    if (_trackingData == null) return const SizedBox.shrink();
+
+    String statusMessage =
+        _trackingData!.vehicleDescription ??
+        (_trackingData!.deliveryUpdates.note.isNotEmpty
+            ? _trackingData!.deliveryUpdates.note
+            : 'We\'ve received your booking. Within a few days, we will assign your vehicle');
+
+    return Container(
+      padding: EdgeInsets.all(width * 0.035),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                size: width * 0.04,
+                color: const Color(0xFF0077C8),
+              ),
+              SizedBox(width: width * 0.02),
+              Text(
+                'Status',
+                style: TextStyle(
+                  fontSize: width * 0.035,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: height * 0.008),
+          Text(
+            statusMessage,
+            style: TextStyle(
+              fontSize: width * 0.033,
+              color: Colors.grey.shade600,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeliveryInfo(double width, double height) {
+    if (_trackingData == null) return const SizedBox.shrink();
+
+    final deliveryExpected = _trackingData!.deliveryUpdates.deliveryExpected;
+    final expectedDelivery = _trackingData!.expectedDelivery;
+
+    String deliveryText = '';
+
+    if (deliveryExpected.isNotEmpty) {
+      deliveryText = 'Delivery Expected on $deliveryExpected';
+    } else if (expectedDelivery.isNotEmpty && expectedDelivery != 'N/A') {
+      deliveryText = 'Delivery Expected on $expectedDelivery';
+    }
+
+    if (deliveryText.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Text(
+      deliveryText,
+      style: TextStyle(fontSize: width * 0.036, color: Colors.grey.shade700),
+    );
+  }
+
+  Widget _buildTravelCostRow(double width) {
+    if (_trackingData == null) return const SizedBox.shrink();
+    final travelCost = _trackingData!.travelCost;
+    final expectedDelivery = _trackingData!.expectedDelivery;
+    if (travelCost == 'N/A' &&
+        (expectedDelivery == 'N/A' || expectedDelivery.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+    return Row(
+      children: [
+        if (travelCost != 'N/A')
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xffF6F6F6),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Travel cost',
+                    style: TextStyle(
+                      color: const Color(0xff374151),
+                      fontSize: width * 0.035,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    '₹$travelCost',
+                    style: TextStyle(
+                      fontSize: width * 0.035,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (travelCost != 'N/A' &&
+            expectedDelivery != 'N/A' &&
+            expectedDelivery.isNotEmpty)
+          const SizedBox(width: 8),
+        if (expectedDelivery != 'N/A' && expectedDelivery.isNotEmpty)
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xffF6F6F6),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Delivery Expected on',
+                    style: TextStyle(
+                      color: const Color(0xff374151),
+                      fontSize: width * 0.035,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    expectedDelivery,
+                    style: TextStyle(
+                      fontSize: width * 0.035,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _addSplitPolylines(
+    Set<Polyline> polylines,
+    List<LatLng> routePoints,
+    List<LatLng> waypoints,
+  ) {
+    if (routePoints.length < 2) return;
+
+    polylines.add(
+      Polyline(
+        polylineId: const PolylineId('remaining'),
+        points: routePoints,
+        color: const Color(0xFF1A73E8), // blue
+        width: 5,
+      ),
+    );
+  }
+
+  /// Handle timeline item tap — expand/collapse sub-stops
+  void _onTimelineTap(
+    int segmentIndex,
+    double prevFraction,
+    double currentFraction,
+  ) async {
+    // Toggle if already expanded
+    if (_expandedSegmentIndex == segmentIndex) {
+      setState(() => _expandedSegmentIndex = null);
+      return;
+    }
+
+    // If already cached, just expand
+    if (_subStopsCache.containsKey(segmentIndex)) {
+      setState(() => _expandedSegmentIndex = segmentIndex);
+      return;
+    }
+
+    // Need to generate sub-stops
+    if (_fullPolyline.isEmpty || _cumulativeDistances.isEmpty) return;
+
+    setState(() {
+      _loadingSegment = segmentIndex;
+      _expandedSegmentIndex = segmentIndex;
+    });
+
+    final subStops = await GoogleMapsService.generateSubStops(
+      fullPolyline: _fullPolyline,
+      cumulativeDistances: _cumulativeDistances,
+      startFraction: prevFraction,
+      endFraction: currentFraction,
+      totalDurationSeconds: _totalRouteDurationSeconds,
+      count: 3,
+    );
+
+    if (mounted) {
+      setState(() {
+        _subStopsCache[segmentIndex] = subStops;
+        _loadingSegment = null;
+      });
+    }
+  }
+
+  Widget _buildLocationTimeline(double width, double height) {
+    if (_trackingData == null) return const SizedBox.shrink();
+
+    final pickup = _trackingData!.pickup;
+    final driverLoc = _trackingData!.driverLocation;
+    final destination = _trackingData!.drop;
+
+    final hasCurrentLocation = driverLoc.lat != 0 && driverLoc.lng != 0;
+
+    List<Widget> timelineItems = [];
+
+    // Check if driver is AT a fixed stop (within threshold) — if so, merge into that stop
+    bool driverAtFixedStop = false;
+    if (hasCurrentLocation && _currentStopIndex >= 0 && _currentStopIndex < _fixedStops.length) {
+      final currentStop = _fixedStops[_currentStopIndex];
+      final stopLatLng = LatLng(currentStop['lat'] as double, currentStop['lng'] as double);
+      final dist = _haversineDistance(_currentLatLng!, stopLatLng);
+      driverAtFixedStop = dist < 10000; // within 10km = driver is at this stop
+    }
+
+    // Vehicle widget — only show as separate item if NOT at a fixed stop and NOT near pickup
+    final bool driverNearPickup = hasCurrentLocation &&
+        _pickupLatLng != null &&
+        _haversineDistance(_currentLatLng!, _pickupLatLng!) < 10000; // within 10km
+    final bool willInsertVehicleWidget =
+        hasCurrentLocation && !driverAtFixedStop && !driverNearPickup;
+
+    /// -------- Pickup (always green, always first) --------
+    // Use journey start time for pickup, not driver's current updatedAt
+    final pickupTime = (_trackingData!.inProgressAt != null && _trackingData!.inProgressAt!.isNotEmpty)
+        ? _formatDateTime(_trackingData!.inProgressAt)
+        : _formatDateTime(driverLoc.updatedAt);
+    // Pickup's connector is green only when the NEXT visible item is
+    // also "passed". The next visible item is either:
+    //   - the vehicle widget (always passed, pulsing) if it'll be
+    //     inserted right after pickup, OR
+    //   - the first fixed stop, which is passed iff `_currentStopIndex >= 0`.
+    // Without this, the green connector below pickup always extended
+    // down into the next stop's icon — making customers think the
+    // truck had reached that stop even though it hadn't.
+    final bool pickupNextIsPassed = willInsertVehicleWidget
+        ? true
+        : (_fixedStops.isNotEmpty && _currentStopIndex >= 0);
+    timelineItems.add(
+      _buildTimelineItem(
+        width,
+        height,
+        Icons.location_on,
+        Colors.green,
+        'Pickup started from',
+        pickup.name.isNotEmpty ? pickup.name : 'N/A',
+        pickupTime,
+        isFirst: true,
+        isPassed: true,
+        isNextPassed: pickupNextIsPassed,
+      ),
+    );
+
+    Widget? vehicleWidget;
+    if (willInsertVehicleWidget) {
+      // Vehicle widget's connector goes down to the next unpassed
+      // fixed stop, so its connector is grey (next item is NOT passed).
+      vehicleWidget = _buildTimelineItem(
+        width,
+        height,
+        Icons.local_shipping,
+        Colors.green,
+        driverLoc.name.isNotEmpty ? driverLoc.name : 'Current Location',
+        _formatDate(driverLoc.updatedAt),
+        _formatDateTime(driverLoc.updatedAt),
+        isPulsing: true,
+        isPassed: true,
+        isNextPassed: false,
+      );
+    }
+
+    bool vehicleInserted = false;
+
+    /// -------- Fixed Stops (NEVER changes, only color updates) --------
+    if (_isLoadingFixedStops && _fixedStops.isEmpty) {
+      if (vehicleWidget != null) {
+        timelineItems.add(vehicleWidget);
+        vehicleInserted = true;
+      }
+      timelineItems.add(
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: height * 0.01),
+          child: Row(
+            children: [
+              SizedBox(width: width * 0.09, child: Center(child: Container(width: 2, height: height * 0.04, color: Colors.grey.shade300))),
+              SizedBox(width: width * 0.04),
+              SizedBox(width: width * 0.04, height: width * 0.04, child: const CircularProgressIndicator(strokeWidth: 1.5)),
+              SizedBox(width: width * 0.02),
+              Text('Loading route...', style: TextStyle(fontSize: width * 0.03, color: Colors.grey)),
+            ],
+          ),
+        ),
+      );
+    } else {
+      bool newTimesLocked = false;
+      for (int i = 0; i < _fixedStops.length; i++) {
+        final isPassed = i <= _currentStopIndex;
+
+        // Insert vehicle AFTER the last passed stop (right before first grey stop)
+        if (!vehicleInserted && vehicleWidget != null && !isPassed) {
+          timelineItems.add(vehicleWidget);
+          vehicleInserted = true;
+        }
+
+        final stop = _fixedStops[i];
+        final name = stop['name'] as String? ?? 'Stop ${i + 1}';
+        final isKeyStop = stop['is_key_stop'] == true;
+        final isDriverHere = driverAtFixedStop && i == _currentStopIndex;
+
+        final stopColor = isPassed ? Colors.green : Colors.black;
+        String? subtitle;
+        if (isDriverHere) {
+          subtitle = _formatDate(driverLoc.updatedAt);
+        } else if (isKeyStop) {
+          subtitle = isPassed ? 'Passed' : 'Key Stop';
+        } else if (isPassed) {
+          subtitle = 'Passed';
+        }
+
+        // Calculate time: locked for passed stops, dynamic for future stops
+        final stopFraction = _getStopFraction(i);
+        String time;
+        if (isDriverHere) {
+          time = _formatDateTime(driverLoc.updatedAt);
+        } else if (isPassed) {
+          // Use locked time if available, otherwise lock the current estimated time
+          if (_passedStopTimes.containsKey(i)) {
+            time = _passedStopTimes[i]!;
+          } else {
+            time = _getTimeForFraction(stopFraction);
+            if (time != '-') {
+              _passedStopTimes[i] = time;
+              newTimesLocked = true;
+            }
+          }
+        } else {
+          time = _getTimeForFraction(stopFraction);
+        }
+
+        // Fractions for sub-stop generation on tap
+        final nextFraction = i < _fixedStops.length - 1
+            ? _getStopFraction(i + 1)
+            : 1.0;
+        final segmentIndex = i + 1;
+
+        // Connector below this stop is green only when the NEXT
+        // visible item is also passed. Cases:
+        //   - Not the last fixed stop → next visible item is the next
+        //     fixed stop, passed iff `(i + 1) <= _currentStopIndex`.
+        //   - Last fixed stop → next visible item is the destination,
+        //     which is "passed" only when the truck is past every
+        //     fixed stop (`_currentStopIndex >= _fixedStops.length - 1`
+        //     plus the truck is at/past the destination — for which we
+        //     just check the same passed flag the destination item uses).
+        final bool nextIsPassed = (i < _fixedStops.length - 1)
+            ? (i + 1) <= _currentStopIndex
+            : _currentStopIndex >= _fixedStops.length;
+
+        timelineItems.add(
+          GestureDetector(
+            onTap: () {
+              _onTimelineTap(segmentIndex, stopFraction, nextFraction);
+            },
+            child: _buildTimelineItem(
+              width,
+              height,
+              isDriverHere ? Icons.local_shipping : Icons.circle,
+              stopColor,
+              name,
+              subtitle,
+              time,
+              isKeyStop: isKeyStop,
+              isPassed: isPassed,
+              isNextPassed: nextIsPassed,
+              isPulsing: isDriverHere,
+            ),
+          ),
+        );
+
+        // ── Sub-stops expand on click ──
+        final isExpanded = _expandedSegmentIndex == segmentIndex;
+        final isLoading = _loadingSegment == segmentIndex;
+
+        if (isExpanded) {
+          timelineItems.add(
+            _buildSubTimeline(
+              width,
+              height,
+              segmentIndex,
+              isLoading,
+              isPassed ? Colors.green : Colors.grey,
+            ),
+          );
+        }
+      }
+
+      // Vehicle after all stops if driver is past everything
+      if (!vehicleInserted && vehicleWidget != null) {
+        timelineItems.add(vehicleWidget);
+        vehicleInserted = true;
+      }
+
+      // Persist any newly locked passed stop times
+      if (newTimesLocked) _savePassedStopTimes();
+    }
+
+    /// -------- Destination --------
+    // Use fraction=1.0 for destination to stay consistent with stop times
+    final destinationTime = _getTimeForFraction(1.0);
+
+    timelineItems.add(
+      _buildTimelineItem(
+        width,
+        height,
+        Icons.flag,
+        Colors.black,
+        'Destination',
+        destination.name.isNotEmpty ? destination.name : 'N/A',
+        destinationTime,
+        isLast: true,
+      ),
+    );
+
+    return Column(children: timelineItems);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // FIXED TIMELINE — Layer 1: Business milestones (NEVER changes)
+  // ══════════════════════════════════════════════════════════════════════
+
+  /// Haversine distance in meters between two LatLng points.
+  double _haversineDistance(LatLng a, LatLng b) {
+    const earthRadius = 6371000.0;
+    final dLat = (b.latitude - a.latitude) * pi / 180;
+    final dLng = (b.longitude - a.longitude) * pi / 180;
+    final h = sin(dLat / 2) * sin(dLat / 2) +
+        cos(a.latitude * pi / 180) *
+            cos(b.latitude * pi / 180) *
+            sin(dLng / 2) *
+            sin(dLng / 2);
+    return 2 * earthRadius * asin(sqrt(h));
+  }
+
+  /// Fetch only the full route polyline (no stop generation).
+  /// Used when stops are loaded from cache but polyline is needed for time/sub-stops.
+  Future<void> _fetchFullRoutePolyline() async {
+    if (_pickupLatLng == null || _destinationLatLng == null) return;
+    if (_fullRoutePolyline.isNotEmpty) return; // Already fetched
+
+    final sortedWaypoints = (_trackingData?.routeWaypoints ?? [])
+        .where((wp) => wp.lat != 0 && wp.lng != 0)
+        .toList()
+      ..sort((a, b) => a.priority.compareTo(b.priority));
+    final allWaypoints = sortedWaypoints
+        .map((wp) => LatLng(wp.lat, wp.lng))
+        .toList();
+
+    final routeData = await GoogleMapsService.getRouteWithStops(
+      origin: _pickupLatLng!,
+      destination: _destinationLatLng!,
+      routeWaypoints: allWaypoints,
+    );
+
+    if (routeData.isNotEmpty) {
+      final polylinePoints = routeData['polyline_points'] as List<LatLng>? ?? [];
+      final remaining = routeData['remaining_points'] as List<LatLng>? ?? [];
+      final completed = routeData['completed_points'] as List<LatLng>? ?? [];
+      _fullRoutePolyline = polylinePoints.isNotEmpty
+          ? polylinePoints
+          : [...completed, ...remaining];
+
+      _fullRouteCumulativeDistances = [0.0];
+      for (int i = 1; i < _fullRoutePolyline.length; i++) {
+        _fullRouteCumulativeDistances.add(
+          _fullRouteCumulativeDistances.last +
+              _haversineDistance(_fullRoutePolyline[i - 1], _fullRoutePolyline[i]),
+        );
+      }
+      _fullRouteDurationSeconds = routeData['total_duration_seconds'] as int? ?? _totalRouteDurationSeconds;
+    }
+  }
+
+  /// Fetch full pickup→destination route and generate fixed stops.
+  /// Called ONCE — stops are then persisted and never regenerated.
+  Future<void> _fetchFullRouteAndGenerateFixedStops() async {
+    if (_pickupLatLng == null || _destinationLatLng == null) return;
+
+    setState(() => _isLoadingFixedStops = true);
+
+    // Include ALL waypoints for the full route, sorted by priority
+    final sortedWps = (_trackingData?.routeWaypoints ?? [])
+        .where((wp) => wp.lat != 0 && wp.lng != 0)
+        .toList()
+      ..sort((a, b) => a.priority.compareTo(b.priority));
+    final allWaypoints = sortedWps
+        .map((wp) => LatLng(wp.lat, wp.lng))
+        .toList();
+
+    final routeData = await GoogleMapsService.getRouteWithStops(
+      origin: _pickupLatLng!,
+      destination: _destinationLatLng!,
+      routeWaypoints: allWaypoints,
+    );
+
+    if (routeData.isEmpty) {
+      setState(() => _isLoadingFixedStops = false);
+      return;
+    }
+
+    final polylinePoints = routeData['polyline_points'] as List<LatLng>? ?? [];
+    final remaining = routeData['remaining_points'] as List<LatLng>? ?? [];
+    final completed = routeData['completed_points'] as List<LatLng>? ?? [];
+    final fullPolyline = polylinePoints.isNotEmpty
+        ? polylinePoints
+        : [...completed, ...remaining];
+    final totalDuration = routeData['total_duration_seconds'] as int? ?? _totalRouteDurationSeconds;
+
+    // Build cumulative distances
+    List<double> cumDist = [0.0];
+    for (int i = 1; i < fullPolyline.length; i++) {
+      cumDist.add(cumDist.last + _haversineDistance(fullPolyline[i - 1], fullPolyline[i]));
+    }
+
+    _fullRoutePolyline = fullPolyline;
+    _fullRouteCumulativeDistances = cumDist;
+    _fullRouteDurationSeconds = totalDuration;
+
+    // Calculate stop count: 1 stop per hour, min 3, max 20
+    final totalHours = totalDuration / 3600.0;
+    int stopCount;
+    if (totalHours <= 1) {
+      stopCount = 3;
+    } else if (totalHours <= 3) {
+      stopCount = 4;
+    } else {
+      stopCount = totalHours.round().clamp(5, 20);
+    }
+
+    // Build waypoint entries (key stops), sorted by priority
+    final waypoints = (_trackingData?.routeWaypoints ?? [])
+        ..sort((a, b) => a.priority.compareTo(b.priority));
+    final List<Map<String, dynamic>> waypointStops = [];
+    final Set<String> waypointNames = {};
+
+    for (final wp in waypoints) {
+      if (wp.lat == 0 && wp.lng == 0) continue;
+      waypointStops.add({
+        'name': wp.name.isNotEmpty ? wp.name : 'Waypoint',
+        'lat': wp.lat,
+        'lng': wp.lng,
+        'is_key_stop': true,
+      });
+      if (wp.name.isNotEmpty) waypointNames.add(wp.name.toLowerCase());
+    }
+
+    // Generate auto stops along the full route
+    final autoStops = await GoogleMapsService.generateSubStops(
+      fullPolyline: fullPolyline,
+      cumulativeDistances: cumDist,
+      startFraction: 0.0,
+      endFraction: 1.0,
+      totalDurationSeconds: totalDuration,
+      count: stopCount,
+    );
+
+    // Filter duplicates
+    final filteredAutoStops = <Map<String, dynamic>>[];
+    for (final stop in autoStops) {
+      final name = (stop['name'] as String? ?? '').toLowerCase();
+      if (waypointNames.contains(name) || name == 'unknown') continue;
+
+      final loc = stop['location'] as LatLng?;
+      if (loc == null) continue;
+
+      // Skip if too close to any waypoint
+      bool tooClose = false;
+      for (final wp in waypointStops) {
+        if (_haversineDistance(loc, LatLng(wp['lat'] as double, wp['lng'] as double)) < 5000) {
+          tooClose = true;
+          break;
+        }
+      }
+      if (tooClose) continue;
+
+      filteredAutoStops.add({
+        'name': stop['name'],
+        'lat': loc.latitude,
+        'lng': loc.longitude,
+        'is_key_stop': false,
+      });
+    }
+
+    // Merge, order by position on the polyline
+    final allStops = [...waypointStops, ...filteredAutoStops];
+
+    // Sort by distance along full polyline
+    for (final stop in allStops) {
+      final sLat = stop['lat'] as double;
+      final sLng = stop['lng'] as double;
+      double minD = double.infinity;
+      int bestIdx = 0;
+      for (int i = 0; i < fullPolyline.length; i++) {
+        final d = _haversineDistance(LatLng(sLat, sLng), fullPolyline[i]);
+        if (d < minD) {
+          minD = d;
+          bestIdx = i;
+        }
+      }
+      stop['_sortDist'] = cumDist[bestIdx];
+    }
+    allStops.sort((a, b) => (a['_sortDist'] as double).compareTo(b['_sortDist'] as double));
+    // Remove sort key
+    for (final stop in allStops) {
+      stop.remove('_sortDist');
+    }
+
+    if (mounted) {
+      setState(() {
+        _fixedStops = allStops;
+        _isLoadingFixedStops = false;
+      });
+    }
+  }
+
+  /// Regenerate fixed timeline stops directly from an already-fetched polyline.
+  /// Used after a reroute so the timeline reflects the new path without a
+  /// redundant API call.
+  Future<void> _regenerateFixedStopsFromPolyline(
+    List<LatLng> polyline,
+    int totalDurationSeconds,
+  ) async {
+    if (polyline.length < 2) return;
+
+    // Reset stop state
+    _fixedStopsGenerated = false;
+    _fixedStops = [];
+    _currentStopIndex = -1;
+    _passedStopTimes = {};
+    _fullRoutePolyline = polyline;
+    _fullRouteDurationSeconds = totalDurationSeconds;
+
+    // Build cumulative distances
+    final List<double> cumDist = [0.0];
+    for (int i = 1; i < polyline.length; i++) {
+      cumDist.add(cumDist.last + _haversineDistance(polyline[i - 1], polyline[i]));
+    }
+    _fullRouteCumulativeDistances = cumDist;
+
+    if (mounted) setState(() => _isLoadingFixedStops = true);
+
+    // Stop count: same formula as _fetchFullRouteAndGenerateFixedStops
+    final totalHours = totalDurationSeconds / 3600.0;
+    int stopCount;
+    if (totalHours <= 1) {
+      stopCount = 3;
+    } else if (totalHours <= 3) {
+      stopCount = 4;
+    } else {
+      stopCount = totalHours.round().clamp(5, 20);
+    }
+
+    // Include only remaining (uncompleted) waypoints
+    final remainingWps = (_trackingData?.routeWaypoints ?? [])
+        .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isCompleted)
+        .toList()
+      ..sort((a, b) => a.priority.compareTo(b.priority));
+
+    final List<Map<String, dynamic>> waypointStops = [];
+    final Set<String> waypointNames = {};
+    for (final wp in remainingWps) {
+      waypointStops.add({
+        'name': wp.name.isNotEmpty ? wp.name : 'Waypoint',
+        'lat': wp.lat,
+        'lng': wp.lng,
+        'is_key_stop': true,
+      });
+      if (wp.name.isNotEmpty) waypointNames.add(wp.name.toLowerCase());
+    }
+
+    final autoStops = await GoogleMapsService.generateSubStops(
+      fullPolyline: polyline,
+      cumulativeDistances: cumDist,
+      startFraction: 0.0,
+      endFraction: 1.0,
+      totalDurationSeconds: totalDurationSeconds,
+      count: stopCount,
+    );
+
+    final filteredAutoStops = <Map<String, dynamic>>[];
+    for (final stop in autoStops) {
+      final name = (stop['name'] as String? ?? '').toLowerCase();
+      if (waypointNames.contains(name) || name == 'unknown') continue;
+      final loc = stop['location'] as LatLng?;
+      if (loc == null) continue;
+      bool tooClose = false;
+      for (final wp in waypointStops) {
+        if (_haversineDistance(loc, LatLng(wp['lat'] as double, wp['lng'] as double)) < 5000) {
+          tooClose = true;
+          break;
+        }
+      }
+      if (tooClose) continue;
+      filteredAutoStops.add({
+        'name': stop['name'],
+        'lat': loc.latitude,
+        'lng': loc.longitude,
+        'is_key_stop': false,
+      });
+    }
+
+    final allStops = [...waypointStops, ...filteredAutoStops];
+    for (final stop in allStops) {
+      final sLat = stop['lat'] as double;
+      final sLng = stop['lng'] as double;
+      double minD = double.infinity;
+      int bestIdx = 0;
+      for (int i = 0; i < polyline.length; i++) {
+        final d = _haversineDistance(LatLng(sLat, sLng), polyline[i]);
+        if (d < minD) {
+          minD = d;
+          bestIdx = i;
+        }
+      }
+      stop['_sortDist'] = cumDist[bestIdx];
+    }
+    allStops.sort((a, b) => (a['_sortDist'] as double).compareTo(b['_sortDist'] as double));
+    for (final stop in allStops) { stop.remove('_sortDist'); }
+
+    // Clear old cache and persist new stops
+    final prefs = await SharedPreferences.getInstance();
+    prefs.remove('fixed_stops_${widget.bookingId}');
+    prefs.remove('stop_index_${widget.bookingId}');
+    prefs.remove('passed_stop_times_${widget.bookingId}');
+
+    if (mounted) {
+      setState(() {
+        _fixedStops = allStops;
+        _isLoadingFixedStops = false;
+      });
+    }
+
+    _fixedStopsGenerated = true;
+    await _saveFixedStops();
+
+    debugPrint('✅ Timeline regenerated after reroute: ${allStops.length} stops');
+  }
+
+  /// Uber-style progress: scan all FORWARD stops, find nearest within radius.
+  /// Allows skipping stops (e.g., driver bypasses a city).
+  /// Never moves backward. Cooldown prevents GPS jitter false triggers.
+  void _updateProgress(LatLng currentLocation) {
+    if (_fixedStops.isEmpty) return;
+
+    // ── FRACTION-BASED PASSED CHECK (authoritative recompute) ──
+    // Old logic was a one-way ratchet: it only INCREMENTED
+    // `_currentStopIndex` from the persisted value, never recomputed.
+    // That meant any wrong-high value (saved while the older 4-8 km
+    // radius bug was active) became permanent — Mummidivaram stayed
+    // "Passed" forever even after the truck drifted back south.
+    //
+    // New logic: recompute the index FROM SCRATCH every call as the
+    // highest stop whose route fraction has been reached. The index can
+    // both grow (normal forward travel) AND shrink (when stale persisted
+    // state is corrected, or when the driver manually U-turns). When it
+    // shrinks, we purge the stale `_passedStopTimes` entries so the next
+    // legitimate pass-through will lock the correct arrival time, not
+    // resurface the wrong one from cache.
+    final currentFraction = _currentDriverFraction();
+    if (currentFraction <= 0 || _fullRoutePolyline.isEmpty) {
+      // Polyline not loaded yet — can't compute fractions reliably,
+      // leave the index alone.
+      return;
+    }
+
+    int recomputedIndex = -1;
+    for (int i = 0; i < _fixedStops.length; i++) {
+      final stopFraction = _getStopFraction(i);
+      if (stopFraction > 0 && currentFraction >= stopFraction) {
+        recomputedIndex = i;
+      }
+    }
+
+    debugPrint("📡 DRIVER LOCATION: ${currentLocation.latitude}, ${currentLocation.longitude} "
+        "(fraction=${currentFraction.toStringAsFixed(3)})");
+    debugPrint("🎯 STOP INDEX recomputed=$recomputedIndex (was=$_currentStopIndex)");
+
+    if (recomputedIndex == _currentStopIndex) return;
+
+    final now = DateTime.now();
+    if (recomputedIndex > _currentStopIndex) {
+      // Forward progress — lock arrival times for the newly passed stops.
+      for (int j = _currentStopIndex + 1; j <= recomputedIndex; j++) {
+        if (!_passedStopTimes.containsKey(j)) {
+          _passedStopTimes[j] = _formatDateTimeObj(now);
+        }
+      }
+    } else {
+      // Backward correction (stale persisted state, or genuine U-turn).
+      // Purge locked times for stops that are no longer passed so the
+      // next forward crossing locks the correct time.
+      for (int j = recomputedIndex + 1; j <= _currentStopIndex; j++) {
+        _passedStopTimes.remove(j);
+      }
+      debugPrint("↩ STOP INDEX corrected backward: $_currentStopIndex → $recomputedIndex");
+    }
+
+    setState(() => _currentStopIndex = recomputedIndex);
+    _saveCurrentStopIndex();
+    _savePassedStopTimes();
+  }
+
+  /// Save current stop index to SharedPreferences.
+  Future<void> _saveCurrentStopIndex() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('stop_index_${widget.bookingId}', _currentStopIndex);
+    } catch (e) {
+      debugPrint('Error saving stop index: $e');
+    }
+  }
+
+  /// Load current stop index from SharedPreferences.
+  Future<void> _loadCurrentStopIndex() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final idx = prefs.getInt('stop_index_${widget.bookingId}') ?? -1;
+      setState(() => _currentStopIndex = idx);
+      _loadPassedStopTimes();
+    } catch (e) {
+      debugPrint('Error loading stop index: $e');
+    }
+  }
+
+  /// Save passed stop times to SharedPreferences.
+  Future<void> _savePassedStopTimes() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final data = _passedStopTimes.map((k, v) => MapEntry(k.toString(), v));
+      await prefs.setString(
+        'passed_stop_times_${widget.bookingId}',
+        jsonEncode(data),
+      );
+    } catch (e) {
+      debugPrint('Error saving passed stop times: $e');
+    }
+  }
+
+  /// Load passed stop times from SharedPreferences.
+  Future<void> _loadPassedStopTimes() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final json = prefs.getString('passed_stop_times_${widget.bookingId}');
+      if (json == null || json.isEmpty) return;
+      final Map<String, dynamic> decoded = jsonDecode(json);
+      setState(() {
+        _passedStopTimes = decoded.map((k, v) => MapEntry(int.parse(k), v.toString()));
+      });
+    } catch (e) {
+      debugPrint('Error loading passed stop times: $e');
+    }
+  }
+
+  /// Save fixed stops to SharedPreferences.
+  Future<void> _saveFixedStops() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final serializable = _fixedStops.map((stop) {
+        return {
+          'name': stop['name'],
+          'lat': stop['lat'],
+          'lng': stop['lng'],
+          'is_key_stop': stop['is_key_stop'],
+        };
+      }).toList();
+      await prefs.setString(
+        'fixed_stops_${widget.bookingId}',
+        jsonEncode(serializable),
+      );
+    } catch (e) {
+      debugPrint('Error saving fixed stops: $e');
+    }
+  }
+
+  /// Load fixed stops from SharedPreferences. Returns true if loaded.
+  Future<bool> _loadFixedStops() async {
+
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final json = prefs.getString('fixed_stops_${widget.bookingId}');
+      if (json == null || json.isEmpty) return false;
+
+      final List<dynamic> decoded = jsonDecode(json);
+      final stops = decoded.map((item) {
+        return Map<String, dynamic>.from(item);
+      }).toList();
+debugPrint("📦 Loaded Fixed Stops from storage:");
+
+for (var stop in stops) {
+  debugPrint("→ ${stop['name']}");
+}
+      if (stops.isNotEmpty) {
+        setState(() {
+          _fixedStops = stops;
+          _isLoadingFixedStops = false;
+        });
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Error loading fixed stops: $e');
+    }
+    return false;
+  }
+
+  /// Get the distance fraction of a fixed stop on the full route polyline.
+  double _getStopFraction(int stopIndex) {
+    if (stopIndex < 0 || stopIndex >= _fixedStops.length) return 0.0;
+    if (_fullRoutePolyline.isEmpty || _fullRouteCumulativeDistances.isEmpty) return 0.0;
+
+    final stop = _fixedStops[stopIndex];
+    final stopLatLng = LatLng(stop['lat'] as double, stop['lng'] as double);
+
+    double minDist = double.infinity;
+    int closestIdx = 0;
+    for (int i = 0; i < _fullRoutePolyline.length; i++) {
+      final d = _haversineDistance(stopLatLng, _fullRoutePolyline[i]);
+      if (d < minDist) {
+        minDist = d;
+        closestIdx = i;
+      }
+    }
+    return _fullRouteCumulativeDistances[closestIdx] / _fullRouteCumulativeDistances.last;
+  }
+
+  /// Highest fraction the driver has ever reached on `_fullRoutePolyline`.
+  /// Used to bias future fraction calculations forward — the polyline
+  /// can self-intersect (out-and-back via a waypoint, e.g.
+  /// pickup → Mummidivaram → Amalapuram passing through the same area
+  /// twice), and a naive closest-point search can return a point on
+  /// the second pass even when the truck is on the first pass. We
+  /// remember the highest fraction reached and never search backward
+  /// past that minus a small slack tolerance.
+  double _maxDriverFractionReached = 0.0;
+
+  /// Where the truck currently is along the full route, as a fraction
+  /// 0..1. Computed from `_currentLatLng` projected onto the cached
+  /// `_fullRoutePolyline` (the same data that drives stop fractions, so
+  /// the units stay consistent).
+  ///
+  /// SELF-INTERSECTING ROUTE HANDLING:
+  /// Some routes loop back through their own area (e.g. an out-and-back
+  /// via a priority waypoint). For those, multiple polyline points can
+  /// be geometrically near the truck, but only one is the "correct" one
+  /// for the truck's current pass. The naive `min haversine distance`
+  /// search picks the absolute closest, which on the second pass of an
+  /// out-and-back is often the post-waypoint leg — making the truck
+  /// look like it's already past the waypoint when it isn't.
+  ///
+  /// Fix: bias the search toward the EARLIEST polyline point that is
+  /// within a small tolerance of the absolute minimum. Once a fraction
+  /// has been observed (`_maxDriverFractionReached`), restrict the
+  /// search to points on or after that fraction minus a 500 m slack
+  /// window — so legitimate forward progress isn't accidentally
+  /// rewound by GPS jitter, but a stale "post-waypoint" guess from a
+  /// previous bug doesn't pin the truck to the wrong leg.
+  double _currentDriverFraction() {
+    if (_currentLatLng == null) return _maxDriverFractionReached;
+    if (_fullRoutePolyline.isEmpty || _fullRouteCumulativeDistances.isEmpty) {
+      return _maxDriverFractionReached;
+    }
+    final total = _fullRouteCumulativeDistances.last;
+    if (total <= 0) return 0.0;
+
+    // Forward search window: never go more than 500 m behind the
+    // highest fraction the truck has been observed at.
+    final minSearchDist =
+        (_maxDriverFractionReached * total - 500).clamp(0.0, total);
+
+    // Pass 1: find the absolute minimum haversine distance from the
+    // truck to any polyline point at-or-after the search floor.
+    double absMin = double.infinity;
+    for (int i = 0; i < _fullRoutePolyline.length; i++) {
+      if (_fullRouteCumulativeDistances[i] < minSearchDist) continue;
+      final d = _haversineDistance(_currentLatLng!, _fullRoutePolyline[i]);
+      if (d < absMin) absMin = d;
+    }
+    if (absMin == double.infinity) return _maxDriverFractionReached;
+
+    // Pass 2: find the EARLIEST polyline point within +200 m of the
+    // absolute minimum. On a self-intersecting route this prefers the
+    // first-pass leg over the second-pass leg whenever both are within
+    // ~200 m of the truck — exactly the disambiguation we need.
+    int bestIdx = 0;
+    for (int i = 0; i < _fullRoutePolyline.length; i++) {
+      if (_fullRouteCumulativeDistances[i] < minSearchDist) continue;
+      final d = _haversineDistance(_currentLatLng!, _fullRoutePolyline[i]);
+      if (d <= absMin + 200) {
+        bestIdx = i;
+        break; // earliest match wins
+      }
+    }
+
+    final fraction =
+        (_fullRouteCumulativeDistances[bestIdx] / total).clamp(0.0, 1.0);
+    if (fraction > _maxDriverFractionReached) {
+      _maxDriverFractionReached = fraction;
+    }
+    return fraction;
+  }
+
+  String _getTimeForFraction(double fraction) {
+    // Use full route duration for fraction-based time calculation
+    // so each stop gets a distinct time proportional to its distance along the route
+    final duration = _fullRouteDurationSeconds > 0
+        ? _fullRouteDurationSeconds
+        : _totalRouteDurationSeconds;
+    if (duration == 0) return '-';
+
+    // ── PASSED stops: keep the original journey-start formula ──
+    // Their actual arrival times are also captured separately into
+    // `_passedStopTimes` and that locked value is preferred upstream;
+    // this branch is just the fallback for the edge case where the
+    // lock hasn't been written yet.
+    final currentFraction = _currentDriverFraction();
+    if (fraction <= currentFraction || _remainingDurationSeconds <= 0) {
+      DateTime? baseTime;
+      if (_trackingData?.inProgressAt != null && _trackingData!.inProgressAt!.isNotEmpty) {
+        try {
+          baseTime = DateTime.parse(_trackingData!.inProgressAt!);
+        } catch (_) {}
+      }
+      baseTime ??= _routeStartTime;
+      if (baseTime == null) return '-';
+
+      final seconds = (fraction * duration).round();
+      return _formatDateTimeObj(baseTime.add(Duration(seconds: seconds)));
+    }
+
+    // ── FUTURE stops: anchor on now() + ADAPTIVE remaining duration ──
+    //
+    // Two effects stack on top of Google's `remaining_duration_seconds`:
+    //
+    //  1. HALT TRACKING — while the truck is parked, `now()` advances
+    //     but `remaining` stays constant, so all downstream stops
+    //     visibly shift forward by the halt duration.
+    //
+    //  2. SPEED-ADAPTIVE SCALING — while the truck is moving, the
+    //     remaining duration is locally re-derived from the route's
+    //     expected average speed and the driver's actual smoothed
+    //     speed. Going faster than expected → ETA shrinks faster.
+    //     Going slower → ETA grows. Same effect as Google Maps
+    //     Navigation between traffic refreshes, but ZERO API cost
+    //     because the math runs purely on locally-cached data
+    //     (`_fullRouteDurationSeconds`, `_fullRouteCumulativeDistances`,
+    //     `_estimatedSpeedKmh`).
+    //
+    // Falls back to the static `_remainingDurationSeconds` when:
+    //   - actual speed is below 5 km/h (parked / crawling — division
+    //     by ~0 would balloon the ETA),
+    //   - route distance/duration metadata isn't loaded yet,
+    //   - or the computed scale falls outside [0.5, 2.0] (we clamp it
+    //     so a one-off GPS spike doesn't send the ETA wildly off).
+    final adaptiveRemaining = _adaptiveRemainingSeconds();
+
+    final routeAhead = (1.0 - currentFraction).clamp(0.0001, 1.0);
+    final stopAhead = (fraction - currentFraction).clamp(0.0, 1.0);
+    final secondsFromNow =
+        ((stopAhead / routeAhead) * adaptiveRemaining).round();
+    final dt = DateTime.now().add(Duration(seconds: secondsFromNow));
+    return _formatDateTimeObj(dt);
+  }
+
+  /// Locally-computed remaining duration adjusted for actual driver
+  /// speed. Returns the static `_remainingDurationSeconds` when there
+  /// isn't enough data or the truck is too slow to compute a meaningful
+  /// scale factor. See `_getTimeForFraction` for full rationale.
+  int _adaptiveRemainingSeconds() {
+    if (_remainingDurationSeconds <= 0) return _remainingDurationSeconds;
+    if (_estimatedSpeedKmh < 5) return _remainingDurationSeconds;
+    if (_fullRouteCumulativeDistances.isEmpty) return _remainingDurationSeconds;
+
+    final totalRouteMeters = _fullRouteCumulativeDistances.last;
+    final totalDurationSec = _fullRouteDurationSeconds > 0
+        ? _fullRouteDurationSeconds
+        : _totalRouteDurationSeconds;
+    if (totalRouteMeters <= 0 || totalDurationSec <= 0) {
+      return _remainingDurationSeconds;
+    }
+
+    final expectedAvgKmh = (totalRouteMeters / totalDurationSec) * 3.6;
+    if (expectedAvgKmh < 1) return _remainingDurationSeconds;
+
+    // scale > 1 → driver is slower than expected → ETA grows.
+    // scale < 1 → driver is faster than expected → ETA shrinks.
+    final rawScale = expectedAvgKmh / _estimatedSpeedKmh;
+    final scale = rawScale.clamp(0.5, 2.0);
+    return (_remainingDurationSeconds * scale).round();
+  }
+
+  /// Build the sub-timeline items between two main stops
+  Widget _buildSubTimeline(
+    double width,
+    double height,
+    int segmentIndex,
+    bool isLoading,
+    Color lineColor,
+  ) {
+    if (isLoading && !_subStopsCache.containsKey(segmentIndex)) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left column — same width as main timeline icon column
+          SizedBox(
+            width: width * 0.09,
+            child: Center(
+              child: Container(
+                width: 2,
+                height: height * 0.04,
+                color: Colors.grey.shade300,
+              ),
+            ),
+          ),
+          SizedBox(width: width * 0.04),
+          Padding(
+            padding: EdgeInsets.only(top: height * 0.012),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: width * 0.04,
+                  height: width * 0.04,
+                  child: const CircularProgressIndicator(strokeWidth: 1.5),
+                ),
+                SizedBox(width: width * 0.02),
+                Text(
+                  'Loading...',
+                  style: TextStyle(fontSize: width * 0.03, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    final subStops = _subStopsCache[segmentIndex];
+    if (subStops == null || subStops.isEmpty) return const SizedBox.shrink();
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      child: Column(
+        children: subStops.map((sub) {
+          String subTime = '-';
+          if (_routeStartTime != null) {
+            final seconds = sub['estimated_seconds'] as int? ?? 0;
+            final dt = _routeStartTime!.add(Duration(seconds: seconds));
+            subTime = _formatDateTimeObj(dt);
+          }
+          return _buildSubTimelineItem(
+            width,
+            height,
+            sub['name'],
+            subTime,
+            lineColor,
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  /// Single sub-timeline item (smaller dot, lighter style)
+  Widget _buildSubTimelineItem(
+    double width,
+    double height,
+    String name,
+    String time,
+    Color lineColor,
+  ) {
+    final dotSize = width * 0.025;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Left column — same width as main timeline, centered line + dot
+        SizedBox(
+          width: width * 0.09,
+          child: Column(
+            children: [
+              Container(
+                width: 2,
+                height: height * 0.015,
+                color: Colors.grey.shade300,
+              ),
+              Container(
+                width: dotSize,
+                height: dotSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: lineColor.withValues(alpha: 0.6),
+                    width: 1.5,
+                  ),
+                  color: Colors.white,
+                ),
+              ),
+              Container(
+                width: 2,
+                height: height * 0.015,
+                color: Colors.grey.shade300,
+              ),
+            ],
+          ),
+        ),
+        SizedBox(width: width * 0.04),
+        // Content — vertically centered with the dot
+        Expanded(
+          child: Container(
+            height: height * 0.03 + dotSize,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: width * 0.033,
+                      color: Colors.grey.shade600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                SizedBox(width: width * 0.02),
+                Text(
+                  time,
+                  style: TextStyle(
+                    fontSize: width * 0.03,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDateTime(String? dateTimeStr) {
+    if (dateTimeStr == null || dateTimeStr.isEmpty) return '-';
+    try {
+      final dateTime = DateTime.parse(dateTimeStr);
+      final hour = dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
+      final amPm = dateTime.hour >= 12 ? 'PM' : 'AM';
+      return '${hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')} $amPm';
+    } catch (e) {
+      // Handle short time format like "13:41" from in_progress_at
+      if (dateTimeStr.contains(':') && !dateTimeStr.contains('-')) {
+        return _format24to12(dateTimeStr);
+      }
+      return '-';
+    }
+  }
+
+  String _formatDate(String? dateTimeStr) {
+    if (dateTimeStr == null || dateTimeStr.isEmpty) return '';
+    try {
+      final dateTime = DateTime.parse(dateTimeStr);
+      return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year}';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  /// Convert "HH:mm" (24h) string to "hh:mm AM/PM" (12h) format
+  String _format24to12(String time24) {
+    try {
+      final parts = time24.split(':');
+      final hour24 = int.parse(parts[0]);
+      final minute = parts[1];
+      final hour = hour24 > 12 ? hour24 - 12 : (hour24 == 0 ? 12 : hour24);
+      final amPm = hour24 >= 12 ? 'PM' : 'AM';
+      return '${hour.toString().padLeft(2, '0')}:$minute $amPm';
+    } catch (_) {
+      return time24;
+    }
+  }
+
+  String _formatDateTimeObj(DateTime dateTime) {
+    final hour = dateTime.hour > 12
+        ? dateTime.hour - 12
+        : (dateTime.hour == 0 ? 12 : dateTime.hour);
+    final amPm = dateTime.hour >= 12 ? 'PM' : 'AM';
+    return '${hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')} $amPm';
+  }
+
+  String _formatDuration(int totalSeconds) {
+    if (totalSeconds <= 0) return '';
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    if (hours > 0 && minutes > 0) return '$hours hours $minutes mins';
+    if (hours > 0) return '$hours hours';
+    return '$minutes mins';
+  }
+
+  Widget _buildTimelineItem(
+    double width,
+    double height,
+    IconData icon,
+    Color iconColor,
+    String title,
+    String? subtitle,
+    String time, {
+    bool isFirst = false,
+    bool isLast = false,
+    bool etaLabel = false,
+    bool isPulsing = false,
+    bool isKeyStop = false,
+    bool isPassed = false,
+    // The connector line below this item is green only when BOTH this
+    // item AND the next item are passed. Without this parameter, the
+    // connector below "Pickup started from" (always passed) was always
+    // green — visually reaching down into the next stop and making
+    // customers think the truck had progressed there. Default false so
+    // legacy callers stay safe (line will be grey unless they opt in).
+    bool isNextPassed = false,
+  }) {
+    final isActive = iconColor == Colors.green || isPassed;
+    final activeColor = Colors.green;
+    final iconCircle = Container(
+      width: width * 0.09,
+      height: width * 0.09,
+      decoration: BoxDecoration(
+        color: isActive ? activeColor.shade50 : Colors.grey.shade100,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: isActive ? activeColor : Colors.grey.shade300,
+          width: 2,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        icon,
+        size: width * 0.04,
+        color: isActive ? activeColor : Colors.grey.shade500,
+      ),
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          children: [
+            isPulsing
+                ? SizedBox(
+                    width: width * 0.09,
+                    height: width * 0.09,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        AnimatedBuilder(
+                          animation: _pulseAnimation,
+                          builder: (context, child) {
+                            final size = width * 0.09 * _pulseAnimation.value;
+                            final offset = (size - width * 0.09) / 2;
+                            return Positioned(
+                              left: -offset,
+                              top: -offset,
+                              child: Container(
+                                width: size,
+                                height: size,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.green.withValues(
+                                    alpha:
+                                        (1.0 -
+                                            (_pulseAnimation.value - 1.0) /
+                                                1.5) *
+                                        0.4,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        // Solid icon circle
+                        iconCircle,
+                      ],
+                    ),
+                  )
+                : iconCircle,
+            if (!isLast)
+              Builder(
+                builder: (context) {
+                  double lineHeight;
+                  if (subtitle != null && subtitle.isNotEmpty) {
+                    // Measure subtitle lines to adjust connecting line height
+                    final textSpan = TextSpan(
+                      text: subtitle,
+                      style: TextStyle(fontSize: width * 0.034),
+                    );
+                    final tp = TextPainter(
+                      text: textSpan,
+                      textDirection: TextDirection.ltr,
+                      maxLines: 2,
+                    );
+                    tp.layout(maxWidth: width * 0.55);
+                    final lines = tp.computeLineMetrics().length;
+                    if (lines >= 2) {
+                      lineHeight = height * 0.04;
+                    } else {
+                      lineHeight = height * 0.061;
+                    }
+                  } else {
+                    lineHeight = height * 0.035;
+                  }
+                  // Connector line is green only when BOTH the item
+                  // above AND the item below are passed. If only the
+                  // top item is passed, the line shows grey — so the
+                  // green trail visually stops at the last passed
+                  // stop and doesn't bleed into the next (unpassed)
+                  // stop's icon.
+                  final connectorPassed = isPassed && isNextPassed;
+                  return Container(
+                    width: connectorPassed ? 3 : 2,
+                    height: lineHeight,
+                    color: connectorPassed ? Colors.green : Colors.grey.shade300,
+                  );
+                },
+              ),
+          ],
+        ),
+        SizedBox(width: width * 0.04),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: isKeyStop ? width * 0.042 : width * 0.038,
+                            fontWeight: isKeyStop ? FontWeight.w800 : FontWeight.w600,
+                          ),
+                        ),
+                        if (subtitle != null && subtitle.isNotEmpty)
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontSize: width * 0.034,
+                              color: Colors.grey.shade600,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: width * 0.02),
+                  etaLabel
+                      ? Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: width * 0.025,
+                            vertical: width * 0.012,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFF0077C8,
+                            ).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Deliver in',
+                                style: TextStyle(
+                                  fontSize: width * 0.028,
+                                  color: const Color(0xFF0077C8),
+                                ),
+                              ),
+                              SizedBox(height: width * 0.005),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.access_time,
+                                    size: width * 0.035,
+                                    color: const Color(0xFF0077C8),
+                                  ),
+                                  SizedBox(width: width * 0.01),
+                                  Text(
+                                    time,
+                                    style: TextStyle(
+                                      fontSize: width * 0.032,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF0077C8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        )
+                      : Text(
+                          time,
+                          style: TextStyle(
+                            fontSize: width * 0.036,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                ],
+              ),
+              if (!isLast) SizedBox(height: height * 0.0),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLastUpdateCard(double width, double height) {
+    if (_trackingData == null) return const SizedBox.shrink();
+
+    final driverLoc = _trackingData!.driverLocation;
+    final hasCurrentLocation = driverLoc.lat != 0 && driverLoc.lng != 0;
+
+    // Get last update from driverLocation.updatedAt
+    String lastUpdateTime = _formatDateTime(driverLoc.updatedAt);
+    String lastUpdateDate = _formatDate(driverLoc.updatedAt);
+    print("checking for last update $lastUpdateDate");
+    print("checking for last update $lastUpdateTime");
+    // Get location name from API response
+    String locationName = driverLoc.name.isNotEmpty
+        ? driverLoc.name
+        : 'Location not available';
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: width * 0.04,
+        vertical: width * 0.035,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Live indicator
+          Container(
+            padding: EdgeInsets.all(width * 0.025),
+            decoration: BoxDecoration(
+              color: hasCurrentLocation
+                  ? Colors.green.shade50
+                  : Colors.grey.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.local_shipping,
+              size: width * 0.045,
+              color: hasCurrentLocation ? Colors.green : Colors.grey,
+            ),
+          ),
+          SizedBox(width: width * 0.03),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  locationName,
+                  style: TextStyle(
+                    fontSize: width * 0.036,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                SizedBox(height: 2),
+                Text(
+                  '$lastUpdateTime, $lastUpdateDate',
+                  style: TextStyle(
+                    fontSize: width * 0.03,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Center on vehicle
+          GestureDetector(
+            onTap: _centerOnVehicle,
+            child: Container(
+              padding: EdgeInsets.all(width * 0.025),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0077C8).withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.my_location,
+                size: width * 0.045,
+                color: const Color(0xFF0077C8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _centerOnVehicle() {
+    final controller = _isMapExpanded ? _expandedMapController : _smallMapController;
+    if (controller == null) return;
+
+    // Re-enable follow mode
+    setState(() => _isFollowingVehicle = true);
+
+    // If no current location, fit to all markers instead
+    if (_currentLatLng == null) {
+      if (_isMapExpanded) {
+        _fitExpandedMapToAllMarkers();
+      } else {
+        _fitSmallMapToAllMarkers();
+      }
+      return;
+    }
+
+    try {
+      _isProgrammaticCameraMove = true;
+      controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: _currentLatLng!,
+            zoom: _followZoom,
+            bearing: _lastVehicleBearing,
+            tilt: _followTilt,
+          ),
+        ),
+      ).then((_) => _isProgrammaticCameraMove = false);
+    } catch (e) {
+      _isProgrammaticCameraMove = false;
+      debugPrint('Error centering on vehicle: $e');
+    }
   }
 
   @override

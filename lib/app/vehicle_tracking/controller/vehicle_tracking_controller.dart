@@ -49,6 +49,7 @@ class VehicleTrackingController extends GetxController {
       vehicleList.clear();
     } finally {
       isLoading.value = false;
+      // vehicleListDummyData();
     }
   }
 
@@ -167,4 +168,176 @@ class VehicleTrackingController extends GetxController {
     }
   }
 
+  void vehicleListDummyData() {
+    final dummyJson = {
+      "success": true,
+      "message": "Vehicle availability bookings fetched successfully",
+      "data": [
+        {
+          "id": "1",
+          "booking_id": "324646",
+          "time": "12:30 PM",
+          "date": "25/11/2025",
+          "hatchery_name": "Seven Star Hatchery",
+          "category_name": "Syaqua",
+          "status": "Pending",
+          "pickup_location": "Seven Star Hatchery",
+          "drop_location": "Kakinada, Andhra Pradesh",
+          "quantity": "1400 Pieces",
+        },
+        {
+          "id": "2",
+          "booking_id": "324647",
+          "time": "03:10 PM",
+          "date": "26/11/2025",
+          "hatchery_name": "Blue Ocean Hatchery",
+          "category_name": "Golda",
+          "status": "Confirmed",
+          "pickup_location": "Blue Ocean Hatchery",
+          "drop_location": "Vijayawada",
+          "quantity": "2000 Pieces",
+        },
+      ],
+    };
+
+    /// Correct key → body["data"]
+    vehicleList.value = (dummyJson['data'] as List)
+        .map((e) => VehicleTrackingModel.fromJson(e))
+        .toList();
+  }
+
+  void specificVehicleTrackingDummyData() {
+    final dummyResponse = {
+      "status": true,
+      "message": "Tracking data fetched successfully",
+      "data": {
+        "vehicle_id": 14,
+        "booking_id": 1,
+
+        "pickup": {
+          "name": "Seven Star Hatchery",
+          "lat": 17.3850,
+          "lng": 78.4867,
+        },
+
+        "drop": {"name": "Amalapuram", "lat": 16.5775, "lng": 82.0061},
+
+        "driver_location": {
+          "name": "Near Kakinada",
+          "lat": 16.9891,
+          "lng": 82.2475,
+        },
+
+        "driver_details": {
+          "driver_name": "Ramesh",
+          "driver_phone": "+91xxxxxxxxxx",
+          "vehicle_number": "TSN05656",
+          "driver_image": "https://example.com/profile.png",
+        },
+
+        "delivery_updates": {
+          "delivery_expected": "27/06/2025",
+          "note":
+              "We’ve received your booking. Within a few days, we will assign your vehicle",
+        },
+
+        "timeline": [
+          {
+            "title": "Pickup started from",
+            "subtitle": "Seven Star Hatchery",
+            "time": "2:30 PM",
+            "date": "24/06/2025",
+            "status": "completed",
+          },
+          {
+            "title": "Kakinada",
+            "subtitle": "",
+            "time": "10:30 PM",
+            "date": "24/06/2025",
+            "status": "completed",
+          },
+          {
+            "title": "Vizag",
+            "subtitle": "",
+            "time": "-",
+            "date": "24/06/2025",
+            "status": "pending",
+          },
+          {
+            "title": "Vijayawada",
+            "subtitle": "",
+            "time": "-",
+            "date": "",
+            "status": "pending",
+          },
+          {
+            "title": "Destination",
+            "subtitle": "Amalapuram",
+            "time": "-",
+            "date": "",
+            "status": "pending",
+          },
+        ],
+      },
+    };
+
+    specificVehicle.value = SpecificVehicleTrackingResponse.fromJson(
+      dummyResponse,
+    );
+
+    specificLoading.value = false;
+  }
 }
+
+// VehicleBookingDetailModel dummyBookingDetail() {
+//   return VehicleBookingDetailModel(
+//     driverId: 1,
+//     bookingId: 1,
+//     status: "Confirmed",
+//     statusDescription:
+//         "We'll notify you when the driver assigned and start their journey",
+//     pickupDetails: PickupDrop(
+//       location: "Dummy Hatchery",
+//       date: "24/11/2025",
+//       time: "10:20 AM",
+//     ),
+//     dropDetails: PickupDrop(
+//       location: "Dummy Andhra Pradesh",
+//       date: "26/11/2025",
+//       time: "01:20 PM",
+//     ),
+//     vehicleDetails: VehicleDetails(
+//       hatchery: "Dummy Rama Hatchery",
+//       brand: "Dummy Brand",
+//       qty: "5 tones",
+//       bookingDate: "20/11/2025",
+//       bookingTime: "05:30 PM",
+//     ),
+//     bookingStatus: [
+//       BookingStatusStep(
+//         title: "confirm",
+//         status: 1,
+//         date: "Mon,21-11-2025",
+//         time: "12:23 PM",
+//       ),
+//       BookingStatusStep(
+//         title: "driver_assigned",
+//         date: "Mon,21-11-2025",
+//         time: "12:23 PM",
+//         status: 1,
+//       ),
+//       BookingStatusStep(
+//         title: "in_progress",
+//         date: "Mon,21-11-2025",
+//         time: "12:23 PM",
+//         status: 0,
+//       ),
+//       BookingStatusStep(
+//         title: "delivered",
+//         date: "Mon,21-11-2025",
+//         time: "12:23 PM",
+//         status: 0,
+//       ),
+//     ],
+//   );
+// }
