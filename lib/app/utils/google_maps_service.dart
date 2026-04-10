@@ -27,7 +27,7 @@ class GoogleMapsService {
   // Driver position (when used as input to `getRouteWithStops`) is rounded
   // to 3 decimals (~110 m) so successive close-together opens still hit
   // the cache; the resulting route is visually identical at map zoom.
-  static const Duration _cacheTTL = Duration(hours: 24);
+  static const Duration _cacheTTL = Duration(days: 5);
   static const String _cachePrefix = 'gms_v1:';
 
   static String _r4(double d) => d.toStringAsFixed(4);
