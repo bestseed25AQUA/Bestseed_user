@@ -62,6 +62,9 @@ class TrackingData {
   final String? vehicleDescription;
   final String? inProgressAt;
   final List<RouteWaypoint> routeWaypoints;
+  // Server-computed intermediate stops — same list across all three apps
+  // so customer, employee and admin web always show identical location names.
+  final List<Map<String, dynamic>> autoTimelinePoints;
 
   TrackingData({
     required this.vehicleId,
@@ -79,6 +82,7 @@ class TrackingData {
     this.vehicleDescription,
     this.inProgressAt,
     this.routeWaypoints = const [],
+    this.autoTimelinePoints = const [],
   });
 
   /// Parse from new API format: { "booking": {...}, "timeline": [...], "route_waypoints": [...] }
@@ -132,6 +136,10 @@ class TrackingData {
               ?.map((e) => RouteWaypoint.fromJson(e))
               .toList() ??
           [],
+      autoTimelinePoints: (json['auto_timeline_points'] as List<dynamic>?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          [],
     );
   }
 
@@ -170,6 +178,10 @@ class TrackingData {
               ?.map((e) => RouteWaypoint.fromJson(e))
               .toList() ??
           [],
+      autoTimelinePoints: (json['auto_timeline_points'] as List<dynamic>?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          [],
     );
   }
 
@@ -188,28 +200,65 @@ class TrackingData {
 // ------------------------------------------------------------
 // LOCATION POINT
 // ------------------------------------------------------------
+/// Five-state driver status emitted by the backend.
+/// moving      – fresh GPS, net displacement > 30 m / 60 s
+/// idle        – fresh GPS, speed ≈ 0 (genuine short stop at toll/traffic)
+/// signal_lost – 2–5 min GPS gap (Doze, poor signal, WorkManager hiccup)
+/// offline     – 5–30 min gap (no signal / OEM kill)
+/// stopped     – > 30 min gap (long break / loading)
+enum DriverStatus { moving, idle, signalLost, offline, stopped }
+
 class LocationPoint {
   final String name;
   final double lat;
   final double lng;
   final String? updatedAt;
+  /// Granular status — prefer over the legacy `isMoving` bool.
+  final DriverStatus driverStatus;
+  /// Backward-compat bool (true for moving/signal_lost/offline).
   final bool isMoving;
+  /// True when GPS data is 2–30 min old (background gap, not a real halt).
+  final bool locationStale;
   final double speedKmh;
 
-  LocationPoint({required this.name, required this.lat, required this.lng, this.updatedAt, this.isMoving = true, this.speedKmh = 0,});
+  LocationPoint({
+    required this.name,
+    required this.lat,
+    required this.lng,
+    this.updatedAt,
+    this.driverStatus = DriverStatus.moving,
+    this.isMoving = true,
+    this.locationStale = false,
+    this.speedKmh = 0,
+  });
 
   factory LocationPoint.fromJson(Map<String, dynamic> json) {
+    final statusStr = json['driver_status'] as String? ?? '';
+    final DriverStatus status;
+    switch (statusStr) {
+      case 'idle':        status = DriverStatus.idle;        break;
+      case 'signal_lost': status = DriverStatus.signalLost; break;
+      case 'offline':     status = DriverStatus.offline;     break;
+      case 'stopped':     status = DriverStatus.stopped;     break;
+      default:            status = DriverStatus.moving;
+    }
     return LocationPoint(
-      name: json['name'] ?? '',
-      lat: (json['lat'] ?? 0).toDouble(),
-      lng: (json['lng'] ?? 0).toDouble(),
-      updatedAt: json['updated_at'],
-      isMoving: json['is_moving'] ?? true,
-      speedKmh: (json['speed_kmh'] ?? 0).toDouble(),
+      name:          json['name'] ?? '',
+      lat:           (json['lat'] ?? 0).toDouble(),
+      lng:           (json['lng'] ?? 0).toDouble(),
+      updatedAt:     json['updated_at'],
+      driverStatus:  status,
+      isMoving:      json['is_moving'] ?? true,
+      locationStale: json['location_stale'] ?? false,
+      speedKmh:      (json['speed_kmh'] ?? 0).toDouble(),
     );
   }
 
-  Map<String, dynamic> toJson() => {"name": name, "lat": lat, "lng": lng, "updated_at": updatedAt, "is_moving": isMoving, "speed_kmh": speedKmh, };
+  Map<String, dynamic> toJson() => {
+    "name": name, "lat": lat, "lng": lng, "updated_at": updatedAt,
+    "driver_status": driverStatus.name, "is_moving": isMoving,
+    "location_stale": locationStale, "speed_kmh": speedKmh,
+  };
 }
 
 // ------------------------------------------------------------

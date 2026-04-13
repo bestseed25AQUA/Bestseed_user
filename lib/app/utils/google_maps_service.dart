@@ -220,6 +220,88 @@ class GoogleMapsService {
     }
   }
 
+  /// HIGH-RESOLUTION directions. Same endpoint + same cost as [getDirections]
+  /// but decodes `steps[].polyline.points` instead of `overview_polyline`.
+  /// `overview_polyline` is a Douglas–Peucker-simplified geometry optimised
+  /// for drawing an overview at low zoom — villages, side-streets and tight
+  /// curves get collapsed to straight chords, which is why the green trail
+  /// appears to cut through buildings in dense grids.
+  /// Each step's polyline is the full-resolution geometry for that maneuver,
+  /// so concatenating them produces a polyline that faithfully follows every
+  /// bend of every road along the route.
+  static Future<List<LatLng>> getDirectionsHighRes({
+    required LatLng origin,
+    required LatLng destination,
+    List<LatLng>? waypoints,
+  }) async {
+    final waypointsKey = (waypoints == null || waypoints.isEmpty)
+        ? '-'
+        : waypoints
+            .map((w) => '${_r4(w.latitude)},${_r4(w.longitude)}')
+            .join('|');
+    final cacheKey = 'dirHR:'
+        '${_r4(origin.latitude)},${_r4(origin.longitude)}>'
+        '${_r4(destination.latitude)},${_r4(destination.longitude)}|'
+        'wp=$waypointsKey';
+    final cached = await _cacheGet(cacheKey);
+    if (cached != null && cached['points'] is List) {
+      return _flatToLatLngs(cached['points'] as List);
+    }
+
+    try {
+      String waypointsStr = '';
+      if (waypoints != null && waypoints.isNotEmpty) {
+        waypointsStr =
+            '&waypoints=${waypoints.map((wp) => '${wp.latitude},${wp.longitude}').join('|')}';
+      }
+
+      final url =
+          'https://maps.googleapis.com/maps/api/directions/json'
+          '?origin=${origin.latitude},${origin.longitude}'
+          '&destination=${destination.latitude},${destination.longitude}'
+          '$waypointsStr'
+          '&key=$_apiKey';
+
+      final response = await _dio.get(url);
+      if (response.statusCode != 200) return [];
+      final data = response.data;
+      if (data['status'] != 'OK') return [];
+
+      final routes = data['routes'] as List?;
+      if (routes == null || routes.isEmpty) return [];
+      final legs = routes[0]['legs'] as List?;
+      if (legs == null || legs.isEmpty) return [];
+
+      final List<LatLng> merged = [];
+      for (final leg in legs) {
+        final steps = leg['steps'] as List?;
+        if (steps == null) continue;
+        for (final step in steps) {
+          final encoded = step['polyline']?['points'] as String?;
+          if (encoded == null || encoded.isEmpty) continue;
+          final stepPts = _decodePolyline(encoded);
+          // Skip step-boundary duplicates: first point of a step equals the
+          // last point of the previous step.
+          final start = (merged.isNotEmpty && stepPts.isNotEmpty &&
+                  stepPts.first.latitude == merged.last.latitude &&
+                  stepPts.first.longitude == merged.last.longitude)
+              ? 1
+              : 0;
+          for (int i = start; i < stepPts.length; i++) {
+            merged.add(stepPts[i]);
+          }
+        }
+      }
+
+      if (merged.isEmpty) return [];
+      await _cachePut(cacheKey, {'points': _latLngsToFlat(merged)});
+      return merged;
+    } catch (e) {
+      debugPrint('Error getting high-res directions: $e');
+      return [];
+    }
+  }
+
   /// Get directions with duration info (returns polyline points + duration text)
   static Future<Map<String, dynamic>> getDirectionsWithDuration({
     required LatLng origin,
@@ -419,8 +501,10 @@ class GoogleMapsService {
       //
       // Filter out waypoints that are:
       // 1. Too close to origin (< 5km) — would cause unnecessary loop back
-      // 2. Too close to destination (< 5km) — redundant
-      // 3. Too close to each other (< 5km) — duplicates
+      // 2. Identical to destination (< 200m) — exact duplicate, already the endpoint
+      //    NOTE: do NOT filter by large radius here; a legitimate intermediate stop
+      //    (e.g. priority-1 drop 3 km before the priority-2 destination) must be kept.
+      // 3. Too close to each other (< 200m) — exact duplicates only
       List<String> allWaypoints = [];
       if (routeWaypoints.isNotEmpty) {
         List<LatLng> filteredWaypoints = [];
@@ -431,15 +515,18 @@ class GoogleMapsService {
                 '(${_haversineDistance(origin, wp).toStringAsFixed(0)}m)');
             continue;
           }
-          // Skip waypoints too close to destination
-          if (_haversineDistance(destination, wp) < 5000) {
-            debugPrint('🗺️ Skipping waypoint too close to destination: ${wp.latitude},${wp.longitude}');
+          // Skip waypoints that ARE the destination (exact duplicate ≤ 200 m).
+          // We intentionally allow waypoints that are merely *near* the
+          // destination (e.g. Madhapur 3 km before KPHB in a multi-drop trip)
+          // so the blue polyline routes through every earlier stop correctly.
+          if (_haversineDistance(destination, wp) < 200) {
+            debugPrint('🗺️ Skipping waypoint that matches destination: ${wp.latitude},${wp.longitude}');
             continue;
           }
-          // Skip waypoints too close to a previously added waypoint
+          // Skip waypoints too close to a previously added waypoint (dedup)
           bool isDuplicate = false;
           for (final existing in filteredWaypoints) {
-            if (_haversineDistance(existing, wp) < 5000) {
+            if (_haversineDistance(existing, wp) < 200) {
               isDuplicate = true;
               debugPrint('🗺️ Skipping duplicate waypoint: ${wp.latitude},${wp.longitude}');
               break;
