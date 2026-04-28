@@ -8,6 +8,8 @@ import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/dashboard/dashboard.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/notification/notification_service.dart';
+import 'package:seedsuser/app/utils/network_config.dart';
+import 'package:seedsuser/app/utils/network_utils.dart';
 import 'package:seedsuser/main.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -77,6 +79,21 @@ class _SplashScreenState extends State<SplashScreen>
       debugPrint("Splash token check: ${token != null && token.isNotEmpty ? 'Token found (${token.substring(0, token.length > 10 ? 10 : token.length)}...)' : 'No token'}");
 
       if (token != null && token.isNotEmpty) {
+        // Validate token against server — catches stale tokens restored from
+        // Android Auto Backup after a fresh reinstall.
+        try {
+          final validate = await getRequest(
+            endPoint: "${NetworkConfig.baseURL}/farmer/profile",
+            headers: await buildHeader(),
+          ).timeout(const Duration(seconds: 5));
+          if (validate.statusCode == 401) {
+            // _handle401() in network_utils already cleared token and navigated to login
+            return;
+          }
+        } catch (_) {
+          // Network error / timeout — proceed with cached token (user may be offline)
+        }
+
         NotificationService().registerToken();
 
         // Fetch all home banners in parallel. Future.any guarantees we move on

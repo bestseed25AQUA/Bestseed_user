@@ -10,6 +10,8 @@ import 'package:seedsuser/app/profile/controller/logout_controller.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/profile/view/edit_profile_screen.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/booking_vehicle_list_screen.dart';
+import 'package:seedsuser/app/common/terms_and_conditions_screen.dart';
+import 'package:seedsuser/app/common/privacy_policy_screen.dart';
 import 'package:seedsuser/l10n/app_localizations.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -206,7 +208,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _menuTile(
             icon: Icons.description_outlined,
             title: AppLocalizations.of(context).terms_conditions,
-            onTap: () {},
+            onTap: () => Get.to(() => const TermsAndConditionsScreen()),
           ),
           _divider(),
           _menuTile(
@@ -218,7 +220,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _menuTile(
             icon: Icons.privacy_tip_outlined,
             title: AppLocalizations.of(context).privacy_policy,
-            onTap: () {},
+            onTap: () => Get.to(() => const PrivacyPolicyScreen()),
           ),
           _divider(),
           _menuTile(

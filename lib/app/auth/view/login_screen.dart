@@ -6,6 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/auth/controller/auth_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
+import 'package:seedsuser/app/common/terms_and_conditions_screen.dart';
+import 'package:seedsuser/app/common/privacy_policy_screen.dart';
 
 class LoginWithMobileScreen extends StatefulWidget {
   const LoginWithMobileScreen({super.key});
@@ -17,6 +19,8 @@ class LoginWithMobileScreen extends StatefulWidget {
 class _LoginWithMobileScreenState extends State<LoginWithMobileScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
+  bool _isTermsAccepted = false;
 
   // Initialize AuthController
   final AuthController authController = Get.put(AuthController());
@@ -95,71 +99,104 @@ class _LoginWithMobileScreenState extends State<LoginWithMobileScreen> {
                       },
                     ),
                     const SizedBox(height: 20),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Checkbox(
+                          value: _isTermsAccepted,
+                          activeColor: AppColors.primary,
+                          onChanged: (val) {
+                            setState(() {
+                              _isTermsAccepted = val ?? false;
+                            });
+                          },
+                        ),
+                        Expanded(
+                          child: Wrap(
+                            children: [
+                              Text(
+                                'I agree to the ',
+                                style: GoogleFonts.roboto(
+                                  fontSize: 12,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const TermsAndConditionsScreen(),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Terms & Conditions',
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 12,
+                                    color: Colors.blue.shade800,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                ' and ',
+                                style: GoogleFonts.roboto(
+                                  fontSize: 12,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const PrivacyPolicyScreen(),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Privacy Policy',
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 12,
+                                    color: Colors.blue.shade800,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                ' of BestSeed.',
+                                style: GoogleFonts.roboto(
+                                  fontSize: 12,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     Obx(() {
                       return authController.isLoading.value
-                          ? Center(child: CircularProgressIndicator())
-                          : CustomButton(
-                              text: "Continue",
-                              isLoading: authController.isLoading.value,
-                              borderRadius: 16,
-                              onPressed: () async {
-                                if (_formKey.currentState!.validate()) {
-                                  authController.phoneNumber.value =
-                                      _phoneController.text.trim();
-
-                                  await authController.sendOtp();
-                                }
-                              },
+                          ? const Center(child: CircularProgressIndicator())
+                          : IgnorePointer(
+                              ignoring: !_isTermsAccepted,
+                              child: Opacity(
+                                opacity: _isTermsAccepted ? 1.0 : 0.4,
+                                child: CustomButton(
+                                  text: "Continue",
+                                  isLoading: authController.isLoading.value,
+                                  borderRadius: 16,
+                                  onPressed: () async {
+                                    if (_formKey.currentState!.validate()) {
+                                      authController.phoneNumber.value =
+                                          _phoneController.text.trim();
+                                      await authController.sendOtp();
+                                    }
+                                  },
+                                ),
+                              ),
                             );
                     }),
-
-                    // CustomButton(
-                    //   text: "Continue",
-                    //   isLoading: false,
-                    //   borderRadius: 16,
-                    //   onPressed: () {
-                    //     if (_formKey.currentState!.validate()) {
-                    //       Get.to(
-                    //         () => OtpVerificationScreen(
-                    //           phoneNumber: _phoneController.text,
-                    //         ),
-                    //       );
-                    //     }
-                    //   },
-                    // ),
-                    const SizedBox(height: 10),
-                    Center(
-                      child: Text.rich(
-                        TextSpan(
-                          text: "By sign-in, I agree to the ",
-                          style: GoogleFonts.roboto(
-                            fontSize: 12,
-                            color: Colors.black54,
-                          ),
-                          children: [
-                            TextSpan(
-                              text: "Terms & Conditions",
-                              style: GoogleFonts.roboto(
-                                fontSize: 12,
-                                color: Colors.blue.shade800,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                            const TextSpan(text: " and "),
-                            TextSpan(
-                              text: "Privacy Policy",
-                              style: GoogleFonts.roboto(
-                                fontSize: 12,
-                                color: Colors.blue.shade800,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                            const TextSpan(text: " of BestSeed."),
-                          ],
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
                   ],
                 ),
               ),

@@ -58,6 +58,12 @@ class _HomePageState extends State<HomePage>
   void initState() {
     super.initState();
 
+    // Fetch banners if not yet loaded — handles the manual login flow where the
+    // splash screen is bypassed and fetchAll() was never called.
+    if (_homeBannerController.bannersHome.isEmpty) {
+      _homeBannerController.fetchAll();
+    }
+
     if (_hatcheryController.hatcheryHomeData.value == null ||
         (_hatcheryController.hatcheryHomeData.value?.data.isEmpty ?? true)) {
       _hatcheryController.fetchHatcheryHomeUpdate();
@@ -334,11 +340,22 @@ class _HomePageState extends State<HomePage>
                                   double.infinity, AppSize.height * .15);
                             },
                             errorBuilder: (context, error, stackTrace) =>
-                                _shimmerBox(
-                                    double.infinity, AppSize.height * .15),
+                                Image.asset(
+                                  'assets/images/logo.png',
+                                  width: double.infinity,
+                                  height: AppSize.height * .15,
+                                  fit: BoxFit.cover,
+                                ),
                           ),
                         )
-                  : _shimmerBox(double.infinity, AppSize.height * .15),
+                  : _homeBannerController.isHomeLoading.value
+                      ? _shimmerBox(double.infinity, AppSize.height * .15)
+                      : Image.asset(
+                          'assets/images/logo.png',
+                          width: double.infinity,
+                          height: AppSize.height * .15,
+                          fit: BoxFit.cover,
+                        ),
             ),
           ),
         ),
