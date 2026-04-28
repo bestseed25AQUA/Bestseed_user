@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:seedsuser/app/home/view/full_video_screen.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_banner_controller.dart';
+import 'package:seedsuser/app/common/safe_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:video_player/video_player.dart';
 
@@ -42,11 +43,11 @@ class _NewsBannerWidgetState extends State<NewsBannerWidget> {
                     },
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        banner.url,
+                      child: SafeNetworkImage(
+                        imageUrl: banner.url,
                         width: double.infinity,
                         height: 180,
-                        fit: BoxFit.cover,
+                        fit: BoxFit.fill,
                       ),
                     ),
                   );

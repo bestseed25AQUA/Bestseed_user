@@ -65,6 +65,10 @@ class TrackingData {
   // Server-computed intermediate stops — same list across all three apps
   // so customer, employee and admin web always show identical location names.
   final List<Map<String, dynamic>> autoTimelinePoints;
+  // True when driver has marked the booking as delivered (status == 5).
+  // Authoritative signal for showing "Reached" on destination in the timeline.
+  final bool isDelivered;
+  final String? deliveredAt;
 
   TrackingData({
     required this.vehicleId,
@@ -83,6 +87,8 @@ class TrackingData {
     this.inProgressAt,
     this.routeWaypoints = const [],
     this.autoTimelinePoints = const [],
+    this.isDelivered = false,
+    this.deliveredAt,
   });
 
   /// Parse from new API format: { "booking": {...}, "timeline": [...], "route_waypoints": [...] }
@@ -140,6 +146,8 @@ class TrackingData {
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??
           [],
+      isDelivered: json['is_delivered'] ?? false,
+      deliveredAt: json['delivered_at']?.toString(),
     );
   }
 
@@ -182,6 +190,8 @@ class TrackingData {
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??
           [],
+      isDelivered: json['is_delivered'] ?? false,
+      deliveredAt: json['delivered_at']?.toString(),
     );
   }
 

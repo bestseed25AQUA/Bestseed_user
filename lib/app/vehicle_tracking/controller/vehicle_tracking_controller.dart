@@ -146,7 +146,10 @@ class VehicleTrackingController extends GetxController {
 
   Future<void> fetchSpecificVehicleTracking(String vehicleId, {bool silent = false}) async {
     try {
-      if (!silent) specificLoading.value = true;
+      if (!silent) {
+        specificLoading.value = true;
+        specificVehicle.value = null; // Clear stale data so a new screen never shows the previous booking
+      }
 
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/vehicle_tracking/$vehicleId",

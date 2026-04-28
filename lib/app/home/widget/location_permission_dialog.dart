@@ -13,8 +13,20 @@ class LocationPermissionDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+    return SafeArea(
+      // Ensure the card is never hidden behind gesture nav bar or button nav bar.
+      // MediaQuery.viewPaddingOf gives the PHYSICAL inset regardless of whether
+      // the OS already reserved space — SafeArea.minimum ensures at least 8 dp
+      // even on devices that report zero inset (e.g. full-screen mode).
+      minimum: EdgeInsets.only(bottom: bottomInset > 0 ? 0 : 8),
+      child: Container(
+      margin: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 8,
+        bottom: bottomInset > 0 ? bottomInset + 8 : 8,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.primary,
@@ -79,6 +91,7 @@ class LocationPermissionDialog extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

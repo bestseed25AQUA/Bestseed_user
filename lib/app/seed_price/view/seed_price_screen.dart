@@ -1,25 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/animated_view_custom.dart';
-import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_dropdown.dart';
 import 'package:seedsuser/app/common/custom_icon_appbar.dart';
 import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
-import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/model/category_model.dart';
 import 'package:seedsuser/app/model/location_model.dart';
-import 'package:seedsuser/app/notification/notification_screen.dart';
-import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 import 'package:seedsuser/app/seed_price/view/seed_wanted_screen.dart';
-import 'package:seedsuser/app/seed_price/widget/seed_price_banner_widget.dart';
-import 'package:seedsuser/app/seed_price/widget/seed_wanted_banner_widget.dart';
-import 'package:seedsuser/app/utils/app_size.dart';
+import 'package:seedsuser/app/common/safe_network_image.dart';
 
 import 'package:seedsuser/app/model/price_model.dart';
 
@@ -33,7 +26,6 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
   final SeedsPriceController controller = Get.put(SeedsPriceController());
   final HomeBannerController bannerController = Get.find<HomeBannerController>();
   final ScrollController _priceScrollController = ScrollController();
-  bool _dialogShown = false;
 
   @override
   void dispose() {
@@ -100,116 +92,12 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: CustomIconAppbar(
-          title: "Seed Prices",
+          title: "Prices",
           showBackButton: false, // No back button for bottom nav screens
         ),
       body: Obx(() {
         PriceModel? priceData = controller.priceData.value;
 
-        if ((priceData == null || priceData.prices.isEmpty) && !_dialogShown && !controller.isLoading.value) {
-          _dialogShown = true;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            Get.dialog(
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  margin: const EdgeInsets.symmetric(horizontal: 32),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(32),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Material(
-                    color: Colors.white,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Align(
-                          alignment: Alignment.topRight,
-                          child: InkWell(
-                            onTap: () {
-                              _dialogShown = false;
-                              Navigator.pop(context);
-                            },
-                            borderRadius: BorderRadius.circular(20),
-                            child: Material(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(width: 1),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(3.0),
-                                  child: Icon(Icons.clear, size: 18),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Icon(
-                        //   Icons.info_outline,
-                        //   color: Colors.orange,
-                        //   size: 48,
-                        // ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Prices \nComing Shortly',
-                          style: GoogleFonts.roboto(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                          maxLines: 2,
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Prices are not available right now. Well update them soon.',
-                          style: GoogleFonts.roboto(
-                            fontSize: 15,
-                            color: Colors.grey[700],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 24),
-                        // SizedBox(
-                        //   width: double.infinity,
-                        //   child: ElevatedButton(
-                        //     onPressed: () => Get.back(),
-                        //     style: ElevatedButton.styleFrom(
-                        //       backgroundColor: AppColors.primary,
-                        //       shape: RoundedRectangleBorder(
-                        //         borderRadius: BorderRadius.circular(12),
-                        //       ),
-                        //       padding: const EdgeInsets.symmetric(vertical: 14),
-                        //     ),
-                        //     child: Text(
-                        //       'OK',
-                        //       style: GoogleFonts.roboto(
-                        //         fontSize: 16,
-                        //         fontWeight: FontWeight.bold,
-                        //         color: Colors.white,
-                        //       ),
-                        //     ),
-                        //   ),
-                        // ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              barrierDismissible: true,
-            );
-          });
-        }
 
         return CustomRefereshIndicator(
           onRefresh: () async {
@@ -229,20 +117,16 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                     onTap: () => Get.to(() => const SeedWantedScreen()),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        banner.url,
-                        width: MediaQuery.of(context).size.width * .9,
+                      child: SafeNetworkImage(
+                        imageUrl: banner.url,
+                        width: double.infinity,
                         height: 110,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return CustomShimmer(
-                            width: MediaQuery.of(context).size.width * .9,
-                            height: 110,
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) =>
-                            const SizedBox(),
+                        fit: BoxFit.fill,
+                        placeholder: (context, url) => CustomShimmer(
+                          width: double.infinity,
+                          height: 110,
+                        ),
+                        onFinalError: (_, __, ___) => const SizedBox(),
                       ),
                     ),
                   );
@@ -274,7 +158,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                                   backgroundColor: Color(0xffF3F4F6),
                                   onChanged: (loc) {
                                     controller.selectedLocation.value = loc;
-                                    _dialogShown = false;
+
                                     controller.getPrices();
                                   },
                                 );
@@ -300,7 +184,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                                     ),
                                     onSelected: (cat) {
                                       controller.selectedCategory.value = cat;
-                                      _dialogShown = false;
+  
                                       controller.getPrices();
                                     },
                                     itemBuilder: (context) {

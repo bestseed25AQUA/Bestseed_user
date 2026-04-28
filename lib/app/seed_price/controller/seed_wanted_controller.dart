@@ -8,9 +8,9 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 class SeedWantedController extends GetxController {
   var isLoading = false.obs;
   var listings = <SeedWantedItem>[].obs;
-  var selectedSpecies = 'vannamei'.obs;
+  var selectedSpecies = 'shrimp'.obs;
 
-  final List<String> speciesList = ['vannamei', 'tiger'];
+  final List<String> speciesList = ['shrimp', 'fish'];
 
   @override
   void onInit() {

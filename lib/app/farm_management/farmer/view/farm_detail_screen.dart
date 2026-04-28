@@ -430,17 +430,21 @@ class TankStatusCard extends StatelessWidget {
                           context: context,
                           isScrollControlled: true,
                           backgroundColor: Colors.transparent,
-                          builder: (_) => HarvestBottomSheet(
-                            tank: tank,
-                            statusToUpdate: value ? 1 : 0,
-                            onSubmit: () async {
-                              isUpdated = await controller.updateTankStatus(
-                                status: 0,
-                                tankId: tank.id.toString(),
-                                farmId: farmId,
-                              );
-                              Get.back();
-                            },
+                          useSafeArea: true,
+                          builder: (_) => SafeArea(
+                            top: false,
+                            child: HarvestBottomSheet(
+                              tank: tank,
+                              statusToUpdate: value ? 1 : 0,
+                              onSubmit: () async {
+                                isUpdated = await controller.updateTankStatus(
+                                  status: 0,
+                                  tankId: tank.id.toString(),
+                                  farmId: farmId,
+                                );
+                                Get.back();
+                              },
+                            ),
                           ),
                         );
 
@@ -722,15 +726,16 @@ void showEditFeedBottomSheet(String farmId) {
   );
 
   Get.bottomSheet(
-    Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
+    SafeArea(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(30),
+            topRight: Radius.circular(30),
+          ),
         ),
-      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -816,6 +821,7 @@ void showEditFeedBottomSheet(String farmId) {
 
           const SizedBox(height: 20),
         ],
+      ),
       ),
     ),
     isScrollControlled: true,

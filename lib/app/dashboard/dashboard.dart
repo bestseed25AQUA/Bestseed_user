@@ -110,6 +110,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       isDismissible: false,
       enableDrag: false,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
         return PopScope(
           canPop: false,

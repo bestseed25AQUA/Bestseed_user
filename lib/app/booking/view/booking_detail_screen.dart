@@ -1082,12 +1082,13 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     final otherReasonController = TextEditingController();
 
     Get.bottomSheet(
-      StatefulBuilder(
-        builder: (context, setState) {
-          final w = MediaQuery.sizeOf(context).width;
-          final isOther = selectedReason == "Other";
+      SafeArea(
+        child: StatefulBuilder(
+          builder: (context, setState) {
+            final w = MediaQuery.sizeOf(context).width;
+            final isOther = selectedReason == "Other";
 
-          return Container(
+            return Container(
             padding: const EdgeInsets.all(20),
             decoration: const BoxDecoration(
               color: Colors.white,
@@ -1265,6 +1266,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             ),
           );
         },
+        ),
       ),
       isScrollControlled: true,
     );

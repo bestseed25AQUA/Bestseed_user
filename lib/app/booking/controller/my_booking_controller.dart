@@ -226,7 +226,7 @@ class MyBookingController extends GetxController {
     required String hatcheryId,
     required String categoryId,
     required String hatcheryName,
-    required String customerName,
+    String customerName = '',
     required String customerMobile,
     required String unit,
     required String salinity,
@@ -256,7 +256,6 @@ class MyBookingController extends GetxController {
       Map<String, String> body = {
         "hatchery_id": hatcheryId.toString(),
         "hatchery_name": hatcheryName,
-        "customer_name": customerName,
         "customer_mobile": customerMobile,
         "unit": unit,
         "no_of_pieces": noOfPieces.toString(),
@@ -266,6 +265,9 @@ class MyBookingController extends GetxController {
         "price": price,
         // "location_id": locationId.toString(),
       };
+      if (customerName.isNotEmpty) {
+        body["customer_name"] = customerName;
+      }
       if (salinity.isNotEmpty) {
         body["salinity"] = salinity;
       }

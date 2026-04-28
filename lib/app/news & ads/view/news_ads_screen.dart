@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
@@ -165,35 +166,33 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                             ],
                                           ),
                                           child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                            child: Image.network(
-                                              data?.mediaPath ?? '',
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: CachedNetworkImage(
+                                              imageUrl: data?.mediaPath ?? '',
                                               width: double.infinity,
                                               height: boxHeight,
-                                              errorBuilder:
-                                                  (context, error, stackTrace) {
-                                                    return Shimmer.fromColors(
-                                                      baseColor:
-                                                          Colors.grey.shade300,
-                                                      highlightColor:
-                                                          Colors.grey.shade100,
-
-                                                      child: Container(
-                                                        height: 150,
-                                                        width: double.infinity,
-                                                        decoration: BoxDecoration(
-                                                          color: Colors.white,
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                12,
-                                                              ),
-                                                        ),
-                                                      ),
-                                                    );
-                                                  },
                                               fit: BoxFit.cover,
+                                              fadeInDuration: const Duration(milliseconds: 200),
+                                              placeholder: (context, url) =>
+                                                  Shimmer.fromColors(
+                                                    baseColor: Colors.grey.shade300,
+                                                    highlightColor: Colors.grey.shade100,
+                                                    child: Container(
+                                                      height: boxHeight,
+                                                      width: double.infinity,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                              errorWidget: (context, url, error) =>
+                                                  Shimmer.fromColors(
+                                                    baseColor: Colors.grey.shade300,
+                                                    highlightColor: Colors.grey.shade100,
+                                                    child: Container(
+                                                      height: boxHeight,
+                                                      width: double.infinity,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
                                             ),
                                           ),
                                         ),

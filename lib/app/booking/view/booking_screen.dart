@@ -268,15 +268,18 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
-        return FractionallySizedBox(
-          heightFactor: 0.90,
-          child: Container(
-            padding: const EdgeInsets.all(18),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
+        return SafeArea(
+          top: false,
+          child: FractionallySizedBox(
+            heightFactor: 0.90,
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,6 +419,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
               ),
             ),
           ),
+        ),
         );
       },
     );

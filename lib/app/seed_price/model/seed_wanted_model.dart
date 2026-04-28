@@ -12,7 +12,7 @@ class SeedWantedModel {
   factory SeedWantedModel.fromJson(Map<String, dynamic> json) {
     return SeedWantedModel(
       status: json['status'] ?? false,
-      species: json['species'] ?? 'vannamei',
+      species: json['species'] ?? 'shrimp',
       data: (json['data'] as List<dynamic>? ?? [])
           .map((e) => SeedWantedItem.fromJson(e))
           .toList(),
@@ -49,7 +49,7 @@ class SeedWantedItem {
     return SeedWantedItem(
       id: json['id'] ?? 0,
       title: json['title'] ?? '',
-      species: json['species'] ?? 'vannamei',
+      species: json['species'] ?? 'shrimp',
       countOrKg: json['count_or_kg'] ?? 'count',
       countOrKgValue: json['count_or_kg_value'],
       payment: json['payment'],

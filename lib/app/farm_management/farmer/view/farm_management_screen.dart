@@ -646,77 +646,81 @@ void showFarmBottomSheet({
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
+    useSafeArea: true,
     builder: (context) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(22),
-            topRight: Radius.circular(22),
+      return SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(22),
+              topRight: Radius.circular(22),
+            ),
           ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            /// Header Title and Close Button
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  farmName,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              /// Header Title and Close Button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    farmName,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: const Icon(Icons.close, size: 24),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(Icons.close, size: 24),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
 
-            _sheetItem(
-              icon: Icons.layers,
-              title: "Add today's tanks quantity",
-              onTap: onAddTankQty,
-            ),
+              _sheetItem(
+                icon: Icons.layers,
+                title: "Add today's tanks quantity",
+                onTap: onAddTankQty,
+              ),
 
-            _sheetItem(
-              icon: Icons.person_2,
-              title: "Set Up Access for Manager or Partner",
-              onTap: onTapAccessSetup,
-            ),
+              _sheetItem(
+                icon: Icons.person_2,
+                title: "Set Up Access for Manager or Partner",
+                onTap: onTapAccessSetup,
+              ),
 
-            _sheetItem(icon: Icons.group, title: "Partners", onTap: onPartners),
+              _sheetItem(icon: Icons.group, title: "Partners", onTap: onPartners),
 
-            _sheetItem(icon: Icons.person, title: "Manager", onTap: onManager),
+              _sheetItem(icon: Icons.person, title: "Manager", onTap: onManager),
 
-            _sheetItem(
-              icon: Icons.edit,
-              title: "Edit farm Details",
-              onTap: onEditFarm,
-            ),
+              _sheetItem(
+                icon: Icons.edit,
+                title: "Edit farm Details",
+                onTap: onEditFarm,
+              ),
 
-            _sheetItem(
-              icon: Icons.delete,
-              title: "Delete farm",
-              iconColor: Colors.red,
-              textColor: Colors.red,
-              onTap: () {
-                showDialog(
-                  context: context,
-                  barrierDismissible: false, // User must tap a button to close
-                  builder: (BuildContext context) {
-                    return CustomConfirmationDialog(ontapYes: onDeleteFarm);
-                  },
-                );
-              },
-            ),
-          ],
+              _sheetItem(
+                icon: Icons.delete,
+                title: "Delete farm",
+                iconColor: Colors.red,
+                textColor: Colors.red,
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false, // User must tap a button to close
+                    builder: (BuildContext context) {
+                      return CustomConfirmationDialog(ontapYes: onDeleteFarm);
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       );
     },

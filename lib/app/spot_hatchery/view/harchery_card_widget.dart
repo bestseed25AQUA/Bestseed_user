@@ -376,21 +376,25 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                             context: context,
                             isScrollControlled: true,
                             backgroundColor: Colors.transparent,
+                            useSafeArea: true,
                             builder: (BuildContext context) {
-                              return Container(
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(20.0),
+                              return SafeArea(
+                                top: false,
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(20.0),
+                                    ),
                                   ),
-                                ),
-                                child: BookingBottomSheet(
-                                  price: widget.spotHatchery.price ?? '',
-                                  categoryId: widget.spotHatchery.categoryId
-                                      .toString(),
-                                  isSpotHatchery: true,
-                                  hatcheryId: hatchery.hatcheryId.toString(),
-                                  hatcheryName: hatchery.hatcheryName,
+                                  child: BookingBottomSheet(
+                                    price: widget.spotHatchery.price ?? '',
+                                    categoryId: widget.spotHatchery.categoryId
+                                        .toString(),
+                                    isSpotHatchery: true,
+                                    hatcheryId: hatchery.hatcheryId.toString(),
+                                    hatcheryName: hatchery.hatcheryName,
+                                  ),
                                 ),
                               );
                             },

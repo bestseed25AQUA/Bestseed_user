@@ -37,4 +37,11 @@ class BannerItem {
       url: json['url'] ?? '',
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'type': type,
+        'url': url,
+      };
 }

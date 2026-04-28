@@ -3,6 +3,7 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/common/animated_view_custom.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
@@ -30,19 +31,10 @@ class HatcheryUpdatesWidget extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            TextButton(
-              onPressed: () {
-                hatcheryUpdatesController.fetchHatcheryUpdates();
-                dashboardCtrl.changeIndex(4);
-              },
-              child: Text(
-                "View all",
-                style: GoogleFonts.roboto(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+            AnimatedViewAllButton(onTap: () {
+              hatcheryUpdatesController.fetchHatcheryUpdates();
+              dashboardCtrl.changeIndex(4);
+            }),
           ],
         ),
         const SizedBox(height: 10),

@@ -1,14 +1,18 @@
-import 'package:get/get.dart';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:flutter/painting.dart';
+import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/model/home_banner_model.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
-import 'dart:convert';
-
 import 'package:seedsuser/app/utils/network_utils.dart';
 
+const _kHomeBannerCacheKey = 'cached_home_banners';
+
 class HomeBannerController extends GetxController {
+  final _box = GetStorage();
+
   var isLoading = true.obs;
   var isTopLoading = false.obs;
   var banners = <BannerItem>[].obs;
@@ -24,21 +28,42 @@ class HomeBannerController extends GetxController {
   var isHomeLoading = true.obs;
   var bannersSection1Bg = <BannerItem>[].obs;
 
-  /// Clear Flutter's in-memory image cache so updated banner images
-  /// are re-downloaded instead of serving stale cached versions.
- 
-
   @override
   void onInit() {
     super.onInit();
-    fetchBannersTop();
-    fetchBannersBackground();
-    fetchBannersMedicine();
-    fetchHomeBanner();
-    fetchSeedPriceBanner();
-    fetchSpotHatcheriesIcon();
-    fetchFarmManagementIcon();
-    fetchSection1Background();
+    _loadCachedHomeBanner();
+    // Network fetches are triggered by fetchAll() from the splash screen
+    // so the splash can await them before navigating to home.
+  }
+
+  /// Called by the splash screen after auth check.
+  /// Runs all 8 banner fetches in parallel. Never throws — any fetch error
+  /// is swallowed so the splash can always proceed to navigation.
+  Future<void> fetchAll() async {
+    try {
+      await Future.wait([
+        fetchBannersTop(),
+        fetchBannersBackground(),
+        fetchBannersMedicine(),
+        fetchHomeBanner(),
+        fetchSeedPriceBanner(),
+        fetchSpotHatcheriesIcon(),
+        fetchFarmManagementIcon(),
+        fetchSection1Background(),
+      ]);
+    } catch (e) {
+      debugPrint('fetchAll error: $e');
+    }
+  }
+
+  void _loadCachedHomeBanner() {
+    final cached = _box.read<List>(_kHomeBannerCacheKey);
+    if (cached != null && cached.isNotEmpty) {
+      bannersHome.assignAll(
+        cached.map((e) => BannerItem.fromJson(Map<String, dynamic>.from(e))),
+      );
+      isHomeLoading.value = false;
+    }
   }
 
   Future<void> fetchBanners() async {
@@ -56,7 +81,6 @@ class HomeBannerController extends GetxController {
         if (model.status) {
           banners.assignAll(model.banners);
         }
-        // _clearImageCache();
       } else {
         CustomToast.error("Failed to fetch banners");
       }
@@ -81,7 +105,6 @@ class HomeBannerController extends GetxController {
         if (model.status) {
           bannersBackGround.assignAll(model.banners);
         }
-        // _clearImageCache();
       }
     } catch (e) {
       debugPrint("fetchBannersBackground error: $e");
@@ -105,7 +128,6 @@ class HomeBannerController extends GetxController {
         if (model.status) {
           bannersTop.assignAll(model.banners);
         }
-        // _clearImageCache();
       }
     } catch (e) {
       debugPrint("fetchBannersTop error: $e");
@@ -129,7 +151,6 @@ class HomeBannerController extends GetxController {
         if (model.status) {
           bannersMedicine.assignAll(model.banners);
         }
-        // _clearImageCache();
       }
     } catch (e) {
       debugPrint("fetchBannersMedicine error: $e");
@@ -140,7 +161,7 @@ class HomeBannerController extends GetxController {
 
   Future<void> fetchHomeBanner() async {
     try {
-      isHomeLoading.value = true;
+      if (bannersHome.isEmpty) isHomeLoading.value = true;
 
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/home_banner",
@@ -150,10 +171,13 @@ class HomeBannerController extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         HomeBannerModel model = HomeBannerModel.fromJson(data);
-        if (model.status) {
+        if (model.status && model.banners.isNotEmpty) {
           bannersHome.assignAll(model.banners);
+          _box.write(
+            _kHomeBannerCacheKey,
+            model.banners.map((b) => b.toJson()).toList(),
+          );
         }
-        // _clearImageCache();
       }
     } catch (e) {
       debugPrint("fetchHomeBanner error: $e");
@@ -175,7 +199,6 @@ class HomeBannerController extends GetxController {
         if (model.status) {
           bannersSeedPrice.assignAll(model.banners);
         }
-        // _clearImageCache();
       }
     } catch (e) {
       debugPrint("fetchSeedPriceBanner error: $e");
@@ -197,7 +220,6 @@ class HomeBannerController extends GetxController {
         if (model.status) {
           bannersSpotHatcheries.assignAll(model.banners);
         }
-        // _clearImageCache();
       }
     } catch (e) {
       debugPrint("fetchSpotHatcheriesIcon error: $e");
@@ -221,7 +243,6 @@ class HomeBannerController extends GetxController {
         if (model.status) {
           bannersFarmManagement.assignAll(model.banners);
         }
-        // _clearImageCache();
       }
     } catch (e) {
       debugPrint("fetchFarmManagementIcon error: $e");
@@ -243,7 +264,6 @@ class HomeBannerController extends GetxController {
         if (model.status) {
           bannersSection1Bg.assignAll(model.banners);
         }
-        // _clearImageCache();
       }
     } catch (e) {
       debugPrint("fetchSection1Background error: $e");

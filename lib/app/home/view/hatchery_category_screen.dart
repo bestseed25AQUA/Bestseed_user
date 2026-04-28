@@ -785,20 +785,24 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                           context: context,
                           isScrollControlled: true,
                           backgroundColor: Colors.transparent,
+                          useSafeArea: true,
                           builder: (BuildContext context) {
-                            return Container(
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(20.0),
+                            return SafeArea(
+                              top: false,
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(20.0),
+                                  ),
                                 ),
-                              ),
-                              child: BookingBottomSheet(
-                                isSpotHatchery: false,
-                                price: widget.price,
-                                categoryId: widget.categoryId,
-                                hatcheryId: widget.hatcheryId,
-                                hatcheryName: widget.hatcheryName,
+                                child: BookingBottomSheet(
+                                  isSpotHatchery: false,
+                                  price: widget.price,
+                                  categoryId: widget.categoryId,
+                                  hatcheryId: widget.hatcheryId,
+                                  hatcheryName: widget.hatcheryName,
+                                ),
                               ),
                             );
                           },

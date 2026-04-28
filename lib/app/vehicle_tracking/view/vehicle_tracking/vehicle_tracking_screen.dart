@@ -19,6 +19,7 @@ import 'widgets/map_section_widget.dart';
 import 'widgets/driver_section_widget.dart';
 import 'widgets/delivery_update_widget.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking/widgets/time_line_section_widget.dart';
+import 'package:seedsuser/app/utils/google_maps_service.dart';
 
 class VehicleTrackingScreen extends StatefulWidget {
   final String bookingId;
@@ -45,6 +46,7 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
 
   bool _isLoading = true;
   TrackingData? _trackingData;
+  List<Map<String, dynamic>> _clientStops = [];
 
   @override
   void initState() {
@@ -87,6 +89,24 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
       } catch (e) {
         print("VehicleTrackingScreen: Error loading polyline: $e");
       }
+
+      // Client-side fallback: generate intermediate stops when server returned none
+      if (d.autoTimelinePoints.isEmpty && pickup != null && drop != null) {
+        try {
+          final result = await GoogleMapsService.getRouteWithStops(
+            origin: pickup!,
+            destination: drop!,
+            driverPosition: driverLoc,
+            maxStops: 6,
+          );
+          final stops = result['stops'] as List?;
+          if (stops != null && stops.isNotEmpty) {
+            _clientStops = stops.cast<Map<String, dynamic>>();
+          }
+        } catch (e) {
+          print("VehicleTrackingScreen: Error generating client stops: $e");
+        }
+      }
     } catch (e) {
       print("VehicleTrackingScreen: Error in loadData: $e");
     } finally {
@@ -124,6 +144,74 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
     routePoints = result.points
         .map((p) => LatLng(p.latitude, p.longitude))
         .toList();
+  }
+
+  /// Merge auto_timeline_points (intermediate stops from the backend) into
+  /// the baseline timeline [pickup, destination] so the widget renders them.
+  List<TimelineItem> _buildMergedTimeline(TrackingData d) {
+    if (d.timeline.length < 2) return d.timeline;
+
+    final pickupItem      = d.timeline.first;
+    final destinationItem = d.timeline.last;
+
+    List<TimelineItem> intermediates;
+
+    if (d.autoTimelinePoints.isNotEmpty) {
+      // Server-provided intermediate stops
+      intermediates = d.autoTimelinePoints.map((pt) {
+        final passedAt = pt['passed_at'] as String?;
+        String time = '-';
+        String date = '-';
+
+        if (passedAt != null) {
+          try {
+            final dt   = DateTime.parse(passedAt).toLocal();
+            final h    = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+            final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+            time = '${h.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} $ampm';
+            date = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+          } catch (_) {}
+        } else {
+          time = pt['estimated_arrival']?.toString() ?? '-';
+          date = pt['estimated_date']?.toString()    ?? '-';
+        }
+
+        return TimelineItem(
+          title:    pt['name']?.toString() ?? '',
+          subtitle: '',
+          time:     time,
+          date:     date,
+          status:   passedAt != null ? 'completed' : 'pending',
+          lat:      (pt['lat']  as num?)?.toDouble(),
+          lng:      (pt['lng']  as num?)?.toDouble(),
+        );
+      }).toList();
+    } else if (_clientStops.isNotEmpty) {
+      // Client-side fallback: stops from GoogleMapsService.getRouteWithStops
+      intermediates = _clientStops.map((stop) {
+        final passed   = stop['passed'] as bool? ?? false;
+        final loc      = stop['location'];
+        double? lat;
+        double? lng;
+        if (loc is LatLng) {
+          lat = loc.latitude;
+          lng = loc.longitude;
+        }
+        return TimelineItem(
+          title:    stop['name']?.toString() ?? '',
+          subtitle: '',
+          time:     '-',
+          date:     '-',
+          status:   passed ? 'completed' : 'pending',
+          lat:      lat,
+          lng:      lng,
+        );
+      }).toList();
+    } else {
+      return d.timeline;
+    }
+
+    return [pickupItem, ...intermediates, destinationItem];
   }
 
   void fitMapBounds() {
@@ -238,7 +326,7 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen> {
                 note: d.deliveryUpdates.note,
               ),
 
-              TimelineSectionWidget(items: d.timeline),
+              TimelineSectionWidget(items: _buildMergedTimeline(d)),
 
               const SizedBox(height: 20),
               Row(

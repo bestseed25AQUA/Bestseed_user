@@ -53,7 +53,9 @@ class TimelineSectionWidget extends StatelessWidget {
                         Container(
                           height: 35,
                           width: 2,
-                          color: Colors.grey.shade300,
+                          color: completed
+                              ? Colors.green
+                              : Colors.grey.shade300,
                         ),
                     ],
                   );

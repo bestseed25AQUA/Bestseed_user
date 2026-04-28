@@ -17,6 +17,7 @@ import 'package:seedsuser/app/spot_hatchery/view/spot_hatchery_screen.dart';
 
 import 'package:seedsuser/app/news & ads/view/trending_updates_screen.dart';
 import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
+import 'package:seedsuser/app/seed_price/view/seed_wanted_screen.dart';
 
 class NotificationDetailScreen extends StatelessWidget {
   final String title;
@@ -171,6 +172,7 @@ class NotificationDetailScreen extends StatelessWidget {
         dashboardCtrl.changeIndex(4);
         Navigator.of(context).popUntil((route) => route.isFirst);
         return;
+      case 'Medicine News':
       case 'Medical News':
         screen = const MedicineNewsScreen();
         break;
@@ -190,6 +192,9 @@ class NotificationDetailScreen extends StatelessWidget {
         break;
       case 'Vehicle Availability':
         screen = const VehicleAvailabilityScreen();
+        break;
+      case 'Wanted Stock':
+        screen = const SeedWantedScreen();
         break;
     }
     if (screen != null) {

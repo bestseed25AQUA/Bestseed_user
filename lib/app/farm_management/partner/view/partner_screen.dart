@@ -28,14 +28,18 @@ class _PartnerScreenState extends State<PartnerScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          top: 20,
-        ),
-        child: AddPartnerDetailsForm(
-          partner: partner,
-          onSave: (_) => controller.fetchPartners(),
+      useSafeArea: true,
+      builder: (_) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            top: 20,
+          ),
+          child: AddPartnerDetailsForm(
+            partner: partner,
+            onSave: (_) => controller.fetchPartners(),
+          ),
         ),
       ),
     );
@@ -176,12 +180,16 @@ class _PartnerScreenState extends State<PartnerScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          top: 20,
+      useSafeArea: true,
+      builder: (_) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            top: 20,
+          ),
+          child: AddPartnerDetailsForm(onSave: (_) => controller.fetchPartners()),
         ),
-        child: AddPartnerDetailsForm(onSave: (_) => controller.fetchPartners()),
       ),
     );
   }

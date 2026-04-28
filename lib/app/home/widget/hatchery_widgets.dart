@@ -1,8 +1,8 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/home/controller/hatchery_category_controller.dart';
@@ -41,7 +41,7 @@ class HatcheryWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 12),
+            padding: const EdgeInsets.only(left: 12,bottom: 15),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -53,17 +53,7 @@ class HatcheryWidget extends StatelessWidget {
                     color: Colors.black,
                   ),
                 ),
-                SizedBox(width: 10),
-                TextButton(
-                  onPressed: onViewAllTap,
-                  child: Text(
-                    "View all",
-                    style: GoogleFonts.roboto(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+                _AnimatedViewAll(onTap: onViewAllTap),
               ],
             ),
           ),
@@ -227,13 +217,17 @@ class HatcheryCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                       child: Hero(
                         tag: 'HatcheryCard$id$index',
-                        child: Image.network(
-                          resolvedImagePath,
+                        child: CachedNetworkImage(
+                          imageUrl: resolvedImagePath,
                           width: double.infinity,
                           height: imageHeight,
                           fit: BoxFit.cover,
-                          errorBuilder: (c, e, s) {
-                            // 🔁 fallback from category_media → hatcheries
+                          fadeInDuration: const Duration(milliseconds: 200),
+                          placeholder: (_, __) => SizedBox(
+                            height: imageHeight,
+                            child: CustomShimmer(),
+                          ),
+                          errorWidget: (_, __, ___) {
                             final fallbackPath =
                                 resolvedImagePath.contains('category_media')
                                 ? resolvedImagePath.replaceFirst(
@@ -242,7 +236,6 @@ class HatcheryCard extends StatelessWidget {
                                   )
                                 : resolvedImagePath;
 
-                            // Prevent infinite loop
                             if (fallbackPath == resolvedImagePath) {
                               return SizedBox(
                                 height: imageHeight,
@@ -250,12 +243,17 @@ class HatcheryCard extends StatelessWidget {
                               );
                             }
 
-                            return Image.network(
-                              fallbackPath,
+                            return CachedNetworkImage(
+                              imageUrl: fallbackPath,
                               width: double.infinity,
                               height: imageHeight,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => SizedBox(
+                              fadeInDuration: const Duration(milliseconds: 200),
+                              placeholder: (_, __) => SizedBox(
+                                height: imageHeight,
+                                child: CustomShimmer(),
+                              ),
+                              errorWidget: (_, __, ___) => SizedBox(
                                 height: imageHeight,
                                 child: CustomShimmer(),
                               ),
@@ -380,6 +378,77 @@ class HatcheryCard extends StatelessWidget {
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _AnimatedViewAll extends StatefulWidget {
+  final VoidCallback onTap;
+  const _AnimatedViewAll({required this.onTap});
+
+  @override
+  State<_AnimatedViewAll> createState() => _AnimatedViewAllState();
+}
+
+class _AnimatedViewAllState extends State<_AnimatedViewAll>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _arrowSlide;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 850),
+    )..repeat(reverse: true);
+
+    _arrowSlide = Tween<double>(begin: 0, end: 6).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+    _fade = Tween<double>(begin: 0.55, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (context, _) => Opacity(
+          opacity: _fade.value,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "View all",
+                style: GoogleFonts.roboto(
+                  color: const Color(0xff0076BE),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              Transform.translate(
+                offset: Offset(_arrowSlide.value, 0),
+                child: const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xff0076BE),
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

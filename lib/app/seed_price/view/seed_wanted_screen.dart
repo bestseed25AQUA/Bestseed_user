@@ -26,7 +26,7 @@ class SeedWantedScreen extends StatelessWidget {
             onPressed: () => Get.back(),
           ),
           title: Text(
-            'Seed Wanted',
+            'Wanted Stock',
             style: GoogleFonts.roboto(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -35,7 +35,7 @@ class SeedWantedScreen extends StatelessWidget {
           ),
           bottom: TabBar(
             onTap: (index) {
-              final species = index == 0 ? 'vannamei' : 'tiger';
+              final species = index == 0 ? 'shrimp' : 'fish';
               controller.fetchListings(species: species);
             },
             indicatorColor: AppColors.primary,
@@ -47,8 +47,8 @@ class SeedWantedScreen extends StatelessWidget {
             ),
             unselectedLabelStyle: GoogleFonts.roboto(fontSize: 14),
             tabs: const [
-              Tab(text: 'Vannamei'),
-              Tab(text: 'Tiger'),
+              Tab(text: 'Shrimp'),
+              Tab(text: 'Fish'),
             ],
           ),
         ),
@@ -64,28 +64,46 @@ class SeedWantedScreen extends StatelessWidget {
   }
 }
 
-class _ListingBody extends StatelessWidget {
+class _ListingBody extends StatefulWidget {
   final SeedWantedController controller;
   const _ListingBody({required this.controller});
 
   @override
+  State<_ListingBody> createState() => _ListingBodyState();
+}
+
+class _ListingBodyState extends State<_ListingBody> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Obx(() {
-      if (controller.isLoading.value) {
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: 4,
-          itemBuilder: (_, __) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: CustomShimmer(
-              width: double.infinity,
-              height: 140,
+      if (widget.controller.isLoading.value) {
+        return Scrollbar(
+          thumbVisibility: true,
+          controller: _scrollController,
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.fromLTRB(12, 12, 22, 12),
+            itemCount: 4,
+            itemBuilder: (_, __) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: CustomShimmer(
+                width: double.infinity,
+                height: 140,
+              ),
             ),
           ),
         );
       }
 
-      if (controller.listings.isEmpty) {
+      if (widget.controller.listings.isEmpty) {
         return Center(
           child: Text(
             'No listings available.',
@@ -96,13 +114,18 @@ class _ListingBody extends StatelessWidget {
 
       return RefreshIndicator(
         color: AppColors.primary,
-        onRefresh: () => controller.fetchListings(),
-        child: ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          itemCount: controller.listings.length,
-          itemBuilder: (context, index) {
-            return _ListingCard(item: controller.listings[index]);
-          },
+        onRefresh: () => widget.controller.fetchListings(),
+        child: Scrollbar(
+          thumbVisibility: true,
+          controller: _scrollController,
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.fromLTRB(12, 12, 22, 12),
+            itemCount: widget.controller.listings.length,
+            itemBuilder: (context, index) {
+              return _ListingCard(item: widget.controller.listings[index]);
+            },
+          ),
         ),
       );
     });
@@ -114,8 +137,11 @@ class _ListingCard extends StatelessWidget {
   const _ListingCard({required this.item});
 
   Future<void> _call(String phone) async {
-    final uri = Uri(scheme: 'tel', path: phone);
-    if (await canLaunchUrl(uri)) launchUrl(uri);
+    final cleaned = phone.replaceAll(RegExp(r'\s+'), '');
+    final uri = Uri.parse('tel:$cleaned');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Future<void> _whatsapp(String phone) async {
@@ -127,114 +153,135 @@ class _ListingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Title row
+            // ── Title centered ────────────────────────────
+            Text(
+              item.title,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.roboto(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // ── Row 1: Count/KG | Price ───────────────────
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    item.species == 'vannamei' ? 'Vannamei' : 'Tiger',
-                    style: GoogleFonts.roboto(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
+                Expanded(
+                  child: _FieldCell(
+                    label: item.countOrKg == 'count' ? 'Count' : 'KG',
+                    value: item.countOrKgValue,
+                    icon: Icons.straighten,
+                    iconColor: Colors.blue.shade600,
+                    highlight: true,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    item.title,
-                    style: GoogleFonts.roboto(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                  child: _FieldCell(
+                    label: 'Price',
+                    value: item.price,
+                    icon: Icons.currency_rupee,
+                    iconColor: Colors.teal.shade500,
+                    highlight: true,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
 
-            // Info rows
-            Wrap(
-              spacing: 16,
-              runSpacing: 6,
+            // ── Row 2: Minimum | Area ─────────────────────
+            Row(
               children: [
-                if (item.countOrKgValue != null && item.countOrKgValue!.isNotEmpty)
-                  _InfoChip(
-                    label: item.countOrKg == 'count' ? 'Count' : 'KG',
-                    value: item.countOrKgValue!,
+                Expanded(
+                  child: _FieldCell(
+                    label: 'Minimum',
+                    value: item.minimum,
+                    icon: Icons.scale,
+                    iconColor: Colors.orange.shade600,
                   ),
-                if (item.minimum != null && item.minimum!.isNotEmpty)
-                  _InfoChip(label: 'Minimum', value: item.minimum!),
-                if (item.area != null && item.area!.isNotEmpty)
-                  _InfoChip(label: 'Area', value: item.area!),
-                if (item.payment != null && item.payment!.isNotEmpty)
-                  _InfoChip(label: 'Payment', value: item.payment!),
-                if (item.price != null && item.price!.isNotEmpty)
-                  _InfoChip(label: 'Price', value: item.price!),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _FieldCell(
+                    label: 'Area',
+                    value: item.area,
+                    icon: Icons.location_on,
+                    iconColor: Colors.red.shade400,
+                  ),
+                ),
               ],
             ),
 
-            if (item.phone != null && item.phone!.isNotEmpty) ...[
+            // ── Payment centered ──────────────────────────
+            if (item.payment != null && item.payment!.isNotEmpty) ...[
               const SizedBox(height: 12),
+              Text(
+                'Payment : ${item.payment}',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+
+            // ── Buttons ───────────────────────────────────
+            if (item.phone != null && item.phone!.isNotEmpty) ...[
+              const SizedBox(height: 14),
               const Divider(height: 1),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
+                    child: ElevatedButton.icon(
                       onPressed: () => _call(item.phone!),
                       icon: const Icon(Icons.call, size: 18),
-                      label: const Text('Call'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.green.shade700,
-                        side: BorderSide(color: Colors.green.shade400),
+                      label: const Text('Call Now'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        elevation: 0,
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: ElevatedButton.icon(
+                    child: OutlinedButton.icon(
                       onPressed: () => _whatsapp(item.phone!),
                       icon: const Icon(Icons.chat, size: 18),
-                      label: const Text('Whatsapp'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF25D366),
-                        foregroundColor: Colors.white,
+                      label: const Text('WhatsApp'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF25D366),
+                        side: const BorderSide(color: Color(0xFF25D366), width: 1.5),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
                   ),
@@ -248,33 +295,64 @@ class _ListingCard extends StatelessWidget {
   }
 }
 
-class _InfoChip extends StatelessWidget {
+class _FieldCell extends StatelessWidget {
   final String label;
-  final String value;
-  const _InfoChip({required this.label, required this.value});
+  final String? value;
+  final IconData icon;
+  final Color iconColor;
+  final bool highlight;
+
+  const _FieldCell({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.iconColor,
+    this.highlight = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '$label: ',
-          style: GoogleFonts.roboto(
-            fontSize: 13,
-            color: Colors.grey[600],
-            fontWeight: FontWeight.w400,
+    if (value == null || value!.isEmpty) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: iconColor),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.roboto(
+                    fontSize: 11,
+                    color: highlight ? Colors.black87 : Colors.grey[500],
+                    fontWeight: highlight ? FontWeight.w700 : FontWeight.w400,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value!,
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
+                ),
+              ],
+            ),
           ),
-        ),
-        Text(
-          value,
-          style: GoogleFonts.roboto(
-            fontSize: 13,
-            color: Colors.black87,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

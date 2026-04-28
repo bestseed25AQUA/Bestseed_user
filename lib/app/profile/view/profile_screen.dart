@@ -344,7 +344,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _showLogoutSheet(BuildContext context) {
     Get.bottomSheet(
-      Container(
+      SafeArea(
+      child: Container(
         padding: const EdgeInsets.all(24),
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -437,6 +438,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 12),
           ],
         ),
+      ),
       ),
       isDismissible: true,
     );

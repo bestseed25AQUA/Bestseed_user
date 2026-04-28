@@ -81,10 +81,14 @@ class PartnersScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
-        return const Padding(
-          padding: EdgeInsets.only(top: 80.0),
-          child: AddPartnersDetailsSheet(),
+        return SafeArea(
+          top: false,
+          child: const Padding(
+            padding: EdgeInsets.only(top: 80.0),
+            child: AddPartnersDetailsSheet(),
+          ),
         );
       },
     );

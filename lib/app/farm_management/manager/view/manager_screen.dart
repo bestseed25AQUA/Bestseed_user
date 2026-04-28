@@ -29,16 +29,20 @@ class _ManagerScreenState extends State<ManagerScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          top: 20,
-        ),
-        child: AddManagerDetailsForm(
-          manager: manager, // 👈 PASSED FOR PREFILL
-          onSave: (m) {
-            controller.fetchManagers();
-          },
+      useSafeArea: true,
+      builder: (_) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            top: 20,
+          ),
+          child: AddManagerDetailsForm(
+            manager: manager, // 👈 PASSED FOR PREFILL
+            onSave: (m) {
+              controller.fetchManagers();
+            },
+          ),
         ),
       ),
     );
@@ -182,12 +186,16 @@ class _ManagerScreenState extends State<ManagerScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          top: 20,
+      useSafeArea: true,
+      builder: (_) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            top: 20,
+          ),
+          child: AddManagerDetailsForm(onSave: (manager) {}),
         ),
-        child: AddManagerDetailsForm(onSave: (manager) {}),
       ),
     );
   }

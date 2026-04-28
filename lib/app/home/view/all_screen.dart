@@ -1,16 +1,15 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/best_deals/view/best_deals_screen.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
+import 'package:seedsuser/app/common/animated_view_custom.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:seedsuser/app/common/safe_network_image.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
-import 'package:seedsuser/app/farm_management/farm_home/farm_home_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
+import 'package:seedsuser/app/farm_management/coming_soon_screen.dart';
 import 'package:seedsuser/app/home/contact_us.dart';
 import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
@@ -54,7 +53,6 @@ class _HomePageState extends State<HomePage>
   final _homeController = Get.put(HomeController());
   final _homeBannerController = Get.find<HomeBannerController>();
   final _hatcheryController = Get.put(HatcheryUpdatesController());
-  final _farmListController = Get.put(FarmListController());
 
   @override
   void initState() {
@@ -95,7 +93,9 @@ class _HomePageState extends State<HomePage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      body: SingleChildScrollView(
+      body: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -176,6 +176,7 @@ class _HomePageState extends State<HomePage>
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -203,7 +204,7 @@ class _HomePageState extends State<HomePage>
           fit: BoxFit.contain,
           height: AppSize.height * .08,
         );
-      }
+      }      
       final banner = bgBanners[0];
       if (banner.type == 'video') {
         return ClipRRect(
@@ -314,28 +315,30 @@ class _HomePageState extends State<HomePage>
                           width: double.infinity,
                           initDelay: 0,
                         )
-                      : SafeNetworkImage(
-                          imageUrl: homeBanners.first.url,
+                      : SizedBox(
                           width: double.infinity,
                           height: AppSize.height * .15,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => _shimmerBox(
-                              double.infinity, AppSize.height * .15),
-                          onFinalError: (_, __, ___) => Image.asset(
-                            'assets/images/home_banner.jpeg',
+                          child: Image(
+                            image: CachedNetworkImageProvider(
+                              homeBanners.first.url,
+                            ),
                             width: double.infinity,
                             height: AppSize.height * .15,
                             fit: BoxFit.cover,
+                            frameBuilder: (context, child, frame,
+                                wasSynchronouslyLoaded) {
+                              if (wasSynchronouslyLoaded || frame != null) {
+                                return child;
+                              }
+                              return _shimmerBox(
+                                  double.infinity, AppSize.height * .15);
+                            },
+                            errorBuilder: (context, error, stackTrace) =>
+                                _shimmerBox(
+                                    double.infinity, AppSize.height * .15),
                           ),
                         )
-                  : _homeBannerController.isHomeLoading.value
-                      ? _shimmerBox(double.infinity, AppSize.height * .15)
-                      : Image.asset(
-                          'assets/images/home_banner.jpeg',
-                          width: double.infinity,
-                          height: AppSize.height * .15,
-                          fit: BoxFit.cover,
-                        ),
+                  : _shimmerBox(double.infinity, AppSize.height * .15),
             ),
           ),
         ),
@@ -415,22 +418,11 @@ class _HomePageState extends State<HomePage>
                       'Farm Management',
                       'assets/images/farm.png',
                       () {
-                        final farmData =
-                            _farmListController.farmList.value?.data;
-
-                        if (farmData != null && farmData.isNotEmpty) {
-                          Navigator.push(
-                            context,
-                            AppAnimations.fade(
-                                const FarmManagementScreen()),
-                          );
-                        } else {
-                          Navigator.push(
-                            context,
-                            AppAnimations.fade(
-                                const InitialFarmScreen()),
-                          );
-                        }
+                        Navigator.push(
+                          context,
+                          AppAnimations.fade(
+                              const FarmManagementComingSoonScreen()),
+                        );
                       },
                       networkImageUrl: farmIcons.isNotEmpty
                           ? farmIcons.first.url
@@ -850,26 +842,7 @@ class _HomePageState extends State<HomePage>
             fontWeight: FontWeight.bold,
           ),
         ),
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              "View all",
-              style: GoogleFonts.roboto(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
+        AnimatedViewAllBadge(onTap: onTap),
       ],
     );
   }

@@ -340,20 +340,24 @@ class _VehicleAvailabilityDetailScreenState
                             context: context,
                             isScrollControlled: true,
                             backgroundColor: Colors.transparent,
+                            useSafeArea: true,
                             builder: (BuildContext context) {
-                              return Container(
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(20.0),
+                              return SafeArea(
+                                top: false,
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(20.0),
+                                    ),
                                   ),
-                                ),
-                                child: BookingBottomSheet(
-                                  price: vehicle.price ?? '',
-                                  categoryId: vehicle.categoryId.toString(),
-                                  isVehicleHatchery: true,
-                                  hatcheryId: vehicle.vehicleId.toString(),
-                                  hatcheryName: vehicle.vehicleName,
+                                  child: BookingBottomSheet(
+                                    price: vehicle.price ?? '',
+                                    categoryId: vehicle.categoryId.toString(),
+                                    isVehicleHatchery: true,
+                                    hatcheryId: vehicle.vehicleId.toString(),
+                                    hatcheryName: vehicle.vehicleName,
+                                  ),
                                 ),
                               );
                             },

@@ -491,19 +491,23 @@ class _HatcheryCategoryDetailScreenState
                           context: context,
                           isScrollControlled: true,
                           backgroundColor: Colors.transparent,
+                          useSafeArea: true,
                           builder: (BuildContext context) {
-                            return Container(
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(20.0),
+                            return SafeArea(
+                              top: false,
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(20.0),
+                                  ),
                                 ),
-                              ),
-                              child: BookingBottomSheet(
-                                price: detail.price?.toString() ?? '',
-                                categoryId: widget.categoryId,
-                                hatcheryId: detail.id.toString(),
-                                hatcheryName: detail.hatcheryName ?? '',
+                                child: BookingBottomSheet(
+                                  price: detail.price?.toString() ?? '',
+                                  categoryId: widget.categoryId,
+                                  hatcheryId: detail.id.toString(),
+                                  hatcheryName: detail.hatcheryName ?? '',
+                                ),
                               ),
                             );
                           },

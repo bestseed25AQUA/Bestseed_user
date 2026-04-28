@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:seedsuser/app/home/view/full_video_screen.dart';
 import 'package:seedsuser/app/spot_hatchery/controller/spot_hatchery_banner_controller.dart';
+import 'package:seedsuser/app/common/safe_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:video_player/video_player.dart';
 
@@ -55,25 +56,11 @@ class _SpotHatcheryBannerWidgetState extends State<SpotHatcheryBannerWidget> {
                     },
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        banner.url,
+                      child: SafeNetworkImage(
+                        imageUrl: banner.url,
                         width: double.infinity,
                         height: 180,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Shimmer.fromColors(
-                            baseColor: Colors.grey.shade300,
-                            highlightColor: Colors.grey.shade100,
-                            child: Container(
-                              height: 180,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          );
-                        },
+                        fit: BoxFit.fill,
                       ),
                     ),
                   );

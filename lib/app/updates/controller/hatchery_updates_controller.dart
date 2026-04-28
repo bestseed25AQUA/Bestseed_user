@@ -94,8 +94,22 @@ class HatcheryUpdatesController extends GetxController {
   Rx<HatcherUpdateModel?> hatcheryData = Rx<HatcherUpdateModel?>(null);
 
   Future<void> fetchHatcheryUpdates() async {
+    // Show cached data immediately — no spinner if cache exists
     try {
-      isLoading.value = true;
+      final cached = await AppCacheHelper.get('hatchery_updates');
+      if (cached != null) {
+        final data = json.decode(cached);
+        hatcheryData.value = HatcherUpdateModel.fromJson(data);
+        isLoading.value = false;
+      }
+    } catch (e) {
+      debugPrint('Cache read failed (hatchery_updates): $e');
+    }
+
+    // Fetch fresh data silently in the background
+    try {
+      if (hatcheryData.value == null) isLoading.value = true;
+
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/hatchery-updates",
         headers: await buildHeader(),
@@ -104,11 +118,12 @@ class HatcheryUpdatesController extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         hatcheryData.value = HatcherUpdateModel.fromJson(data);
+        try { await AppCacheHelper.save('hatchery_updates', response.body); } catch (e) { debugPrint('Cache save failed (hatchery_updates): $e'); }
       } else {
-        CustomToast.error("Failed to fetch ");
+        if (hatcheryData.value == null) CustomToast.error("Failed to fetch ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong  ");
+      if (hatcheryData.value == null) CustomToast.error("Something went wrong ");
     } finally {
       isLoading.value = false;
     }

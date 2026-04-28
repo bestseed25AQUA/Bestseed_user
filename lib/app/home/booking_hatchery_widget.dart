@@ -185,7 +185,9 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
       child: Container(
         padding: EdgeInsets.only(
           top: 20,
@@ -222,7 +224,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               controller: _nameController,
               label: "Name",
               hint: "Enter your name",
-              isMendatory: true,
+              isMendatory: false,
               icon: Icons.person,
             ),
             _buildTextField(
@@ -303,8 +305,8 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
             // ),
             _buildTextField(
               controller: _unitController,
-              label: "Unit",
-              hint: "Enter Unit",
+              label: "Hatchery Unit",
+              hint: "Enter Hatchery Unit",
               icon: Icons.format_list_numbered,
               keyboardType: TextInputType.name,
             ),
@@ -425,11 +427,6 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     print('validation here');
                   }
 
-                  if (_nameController.text.trim().isEmpty) {
-                    _showError("Please enter name");
-                    return;
-                  }
-
                   if (_phoneController.text.trim().isEmpty) {
                     _showError("Please enter phone number");
                     return;
@@ -470,6 +467,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -489,13 +487,16 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (context) {
         return DraggableScrollableSheet(
           initialChildSize: 0.85,
           minChildSize: 0.85,
           maxChildSize: 0.85,
           builder: (context, scrollController) {
-            return Container(
+            return SafeArea(
+              top: false,
+              child: Container(
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
@@ -541,6 +542,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                       ),
                   ),
                 ],
+              ),
               ),
             );
           },

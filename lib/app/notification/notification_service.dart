@@ -12,7 +12,7 @@ import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/notification/notification_details_screen.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 
-@pragma('vm-entry-point')
+@pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   print('Background message received: ${message.messageId}');

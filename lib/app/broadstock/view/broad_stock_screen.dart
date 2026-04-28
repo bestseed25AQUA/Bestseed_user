@@ -24,9 +24,16 @@ class BroodStockScreen extends StatefulWidget {
 
 class _BroodStockScreenState extends State<BroodStockScreen> {
   final BroodStockController controller = Get.put(BroodStockController());
+  final ScrollController _scrollController = ScrollController();
 
   // Convenience getter — keeps all references short.
   RxString get selectedMonthYear => controller.userSelectedMonthYear;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -91,7 +98,11 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
         body: Obx(() {
           return CustomRefereshIndicator(
             onRefresh: () => controller.getBroodStock(),
-            child: SingleChildScrollView(
+            child: Scrollbar(
+              thumbVisibility: true,
+              controller: _scrollController,
+              child: SingleChildScrollView(
+              controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,6 +170,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                   const SizedBox(height: 40),
                 ],
               ),
+            ),
             ),
           );
         }),
