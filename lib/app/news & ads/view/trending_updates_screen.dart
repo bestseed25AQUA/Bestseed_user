@@ -16,11 +16,18 @@ class TrendingUpdatesScreen extends StatefulWidget {
 
 class _TrendingUpdatesScreenState extends State<TrendingUpdatesScreen> {
   final newsSpecificController = Get.put(NewsSpecificController());
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     newsSpecificController.fetch('trending update');
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -48,10 +55,15 @@ class _TrendingUpdatesScreenState extends State<TrendingUpdatesScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Obx(() {
+      body: Scrollbar(
+        thumbVisibility: true,
+        controller: _scrollController,
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Obx(() {
             if (newsSpecificController.isLoading.value) {
               return trendingUpdatesShimmer();
             }
@@ -122,6 +134,7 @@ class _TrendingUpdatesScreenState extends State<TrendingUpdatesScreen> {
               );
             }
           }),
+          ),
         ),
       ),
     );

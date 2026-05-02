@@ -27,16 +27,13 @@
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
-	
+	<string>Main</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>This app needs speech recognition to convert your voice to text.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app needs microphone access to record your voice.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to your photo library to update profile picture.</string>
-
-
-	<string>Main</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -54,16 +51,27 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to show map.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>This app needs access to your location.</string>
+	<!-- Used by Geolocator.requestTemporaryFullAccuracy() so iOS can prompt
+	     for a one-time precise-location upgrade when the user has only
+	     granted approximate access. Without this dictionary the OS silently
+	     denies the upgrade and we keep getting coarse cell-tower positions. -->
+	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
+	<dict>
+		<key>ResolveCurrentLocation</key>
+		<string>Bestseed needs your precise location to show the correct hatcheries and prices for your area.</string>
+	</dict>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
-  		<string>tel</string>
+		<string>tel</string>
 	</array>
-
-
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>

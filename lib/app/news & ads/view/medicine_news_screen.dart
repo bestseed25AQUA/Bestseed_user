@@ -17,6 +17,7 @@ class MedicineNewsScreen extends StatefulWidget {
 class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
   final TextEditingController _searchController = TextEditingController();
   final newsSpecificController = Get.put(NewsSpecificController());
+  final ScrollController _scrollController = ScrollController();
   List<Map<String, String>> allNews = [];
   List<Map<String, String>> filteredNews = [];
 
@@ -24,6 +25,13 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
   void initState() {
     super.initState();
     newsSpecificController.fetch('medicine news');
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   void _filterNews(String query) {
@@ -112,17 +120,22 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
               );
             }
             return Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.all(8.0),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 8.0,
-                  crossAxisSpacing: 8.0,
-                  childAspectRatio: 0.95,
-                ),
-                itemCount:
-                    newsSpecificController.newsSpecificData.value?.data?.length,
-                itemBuilder: (context, index) {
+              child: Scrollbar(
+                thumbVisibility: true,
+                controller: _scrollController,
+                child: GridView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(8.0),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 8.0,
+                    crossAxisSpacing: 8.0,
+                    childAspectRatio: 0.95,
+                  ),
+                  itemCount:
+                      newsSpecificController.newsSpecificData.value?.data?.length,
+                  itemBuilder: (context, index) {
                   final data = newsSpecificController
                       .newsSpecificData
                       .value
@@ -159,7 +172,8 @@ class _MedicineNewsScreenState extends State<MedicineNewsScreen> {
                     mediaTypes: mediaTypes,
                     onTap: navigateToDetail,
                   );
-                },
+                  },
+                ),
               ),
             );
           }),

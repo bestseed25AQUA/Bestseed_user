@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
@@ -276,10 +278,53 @@ class LocationController extends GetxController {
         return null;
       }
 
-      // Get current position
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+      // iOS-specific: detect if user disabled "Precise Location" toggle and
+      // ask for a one-shot upgrade. We must only ask ONCE per install —
+      // calling requestTemporaryFullAccuracy on every cold start triggers
+      // the iOS popup every launch (the user's "always asking permissions"
+      // complaint). After the first ask, respect the user's choice and use
+      // the reduced position silently.
+      if (Platform.isIOS) {
+        try {
+          final status = await Geolocator.getLocationAccuracy();
+          if (status == LocationAccuracyStatus.reduced) {
+            final prefs = await SharedPreferences.getInstance();
+            const askedKey = 'ios_precise_location_asked_v1';
+            if (!(prefs.getBool(askedKey) ?? false)) {
+              await prefs.setBool(askedKey, true);
+              await Geolocator.requestTemporaryFullAccuracy(
+                purposeKey: 'ResolveCurrentLocation',
+              );
+            }
+          }
+        } catch (_) {
+          // iOS < 14 or purpose key missing — fall through with reduced accuracy.
+        }
+      }
+
+      // Force a fresh GPS fix instead of accepting a cached coarse position.
+      //  • iOS: bestForNavigation rejects WiFi/cell-only positions (gives Cheyyeru, not Katrenikona)
+      //  • Android: best is equivalent
+      //  • timeLimit prevents iOS from returning the first stale fix from memory.
+      //  • If the GPS lock can't complete in 15s (indoor / weak signal), fall
+      //    back to the last known position rather than failing entirely.
+      Position position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: Platform.isIOS
+              ? AppleSettings(
+                  accuracy: LocationAccuracy.bestForNavigation,
+                  activityType: ActivityType.other,
+                )
+              : AndroidSettings(
+                  accuracy: LocationAccuracy.best,
+                ),
+        ).timeout(const Duration(seconds: 15));
+      } catch (_) {
+        final last = await Geolocator.getLastKnownPosition();
+        if (last == null) return null;
+        position = last;
+      }
 
       // Get address from coordinates
       List<Placemark> placemarks = await placemarkFromCoordinates(

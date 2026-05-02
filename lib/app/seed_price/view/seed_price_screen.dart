@@ -116,7 +116,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                   return GestureDetector(
                     onTap: () => Get.to(() => const SeedWantedScreen()),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(20),
                       child: SafeNetworkImage(
                         imageUrl: banner.url,
                         width: double.infinity,
@@ -127,7 +127,7 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                           height: 110,
                         ),
                         onFinalError: (_, __, ___) => const SizedBox(),
-                      ),
+                      ).paddingOnly(left: 15,right: 15),
                     ),
                   );
                 }),

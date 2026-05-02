@@ -30,6 +30,8 @@ class VehicleAvailability {
   final String? description;
   final int? locationId;
   final String? locationName;
+  final double? latitude;
+  final double? longitude;
   final String? branchName;
   final List<VehicleLocation> locations;
   final bool isVehicle;
@@ -58,6 +60,8 @@ class VehicleAvailability {
     this.description,
     this.locationId,
     this.locationName,
+    this.latitude,
+    this.longitude,
     this.branchName,
     required this.locations,
     required this.isVehicle,
@@ -84,6 +88,8 @@ class VehicleAvailability {
       description: json['description'],
       locationId: json['location_id'],
       locationName: json['location_name'],
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
       branchName: json['branch_name'],
       locations: json['locations'] == null
           ? []
@@ -179,16 +185,22 @@ class SelectedVehicleHatchery {
 class VehicleLocation {
   final int id;
   final String name;
+  final double? latitude;
+  final double? longitude;
 
   VehicleLocation({
     required this.id,
     required this.name,
+    this.latitude,
+    this.longitude,
   });
 
   factory VehicleLocation.fromJson(Map<String, dynamic> json) {
     return VehicleLocation(
       id: json['location_id'] ?? 0,
       name: json['location_name'] ?? '',
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
     );
   }
 }

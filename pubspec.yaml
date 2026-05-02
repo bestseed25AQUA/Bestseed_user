@@ -75,6 +75,9 @@ dependencies:
   path: ^1.8.3
   firebase_core: ^4.4.0
   firebase_messaging: ^16.1.1
+  firebase_remote_config: ^6.0.0
+  package_info_plus: ^8.0.0
+  upgrader: ^11.0.0
   flutter_local_notifications: ^20.1.0
   http: ^1.6.0
   sms_autofill: ^2.4.1

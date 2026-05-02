@@ -95,85 +95,94 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
         backgroundColor: const Color(0xFFF5F7FA),
         appBar:
             const CustomIconAppbar(title: "Brood Stock", showBackButton: false),
-        body: Obx(() {
-          return CustomRefereshIndicator(
-            onRefresh: () => controller.getBroodStock(),
-            child: Scrollbar(
-              thumbVisibility: true,
-              controller: _scrollController,
-              child: SingleChildScrollView(
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
+        body: Column(
+          children: [
+            const SizedBox(height: 8),
+
+            // Pinned: Search + Filters
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 8),
-
-                  // Search + Filters
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildSearchBar(),
-                        const SizedBox(height: 12),
-                        _buildFilterChips(),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Results header
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        Text(
-                          'Hatchery & Suppliers',
-                          style: GoogleFonts.roboto(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Spacer(),
-                        if (!controller.isLoading.value)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${controller.filteredBroodStocks.length} found',
-                              style: GoogleFonts.roboto(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
+                  _buildSearchBar(),
                   const SizedBox(height: 12),
-
-                  // List
-                  if (controller.isLoading.value)
-                    _buildShimmerList()
-                  else if (controller.filteredBroodStocks.isEmpty)
-                    _buildEmptyState()
-                  else
-                    _buildBroodstockList(),
-
-                  const SizedBox(height: 40),
+                  _buildFilterChips(),
                 ],
               ),
             ),
+
+            const SizedBox(height: 16),
+
+            // Scrollable: header + list
+            Expanded(
+              child: Obx(() {
+                return CustomRefereshIndicator(
+                  onRefresh: () => controller.getBroodStock(),
+                  child: Scrollbar(
+                    thumbVisibility: true,
+                    controller: _scrollController,
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Results header
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 20),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Hatchery & Suppliers',
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const Spacer(),
+                                if (!controller.isLoading.value)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary
+                                          .withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '${controller.filteredBroodStocks.length} found',
+                                      style: GoogleFonts.roboto(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // List
+                          if (controller.isLoading.value)
+                            _buildShimmerList()
+                          else if (controller.filteredBroodStocks.isEmpty)
+                            _buildEmptyState()
+                          else
+                            _buildBroodstockList(),
+
+                          const SizedBox(height: 40),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
             ),
-          );
-        }),
+          ],
+        ),
       ),
     );
   }

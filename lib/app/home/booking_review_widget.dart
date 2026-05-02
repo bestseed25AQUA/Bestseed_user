@@ -123,8 +123,10 @@ class BookingReviewContent extends StatelessWidget {
                         _buildInfoRow('Category', categoryName),
                         const Divider(),
                       ],
-                      _buildInfoRow('Name', name),
-                      const Divider(),
+                      if (name.trim().isNotEmpty) ...[
+                        _buildInfoRow('Name', name),
+                        const Divider(),
+                      ],
                       _buildInfoRow('Phone Number', phone),
                       const Divider(),
                       _buildInfoRow('Unit', unit),

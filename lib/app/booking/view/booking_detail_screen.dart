@@ -875,7 +875,9 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                         ),
                       ),
                       Text(
-                        data.unitLocation,
+                        data.pickupLocation.isNotEmpty
+                            ? data.pickupLocation
+                            : '-',
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,

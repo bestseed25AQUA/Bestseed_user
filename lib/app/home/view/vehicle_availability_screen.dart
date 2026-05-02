@@ -67,8 +67,9 @@
 //   }
 // }
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -115,8 +116,13 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
   // 📍 Location Filter
   String?
   _selectedLocation; // null means "All", "current" means current location filter
-  String? _currentLocationState; // Stores the detected state name
+  double? _currentLat;
+  double? _currentLng;
   bool _isLoadingLocation = false;
+
+  /// Vehicles whose nearest visited location is within this many km of the
+  /// user are shown when "Current Location" is selected.
+  static const double _radiusKm = 100;
 
   @override
   void initState() {
@@ -174,26 +180,17 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
         return;
       }
 
-      // Get current position
+      // Get current position — only lat/lng is needed for the radius filter.
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      // Reverse geocoding to get state name
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
-
-      if (placemarks.isNotEmpty) {
-        _currentLocationState = placemarks.first.administrativeArea;
-        print("Current State: $_currentLocationState");
-
-        setState(() {
-          _selectedLocation = "current";
-          _isLoadingLocation = false;
-        });
-      }
+      setState(() {
+        _currentLat = position.latitude;
+        _currentLng = position.longitude;
+        _selectedLocation = "current";
+        _isLoadingLocation = false;
+      });
     } catch (e) {
       print("Location error: $e");
       CustomToast.error("Failed to get current location");
@@ -201,6 +198,40 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
         _isLoadingLocation = false;
       });
     }
+  }
+
+  /// Haversine distance in km between two lat/lng points.
+  double _distanceKm(double lat1, double lng1, double lat2, double lng2) {
+    const earthRadiusKm = 6371.0;
+    double toRad(double deg) => deg * (3.141592653589793 / 180.0);
+    final dLat = toRad(lat2 - lat1);
+    final dLng = toRad(lng2 - lng1);
+    final a = (math.sin(dLat / 2) * math.sin(dLat / 2)) +
+        math.cos(toRad(lat1)) *
+            math.cos(toRad(lat2)) *
+            (math.sin(dLng / 2) * math.sin(dLng / 2));
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return earthRadiusKm * c;
+  }
+
+  /// True if any of the vehicle's locations (or its primary location) lies
+  /// within `_radiusKm` of the user.
+  bool _isWithinRadius(VehicleAvailability v) {
+    if (_currentLat == null || _currentLng == null) return false;
+    final ulat = _currentLat!;
+    final ulng = _currentLng!;
+    for (final loc in v.locations) {
+      if (loc.latitude == null || loc.longitude == null) continue;
+      if (_distanceKm(ulat, ulng, loc.latitude!, loc.longitude!) <= _radiusKm) {
+        return true;
+      }
+    }
+    if (v.latitude != null && v.longitude != null) {
+      if (_distanceKm(ulat, ulng, v.latitude!, v.longitude!) <= _radiusKm) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // 📍 Get unique locations from data
@@ -226,10 +257,11 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
 
       bool matchesLocation = true;
 
-      if (_selectedLocation == "current" && _currentLocationState != null) {
-        matchesLocation =
-            item.locationName?.toLowerCase() ==
-            _currentLocationState?.toLowerCase();
+      if (_selectedLocation == "current") {
+        // 100 km radius from user's current GPS position. Replaces the old
+        // string-equality check against `administrativeArea` which never
+        // matched (vehicle locations are villages/towns, not state names).
+        matchesLocation = _isWithinRadius(item);
       } else if (_selectedLocation != null && _selectedLocation != "current") {
         matchesLocation =
             item.locationName?.toLowerCase() ==

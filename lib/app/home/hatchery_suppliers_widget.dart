@@ -4,7 +4,7 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
-import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/animated_view_custom.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/model/brood_stock_model.dart';
@@ -32,18 +32,10 @@ class HatcherySuppliersWidget extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                TextButton(
-                  onPressed: () {
-                    print('taped');
+                AnimatedViewAllButton(
+                  onTap: () {
                     dashboardCtrl.changeIndex(2);
                   },
-                  child: Text(
-                    "View all",
-                    style: GoogleFonts.roboto(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,fontSize: 14
-                    ),
-                  ),
                 ),
               ],
             ),

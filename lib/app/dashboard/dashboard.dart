@@ -550,7 +550,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           // Return true to exit, false to stay
         },
         child: Scaffold(
-          body: Obx(() => pages[controller.currentIndex.value]),
+          body: Obx(() => IndexedStack(
+                index: controller.currentIndex.value,
+                children: pages,
+              )),
           floatingActionButton: Obx(() {
             if (controller.currentIndex.value != 0) return const SizedBox();
             if (!_bookingController.hasInProgressBooking) return const SizedBox();

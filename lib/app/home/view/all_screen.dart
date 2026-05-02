@@ -1074,11 +1074,14 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
   @override
   Widget build(BuildContext context) {
     if (!_isInitialized) {
-      return Image.asset(
-        'assets/images/best_seed_bottom.png',
-        width: double.infinity,
-        fit: BoxFit.cover,
-        height: widget.height,
+      return Shimmer.fromColors(
+        baseColor: Colors.grey.shade200,
+        highlightColor: Colors.grey.shade100,
+        child: Container(
+          width: widget.width ?? double.infinity,
+          height: widget.height,
+          color: Colors.white,
+        ),
       );
     }
 

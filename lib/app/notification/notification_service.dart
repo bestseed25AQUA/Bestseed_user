@@ -56,10 +56,21 @@ class NotificationService {
   Future<void> registerToken() async {
     String? token;
     if (Platform.isIOS) {
-      String? apnsToken = await _fcm.getAPNSToken();
-      if (apnsToken != null) {
-        token = await _fcm.getToken();
+      // APNs token is delivered asynchronously by iOS — can take 1-3 seconds
+      // after launch (longer on cold start). Single-shot getAPNSToken() was
+      // returning null on first call → no FCM registration → no pushes.
+      String? apnsToken;
+      for (var attempt = 0; attempt < 10; attempt++) {
+        apnsToken = await _fcm.getAPNSToken();
+        if (apnsToken != null) break;
+        await Future.delayed(const Duration(seconds: 1));
       }
+      if (apnsToken == null) {
+        print('FCM: APNs token still null after 10s — '
+            'check Push Notifications capability + APNs key in Firebase');
+        return;
+      }
+      token = await _fcm.getToken();
     } else {
       token = await _fcm.getToken();
     }

@@ -711,7 +711,7 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
                       Expanded(
                         child: _buildInfoChip(
                           "assets/images/CalendarBlank.png",
-                          widget.availableDate!,
+                          _formatAvailableDate(widget.availableDate!),
                         ),
                       ),
                     ],
@@ -887,6 +887,12 @@ class _HarcheryCardWidgetState extends State<HarcheryCardWidget> {
         ),
       ),
     );
+  }
+
+  String _formatAvailableDate(String raw) {
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return raw;
+    return DateFormat('dd-MM-yyyy').format(parsed);
   }
 
   Future<void> _makePhoneCall(String? url) async {
