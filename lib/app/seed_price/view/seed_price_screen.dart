@@ -115,19 +115,22 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                   final banner = bannerController.bannersSeedPrice.first;
                   return GestureDetector(
                     onTap: () => Get.to(() => const SeedWantedScreen()),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: SafeNetworkImage(
-                        imageUrl: banner.url,
-                        width: double.infinity,
-                        height: 110,
-                        fit: BoxFit.fill,
-                        placeholder: (context, url) => CustomShimmer(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 15),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: SafeNetworkImage(
+                          imageUrl: banner.url,
                           width: double.infinity,
                           height: 110,
+                          fit: BoxFit.fill,
+                          placeholder: (context, url) => CustomShimmer(
+                            width: double.infinity,
+                            height: 110,
+                          ),
+                          onFinalError: (_, __, ___) => const SizedBox(),
                         ),
-                        onFinalError: (_, __, ___) => const SizedBox(),
-                      ).paddingOnly(left: 15,right: 15),
+                      ),
                     ),
                   );
                 }),

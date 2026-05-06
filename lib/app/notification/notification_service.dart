@@ -7,15 +7,37 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:seedsuser/app/auth/view/login_screen.dart';
 import 'package:seedsuser/app/booking/view/booking_detail_screen.dart';
 import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/notification/notification_details_screen.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Background-isolate token wipe for force_logout. Mirrors the keys held
+/// by AuthLocalStorage; can't import that class here because background
+/// handlers run in a separate isolate without GetIt/Get state.
+Future<void> _clearUserSessionInBackground() async {
+  try {
+    final sp = await SharedPreferences.getInstance();
+    await sp.remove('user_token');
+    await sp.remove('user_mobile');
+  } catch (e) {
+    print('FCM bg force-logout: failed to clear prefs -> $e');
+  }
+}
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   print('Background message received: ${message.messageId}');
+
+  // Force-logout pushed when the user logs in on another device. Clear
+  // the session immediately so reopening the app drops the user on login.
+  if (message.data['type'] == 'force_logout') {
+    await _clearUserSessionInBackground();
+    return; // suppress the notification banner — silent logout
+  }
 }
 
 class NotificationService {
@@ -155,10 +177,23 @@ class NotificationService {
     }
   }
 
+  /// Force-logout the user right now (used when an FCM `force_logout`
+  /// message arrives in the foreground because they logged in elsewhere).
+  /// Mirrors the network_utils 401 force-logout path.
+  Future<void> _handleForceLogout() async {
+    print('FCM: force_logout received — clearing user session');
+    await AuthLocalStorage.clear();
+    Get.offAll(() => LoginWithMobileScreen());
+  }
+
   void _setupMessageHandlers() {
     // Foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('Foreground message received: ${message.data}');
+      if (message.data['type'] == 'force_logout') {
+        _handleForceLogout();
+        return;
+      }
       _showLocalNotification(message);
     });
 

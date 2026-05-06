@@ -36,14 +36,27 @@ class AppVersionManager {
   static const _defaultStoreIos =
       'https://apps.apple.com/app/idYOUR_APP_ID';
 
-  /// Compares the current build version against the version stored from the
-  /// previous launch. If it changed (user installed a new build, store update,
-  /// APK reinstall, iOS rebuild) the auth token is cleared so the next screen
-  /// is the login screen. Then the new version is recorded.
+  /// Compares the current build fingerprint against the one stored from the
+  /// previous launch. If anything changed, the auth token is cleared so the
+  /// next screen is the login screen. Two signals are combined:
+  ///   1. `version+buildNumber` — catches Play Store / App Store updates
+  ///      (assumes the developer bumps the version per release).
+  ///   2. `updateTime` — catches APK reinstalls during testing where the
+  ///      version is NOT bumped (sideloaded release builds replace the
+  ///      install but SharedPreferences and the token survive). Android
+  ///      returns the new install timestamp; iOS may return null, in which
+  ///      case only signal #1 applies.
   static Future<void> clearTokenIfVersionChanged() async {
     try {
       final info = await PackageInfo.fromPlatform();
-      final current = '${info.version}+${info.buildNumber}';
+      // Use updateTime — it changes every time an APK is installed over
+      // an existing install (the sideload-testing flow). installTime would
+      // only change on uninstall+reinstall and miss this case. iOS returns
+      // a value here too. Fall back to installTime if updateTime is null.
+      final updateAt = info.updateTime ?? info.installTime;
+      final updateStamp = updateAt?.millisecondsSinceEpoch.toString() ?? '';
+      final current = '${info.version}+${info.buildNumber}|$updateStamp';
+
       final prefs = await SharedPreferences.getInstance();
       final lastSeen = prefs.getString(_keyLastSeenVersion);
 

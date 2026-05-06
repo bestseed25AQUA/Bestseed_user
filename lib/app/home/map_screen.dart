@@ -7,7 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_google_places_sdk/flutter_google_places_sdk.dart'
     as places;
 
-const String kGoogleApiKey = "AIzaSyB3OGmcoQQkpL5s1Enzf3D0rGlYgnIUFnU";
+const String kGoogleApiKey = "AIzaSyA111b89Exrm83RRWF-2hP1EPeUxvos87I";
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});

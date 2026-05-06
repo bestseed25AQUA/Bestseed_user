@@ -50,7 +50,7 @@
         <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyB3OGmcoQQkpL5s1Enzf3D0rGlYgnIUFnU"/>
+            android:value="AIzaSyA111b89Exrm83RRWF-2hP1EPeUxvos87I"/>
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="high_importance_channel" />    

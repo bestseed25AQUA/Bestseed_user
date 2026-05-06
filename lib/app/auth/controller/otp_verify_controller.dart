@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
@@ -93,7 +95,33 @@ class OtpVerifyController extends GetxController {
     try {
       isLoading.value = true;
 
-      final body = {"mobile": phoneNumber.value, "otp_code": otp.value};
+      // Fetch this device's FCM token and send it with the OTP request.
+      // The backend uses it to skip the force-logout FCM when the same
+      // device re-logs in (otherwise the new session would receive its
+      // own previous device's force_logout and immediately bounce back
+      // to the login screen).
+      String? fcmToken;
+      try {
+        if (Platform.isIOS) {
+          // APNs token must resolve before FCM can return a token on iOS.
+          for (var attempt = 0; attempt < 5; attempt++) {
+            final apns = await FirebaseMessaging.instance.getAPNSToken();
+            if (apns != null) break;
+            await Future.delayed(const Duration(milliseconds: 500));
+          }
+        }
+        fcmToken = await FirebaseMessaging.instance
+            .getToken()
+            .timeout(const Duration(seconds: 3));
+      } catch (e) {
+        debugPrint('FCM token fetch failed in verifyOtp: $e');
+      }
+
+      final body = {
+        "mobile": phoneNumber.value,
+        "otp_code": otp.value,
+        if (fcmToken != null && fcmToken.isNotEmpty) "fcm_token": fcmToken,
+      };
 
       // Use http.post directly to avoid the global 401 interceptor
       // which redirects to login on wrong OTP

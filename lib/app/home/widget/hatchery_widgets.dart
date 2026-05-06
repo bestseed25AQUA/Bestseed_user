@@ -1,13 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
-import 'package:seedsuser/app/common/custom_toast.dart';
-import 'package:seedsuser/app/home/controller/hatchery_category_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
-import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 

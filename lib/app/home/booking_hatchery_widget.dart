@@ -305,8 +305,8 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
             // ),
             _buildTextField(
               controller: _unitController,
-              label: "Hatchery Unit",
-              hint: "Enter Hatchery Unit",
+              label: "Hatchery Unit Location Name",
+              hint: "Enter Hatchery Unit Location Name",
               icon: Icons.format_list_numbered,
               keyboardType: TextInputType.name,
             ),
@@ -703,9 +703,10 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                   firstDate: DateTime.now(),
                   lastDate: DateTime(2101),
                 );
-                if (picked != null)
+                if (picked != null){
                   controller.text =
                       "${picked.day}/${picked.month}/${picked.year}";
+                }
               },
               decoration: InputDecoration(
                 hintStyle: TextStyle(fontSize: 13),

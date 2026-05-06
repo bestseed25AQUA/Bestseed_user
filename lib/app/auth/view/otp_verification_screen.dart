@@ -47,6 +47,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
   }
 
   void _extractAndFillOtp(String message) {
+    // SMS auto-fill can fire AFTER the screen is disposed (e.g. user just
+    // navigated away via Get.offAll on successful login). Touching the
+    // disposed TextEditingController throws — bail out if we're gone.
+    if (!mounted) return;
+
     // Match 6-digit code from SMS like: "<#> Your Best Seed verification code is 123456"
     final regex = RegExp(r'\b(\d{6})\b');
     final match = regex.firstMatch(message);
@@ -60,6 +65,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
 
   @override
   void codeUpdated() {
+    if (!mounted) return;
     // Called when SMS is received and code is extracted
     if (code != null && code!.isNotEmpty) {
       _extractAndFillOtp(code!);

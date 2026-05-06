@@ -10,8 +10,8 @@ class NetworkConfig {
   static const imageURL = "https://aqua.bestseed.in";
   // static const imageURL = "http://127.0.0.1:8000";
 
-  static const googleApiKey = 'AIzaSyBkrsDyM5XzvbiOjgzrQ2grE7q1MhE1XZQ';
-  static const googleApiKey2 = "AIzaSyDLVwCSkXWOjo49WNNwx7o0DSwomoFvbP0";
+  static const googleApiKey = 'AIzaSyA111b89Exrm83RRWF-2hP1EPeUxvos87I';
+  static const googleApiKey2 = 'AIzaSyA111b89Exrm83RRWF-2hP1EPeUxvos87I';
 
   static const noInternetMsg = 'Oops No Internet';
   static const msg = 'message';
