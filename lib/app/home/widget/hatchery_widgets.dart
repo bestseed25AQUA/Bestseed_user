@@ -215,6 +215,7 @@ class HatcheryCard extends StatelessWidget {
                         tag: 'HatcheryCard$id$index',
                         child: CachedNetworkImage(
                           imageUrl: resolvedImagePath,
+                          httpHeaders: const {'Accept': 'image/*,*/*'},
                           width: double.infinity,
                           height: imageHeight,
                           fit: BoxFit.cover,

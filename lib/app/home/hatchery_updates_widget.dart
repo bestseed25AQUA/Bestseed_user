@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
@@ -113,11 +114,15 @@ class HatcheryUpdatesWidget extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadiusGeometry.circular(100),
-            child: Image.network(
-              imagePath,
+            child: CachedNetworkImage(
+              imageUrl: imagePath,
               width: 72,
               height: 72,
-              errorBuilder: (context, error, stackTrace) {
+              fit: BoxFit.cover,
+              httpHeaders: const {'Accept': 'image/*,*/*'},
+              placeholder: (_, __) => SizedBox(width: 72, height: 72, child: CustomShimmer()),
+              errorWidget: (_, url, error) {
+                debugPrint('⚠️ HatcheryUpdate image FAILED: $url → $error');
                 return SizedBox(width: 72, height: 72, child: CustomShimmer());
               },
             ),

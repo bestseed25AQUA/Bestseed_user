@@ -15,7 +15,10 @@
       "Read(//opt/homebrew/lib/ruby/gems/3.4.0/bin/**)",
       "Bash(chruby)",
       "Bash(flutter doctor:*)",
-      "Read(//opt/homebrew/share/flutter/packages/flutter_tools/**)"
+      "Read(//opt/homebrew/share/flutter/packages/flutter_tools/**)",
+      "Bash(curl -s -H \"Authorization: Bearer 1139|QoqLgIT2Ju8JYPbBslMbb4tcKfkIRPS7mbL3kH9g930a6c92\" -H \"Content-Type: application/json\" \"https://aqua.bestseed.in/api/farmer/banner_bg\")",
+      "Bash(curl -sI \"https://aqua.bestseed.in/uploads/banners/banner_1772456482.gif\")",
+      "Bash(curl -v \"https://aqua.bestseed.in/uploads/hatchery_logos/1776787346_logo_69e79f92db731.png\" -o /dev/null)"
     ]
   }
 }

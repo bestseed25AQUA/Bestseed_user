@@ -1,77 +1,74 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>CFBundleDisplayName</key>
-	<string>Bestseed</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>seedsuser</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>$(FLUTTER_BUILD_NAME)</string>
-	<key>CFBundleSignature</key>
-	<string>????</string>
-	<key>CFBundleVersion</key>
-	<string>$(FLUTTER_BUILD_NUMBER)</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>This app needs speech recognition to convert your voice to text.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>This app needs microphone access to record your voice.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app needs access to your photo library to update profile picture.</string>
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We need your location to show map.</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>This app needs access to your location.</string>
-	<!-- Used by Geolocator.requestTemporaryFullAccuracy() so iOS can prompt
-	     for a one-time precise-location upgrade when the user has only
-	     granted approximate access. Without this dictionary the OS silently
-	     denies the upgrade and we keep getting coarse cell-tower positions. -->
-	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
 	<dict>
-		<key>ResolveCurrentLocation</key>
-		<string>Bestseed needs your precise location to show the correct hatcheries and prices for your area.</string>
+		<key>CFBundleDevelopmentRegion</key>
+		<string>$(DEVELOPMENT_LANGUAGE)</string>
+		<key>CFBundleDisplayName</key>
+		<string>Bestseed</string>
+		<key>CFBundleExecutable</key>
+		<string>$(EXECUTABLE_NAME)</string>
+		<key>CFBundleIdentifier</key>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+		<key>CFBundleInfoDictionaryVersion</key>
+		<string>6.0</string>
+		<key>CFBundleName</key>
+		<string>seedsuser</string>
+		<key>CFBundlePackageType</key>
+		<string>APPL</string>
+		<key>CFBundleShortVersionString</key>
+		<string>$(FLUTTER_BUILD_NAME)</string>
+		<key>CFBundleSignature</key>
+		<string>????</string>
+		<key>CFBundleVersion</key>
+		<string>$(FLUTTER_BUILD_NUMBER)</string>
+		<key>LSRequiresIPhoneOS</key>
+		<true/>
+		<key>UILaunchStoryboardName</key>
+		<string>LaunchScreen</string>
+		<key>UIMainStoryboardFile</key>
+		<string>Main</string>
+		<key>NSSpeechRecognitionUsageDescription</key>
+		<string>This app needs speech recognition to convert your voice to text.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>This app needs microphone access to record your voice.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>This app needs access to your photo library to update profile picture.</string>
+		<key>UISupportedInterfaceOrientations</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationLandscapeLeft</string>
+			<string>UIInterfaceOrientationLandscapeRight</string>
+		</array>
+		<key>UISupportedInterfaceOrientations~ipad</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationPortraitUpsideDown</string>
+			<string>UIInterfaceOrientationLandscapeLeft</string>
+			<string>UIInterfaceOrientationLandscapeRight</string>
+		</array>
+		<key>CADisableMinimumFrameDurationOnPhone</key>
+		<true/>
+		<key>UIApplicationSupportsIndirectInputEvents</key>
+		<true/>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>We need your location to show map.</string>
+		<key>NSLocationAlwaysUsageDescription</key>
+		<string>This app needs access to your location.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>This app needs access to your location to show nearby hatcheries and delivery tracking.</string>
+		<key>NSUserTrackingUsageDescription</key>
+		<string>This app uses your data to provide personalized content and improve your experience.</string>
+		<key>NSAppTransportSecurity</key>
+		<dict>
+			<key>NSAllowsArbitraryLoads</key>
+			<true/>
+		</dict>
+		<key>LSApplicationQueriesSchemes</key>
+		<array>
+			<string>tel</string>
+		</array>
+		<key>UIStatusBarHidden</key>
+		<false/>
 	</dict>
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>tel</string>
-	</array>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>fetch</string>
-		<string>remote-notification</string>
-	</array>
-</dict>
 </plist>
