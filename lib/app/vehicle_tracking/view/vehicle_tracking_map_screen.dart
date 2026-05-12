@@ -3517,8 +3517,14 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         if (isDriverHere) {
           time = _formatDateTime(driverLoc.updatedAt);
         } else if (isPassed) {
-          // Use locked time if available, otherwise lock the current estimated time
-          if (_passedStopTimes.containsKey(i)) {
+          final passedAt = stop['passed_at'] as String?;
+          if (passedAt != null && passedAt.isNotEmpty) {
+            time = _formatDateTime(passedAt);
+            if (time != '-' && _passedStopTimes[i] != time) {
+              _passedStopTimes[i] = time;
+              newTimesLocked = true;
+            }
+          } else if (_passedStopTimes.containsKey(i)) {
             time = _passedStopTimes[i]!;
           } else {
             time = _getTimeForFraction(stopFraction);
@@ -3745,6 +3751,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         'lat': lat,
         'lng': lng,
         'is_key_stop': false,
+        if (pt['passed_at'] != null) 'passed_at': pt['passed_at'],
+        if (pt['estimated_arrival'] != null)
+          'estimated_arrival': pt['estimated_arrival'],
+        if (pt['estimated_date'] != null) 'estimated_date': pt['estimated_date'],
       });
     }
 
@@ -3832,6 +3842,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         'lat': lat,
         'lng': lng,
         'is_key_stop': false,
+        if (pt['passed_at'] != null) 'passed_at': pt['passed_at'],
+        if (pt['estimated_arrival'] != null)
+          'estimated_arrival': pt['estimated_arrival'],
+        if (pt['estimated_date'] != null) 'estimated_date': pt['estimated_date'],
       });
     }
 
@@ -3917,6 +3931,16 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     if (recomputedIndex > _currentStopIndex) {
       // Forward progress — lock arrival times for the newly passed stops.
       for (int j = _currentStopIndex + 1; j <= recomputedIndex; j++) {
+        final stopData = _fixedStops[j];
+        final passedAt = stopData['passed_at'] as String?;
+        if (passedAt != null && passedAt.isNotEmpty) {
+          final formatted = _formatDateTime(passedAt);
+          if (formatted != '-') {
+            _passedStopTimes[j] = formatted;
+            continue;
+          }
+        }
+
         if (!_passedStopTimes.containsKey(j)) {
           _passedStopTimes[j] = _formatDateTimeObj(now);
         }
@@ -3997,6 +4021,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           'lat': stop['lat'],
           'lng': stop['lng'],
           'is_key_stop': stop['is_key_stop'],
+          if (stop['passed_at'] != null) 'passed_at': stop['passed_at'],
+          if (stop['estimated_arrival'] != null)
+            'estimated_arrival': stop['estimated_arrival'],
+          if (stop['estimated_date'] != null) 'estimated_date': stop['estimated_date'],
         };
       }).toList();
       await prefs.setString(
@@ -4021,6 +4049,16 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       final stops = decoded.map((item) {
         return Map<String, dynamic>.from(item);
       }).toList();
+      final apiPassedSignature = (_trackingData?.autoTimelinePoints ?? [])
+          .map((pt) => pt['passed_at']?.toString() ?? '')
+          .join('|');
+      final cachePassedSignature =
+          stops.map((pt) => pt['passed_at']?.toString() ?? '').join('|');
+      if (apiPassedSignature.replaceAll('|', '').isNotEmpty &&
+          apiPassedSignature != cachePassedSignature) {
+        await prefs.remove('fixed_stops_${widget.bookingId}');
+        return false;
+      }
 debugPrint("📦 Loaded Fixed Stops from storage:");
 
 for (var stop in stops) {
