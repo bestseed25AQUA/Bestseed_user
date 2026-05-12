@@ -193,7 +193,7 @@ class _HomePageState extends State<HomePage>
     return Obx(() {
       final bgBanners = _homeBannerController.bannersBackGround;
       if (bgBanners.isEmpty) {
-        if (_homeBannerController.isLoading.value) {
+        if (_homeBannerController.isBgLoading.value) {
           return Shimmer.fromColors(
             baseColor: Colors.grey.shade300,
             highlightColor: Colors.grey.shade100,

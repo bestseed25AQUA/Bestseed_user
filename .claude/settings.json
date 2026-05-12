@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pod install:*)",
+      "Bash(pod --version)",
+      "Bash(ruby --version)",
+      "Bash(plutil -lint /Users/ramprasadsreerama/Development/Bestseeds-user/ios/Runner/Info.plist)",
+      "Bash(gem list:*)",
+      "Bash(brew list:*)",
+      "Read(//opt/homebrew/opt/**)",
+      "Bash(/opt/homebrew/bin/pod --version)",
+      "Bash(gem pristine:*)",
+      "Bash(/opt/homebrew/opt/ruby/bin/ruby --version)",
+      "Bash(/opt/homebrew/opt/ruby/bin/gem list:*)",
+      "Read(//opt/homebrew/lib/ruby/gems/3.4.0/bin/**)",
+      "Bash(chruby)",
+      "Bash(flutter doctor:*)",
+      "Read(//opt/homebrew/share/flutter/packages/flutter_tools/**)",
+      "Bash(curl -s -H \"Authorization: Bearer 1139|QoqLgIT2Ju8JYPbBslMbb4tcKfkIRPS7mbL3kH9g930a6c92\" -H \"Content-Type: application/json\" \"https://aqua.bestseed.in/api/farmer/banner_bg\")",
+      "Bash(curl -sI \"https://aqua.bestseed.in/uploads/banners/banner_1772456482.gif\")",
+      "Bash(curl -v \"https://aqua.bestseed.in/uploads/hatchery_logos/1776787346_logo_69e79f92db731.png\" -o /dev/null)"
+    ]
+  }
+}

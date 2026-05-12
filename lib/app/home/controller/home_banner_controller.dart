@@ -14,6 +14,8 @@ class HomeBannerController extends GetxController {
   final _box = GetStorage();
 
   var isLoading = true.obs;
+  var isBgLoading = true.obs;
+  var isMedicineLoading = true.obs;
   var isTopLoading = false.obs;
   var banners = <BannerItem>[].obs;
   var bannersBackGround = <BannerItem>[].obs;
@@ -54,6 +56,17 @@ class HomeBannerController extends GetxController {
     } catch (e) {
       debugPrint('fetchAll error: $e');
     }
+    debugPrint(
+      '📊 BANNER STATUS: '
+      'bg=${bannersBackGround.length}, '
+      'top=${bannersTop.length}, '
+      'medicine=${bannersMedicine.length}, '
+      'home=${bannersHome.length}, '
+      'seedPrice=${bannersSeedPrice.length}, '
+      'spot=${bannersSpotHatcheries.length}, '
+      'farm=${bannersFarmManagement.length}, '
+      'section1=${bannersSection1Bg.length}',
+    );
   }
 
   void _loadCachedHomeBanner() {
@@ -62,6 +75,9 @@ class HomeBannerController extends GetxController {
       bannersHome.assignAll(
         cached.map((e) => BannerItem.fromJson(Map<String, dynamic>.from(e))),
       );
+      isHomeLoading.value = false;
+    } else {
+      fetchAll();
       isHomeLoading.value = false;
     }
   }
@@ -93,7 +109,7 @@ class HomeBannerController extends GetxController {
 
   Future<void> fetchBannersBackground() async {
     try {
-      isLoading.value = true;
+      isBgLoading.value = true;
 
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/banner_bg",
@@ -109,7 +125,7 @@ class HomeBannerController extends GetxController {
     } catch (e) {
       debugPrint("fetchBannersBackground error: $e");
     } finally {
-      isLoading.value = false;
+      isBgLoading.value = false;
     }
   }
 
@@ -138,7 +154,7 @@ class HomeBannerController extends GetxController {
 
   Future<void> fetchBannersMedicine() async {
     try {
-      isLoading.value = true;
+      isMedicineLoading.value = true;
 
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/best_deals_banners",
@@ -155,7 +171,7 @@ class HomeBannerController extends GetxController {
     } catch (e) {
       debugPrint("fetchBannersMedicine error: $e");
     } finally {
-      isLoading.value = false;
+      isMedicineLoading.value = false;
     }
   }
 

@@ -38,24 +38,37 @@ class SafeNetworkImage extends StatelessWidget {
           SizedBox(width: width, height: height);
     }
 
-    Widget child = CachedNetworkImage(
-      imageUrl: imageUrl,
-      width: width,
-      height: height,
-      fit: fit,
-      fadeInDuration: Duration.zero,
-      placeholderFadeInDuration: const Duration(milliseconds: 0),
-      placeholder: (ctx, url) =>
-          placeholder?.call(ctx, url) ??
-          _defaultShimmer(width, height),
-      errorWidget: (ctx, url, error) =>
-          onFinalError?.call(ctx, url, error) ??
+    if (imageUrl.isEmpty) {
+      return onFinalError?.call(context, imageUrl, Exception('empty URL')) ??
           Container(
             width: width,
             height: height,
             color: Colors.grey.shade200,
             child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
-          ),
+          );
+    }
+
+    Widget child = CachedNetworkImage(
+      imageUrl: imageUrl,
+      width: width,
+      height: height,
+      fit: fit,
+      httpHeaders: const {'Accept': 'image/*,*/*'},
+      fadeInDuration: Duration.zero,
+      placeholderFadeInDuration: const Duration(milliseconds: 0),
+      placeholder: (ctx, url) =>
+          placeholder?.call(ctx, url) ??
+          _defaultShimmer(width, height),
+      errorWidget: (ctx, url, error) {
+        debugPrint('⚠️ SafeNetworkImage FAILED: $url → $error');
+        return onFinalError?.call(ctx, url, error) ??
+            Container(
+              width: width,
+              height: height,
+              color: Colors.grey.shade200,
+              child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+            );
+      },
     );
 
     if (onTap != null) {

@@ -1,17 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:seedsuser/app/auth/view/force_update_screen.dart';
 import 'package:seedsuser/app/auth/view/login_screen.dart';
 import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/dashboard/dashboard.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/notification/notification_service.dart';
-import 'package:seedsuser/app/utils/app_version_manager.dart';
-import 'package:seedsuser/app/utils/network_config.dart';
-import 'package:seedsuser/app/utils/network_utils.dart';
 import 'package:seedsuser/main.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -74,53 +72,26 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _checkLoginStatus() async {
     try {
-      // Run heavy init (Firebase, notifications, storage) while splash animates
-      await initializeApp();
-
-      // Force-update gate via Firebase Remote Config. If the installed build
-      // is older than min_app_version, route to the blocking update screen
-      // and stop — no token check, no dashboard.
-      final versionCheck = await AppVersionManager.checkForceUpdate();
-      if (versionCheck.forceUpdateRequired) {
-        if (!mounted) return;
-        Get.offAll(() => ForceUpdateScreen(
-              currentVersion: versionCheck.currentVersion,
-              minRequiredVersion: versionCheck.minRequiredVersion,
-              storeUrlAndroid: versionCheck.storeUrlAndroid,
-              storeUrlIos: versionCheck.storeUrlIos,
-            ));
-        return;
+      // Request App Tracking Transparency permission on iOS
+      if (Platform.isIOS) {
+        final status = await AppTrackingTransparency.trackingAuthorizationStatus;
+        if (status == TrackingStatus.notDetermined) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          await AppTrackingTransparency.requestTrackingAuthorization();
+        }
       }
 
-      // Logout-on-update: if the build version differs from the one stored
-      // on the previous launch, the user just updated — clear the token so
-      // we land on the login screen.
-      await AppVersionManager.clearTokenIfVersionChanged();
-
-      // Detect fresh installs where SharedPreferences was restored from a
-      // backup (Android Auto Backup / D2D restore / iOS Keychain) and drop
-      // the stale token before we honor it.
-      await AuthLocalStorage.dropStaleTokenIfFreshInstall();
+      // Run heavy init (Firebase, notifications, storage) while splash animates
+      try {
+        await initializeApp();
+      } catch (e) {
+        debugPrint('Splash initializeApp error (non-fatal): $e');
+      }
       final token = await AuthLocalStorage.getToken();
 
       debugPrint("Splash token check: ${token != null && token.isNotEmpty ? 'Token found (${token.substring(0, token.length > 10 ? 10 : token.length)}...)' : 'No token'}");
 
       if (token != null && token.isNotEmpty) {
-        // Validate token against server — catches stale tokens restored from
-        // Android Auto Backup after a fresh reinstall.
-        try {
-          final validate = await getRequest(
-            endPoint: "${NetworkConfig.baseURL}/farmer/profile",
-            headers: await buildHeader(),
-          ).timeout(const Duration(seconds: 5));
-          if (validate.statusCode == 401) {
-            // _handle401() in network_utils already cleared token and navigated to login
-            return;
-          }
-        } catch (_) {
-          // Network error / timeout — proceed with cached token (user may be offline)
-        }
-
         NotificationService().registerToken();
 
         // Fetch all home banners in parallel. Future.any guarantees we move on

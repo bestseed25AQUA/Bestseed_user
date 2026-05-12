@@ -111,12 +111,15 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                       borderRadius: BorderRadius.circular(12),
                       child: Image.network(
                         banner.url,
+                        headers: const {'Accept': 'image/*,*/*'},
                         width: double.infinity,
                         height: heightCarousel,
                         fit: BoxFit.fill,
-                        errorBuilder: (_, __, ___) =>
-                            // ignore: deprecated_member_use
-                            Container(color: Colors.grey.withOpacity(.3)),
+                        errorBuilder: (_, __, error) {
+                          debugPrint('⚠️ Banner image FAILED: ${banner.url} → $error');
+                          // ignore: deprecated_member_use
+                          return Container(color: Colors.grey.withOpacity(.3));
+                        },
                       ),
                     ),
                   );

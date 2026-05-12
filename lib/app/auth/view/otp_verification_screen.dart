@@ -76,7 +76,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
   void dispose() {
     cancel(); // Stop listening for SMS
     unregisterListener();
-    _otpController.dispose();
     super.dispose();
   }
 
