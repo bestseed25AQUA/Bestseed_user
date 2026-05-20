@@ -65,9 +65,37 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
 
   void _setDefaultMonth() {
     final months = controller.availableMonths;
-    if (months.isNotEmpty) {
-      selectedMonthYear.value = months.first['display'] ?? '';
+    if (months.isEmpty) return;
+
+    // Prefer the admin-configured month (carried in controller.selectedMonth /
+    // selectedYear from getDefaultFilter). Without this, the dropdown label
+    // would silently jump to the newest available month even though the data
+    // fetched is for the admin default — causing the Feb/Mar mismatch users
+    // were seeing.
+    final m = controller.selectedMonth.value;
+    final y = controller.selectedYear.value;
+    if (m.isNotEmpty && y.isNotEmpty) {
+      final match = months.firstWhereOrNull(
+        (entry) => entry['month'] == m && entry['year'] == y,
+      );
+      if (match != null) {
+        selectedMonthYear.value = match['display'] ?? '';
+        return;
+      }
     }
+
+    // Next, try the display string the API gave us directly.
+    final defaultDisplay = controller.defaultMonthYear.value;
+    if (defaultDisplay.isNotEmpty) {
+      final hasIt = months.any((entry) => entry['display'] == defaultDisplay);
+      if (hasIt) {
+        selectedMonthYear.value = defaultDisplay;
+        return;
+      }
+    }
+
+    // Last resort: latest month that actually has data.
+    selectedMonthYear.value = months.first['display'] ?? '';
   }
 
   void _syncMonthYearFromController(String value) {

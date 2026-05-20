@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/utils/full_screen_video.dart';
 import 'package:video_player/video_player.dart';
 
@@ -24,12 +25,40 @@ class _InlineVideoPlayerState extends State<InlineVideoPlayer> {
   VideoPlayerController? _controller;
   bool _hasError = false;
   String _errorMessage = '';
-  bool _isInitialized = false;
+  // True only when the controller has both initialized AND a real frame
+  // available to paint. Until then we keep the shimmer up so the user
+  // never sees the bare black VideoPlayer surface.
+  bool _isReady = false;
 
   @override
   void initState() {
     super.initState();
     _initializeVideo();
+  }
+
+  void _onControllerUpdate() {
+    final c = _controller;
+    if (c == null || !mounted) return;
+    final v = c.value;
+    if (!_isReady &&
+        v.isInitialized &&
+        !v.hasError &&
+        v.size.width > 0 &&
+        v.size.height > 0) {
+      setState(() => _isReady = true);
+      // Auto-play the moment the first frame is paintable so the user sees
+      // the video running as soon as the shimmer goes away — no manual tap
+      // required.
+      c.setLooping(true);
+      c.play();
+      widget.onPlayStateChanged?.call(true);
+    }
+    if (!_hasError && v.hasError) {
+      setState(() {
+        _hasError = true;
+        _errorMessage = v.errorDescription ?? 'Video error';
+      });
+    }
   }
 
   Future<void> _initializeVideo() async {
@@ -75,12 +104,12 @@ class _InlineVideoPlayerState extends State<InlineVideoPlayer> {
           'Connection': 'keep-alive',
         },
       );
+      _controller!.addListener(_onControllerUpdate);
       await _controller!.initialize();
-      if (mounted) {
-        setState(() {
-          _isInitialized = true;
-        });
-      }
+      // _onControllerUpdate flips _isReady to true once the first frame is
+      // actually available (size > 0). Run a one-shot check now in case the
+      // listener already fired before we attached above.
+      _onControllerUpdate();
       print('InlineVideoPlayer: Video initialized successfully');
     } catch (e) {
       print('InlineVideoPlayer: Video initialization error: $e');
@@ -100,6 +129,7 @@ class _InlineVideoPlayerState extends State<InlineVideoPlayer> {
 
   @override
   void dispose() {
+    _controller?.removeListener(_onControllerUpdate);
     _controller?.dispose();
     super.dispose();
   }
@@ -126,37 +156,52 @@ class _InlineVideoPlayerState extends State<InlineVideoPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    // Show error state with play button overlay (tap to open fullscreen)
+    // Show error state with play button overlay (tap to open fullscreen).
+    // Background is the same shimmer used during loading so the banner area
+    // never goes black — failures stay visually consistent with the rest of
+    // the data-loading UI.
     if (_hasError) {
       return GestureDetector(
         onTap: _openFullscreen,
-        child: Container(
+        child: SizedBox(
           height: widget.height ?? 110,
-          color: Colors.black87,
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.play_circle_outline, color: Colors.white, size: 40),
-                const SizedBox(height: 4),
-                Text(
-                  'Tap to play',
-                  style: TextStyle(color: Colors.white70, fontSize: 10),
+          width: double.infinity,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              CustomShimmer(
+                height: widget.height ?? 110,
+                width: double.infinity,
+                borderRadius: BorderRadius.zero,
+              ),
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.play_circle_outline,
+                        color: Colors.grey.shade600, size: 40),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Tap to play',
+                      style: TextStyle(
+                          color: Colors.grey.shade700, fontSize: 10),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       );
     }
 
-    if (!_isInitialized || _controller == null) {
-      return Container(
+    if (!_isReady || _controller == null) {
+      // Match the data-loading shimmer used elsewhere in the app so the
+      // banner doesn't pop a black box while the video is still buffering.
+      return CustomShimmer(
         height: widget.height ?? 110,
-        color: Colors.black,
-        child: const Center(
-          child: CircularProgressIndicator(color: Colors.white),
-        ),
+        width: double.infinity,
+        borderRadius: BorderRadius.zero,
       );
     }
 
