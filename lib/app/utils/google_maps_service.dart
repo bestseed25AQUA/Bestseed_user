@@ -481,7 +481,13 @@ class GoogleMapsService {
     final driverKey = driverPosition == null
         ? '-'
         : '${_r3(driverPosition.latitude)},${_r3(driverPosition.longitude)}';
-    final cacheKey = 'rws:'
+    // Cache key version bumped to v2 to invalidate entries computed before
+    // the waypoint-filter relax: the prior 5-km radius silently dropped
+    // priority-1 drops near pickup/destination, so v1 cached routes for
+    // multi-drop bookings followed straight pickup→drop paths skipping
+    // the intermediate stop. v2 entries get the full waypoint-through
+    // routes Google now actually returns.
+    final cacheKey = 'rws_v2:'
         '${_r4(origin.latitude)},${_r4(origin.longitude)}>'
         '${_r4(destination.latitude)},${_r4(destination.longitude)}|'
         'd=$driverKey|wp=$waypointsKey|max=$maxStops';
@@ -509,16 +515,20 @@ class GoogleMapsService {
       if (routeWaypoints.isNotEmpty) {
         List<LatLng> filteredWaypoints = [];
         for (final wp in routeWaypoints) {
-          // Skip waypoints too close to origin (prevents route looping back to start)
-          if (_haversineDistance(origin, wp) < 5000) {
-            debugPrint('🗺️ Skipping waypoint too close to origin: ${wp.latitude},${wp.longitude} '
-                '(${_haversineDistance(origin, wp).toStringAsFixed(0)}m)');
+          // Only filter out waypoints that ARE the origin (exact duplicate
+          // ≤ 200 m). The old 5-km radius silently stripped priority-1 drops
+          // that happened to be close to the pickup — e.g. on a Madhapur →
+          // Ayyappa Society (1.5 km) → Kukatpally trip, Ayyappa Society
+          // was dropped and the blue line skipped it entirely. The fix is
+          // to trust the caller: any waypoint they supply is a real stop
+          // the driver actually has to visit. We only dedup exact-overlap
+          // points (origin / destination / each other) so Google doesn't
+          // crash on a "0 m segment".
+          if (_haversineDistance(origin, wp) < 200) {
+            debugPrint('🗺️ Skipping waypoint that matches origin: ${wp.latitude},${wp.longitude}');
             continue;
           }
           // Skip waypoints that ARE the destination (exact duplicate ≤ 200 m).
-          // We intentionally allow waypoints that are merely *near* the
-          // destination (e.g. Madhapur 3 km before KPHB in a multi-drop trip)
-          // so the blue polyline routes through every earlier stop correctly.
           if (_haversineDistance(destination, wp) < 200) {
             debugPrint('🗺️ Skipping waypoint that matches destination: ${wp.latitude},${wp.longitude}');
             continue;

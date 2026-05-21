@@ -50,6 +50,7 @@ class _InlineVideoPlayerState extends State<InlineVideoPlayer> {
       // the video running as soon as the shimmer goes away — no manual tap
       // required.
       c.setLooping(true);
+      c.setVolume(0);
       c.play();
       widget.onPlayStateChanged?.call(true);
     }

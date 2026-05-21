@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -102,86 +104,89 @@ class _HomePageState extends State<HomePage>
       body: SafeArea(
         top: false,
         child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Hero Banner ──────────────────────────────────────────
-            _heroBanner(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Hero Banner ──────────────────────────────────────────
+              _heroBanner(),
 
-            // ── Quick Actions Grid ───────────────────────────────────
-            _quickActionsSection(),
+              // ── Quick Actions Grid ───────────────────────────────────
+              _quickActionsSection(),
 
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
 
-            // ── Contact Us ───────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: ContactUsPage(),
-            ),
+              // ── Contact Us ───────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: ContactUsPage(),
+              ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // ── Hatcheries ───────────────────────────────────────────
-            _sectionCard(
-              child: Column(
-                children: [
-                  HatcheryWidget(
-                    onViewAllTap: () {
-                      filterHatcheryController.selectedCategoryIds.clear();
-                      filterHatcheryController.selectedCategoryIds.add(
-                        _homeController.selectedCategoryId.value,
-                      );
-                      filterHatcheryController.query = '';
-                      filterHatcheryController.applyFilter();
-                      Navigator.push(
-                        context,
-                        AppAnimations.fade(
-                          HatcheryFilterScreen(
-                            title: _homeController
-                                    .selectedCateogryName.value.isEmpty
-                                ? "Hatchery"
-                                : _homeController.selectedCateogryName.value,
+              // ── Hatcheries ───────────────────────────────────────────
+              _sectionCard(
+                child: Column(
+                  children: [
+                    HatcheryWidget(
+                      onViewAllTap: () {
+                        filterHatcheryController.selectedCategoryIds.clear();
+                        filterHatcheryController.selectedCategoryIds.add(
+                          _homeController.selectedCategoryId.value,
+                        );
+                        filterHatcheryController.query = '';
+                        filterHatcheryController.applyFilter();
+                        Navigator.push(
+                          context,
+                          AppAnimations.fade(
+                            HatcheryFilterScreen(
+                              title:
+                                  _homeController
+                                      .selectedCateogryName
+                                      .value
+                                      .isEmpty
+                                  ? "Hatchery"
+                                  : _homeController.selectedCateogryName.value,
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  _seedRequestCard(),
-                ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    _seedRequestCard(),
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // ── Today's Prices + Suppliers ────────────────────────────
-            _sectionCard(
-              child: Column(
-                children: [
-                  TodayPricesWidget(),
-                  const SizedBox(height: 8),
-                  HatcherySuppliersWidget(),
-                ],
+              // ── Today's Prices + Suppliers ────────────────────────────
+              _sectionCard(
+                child: Column(
+                  children: [
+                    TodayPricesWidget(),
+                    const SizedBox(height: 8),
+                    HatcherySuppliersWidget(),
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // ── Medicine News + Hatchery Updates ─────────────────────
-            _sectionCard(
-              child: Column(
-                children: [
-                  _medicineNewsSection(),
-                  const SizedBox(height: 16),
-                  HatcheryUpdatesWidget(),
-                ],
+              // ── Medicine News + Hatchery Updates ─────────────────────
+              _sectionCard(
+                child: Column(
+                  children: [
+                    _medicineNewsSection(),
+                    const SizedBox(height: 16),
+                    HatcheryUpdatesWidget(),
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 100),
-          ],
+              const SizedBox(height: 100),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -210,7 +215,7 @@ class _HomePageState extends State<HomePage>
           fit: BoxFit.contain,
           height: AppSize.height * .08,
         );
-      }      
+      }
       final banner = bgBanners[0];
       if (banner.type == 'video') {
         return ClipRRect(
@@ -238,8 +243,8 @@ class _HomePageState extends State<HomePage>
             width: double.infinity,
             height: AppSize.height * .08,
             fit: BoxFit.cover,
-            placeholder: (context, url) => _shimmerBox(
-                double.infinity, AppSize.height * .08),
+            placeholder: (context, url) =>
+                _shimmerBox(double.infinity, AppSize.height * .08),
             onFinalError: (context, url, error) => Image.asset(
               'assets/images/best_seed_bottom.png',
               width: double.infinity,
@@ -285,19 +290,21 @@ class _HomePageState extends State<HomePage>
     });
   }
 
-
-
-
   Widget _vehicleBanner() {
     return Obx(() {
       final homeBanners = _homeBannerController.bannersHome;
+      if (homeBanners.isNotEmpty) {
+        debugPrint('🎬 Vehicle banner: type=${homeBanners.first.type}, url=${homeBanners.first.url}');
+      }
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
             Navigator.push(
-                context, AppAnimations.fade(VehicleAvailabilityScreen()));
+              context,
+              AppAnimations.fade(VehicleAvailabilityScreen()),
+            );
           },
           child: Container(
             decoration: BoxDecoration(
@@ -314,48 +321,56 @@ class _HomePageState extends State<HomePage>
               borderRadius: BorderRadius.circular(16),
               child: homeBanners.isNotEmpty
                   ? homeBanners.first.type == 'video'
-                      ? _AutoLoopBannerVideo(
-                          key: ValueKey('home_${homeBanners.first.url}'),
-                          url: homeBanners.first.url,
-                          height: AppSize.height * .15,
-                          width: double.infinity,
-                          initDelay: 0,
-                        )
-                      : SizedBox(
-                          width: double.infinity,
-                          height: AppSize.height * .15,
-                          child: Image(
-                            image: CachedNetworkImageProvider(
-                              homeBanners.first.url,
-                            ),
+                        ? _AutoLoopBannerVideo(
+                            key: ValueKey('home_${homeBanners.first.url}'),
+                            url: homeBanners.first.url,
+                            height: AppSize.height * .15,
+                            width: double.infinity,
+                            initDelay: 0,
+                          )
+                        : SizedBox(
                             width: double.infinity,
                             height: AppSize.height * .15,
-                            fit: BoxFit.cover,
-                            frameBuilder: (context, child, frame,
-                                wasSynchronouslyLoaded) {
-                              if (wasSynchronouslyLoaded || frame != null) {
-                                return child;
-                              }
-                              return _shimmerBox(
-                                  double.infinity, AppSize.height * .15);
-                            },
-                            errorBuilder: (context, error, stackTrace) =>
-                                Image.asset(
-                                  'assets/images/logo.png',
-                                  width: double.infinity,
-                                  height: AppSize.height * .15,
-                                  fit: BoxFit.cover,
-                                ),
-                          ),
-                        )
+                            child: Image(
+                              image: CachedNetworkImageProvider(
+                                homeBanners.first.url,
+                              ),
+                              width: double.infinity,
+                              height: AppSize.height * .15,
+                              fit: BoxFit.cover,
+                              frameBuilder:
+                                  (
+                                    context,
+                                    child,
+                                    frame,
+                                    wasSynchronouslyLoaded,
+                                  ) {
+                                    if (wasSynchronouslyLoaded ||
+                                        frame != null) {
+                                      return child;
+                                    }
+                                    return _shimmerBox(
+                                      double.infinity,
+                                      AppSize.height * .15,
+                                    );
+                                  },
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Image.asset(
+                                    'assets/images/logo.png',
+                                    width: double.infinity,
+                                    height: AppSize.height * .15,
+                                    fit: BoxFit.cover,
+                                  ),
+                            ),
+                          )
                   : _homeBannerController.isHomeLoading.value
-                      ? _shimmerBox(double.infinity, AppSize.height * .15)
-                      : Image.asset(
-                          'assets/images/logo.png',
-                          width: double.infinity,
-                          height: AppSize.height * .15,
-                          fit: BoxFit.cover,
-                        ),
+                  ? _shimmerBox(double.infinity, AppSize.height * .15)
+                  : Image.asset(
+                      'assets/images/logo.png',
+                      width: double.infinity,
+                      height: AppSize.height * .15,
+                      fit: BoxFit.cover,
+                    ),
             ),
           ),
         ),
@@ -364,102 +379,101 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _featureGrid() {
-  final double cardHeight = AppSize.height * .22;
+    final double cardHeight = AppSize.height * .22;
 
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: Row(
-      children: [
-        // Best Deals card
-        SizedBox(
-          height: cardHeight,
-          width: MediaQuery.of(context).size.width * .35,
-          child: _bestDealsCard(),
-        ),
-
-        const SizedBox(width: 10),
-
-        // Spot Hatcheries + Farm Management
-        Expanded(
-          child: SizedBox(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          // Best Deals card
+          SizedBox(
             height: cardHeight,
-            child: Column(
-              children: [
-                // 🔹 Spot Hatcheries
-                Expanded(
-                  child: Obx(() {
-                    final spotIcons =
-                        _homeBannerController.bannersSpotHatcheries;
+            width: MediaQuery.of(context).size.width * .35,
+            child: _bestDealsCard(),
+          ),
 
-                    final loading =
-                        _homeBannerController.isSpotLoading.value;
+          const SizedBox(width: 10),
 
-                    return Column(
-                      children: [
-                        // 🔥 IMPORTANT: Expanded here
-                        Expanded(
-                          child: _featureCard(
-                            'Spot Hatcheries',
-                            'assets/images/hatchery_icon.png',
-                            () => Navigator.push(
-                              context,
-                              AppAnimations.fade(SpotHatcheryScreen()),
+          // Spot Hatcheries + Farm Management
+          Expanded(
+            child: SizedBox(
+              height: cardHeight,
+              child: Column(
+                children: [
+                  // 🔹 Spot Hatcheries
+                  Expanded(
+                    child: Obx(() {
+                      final spotIcons =
+                          _homeBannerController.bannersSpotHatcheries;
+
+                      final loading = _homeBannerController.isSpotLoading.value;
+
+                      return Column(
+                        children: [
+                          // 🔥 IMPORTANT: Expanded here
+                          Expanded(
+                            child: _featureCard(
+                              'Spot Hatcheries',
+                              'assets/images/hatchery_icon.png',
+                              () => Navigator.push(
+                                context,
+                                AppAnimations.fade(SpotHatcheryScreen()),
+                              ),
+                              networkImageUrl: spotIcons.isNotEmpty
+                                  ? spotIcons.first.url
+                                  : null,
+                              networkMediaType: spotIcons.isNotEmpty
+                                  ? spotIcons.first.type
+                                  : null,
+                              videoInitDelay: 1000,
+                              isLoading: loading,
                             ),
-                            networkImageUrl: spotIcons.isNotEmpty
-                                ? spotIcons.first.url
-                                : null,
-                            networkMediaType: spotIcons.isNotEmpty
-                                ? spotIcons.first.type
-                                : null,
-                            videoInitDelay: 1000,
-                            isLoading: loading,
                           ),
-                        ),
-                      ],
-                    );
-                  }),
-                ),
+                        ],
+                      );
+                    }),
+                  ),
 
-                const SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
-                // 🔹 Farm Management
-                Expanded(
-                  child: Obx(() {
-                    final farmIcons =
-                        _homeBannerController.bannersFarmManagement;
+                  // 🔹 Farm Management
+                  Expanded(
+                    child: Obx(() {
+                      final farmIcons =
+                          _homeBannerController.bannersFarmManagement;
 
-                    final loading =
-                        _homeBannerController.isFarmLoading.value;
+                      final loading = _homeBannerController.isFarmLoading.value;
 
-                    return _featureCard(
-                      'Farm Management',
-                      'assets/images/farm.png',
-                      () {
-                        Navigator.push(
-                          context,
-                          AppAnimations.fade(
-                              const FarmManagementComingSoonScreen()),
-                        );
-                      },
-                      networkImageUrl: farmIcons.isNotEmpty
-                          ? farmIcons.first.url
-                          : null,
-                      networkMediaType: farmIcons.isNotEmpty
-                          ? farmIcons.first.type
-                          : null,
-                      videoInitDelay: 2000,
-                      isLoading: loading,
-                    );
-                  }),
-                ),
-              ],
+                      return _featureCard(
+                        'Farm Management',
+                        'assets/images/farm.png',
+                        () {
+                          Navigator.push(
+                            context,
+                            AppAnimations.fade(
+                              const FarmManagementComingSoonScreen(),
+                            ),
+                          );
+                        },
+                        networkImageUrl: farmIcons.isNotEmpty
+                            ? farmIcons.first.url
+                            : null,
+                        networkMediaType: farmIcons.isNotEmpty
+                            ? farmIcons.first.type
+                            : null,
+                        videoInitDelay: 2000,
+                        isLoading: loading,
+                      );
+                    }),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   // ═══════════════════════════════════════════════════════════════════════
   // BEST DEALS CARD — left column with carousel
@@ -490,8 +504,7 @@ class _HomePageState extends State<HomePage>
         child: Column(
           children: [
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
                 color: const Color(0xFFFFD700),
                 borderRadius: BorderRadius.circular(20),
@@ -509,14 +522,19 @@ class _HomePageState extends State<HomePage>
             Expanded(
               child: Obx(() {
                 final banners = _homeBannerController.bannersMedicine;
-                debugPrint('🟣 _medicineBanners: count=${banners.length}'
-                    '${banners.isNotEmpty ? ", urls=${banners.map((b) => b.url).toList()}" : ""}');
+                debugPrint(
+                  '🟣 _medicineBanners: count=${banners.length}'
+                  '${banners.isNotEmpty ? ", urls=${banners.map((b) => b.url).toList()}" : ""}',
+                );
                 if (banners.isEmpty) {
                   return Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Image.asset('assets/images/fc_prawn.png',
-                          height: 50, fit: BoxFit.contain),
+                      Image.asset(
+                        'assets/images/fc_prawn.png',
+                        height: 50,
+                        fit: BoxFit.contain,
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         'FC Farm Medicine',
@@ -540,8 +558,9 @@ class _HomePageState extends State<HomePage>
                     viewportFraction: 1.0,
                     enableInfiniteScroll: banners.length > 1,
                     autoPlayInterval: const Duration(seconds: 3),
-                    autoPlayAnimationDuration:
-                        const Duration(milliseconds: 800),
+                    autoPlayAnimationDuration: const Duration(
+                      milliseconds: 800,
+                    ),
                   ),
                   itemBuilder: (context, index, _) {
                     final banner = banners[index];
@@ -568,11 +587,14 @@ class _HomePageState extends State<HomePage>
                                 imageUrl: banner.url,
                                 fit: BoxFit.cover,
                                 width: double.infinity,
-                                placeholder: (context, url) =>
-                                    _shimmerBox(double.infinity, double.infinity),
+                                placeholder: (context, url) => _shimmerBox(
+                                  double.infinity,
+                                  double.infinity,
+                                ),
                                 onFinalError: (_, __, ___) => Image.asset(
-                                    'assets/images/fc_prawn.png',
-                                    fit: BoxFit.cover),
+                                  'assets/images/fc_prawn.png',
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
                           ),
@@ -623,47 +645,45 @@ class _HomePageState extends State<HomePage>
           borderRadius: BorderRadius.circular(14),
           child: hasNetworkMedia
               ? networkMediaType == 'video'
-                  ? LayoutBuilder(
-                      builder: (context, constraints) {
-                        return _AutoLoopBannerVideo(
-                          key: ValueKey(normalizedUrl),
-                          url: normalizedUrl,
-                          height: constraints.maxHeight,
-                          width: constraints.maxWidth,
-                          initDelay: videoInitDelay,
-                        );
-                      },
-                    )
-                  : LayoutBuilder(
-                      builder: (context, constraints) {
-                        return SafeNetworkImage(
-                          imageUrl: normalizedUrl,
-                          width: constraints.maxWidth,
-                          height: constraints.maxHeight,
-                          fit: BoxFit.fill,
-                          placeholder: (context, url) => _shimmerBox(
-                              constraints.maxWidth, constraints.maxHeight),
-                          onFinalError: (_, url, error) {
-                            debugPrint(
-                              'Feature card image failed for "$text": '
-                              'url=$normalizedUrl, error=$error',
-                            );
-                            return _featureCardFallback(
-                              iconPath,
-                              text,
-                              fallbackText: 'hello',
-                            );
-                          },
-                        );
-                      },
-                    )
+                    ? LayoutBuilder(
+                        builder: (context, constraints) {
+                          return _AutoLoopBannerVideo(
+                            key: ValueKey(normalizedUrl),
+                            url: normalizedUrl,
+                            height: constraints.maxHeight,
+                            width: constraints.maxWidth,
+                            initDelay: videoInitDelay,
+                          );
+                        },
+                      )
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          return SafeNetworkImage(
+                            imageUrl: normalizedUrl,
+                            width: constraints.maxWidth,
+                            height: constraints.maxHeight,
+                            fit: BoxFit.fill,
+                            placeholder: (context, url) => _shimmerBox(
+                              constraints.maxWidth,
+                              constraints.maxHeight,
+                            ),
+                            onFinalError: (_, url, error) {
+                              debugPrint(
+                                'Feature card image failed for "$text": '
+                                'url=$normalizedUrl, error=$error',
+                              );
+                              return _featureCardFallback(
+                                iconPath,
+                                text,
+                                fallbackText: 'hello',
+                              );
+                            },
+                          );
+                        },
+                      )
               : isLoading
-                  ? _shimmerBox(double.infinity, double.infinity)
-                  : _featureCardFallback(
-                      iconPath,
-                      text,
-                      fallbackText: 'hello',
-                    ),
+              ? _shimmerBox(double.infinity, double.infinity)
+              : _featureCardFallback(iconPath, text, fallbackText: 'hello'),
         ),
       ),
     );
@@ -701,7 +721,9 @@ class _HomePageState extends State<HomePage>
   Widget _seedRequestCard() {
     return InkWell(
       onTap: () => Navigator.push(
-          context, AppAnimations.slideLeftToRight(SeedRequestsFormScreen())),
+        context,
+        AppAnimations.slideLeftToRight(SeedRequestsFormScreen()),
+      ),
       borderRadius: BorderRadius.circular(14),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -716,9 +738,7 @@ class _HomePageState extends State<HomePage>
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
-          border: Border.all(
-            color: AppColors.primary.withOpacity(0.2),
-          ),
+          border: Border.all(color: AppColors.primary.withOpacity(0.2)),
         ),
         child: Row(
           children: [
@@ -728,8 +748,11 @@ class _HomePageState extends State<HomePage>
                 color: AppColors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.spa_outlined,
-                  color: AppColors.primary, size: 22),
+              child: Icon(
+                Icons.spa_outlined,
+                color: AppColors.primary,
+                size: 22,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -760,8 +783,11 @@ class _HomePageState extends State<HomePage>
                 color: AppColors.primary,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.arrow_forward_rounded,
-                  color: Colors.white, size: 18),
+              child: const Icon(
+                Icons.arrow_forward_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
           ],
         ),
@@ -799,10 +825,10 @@ class _HomePageState extends State<HomePage>
                       Navigator.push(
                         context,
                         PageRouteBuilder(
-                          transitionDuration:
-                              const Duration(milliseconds: 600),
-                          reverseTransitionDuration:
-                              const Duration(milliseconds: 600),
+                          transitionDuration: const Duration(milliseconds: 600),
+                          reverseTransitionDuration: const Duration(
+                            milliseconds: 600,
+                          ),
                           pageBuilder: (_, __, ___) => MedicineDetailScreen(
                             id: data.id.toString(),
                             title: data.medicineName.toString(),
@@ -854,10 +880,7 @@ class _HomePageState extends State<HomePage>
       children: [
         Text(
           title,
-          style: GoogleFonts.roboto(
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-          ),
+          style: GoogleFonts.roboto(fontSize: 17, fontWeight: FontWeight.bold),
         ),
         AnimatedViewAllBadge(onTap: onTap),
       ],
@@ -969,12 +992,13 @@ class _AutoLoopBannerVideo extends StatefulWidget {
   final double? width;
   final int initDelay;
 
-  const _AutoLoopBannerVideo(
-      {super.key,
-      required this.url,
-      required this.height,
-      this.width,
-      this.initDelay = 0});
+  const _AutoLoopBannerVideo({
+    super.key,
+    required this.url,
+    required this.height,
+    this.width,
+    this.initDelay = 0,
+  });
 
   @override
   State<_AutoLoopBannerVideo> createState() => _AutoLoopBannerVideoState();
@@ -984,7 +1008,9 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
     with WidgetsBindingObserver {
   VideoPlayerController? _videoController;
   bool _isInitialized = false;
-  ModalRoute? _route;
+  Timer? _heartbeat;
+  int _retryCount = 0;
+  static const _maxRetries = 3;
 
   @override
   void initState() {
@@ -999,16 +1025,17 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
     }
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _route = ModalRoute.of(context);
-  }
-
   Future<void> _initializeVideo() async {
     try {
-      final controller =
-          VideoPlayerController.networkUrl(Uri.parse(widget.url));
+      final controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.url),
+        httpHeaders: const {
+          'User-Agent':
+              'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 '
+              '(KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+          'Connection': 'keep-alive',
+        },
+      );
       _videoController = controller;
       await controller.initialize();
       if (!mounted) {
@@ -1018,36 +1045,70 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
       await controller.setLooping(true);
       await controller.setVolume(0);
       await controller.play();
-      controller.addListener(_autoResume);
-      if (mounted) {
-        setState(() {
-          _isInitialized = true;
-        });
-      }
+      controller.addListener(_onVideoUpdate);
+      _retryCount = 0;
+      _startHeartbeat();
+      if (mounted) setState(() => _isInitialized = true);
     } catch (e) {
       debugPrint('Video init failed: $e');
+      _scheduleRetry();
     }
   }
 
-  void _autoResume() {
+  /// Periodic check every 2s — if video is not playing, force play().
+  /// Catches stalls from buffering hiccups, decoder pauses, or missed
+  /// listener callbacks.
+  void _startHeartbeat() {
+    _heartbeat?.cancel();
+    _heartbeat = Timer.periodic(const Duration(seconds: 2), (_) {
+      _ensurePlaying();
+    });
+  }
+
+  void _ensurePlaying() {
     final vc = _videoController;
-    if (vc != null &&
-        _isInitialized &&
-        mounted &&
-        (_route?.isCurrent ?? false)) {
-      if (!vc.value.isPlaying &&
-          vc.value.isInitialized &&
-          !vc.value.isBuffering) {
-        vc.play();
-      }
+    if (vc == null || !_isInitialized || !mounted) return;
+
+    // If the controller errored out, re-init from scratch.
+    if (vc.value.hasError) {
+      debugPrint('Video error detected, re-initializing...');
+      _disposeController();
+      _isInitialized = false;
+      if (mounted) setState(() {});
+      _scheduleRetry();
+      return;
     }
+
+    if (!vc.value.isPlaying && vc.value.isInitialized) {
+      vc.play();
+    }
+  }
+
+  void _onVideoUpdate() {
+    final vc = _videoController;
+    if (vc == null || !mounted) return;
+    // If errored mid-playback, the heartbeat will handle re-init.
+    // If paused unexpectedly, resume immediately.
+    if (!vc.value.hasError &&
+        !vc.value.isPlaying &&
+        vc.value.isInitialized &&
+        _isInitialized) {
+      vc.play();
+    }
+  }
+
+  void _scheduleRetry() {
+    if (_retryCount >= _maxRetries || !mounted) return;
+    _retryCount++;
+    final delay = Duration(seconds: 2 * _retryCount);
+    Future.delayed(delay, () {
+      if (mounted) _initializeVideo();
+    });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed &&
-        _isInitialized &&
-        (_route?.isCurrent ?? false)) {
+    if (state == AppLifecycleState.resumed && _isInitialized) {
       _videoController?.play();
     }
   }
@@ -1056,24 +1117,31 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
   void didUpdateWidget(covariant _AutoLoopBannerVideo oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.url != widget.url) {
-      _videoController?.removeListener(_autoResume);
-      _videoController?.dispose();
+      _disposeController();
       _isInitialized = false;
+      _retryCount = 0;
       _initializeVideo();
     }
+  }
+
+  void _disposeController() {
+    _heartbeat?.cancel();
+    _videoController?.removeListener(_onVideoUpdate);
+    _videoController?.dispose();
+    _videoController = null;
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _videoController?.removeListener(_autoResume);
-    _videoController?.dispose();
+    _disposeController();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_isInitialized) {
+    final vc = _videoController;
+    if (!_isInitialized || vc == null || !vc.value.isInitialized) {
       return Shimmer.fromColors(
         baseColor: Colors.grey.shade200,
         highlightColor: Colors.grey.shade100,
@@ -1085,15 +1153,16 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
       );
     }
 
-    return SizedBox(
+    return Container(
+      color: Colors.white.withOpacity(.5),
       width: widget.width ?? double.infinity,
       height: widget.height,
       child: FittedBox(
         fit: BoxFit.cover,
         child: SizedBox(
-          width: _videoController!.value.size.width,
-          height: _videoController!.value.size.height,
-          child: VideoPlayer(_videoController!),
+          width: vc.value.size.width,
+          height: vc.value.size.height,
+          child: VideoPlayer(vc),
         ),
       ),
     );

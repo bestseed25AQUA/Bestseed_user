@@ -158,6 +158,7 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
     _controller = VideoPlayerController.network(widget.url)
       ..initialize().then((_) {
         setState(() {});
+        _controller.setVolume(0);
         // _controller.play();
         _controller.setLooping(true);
       });

@@ -7,7 +7,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 class ContactUsPage extends StatefulWidget {
   const ContactUsPage({super.key});
-
   @override
   State<ContactUsPage> createState() => _ContactUsPageState();
 }
@@ -131,6 +130,7 @@ class _ContactUsPageState extends State<ContactUsPage> {
         width: double.infinity, // smaller width
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(
+          // ignore: deprecated_member_use
           color: background.withOpacity(.1),
           borderRadius: BorderRadius.circular(12),
         ),
@@ -143,15 +143,17 @@ class _ContactUsPageState extends State<ContactUsPage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Image.asset(imagePath, height: 28),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: GoogleFonts.roboto(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: background,
+                Flexible(
+                  child: Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: background,
+                    ),
                   ),
                 ),
               ],

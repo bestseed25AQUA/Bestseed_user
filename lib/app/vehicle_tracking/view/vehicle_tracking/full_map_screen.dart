@@ -14,6 +14,7 @@ class FullScreenMapPage extends StatefulWidget {
   final String driverName;
 
   final List<LatLng> routePoints;
+  final List<LatLng> driverToPickupPoints;
 
   final BitmapDescriptor? driverIcon;
   final BitmapDescriptor? pickupIcon;
@@ -32,6 +33,7 @@ class FullScreenMapPage extends StatefulWidget {
     required this.driverLng,
     required this.driverName,
     required this.routePoints,
+    this.driverToPickupPoints = const [],
     required this.driverIcon,
     required this.pickupIcon,
     required this.destinationIcon,
@@ -59,15 +61,20 @@ class _FullScreenMapPageState extends State<FullScreenMapPage> {
 
     final pickup = LatLng(widget.pickupLat, widget.pickupLng);
     final drop = LatLng(widget.dropLat, widget.dropLng);
+    final driver = LatLng(widget.driverLat, widget.driverLng);
+
+    final points = <LatLng>[pickup, drop, driver];
+    final lats = points.map((p) => p.latitude).toList();
+    final lngs = points.map((p) => p.longitude).toList();
 
     final bounds = LatLngBounds(
       southwest: LatLng(
-        pickup.latitude < drop.latitude ? pickup.latitude : drop.latitude,
-        pickup.longitude < drop.longitude ? pickup.longitude : drop.longitude,
+        lats.reduce((a, b) => a < b ? a : b),
+        lngs.reduce((a, b) => a < b ? a : b),
       ),
       northeast: LatLng(
-        pickup.latitude > drop.latitude ? pickup.latitude : drop.latitude,
-        pickup.longitude > drop.longitude ? pickup.longitude : drop.longitude,
+        lats.reduce((a, b) => a > b ? a : b),
+        lngs.reduce((a, b) => a > b ? a : b),
       ),
     );
 
@@ -104,7 +111,8 @@ class _FullScreenMapPageState extends State<FullScreenMapPage> {
               Marker(
                 markerId: const MarkerId("drop"),
                 position: drop,
-                icon: widget.destinationIcon ??
+                icon:
+                    widget.destinationIcon ??
                     BitmapDescriptor.defaultMarkerWithHue(200),
               ),
               if (widget.driverIcon != null)
@@ -122,15 +130,18 @@ class _FullScreenMapPageState extends State<FullScreenMapPage> {
                   color: Colors.blue,
                   width: 5,
                 ),
+              if (widget.driverToPickupPoints.length >= 2)
+                Polyline(
+                  polylineId: const PolylineId("driver_to_pickup"),
+                  points: widget.driverToPickupPoints,
+                  color: const Color(0xFF34A853),
+                  width: 5,
+                  patterns: [PatternItem.dot, PatternItem.gap(10)],
+                ),
             },
           ),
 
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: 30,
-            child: _lastUpdateCard(),
-          ),
+          Positioned(left: 20, right: 20, bottom: 30, child: _lastUpdateCard()),
         ],
       ),
     );
@@ -143,18 +154,16 @@ class _FullScreenMapPageState extends State<FullScreenMapPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(
-            blurRadius: 8,
-            spreadRadius: 2,
-            color: Colors.black12,
-          )
+          BoxShadow(blurRadius: 8, spreadRadius: 2, color: Colors.black12),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Last Update",
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+          const Text(
+            "Last Update",
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+          ),
           const SizedBox(height: 8),
 
           Row(
@@ -163,12 +172,18 @@ class _FullScreenMapPageState extends State<FullScreenMapPage> {
                 width: 10,
                 height: 10,
                 decoration: BoxDecoration(
-                    color: Colors.green, shape: BoxShape.circle),
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
               ),
               const SizedBox(width: 8),
-              Text(widget.lastUpdateTime,
-                  style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w500)),
+              Text(
+                widget.lastUpdateTime,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ],
           ),
 

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class RefreshButton extends StatefulWidget {
-  final VoidCallback onTap;
+  final Function onTap;
 
   const RefreshButton({Key? key, required this.onTap}) : super(key: key);
 
@@ -29,12 +29,18 @@ class _RefreshButtonState extends State<RefreshButton>
   }
 
   void _handleTap() async {
+    debugPrint('🔄 [RefreshButton] _handleTap called');
     _controller.repeat();
-    widget.onTap();
-
-    await Future.delayed(const Duration(seconds: 1));
-    _controller.stop();
-    _controller.reset();
+    try {
+      await widget.onTap();
+    } catch (e) {
+      debugPrint('🔄 [RefreshButton] Error: $e');
+    }
+    debugPrint('🔄 [RefreshButton] onTap finished');
+    if (mounted) {
+      _controller.stop();
+      _controller.reset();
+    }
   }
 
   @override

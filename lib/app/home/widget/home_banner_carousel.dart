@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:seedsuser/app/broadstock/view/broad_stock_screen.dart';
@@ -69,7 +68,7 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
             child: Shimmer.fromColors(
               baseColor: Colors.grey.shade300,
               highlightColor: Colors.grey.shade100,
-            
+
               child: Container(
                 height: heightCarousel,
                 width: double.infinity,
@@ -131,7 +130,10 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                   },
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: VideoPlayerBanner(url: banner.url, height: heightCarousel),
+                    child: VideoPlayerBanner(
+                      url: banner.url,
+                      height: heightCarousel,
+                    ),
                   ),
                 );
               },
@@ -194,7 +196,7 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
   }
 
   Future<void> _initializeVideo() async {
-    final videoUrl = widget.url.trim();
+    final videoUrl =  widget.url.trim();
 
     if (videoUrl.isEmpty) {
       print('VideoPlayerBanner: ERROR - Video URL is empty!');
@@ -226,6 +228,7 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
         },
       );
       await _controller!.initialize();
+      _controller!.setVolume(0);
       _controller!.setLooping(true);
       if (mounted) {
         setState(() {
@@ -253,22 +256,36 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
 
   @override
   Widget build(BuildContext context) {
-    // Show error state with video thumbnail placeholder
+    // Show error state on top of the loading shimmer so the banner area
+    // never goes black — even when the video URL fails or the decoder dies
+    // mid-init, the user sees a graceful shimmer + "Tap to play" recovery.
     if (_hasError) {
-      return Container(
-        height: widget.height,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.black87,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          height: widget.height,
+          width: double.infinity,
+          child: Stack(
+            fit: StackFit.expand,
             children: [
-              Icon(Icons.play_circle_fill, color: Colors.white, size: 60),
-              SizedBox(height: 8),
-              Text('Tap to play', style: TextStyle(color: Colors.white70, fontSize: 12)),
+              Shimmer.fromColors(
+                baseColor: Colors.grey.shade300,
+                highlightColor: Colors.grey.shade100,
+                child: Container(color: Colors.white),
+              ),
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.play_circle_fill,
+                        color: Colors.grey.shade600, size: 60),
+                    const SizedBox(height: 8),
+                    Text('Tap to play',
+                        style: TextStyle(
+                            color: Colors.grey.shade700, fontSize: 12)),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

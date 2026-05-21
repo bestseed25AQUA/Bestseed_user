@@ -156,12 +156,29 @@ class VehicleTrackingController extends GetxController {
         headers: await buildHeader(),
       );
 
+      debugPrint('🗺️ [API] vehicle_tracking/$vehicleId status=${response.statusCode}');
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
+        debugPrint('🗺️ [API] response keys: ${body.keys.toList()}');
+
+        // Log key tracking fields
+        if (body['data'] != null) {
+          final data = body['data'];
+          debugPrint('🗺️ [API] driver_location: lat=${data['driver_location']?['lat']} lng=${data['driver_location']?['lng']} updated_at=${data['driver_location']?['updated_at']}');
+          debugPrint('🗺️ [API] pickup: lat=${data['pickup']?['lat']} lng=${data['pickup']?['lng']}');
+          debugPrint('🗺️ [API] drop: lat=${data['drop']?['lat']} lng=${data['drop']?['lng']}');
+          final autoPoints = data['auto_timeline_points'] ?? data['timeline_points'] ?? [];
+          debugPrint('🗺️ [API] auto_timeline_points: ${autoPoints.length} items');
+          for (final pt in autoPoints) {
+            debugPrint('🗺️ [API]   → name=${pt['name']} order=${pt['order']} passed_at=${pt['passed_at']} lat=${pt['lat']} lng=${pt['lng']}');
+          }
+        } else if (body['booking'] != null) {
+          debugPrint('🗺️ [API] (new format) booking_id=${body['booking']?['id']}');
+        }
 
         specificVehicle.value = SpecificVehicleTrackingResponse.fromJson(body);
       } else {
-        print("❌ Failed to fetch tracking");
+        debugPrint("🗺️ [API] ❌ Failed status=${response.statusCode} body=${response.body}");
       }
     } catch (e, s) {
       print("❌ Error: $e");

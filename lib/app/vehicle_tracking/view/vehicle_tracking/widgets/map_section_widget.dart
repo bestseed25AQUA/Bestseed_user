@@ -14,6 +14,7 @@ class MapSectionWidget extends StatelessWidget {
   final String driverName;
 
   final List<LatLng> routePoints;
+  final List<LatLng> driverToPickupPoints;
 
   final BitmapDescriptor? driverIcon;
   final BitmapDescriptor? pickupIcon;
@@ -32,6 +33,7 @@ class MapSectionWidget extends StatelessWidget {
     required this.driverLng,
     required this.driverName,
     required this.routePoints,
+    this.driverToPickupPoints = const [],
     required this.driverIcon,
     required this.pickupIcon,
     required this.destinationIcon,
@@ -108,6 +110,14 @@ class MapSectionWidget extends StatelessWidget {
                     points: routePoints,
                     color: Colors.blue,
                     width: 5,
+                  ),
+                if (driverToPickupPoints.length >= 2)
+                  Polyline(
+                    polylineId: const PolylineId("driver_to_pickup"),
+                    points: driverToPickupPoints,
+                    color: const Color(0xFF34A853),
+                    width: 5,
+                    patterns: [PatternItem.dot, PatternItem.gap(10)],
                   ),
               },
             ),
