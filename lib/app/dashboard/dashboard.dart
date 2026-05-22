@@ -525,7 +525,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   vertical: 14,
                                 ),
                               ),
-                              onPressed: () => Navigator.of(context).pop(true),
+                              onPressed: () {
+                                Navigator.of(context).pop(true);
+                                SystemNavigator.pop();
+                              },
                               child: Text(
                                 'Yes',
                                 style: GoogleFonts.roboto(

@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 // ignore: depend_on_referenced_packages
 import 'package:http/http.dart' as http;
+import 'package:geolocator/geolocator.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
@@ -33,6 +34,7 @@ class HomeAppBar extends StatefulWidget {
 class _HomeAppBarState extends State<HomeAppBar> {
   String? temperature;
   String? weatherIconUrl;
+  bool _weatherFetched = false; // Only show weather after fresh fetch
   final String apiKey = "795e8d7e804a07ee8a5b617e45bac8e4";
 
   final _locationController = Get.find<LocationController>();
@@ -44,49 +46,84 @@ class _HomeAppBarState extends State<HomeAppBar> {
   void initState() {
     super.initState();
 
-    // Listen for location changes (using coordinates for accurate weather)
-    ever(_locationController.selectedLatiude, (lat) {
-      if (lat.isNotEmpty && _locationController.selectedLongitude.value.isNotEmpty) {
-        fetchWeatherByCoordinates(lat, _locationController.selectedLongitude.value);
-      }
-    });
-
-    // Fetch weather for current location if available
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_locationController.selectedLatiude.value.isNotEmpty &&
-          _locationController.selectedLongitude.value.isNotEmpty) {
-        fetchWeatherByCoordinates(
-          _locationController.selectedLatiude.value,
-          _locationController.selectedLongitude.value,
-        );
-      }
-    });
+    debugPrint('🌤️ [WEATHER] initState called');
+    debugPrint('🌤️ [WEATHER] Current state: temperature=$temperature, _weatherFetched=$_weatherFetched');
+    debugPrint('🌤️ [WEATHER] Saved location: lat=${_locationController.selectedLatiude.value}, lng=${_locationController.selectedLongitude.value}, city=${_locationController.selectedCity.value}');
+    _fetchWeatherFromGPS();
   }
 
-  /// 🌤️ Fetch weather based on coordinates (more accurate than city name)
-  Future<void> fetchWeatherByCoordinates(String lat, String lon) async {
-    print('===========fetchWeather by coordinates==========');
-    print('lat: $lat, lon: $lon');
+  Future<void> _fetchWeatherFromGPS() async {
+    debugPrint('🌤️ [WEATHER] Step 1: Checking location permission...');
     try {
+      final permission = await Geolocator.checkPermission();
+      debugPrint('🌤️ [WEATHER] Step 2: Permission=$permission');
+
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        debugPrint('🌤️ [WEATHER] ❌ Location permission denied — showing nothing');
+        return;
+      }
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      debugPrint('🌤️ [WEATHER] Step 3: GPS service enabled=$serviceEnabled');
+
+      if (!serviceEnabled) {
+        debugPrint('🌤️ [WEATHER] ❌ GPS service disabled — showing nothing');
+        return;
+      }
+
+      debugPrint('🌤️ [WEATHER] Step 4: Requesting GPS position (timeout=10s)...');
+      final stopwatch = Stopwatch()..start();
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.low,
+        timeLimit: const Duration(seconds: 10),
+      );
+      stopwatch.stop();
+      debugPrint('🌤️ [WEATHER] Step 5: GPS position received in ${stopwatch.elapsedMilliseconds}ms: lat=${position.latitude}, lng=${position.longitude}, accuracy=${position.accuracy}m');
+
+      if (!mounted) {
+        debugPrint('🌤️ [WEATHER] ❌ Widget not mounted after GPS, skipping');
+        return;
+      }
+
+      debugPrint('🌤️ [WEATHER] Step 6: Calling weather API...');
+      await fetchWeatherByCoordinates(
+        position.latitude.toString(),
+        position.longitude.toString(),
+      );
+      debugPrint('🌤️ [WEATHER] Step 7: Done. _weatherFetched=$_weatherFetched, temperature=$temperature');
+    } catch (e) {
+      debugPrint('🌤️ [WEATHER] ❌ Failed at some step: $e — showing nothing');
+    }
+  }
+
+  /// 🌤️ Fetch weather — only called with real coordinates, result shown only once
+  Future<void> fetchWeatherByCoordinates(String lat, String lon) async {
+    try {
+      debugPrint('🌤️ [WEATHER] Calling API: lat=$lat, lon=$lon');
       final url =
           'https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$apiKey&units=metric';
       final response = await http.get(Uri.parse(url));
+      debugPrint('🌤️ [WEATHER] API status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final temp = data["main"]["temp"].toStringAsFixed(1);
         final icon = data["weather"][0]["icon"];
-        print('Weather fetched: ${data["name"]} - $temp°C');
+        final city = data["name"];
+        debugPrint('🌤️ [WEATHER] ✅ Result: city=$city, temp=$temp°C, icon=$icon');
+        debugPrint('🌤️ [WEATHER] Setting _weatherFetched=true, showing widget');
 
-        setState(() {
-          temperature = temp;
-          weatherIconUrl = "https://openweathermap.org/img/wn/$icon@2x.png";
-        });
+        if (mounted) {
+          setState(() {
+            temperature = temp;
+            weatherIconUrl = "https://openweathermap.org/img/wn/$icon@2x.png";
+            _weatherFetched = true;
+          });
+        }
       } else {
-        print("Weather fetch failed: ${response.body}");
+        debugPrint('🌤️ [WEATHER] ❌ API failed: ${response.body}');
       }
     } catch (e) {
-      print("Weather fetch error: $e");
+      debugPrint("🌤️ [WEATHER] ❌ Error: $e");
     }
   }
 
@@ -153,7 +190,8 @@ class _HomeAppBarState extends State<HomeAppBar> {
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     // 🌦️ Weather section
-                                    if (temperature != null &&
+                                    if (_weatherFetched &&
+                                        temperature != null &&
                                         weatherIconUrl != null)
                                       Stack(
                                         alignment: Alignment.center,
@@ -179,6 +217,7 @@ class _HomeAppBarState extends State<HomeAppBar> {
                                           ),
 
                                           // Temperature text overlay
+                                          if(_weatherFetched)
                                           Positioned(
                                             bottom: 6,
                                             child: Text(
@@ -201,27 +240,28 @@ class _HomeAppBarState extends State<HomeAppBar> {
                                         ],
                                       )
                                     else
-                                      InkWell(
-                                        onTap: () {
-                                          print('=================');
-                                          print(
-                                            'location id = ${_locationController.selectedLocationId}',
-                                          );
-                                          print(
-                                            'category id = ${_homeController.selectedCategoryId.value}',
-                                          );
-                                          print(
-                                            'farmer id = ${_profileController.profile.value?.id.toString() ?? ''}',
-                                          );
-                                        },
-                                        child: Image.asset(
-                                          'assets/images/wheather.png',
-                                          height: 60,
-                                          width: 60,
-                                        ),
-                                      ),
+                                    SizedBox(width: 30,height: 60,)
+                                      // InkWell(
+                                      //   onTap: () {
+                                      //     print('=================');
+                                      //     print(
+                                      //       'location id = ${_locationController.selectedLocationId}',
+                                      //     );
+                                      //     print(
+                                      //       'category id = ${_homeController.selectedCategoryId.value}',
+                                      //     );
+                                      //     print(
+                                      //       'farmer id = ${_profileController.profile.value?.id.toString() ?? ''}',
+                                      //     );
+                                      //   },
+                                      //   child: Image.asset(
+                                      //     'assets/images/wheather.png',
+                                      //     height: 60,
+                                      //     width: 60,
+                                      //   ),
+                                      // ),
 
-                                    const SizedBox(width: 4),
+                                   , const SizedBox(width: 4),
                                     Obx(() {
                                       String? raw = _locationController
                                           .selectedCity
