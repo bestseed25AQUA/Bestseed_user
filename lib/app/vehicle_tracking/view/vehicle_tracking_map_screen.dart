@@ -1184,11 +1184,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       }
     }
 
-    // 3. Generate upcoming stops client-side from driver → destination
+    // 3. Generate upcoming stops client-side along full remaining route:
+    //    driver → [pickup if not yet reached] → [uncompleted waypoints] → destination
     final driverPos = _currentLatLng ?? _pickupLatLng!;
     final remainingKm = (_trackingData?.remainingDistanceKm ?? 0).toDouble();
-    // When trip hasn't started yet (remainingKm == 0), use full route distance
-    // from polyline so the stop count is correct even before the driver moves.
     final polyTotalDistKm = _fullRouteCumulativeDistances.isNotEmpty
         ? _fullRouteCumulativeDistances.last / 1000
         : 0.0;
@@ -1196,10 +1195,30 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         ? remainingKm
         : (polyTotalDistKm > 0 ? polyTotalDistKm : 1.0);
 
+    // Build ordered mandatory waypoints the driver still has to visit:
+    // 1. Pickup — if driver hasn't reached it yet (>500m away)
+    // 2. Uncompleted route_waypoints in priority order
+    final List<LatLng> mandatoryWaypoints = [];
+    if (_pickupLatLng != null) {
+      final distToPickup = _haversineDistance(driverPos, _pickupLatLng!);
+      if (distToPickup > 500) {
+        mandatoryWaypoints.add(_pickupLatLng!);
+      }
+    }
+    final unvisitedWaypoints = (_trackingData?.routeWaypoints ?? [])
+        .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isCompleted)
+        .toList()
+      ..sort((a, b) => a.priority.compareTo(b.priority));
+    for (final wp in unvisitedWaypoints) {
+      mandatoryWaypoints.add(LatLng(wp.lat, wp.lng));
+    }
+    debugPrint('🛣️ [STOPS] Route: driver → ${mandatoryWaypoints.length} waypoints → destination');
+
     List<Map<String, dynamic>> upcomingStops = await TrackingStopsService.generateUpcomingStops(
       driverPosition: driverPos,
       destination: _destinationLatLng!,
       remainingDistanceKm: effectiveRemainingKm,
+      waypoints: mandatoryWaypoints,
     );
 
     // Fallback: if Google API failed, sample stops from cached polyline and
@@ -4265,18 +4284,68 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       });
     }
 
-    // Passed stops from DB (no auto_timeline_points — client generates upcoming)
-    final List<Map<String, dynamic>> autoStops = (_trackingData?.passedStops ?? []).map((pt) {
-      return {
+    // Passed stops from DB — permanent, never change
+    final List<Map<String, dynamic>> passedStops = (_trackingData?.passedStops ?? []).map((pt) {
+      return <String, dynamic>{
         'name': pt['name']?.toString() ?? 'Stop',
         'lat': (pt['lat'] as num?)?.toDouble() ?? 0.0,
         'lng': (pt['lng'] as num?)?.toDouble() ?? 0.0,
+        'dist_fraction': 0.0,
         'is_key_stop': false,
         if (pt['passed_at'] != null) 'passed_at': pt['passed_at'],
       };
     }).where((s) => (s['lat'] as double) != 0 || (s['lng'] as double) != 0).toList();
 
-    final allStops = [...waypointStops, ...autoStops];
+    // Generate upcoming stops along new rerouted path:
+    // driver → [pickup if not yet reached] → [uncompleted waypoints] → destination
+    final driverPos = _currentLatLng ?? _pickupLatLng;
+    List<Map<String, dynamic>> upcomingFromReroute = [];
+    if (driverPos != null && _destinationLatLng != null) {
+      final List<LatLng> mandatoryWps = [];
+      if (_pickupLatLng != null && _haversineDistance(driverPos, _pickupLatLng!) > 500) {
+        mandatoryWps.add(_pickupLatLng!);
+      }
+      for (final wp in remainingWps) {
+        mandatoryWps.add(LatLng(wp.lat, wp.lng));
+      }
+      final totalDistKm = cumDist.last / 1000;
+      final upcomingRaw = await TrackingStopsService.generateUpcomingStops(
+        driverPosition: driverPos,
+        destination: _destinationLatLng!,
+        remainingDistanceKm: totalDistKm > 0 ? totalDistKm : 1.0,
+        waypoints: mandatoryWps,
+      );
+      // Map to _fixedStops format
+      for (final s in upcomingRaw) {
+        final sLat = (s['lat'] as num?)?.toDouble() ?? 0.0;
+        final sLng = (s['lng'] as num?)?.toDouble() ?? 0.0;
+        upcomingFromReroute.add({
+          'name': s['name']?.toString() ?? 'Stop',
+          'lat': sLat,
+          'lng': sLng,
+          'dist_fraction': 0.0,
+          'is_key_stop': false,
+        });
+      }
+    }
+
+    // Merge: passed (API) + waypoints + upcoming (rerouted), deduplicate
+    final fixedNames = {
+      ...passedStops.map((s) => (s['name'] as String).toLowerCase()),
+      ...waypointStops.map((s) => (s['name'] as String).toLowerCase()),
+    };
+    final filteredUpcoming = upcomingFromReroute.where((s) {
+      final name = (s['name'] as String).toLowerCase();
+      if (fixedNames.contains(name)) return false;
+      final sLat = s['lat'] as double;
+      final sLng = s['lng'] as double;
+      for (final p in [...passedStops, ...waypointStops]) {
+        if (_haversineDistance(LatLng(sLat, sLng), LatLng(p['lat'] as double, p['lng'] as double)) < 500) return false;
+      }
+      return true;
+    }).toList();
+
+    final allStops = [...passedStops, ...waypointStops, ...filteredUpcoming];
     for (final stop in allStops) {
       final sLat = stop['lat'] as double;
       final sLng = stop['lng'] as double;
@@ -4284,15 +4353,14 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       int bestIdx = 0;
       for (int i = 0; i < polyline.length; i++) {
         final d = _haversineDistance(LatLng(sLat, sLng), polyline[i]);
-        if (d < minD) {
-          minD = d;
-          bestIdx = i;
-        }
+        if (d < minD) { minD = d; bestIdx = i; }
       }
+      stop['dist_fraction'] = cumDist.last > 0 ? cumDist[bestIdx] / cumDist.last : 0.0;
       stop['_sortDist'] = cumDist[bestIdx];
     }
     allStops.sort((a, b) => (a['_sortDist'] as double).compareTo(b['_sortDist'] as double));
     for (final stop in allStops) { stop.remove('_sortDist'); }
+    debugPrint('🗺️ [REROUTE-STOPS] ${passedStops.length} passed + ${waypointStops.length} waypoints + ${filteredUpcoming.length} upcoming = ${allStops.length} total');
 
     // Clear old cache and persist new stops
     final prefs = await SharedPreferences.getInstance();
