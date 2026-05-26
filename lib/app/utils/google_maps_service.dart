@@ -1,155 +1,13 @@
-import 'dart:convert';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:seedsuser/app/common/app_cache_helper.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 
 class GoogleMapsService {
   static const String _apiKey = NetworkConfig.googleApiKey2;
   static final Dio _dio = Dio();
-
-  // ───────────────────────────────────────────────────────────────────────
-  // PERSISTENT RESPONSE CACHE (SQLite, via AppCacheHelper)
-  // ───────────────────────────────────────────────────────────────────────
-  // Every Directions / Geocoding / Reverse-Geocoding call costs money
-  // (~$5 per 1000). The vehicle tracking screen re-runs all of them on
-  // every hot reload AND every back-and-re-enter, so a chatty customer
-  // reopening the screen 20× a day was burning ~$1/day per booking.
-  //
-  // Cache key is the rounded inputs (so identical fixtures collapse to
-  // one row). 24 h TTL — fresh enough that a re-routed road / changed
-  // pickup eventually overrides the cache, persistent enough that
-  // back-and-re-enter is free.
-  //
-  // Driver position (when used as input to `getRouteWithStops`) is rounded
-  // to 3 decimals (~110 m) so successive close-together opens still hit
-  // the cache; the resulting route is visually identical at map zoom.
-  static const Duration _cacheTTL = Duration(days: 5);
-  static const String _cachePrefix = 'gms_v1:';
-
-  static String _r4(double d) => d.toStringAsFixed(4);
-  static String _r3(double d) => d.toStringAsFixed(3);
-
-  static Future<Map<String, dynamic>?> _cacheGet(String key) async {
-    try {
-      final raw =
-          await AppCacheHelper.getFresh(_cachePrefix + key, _cacheTTL);
-      if (raw == null) return null;
-      return jsonDecode(raw) as Map<String, dynamic>?;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  static Future<void> _cachePut(String key, Map<String, dynamic> data) async {
-    try {
-      await AppCacheHelper.save(_cachePrefix + key, jsonEncode(data));
-    } catch (_) {
-      // Cache write failures are non-fatal — caller already has the live
-      // API response in hand.
-    }
-  }
-
-  /// Flatten a `List<LatLng>` to `[lat0, lng0, lat1, lng1, ...]` for compact
-  /// JSON storage (about half the size of a list-of-maps form).
-  static List<double> _latLngsToFlat(List<LatLng> pts) {
-    final out = <double>[];
-    for (final p in pts) {
-      out.add(p.latitude);
-      out.add(p.longitude);
-    }
-    return out;
-  }
-
-  static List<LatLng> _flatToLatLngs(List<dynamic> flat) {
-    final out = <LatLng>[];
-    for (int i = 0; i + 1 < flat.length; i += 2) {
-      out.add(LatLng(
-        (flat[i] as num).toDouble(),
-        (flat[i + 1] as num).toDouble(),
-      ));
-    }
-    return out;
-  }
-
-  /// Serialize a `getRouteWithStops` result map for JSON storage. Polylines
-  /// become flat double lists; stops keep their fields but with `location`
-  /// flattened to `[lat, lng]`.
-  static Map<String, dynamic> _routeResultToJson(Map<String, dynamic> r) {
-    final stops = (r['stops'] as List? ?? []).map((s) {
-      final m = Map<String, dynamic>.from(s as Map);
-      final loc = m['location'];
-      if (loc is LatLng) {
-        m['location'] = [loc.latitude, loc.longitude];
-      }
-      return m;
-    }).toList();
-
-    return {
-      'polyline_points':
-          _latLngsToFlat((r['polyline_points'] as List?)?.cast<LatLng>() ?? []),
-      'completed_points': _latLngsToFlat(
-          (r['completed_points'] as List?)?.cast<LatLng>() ?? []),
-      'remaining_points': _latLngsToFlat(
-          (r['remaining_points'] as List?)?.cast<LatLng>() ?? []),
-      'stops': stops,
-      'total_duration_seconds': r['total_duration_seconds'] ?? 0,
-      'total_distance_meters': r['total_distance_meters'] ?? 0,
-      'driver_split_index': r['driver_split_index'] ?? 0,
-      'driver_progress_fraction':
-          (r['driver_progress_fraction'] as num?)?.toDouble() ?? 0.0,
-      'remaining_duration_seconds': r['remaining_duration_seconds'] ?? 0,
-      'cumulative_distances':
-          (r['cumulative_distances'] as List?)?.cast<double>() ?? <double>[],
-    };
-  }
-
-  /// Reverse of `_routeResultToJson`. Returns null if the cached payload
-  /// can't be re-hydrated (corrupted / older schema) — caller falls back to
-  /// the live API call.
-  static Map<String, dynamic>? _routeResultFromJson(Map<String, dynamic> j) {
-    try {
-      final stops = (j['stops'] as List? ?? []).map((s) {
-        final m = Map<String, dynamic>.from(s as Map);
-        final loc = m['location'];
-        if (loc is List && loc.length >= 2) {
-          m['location'] = LatLng(
-            (loc[0] as num).toDouble(),
-            (loc[1] as num).toDouble(),
-          );
-        }
-        return m;
-      }).toList();
-
-      return {
-        'polyline_points':
-            _flatToLatLngs(j['polyline_points'] as List? ?? const []),
-        'completed_points':
-            _flatToLatLngs(j['completed_points'] as List? ?? const []),
-        'remaining_points':
-            _flatToLatLngs(j['remaining_points'] as List? ?? const []),
-        'stops': stops,
-        'total_duration_seconds':
-            (j['total_duration_seconds'] as num?)?.toInt() ?? 0,
-        'total_distance_meters':
-            (j['total_distance_meters'] as num?)?.toInt() ?? 0,
-        'driver_split_index': (j['driver_split_index'] as num?)?.toInt() ?? 0,
-        'driver_progress_fraction':
-            (j['driver_progress_fraction'] as num?)?.toDouble() ?? 0.0,
-        'remaining_duration_seconds':
-            (j['remaining_duration_seconds'] as num?)?.toInt() ?? 0,
-        'cumulative_distances': (j['cumulative_distances'] as List? ?? const [])
-            .map((d) => (d as num).toDouble())
-            .toList(),
-      };
-    } catch (e) {
-      debugPrint('Cache rehydrate failed: $e');
-      return null;
-    }
-  }
 
   /// Get directions between two points and return polyline points
   static Future<List<LatLng>> getDirections({
@@ -158,26 +16,10 @@ class GoogleMapsService {
     List<LatLng>? waypoints,
     bool useViaWaypoints = false,
   }) async {
-    final waypointsKey = (waypoints == null || waypoints.isEmpty)
-        ? '-'
-        : waypoints
-            .map((w) => '${_r4(w.latitude)},${_r4(w.longitude)}')
-            .join('|');
-    final cacheKey = 'dir:'
-        '${_r4(origin.latitude)},${_r4(origin.longitude)}>'
-        '${_r4(destination.latitude)},${_r4(destination.longitude)}|'
-        'wp=$waypointsKey|via=$useViaWaypoints';
-    final cached = await _cacheGet(cacheKey);
-    if (cached != null && cached['points'] is List) {
-      return _flatToLatLngs(cached['points'] as List);
-    }
-
     try {
       String waypointsStr = '';
       if (waypoints != null && waypoints.isNotEmpty) {
         if (useViaWaypoints) {
-          // "via:" influences the route to pass through these roads
-          // without creating mandatory stops (no loops/backtracking)
           waypointsStr =
               '&waypoints=${waypoints.map((wp) => 'via:${wp.latitude},${wp.longitude}').join('|')}';
         } else {
@@ -207,13 +49,9 @@ class GoogleMapsService {
         return [];
       }
 
-      // Decode the polyline from the response
       final encodedPolyline =
           data['routes'][0]['overview_polyline']['points'] as String;
-
-      final points = _decodePolyline(encodedPolyline);
-      await _cachePut(cacheKey, {'points': _latLngsToFlat(points)});
-      return points;
+      return _decodePolyline(encodedPolyline);
     } catch (e) {
       debugPrint('Error getting directions: $e');
       return [];
@@ -234,20 +72,6 @@ class GoogleMapsService {
     required LatLng destination,
     List<LatLng>? waypoints,
   }) async {
-    final waypointsKey = (waypoints == null || waypoints.isEmpty)
-        ? '-'
-        : waypoints
-            .map((w) => '${_r4(w.latitude)},${_r4(w.longitude)}')
-            .join('|');
-    final cacheKey = 'dirHR:'
-        '${_r4(origin.latitude)},${_r4(origin.longitude)}>'
-        '${_r4(destination.latitude)},${_r4(destination.longitude)}|'
-        'wp=$waypointsKey';
-    final cached = await _cacheGet(cacheKey);
-    if (cached != null && cached['points'] is List) {
-      return _flatToLatLngs(cached['points'] as List);
-    }
-
     try {
       String waypointsStr = '';
       if (waypoints != null && waypoints.isNotEmpty) {
@@ -294,7 +118,6 @@ class GoogleMapsService {
       }
 
       if (merged.isEmpty) return [];
-      await _cachePut(cacheKey, {'points': _latLngsToFlat(merged)});
       return merged;
     } catch (e) {
       debugPrint('Error getting high-res directions: $e');
@@ -345,15 +168,6 @@ class GoogleMapsService {
 
   /// Geocode an address to get LatLng coordinates
   static Future<LatLng?> geocodeAddress(String address) async {
-    final cacheKey = 'geocode:${address.trim().toLowerCase()}';
-    final cached = await _cacheGet(cacheKey);
-    if (cached != null && cached['lat'] != null && cached['lng'] != null) {
-      return LatLng(
-        (cached['lat'] as num).toDouble(),
-        (cached['lng'] as num).toDouble(),
-      );
-    }
-
     try {
       final url =
           'https://maps.googleapis.com/maps/api/geocode/json'
@@ -361,48 +175,55 @@ class GoogleMapsService {
           '&key=$_apiKey';
 
       final response = await _dio.get(url);
-
       if (response.statusCode != 200) return null;
 
       final data = response.data;
-
       if (data['status'] != 'OK') return null;
 
       final location = data['results'][0]['geometry']['location'];
-      final result = LatLng(
+      return LatLng(
         (location['lat'] as num).toDouble(),
         (location['lng'] as num).toDouble(),
       );
-
-      await _cachePut(cacheKey, {
-        'lat': result.latitude,
-        'lng': result.longitude,
-      });
-      return result;
     } catch (e) {
       debugPrint('Error geocoding address: $e');
       return null;
     }
   }
 
-  /// Reverse geocode coordinates to get a recognizable town/city name.
-  /// Prefers locality/town names over tiny neighborhoods or hamlets.
-  static Future<String?> reverseGeocode(LatLng location) async {
-    // Round to 3 decimals (~110 m). Two stops within 110 m of each other
-    // resolve to the same town anyway, so collapsing them into one cache
-    // key is correct, not a bug.
-    final cacheKey =
-        'rgeocode:${_r3(location.latitude)},${_r3(location.longitude)}';
-    final cached = await _cacheGet(cacheKey);
-    if (cached != null && cached.containsKey('name')) {
-      return cached['name'] as String?;
+  /// Reverse geocode coordinates to a human-readable stop name.
+  ///
+  /// The naming strategy adapts to total route distance so stops at every
+  /// scale are recognisable:
+  ///   < 30 km  → neighborhood / colony (Ameerpet, Kondapur…)
+  ///   30–200 km → sublocality first, falls back to city (Guntur, Ongole…)
+  ///   > 200 km  → city / district (Nellore, Vijayawada, Rajahmundry…)
+  ///
+  /// Pass [routeDistanceKm] when you know the total route length.
+  static Future<String?> reverseGeocode(LatLng location,
+      {double routeDistanceKm = 0}) async {
+    final String resultTypes;
+    final List<String> priority;
+
+    if (routeDistanceKm > 200) {
+      // Long / inter-city route — show well-known city names
+      resultTypes = 'locality|administrative_area_level_2';
+      priority = ['locality', 'administrative_area_level_2'];
+    } else if (routeDistanceKm > 30) {
+      // Medium route — prefer colony/sublocality but fall back to city
+      resultTypes = 'sublocality_level_1|sublocality|neighborhood|locality';
+      priority = ['sublocality_level_1', 'sublocality', 'neighborhood', 'locality'];
+    } else {
+      // Short / city route — neighborhood / colony names
+      resultTypes = 'sublocality_level_1|sublocality|neighborhood';
+      priority = ['sublocality_level_1', 'sublocality', 'neighborhood'];
     }
 
     try {
       final url =
           'https://maps.googleapis.com/maps/api/geocode/json'
           '?latlng=${location.latitude},${location.longitude}'
-          '&result_type=locality|administrative_area_level_3|administrative_area_level_2|sublocality_level_1|sublocality|neighborhood'
+          '&result_type=$resultTypes'
           '&language=en'
           '&key=$_apiKey';
 
@@ -415,17 +236,8 @@ class GoogleMapsService {
       final results = data['results'] as List;
       if (results.isEmpty) return null;
 
-      // Priority: recognizable town/city > mandal/sub-district > small locality
-      const priority = [
-        'locality',
-        'administrative_area_level_3',
-        'administrative_area_level_2',
-        'sublocality_level_1',
-        'sublocality',
-        'neighborhood',
-      ];
-
       String? resolved;
+      outer:
       for (final type in priority) {
         for (final result in results) {
           final components = result['address_components'] as List;
@@ -433,18 +245,12 @@ class GoogleMapsService {
             final types = component['types'] as List;
             if (types.contains(type)) {
               resolved = component['long_name'] as String?;
-              break;
+              break outer;
             }
           }
-          if (resolved != null) break;
         }
-        if (resolved != null) break;
       }
-      resolved ??= results[0]['formatted_address']?.toString().split(',').first;
 
-      if (resolved != null) {
-        await _cachePut(cacheKey, {'name': resolved});
-      }
       return resolved;
     } catch (e) {
       debugPrint('Error reverse geocoding: $e');
@@ -461,44 +267,7 @@ class GoogleMapsService {
     LatLng? driverPosition,
     List<LatLng> routeWaypoints = const [],
     int maxStops = 5,
-    bool bypassCache = false,
   }) async {
-    // Cache key: pickup + drop at fine precision (~11 m), driver at coarse
-    // (~110 m so close-together polls collapse), and waypoints/maxStops.
-    // The driver position influences the green/blue split inside the
-    // result, so it has to be part of the key — but coarse rounding keeps
-    // back-and-re-enter loops within a single block free.
-    //
-    // `bypassCache: true` skips both the read and the write. Use this for
-    // periodic ETA refreshes that need fresh traffic-aware Google duration
-    // (the cached value can be 24 h stale and won't reflect current
-    // congestion or weather).
-    final waypointsKey = routeWaypoints.isEmpty
-        ? '-'
-        : routeWaypoints
-            .map((w) => '${_r4(w.latitude)},${_r4(w.longitude)}')
-            .join('|');
-    final driverKey = driverPosition == null
-        ? '-'
-        : '${_r3(driverPosition.latitude)},${_r3(driverPosition.longitude)}';
-    // Cache key version bumped to v2 to invalidate entries computed before
-    // the waypoint-filter relax: the prior 5-km radius silently dropped
-    // priority-1 drops near pickup/destination, so v1 cached routes for
-    // multi-drop bookings followed straight pickup→drop paths skipping
-    // the intermediate stop. v2 entries get the full waypoint-through
-    // routes Google now actually returns.
-    final cacheKey = 'rws_v2:'
-        '${_r4(origin.latitude)},${_r4(origin.longitude)}>'
-        '${_r4(destination.latitude)},${_r4(destination.longitude)}|'
-        'd=$driverKey|wp=$waypointsKey|max=$maxStops';
-    if (!bypassCache) {
-      final cached = await _cacheGet(cacheKey);
-      if (cached != null) {
-        final hydrated = _routeResultFromJson(cached);
-        if (hydrated != null) return hydrated;
-      }
-    }
-
     try {
       // Build waypoints for Directions API
       // When route waypoints exist (multi-drop), only use drop waypoints — NOT driver position.
@@ -770,9 +539,12 @@ class GoogleMapsService {
           });
         }
 
-        // Reverse geocode all stops in parallel
+        // Reverse geocode all stops in parallel — pass route distance so
+        // the naming strategy matches the route scale.
+        final routeDistKm = totalDistanceMeters / 1000.0;
         List<String?> names = await Future.wait(
-          stops.map((s) => reverseGeocode(s['location'] as LatLng)),
+          stops.map((s) => reverseGeocode(s['location'] as LatLng,
+              routeDistanceKm: routeDistKm)),
         );
         for (int i = 0; i < stops.length; i++) {
           stops[i]['name'] = names[i] ?? 'Unknown';
@@ -803,7 +575,6 @@ class GoogleMapsService {
         'remaining_duration_seconds': remainingSeconds,
         'cumulative_distances': cumulativeDistances,
       };
-      await _cachePut(cacheKey, _routeResultToJson(result));
       return result;
     } catch (e) {
       debugPrint('Error getting route with stops: $e');
@@ -820,6 +591,7 @@ class GoogleMapsService {
     required double endFraction,
     required int totalDurationSeconds,
     int count = 3,
+    double routeDistanceKm = 0,
   }) async {
     if (fullPolyline.isEmpty || cumulativeDistances.isEmpty) return [];
 
@@ -860,8 +632,10 @@ class GoogleMapsService {
     }
 
     // Reverse geocode many candidate points, then keep the best ordered localities.
+    final routeKm = routeDistanceKm > 0 ? routeDistanceKm : totalDist / 1000;
     final names = await Future.wait(
-      candidates.map((s) => reverseGeocode(s['location'] as LatLng)),
+      candidates.map((s) => reverseGeocode(s['location'] as LatLng,
+          routeDistanceKm: routeKm)),
     );
     for (int i = 0; i < candidates.length; i++) {
       candidates[i]['name'] = names[i] ?? 'Unknown';

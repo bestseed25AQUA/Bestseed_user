@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -48,6 +49,8 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
   BitmapDescriptor? driverIcon;
   BitmapDescriptor? pickupIcon;
   BitmapDescriptor? destinationIcon;
+
+  double _driverBearing = 0;
 
   bool _isLoading = true;
   TrackingData? _trackingData;
@@ -114,6 +117,13 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
           ? LatLng(d.driverLocation.lat, d.driverLocation.lng)
           : null;
 
+      // Calculate bearing from driver (or pickup) toward destination
+      if (driverLoc != null && drop != null) {
+        _driverBearing = _calculateBearing(driverLoc!, drop!);
+      } else if (pickup != null && drop != null) {
+        _driverBearing = _calculateBearing(pickup!, drop!);
+      }
+
       debugPrint('🗺️ [TRACK] driver=(${d.driverLocation.lat},${d.driverLocation.lng}) updatedAt=${d.driverLocation.updatedAt} speed=${d.driverLocation.speedKmh}');
 
       // Print full timeline from API
@@ -122,16 +132,16 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
         final t = d.timeline[i];
         debugPrint('🗺️ [TIMELINE]   [$i] title="${t.title}" time="${t.time}" date="${t.date}" status="${t.status}" lat=${t.lat} lng=${t.lng}');
       }
-      debugPrint('🗺️ [TIMELINE] ── auto_timeline_points: ${d.autoTimelinePoints.length} items ──');
-      for (int i = 0; i < d.autoTimelinePoints.length; i++) {
-        final pt = d.autoTimelinePoints[i];
-        debugPrint('🗺️ [TIMELINE]   [$i] name="${pt['name']}" passed_at=${pt['passed_at']} order=${pt['order']} lat=${pt['lat']} lng=${pt['lng']}');
+      debugPrint('🗺️ [TIMELINE] ── passed_stops from DB: ${d.passedStops.length} items ──');
+      for (int i = 0; i < d.passedStops.length; i++) {
+        final pt = d.passedStops[i];
+        debugPrint('🗺️ [TIMELINE]   [$i] name="${pt['name']}" passed_at=${pt['passed_at']} lat=${pt['lat']} lng=${pt['lng']}');
       }
 
       // Load markers only once
       if (isInitial) {
         try {
-          driverIcon = await loadMarker("assets/images/vehicle_truck.png", 70);
+          driverIcon = await _loadTruckMarker(70);
           pickupIcon = await loadMarker("assets/images/pickup_vehicle_icon.png", 70);
           destinationIcon = await loadMarker("assets/images/drop_vehicle_icon.png", 70);
         } catch (e) {
@@ -144,8 +154,8 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
           debugPrint('🗺️ [TRACK] ❌ Polyline error: $e');
         }
 
-        // Client-side fallback stops
-        if (d.autoTimelinePoints.isEmpty && pickup != null && drop != null) {
+        // Client-side fallback stops (always generate upcoming from driver position)
+        if (pickup != null && drop != null) {
           try {
             final result = await GoogleMapsService.getRouteWithStops(
               origin: pickup!,
@@ -179,8 +189,8 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
   void _processPassedStops(TrackingData d) {
     if (driverLoc == null || pickup == null) return;
 
-    final allStops = d.autoTimelinePoints.isNotEmpty
-        ? d.autoTimelinePoints
+    final allStops = d.passedStops.isNotEmpty
+        ? d.passedStops
         : _clientStops;
 
     if (allStops.isEmpty) return;
@@ -273,6 +283,63 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
     );
   }
 
+  /// Loads delivery_truck.png rotated 180° so it faces north (up).
+  /// Google Maps marker [rotation] then handles the actual direction.
+  Future<BitmapDescriptor> _loadTruckMarker(int size) async {
+    try {
+      final data = await rootBundle.load('assets/images/delivery_truck.png');
+      final codec = await ui.instantiateImageCodec(
+        data.buffer.asUint8List(),
+        targetWidth: size,
+        targetHeight: size,
+      );
+      final frame = await codec.getNextFrame();
+      final srcImage = frame.image;
+
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      final s = size.toDouble();
+      canvas.translate(s / 2, s / 2);
+      canvas.rotate(math.pi); // 180° so asset faces north
+      canvas.translate(-s / 2, -s / 2);
+      canvas.drawImage(srcImage, Offset.zero, Paint());
+      final picture = recorder.endRecording();
+      final rotatedImage = await picture.toImage(size, size);
+
+      final byteData = await rotatedImage.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData != null) {
+        return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
+      }
+    } catch (e) {
+      debugPrint('🗺️ [TRACK] ❌ Truck marker error: $e');
+    }
+    return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+  }
+
+  double _distMeters(double lat1, double lon1, double lat2, double lon2) {
+    const r = 6371000.0;
+    final dLat = (lat2 - lat1) * math.pi / 180;
+    final dLon = (lon2 - lon1) * math.pi / 180;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1 * math.pi / 180) *
+            math.cos(lat2 * math.pi / 180) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    return 2 * r * math.asin(math.sqrt(a));
+  }
+
+  double _calculateBearing(LatLng start, LatLng end) {
+    final lat1 = start.latitude * math.pi / 180;
+    final lon1 = start.longitude * math.pi / 180;
+    final lat2 = end.latitude * math.pi / 180;
+    final lon2 = end.longitude * math.pi / 180;
+    final dLon = lon2 - lon1;
+    final y = math.sin(dLon) * math.cos(lat2);
+    final x = math.cos(lat1) * math.sin(lat2) -
+        math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
+    return (math.atan2(y, x) * 180 / math.pi + 360) % 360;
+  }
+
   Future<void> loadPolyline() async {
     if (pickup == null || drop == null) return;
 
@@ -334,8 +401,8 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
       }
     }
 
-    // 2. auto_timeline_points (server-generated route stops) — merge in, don't overwrite backend data
-    for (final pt in d.autoTimelinePoints) {
+    // 2. passed_stops from DB — merge in, don't overwrite backend data
+    for (final pt in d.passedStops) {
       final name = pt['name']?.toString() ?? '';
       if (name.isEmpty) continue;
       if (!stopMap.containsKey(name)) {
@@ -344,6 +411,7 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
           'lat': (pt['lat'] as num?)?.toDouble(),
           'lng': (pt['lng'] as num?)?.toDouble(),
           'passed_at': pt['passed_at'],
+          'dist_fraction': (pt['dist_fraction'] as num?)?.toDouble(),
         };
       }
     }
@@ -366,14 +434,14 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
     if (stopMap.isEmpty) return d.timeline;
 
     // ── Sort by distance from pickup (route progression) ──
-    final sortedStops = stopMap.values.toList();
+    var sortedStops = stopMap.values.toList();
     if (pickup != null) {
       sortedStops.sort((a, b) {
         final distA = PassedStopsService.estimateMinutes(
           pickup!,
           (a['lat'] as num?)?.toDouble() ?? 0,
           (a['lng'] as num?)?.toDouble() ?? 0,
-          100, // dummy speed, only distance matters for sorting
+          100,
         );
         final distB = PassedStopsService.estimateMinutes(
           pickup!,
@@ -383,6 +451,44 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
         );
         return distA.compareTo(distB);
       });
+    }
+
+    // ── Ensure every stop has a dist_fraction ──
+    // auto_timeline_points already carry one from the server.
+    // Backend timeline stops don't, so compute from straight-line distance.
+    if (pickup != null && drop != null) {
+      final totalDist = _distMeters(
+          pickup!.latitude, pickup!.longitude, drop!.latitude, drop!.longitude);
+      for (final s in sortedStops) {
+        if (s['dist_fraction'] != null) continue;
+        final lat = (s['lat'] as num?)?.toDouble();
+        final lng = (s['lng'] as num?)?.toDouble();
+        if (lat == null || lng == null || totalDist == 0) {
+          s['dist_fraction'] = 0.5;
+        } else {
+          final d = _distMeters(pickup!.latitude, pickup!.longitude, lat, lng);
+          s['dist_fraction'] = (d / totalDist).clamp(0.0, 1.0);
+        }
+      }
+    }
+
+    // ── Filter stops too close to pickup (<5%) or destination (>90%) ──
+    sortedStops = sortedStops.where((s) {
+      final f = (s['dist_fraction'] as num?)?.toDouble() ?? 0.5;
+      return f >= 0.05 && f <= 0.90;
+    }).toList();
+
+    // ── Filter consecutive stops that are less than 8% of the route apart ──
+    if (sortedStops.length > 1) {
+      final spaced = <Map<String, dynamic>>[sortedStops.first];
+      for (int i = 1; i < sortedStops.length; i++) {
+        final prevF = (spaced.last['dist_fraction'] as num?)?.toDouble() ?? 0.0;
+        final currF = (sortedStops[i]['dist_fraction'] as num?)?.toDouble() ?? 1.0;
+        if (currF - prevF >= 0.08) {
+          spaced.add(sortedStops[i]);
+        }
+      }
+      sortedStops = spaced;
     }
 
     // ── Build timeline items ──
@@ -555,6 +661,7 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
                           driverIcon: driverIcon,
                           pickupIcon: pickupIcon,
                           destinationIcon: destinationIcon,
+                          driverBearing: _driverBearing,
                           lastUpdateTime: lastUpdateTime,
                           lastUpdateAddress: lastUpdateAddress,
                         ),
@@ -574,6 +681,7 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
                     driverIcon: driverIcon,
                     pickupIcon: pickupIcon,
                     destinationIcon: destinationIcon,
+                    driverBearing: _driverBearing,
                     onMapCreated: (controller) {
                       mapController = controller;
                       Future.delayed(const Duration(milliseconds: 300), fitMapBounds);

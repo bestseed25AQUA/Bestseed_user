@@ -44,6 +44,7 @@ import 'package:seedsuser/app/utils/google_maps_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:seedsuser/app/vehicle_tracking/controller/vehicle_tracking_controller.dart';
 import 'package:seedsuser/app/vehicle_tracking/model/specific_vehicle_tracking_response.dart';
+import 'package:seedsuser/app/vehicle_tracking/service/tracking_stops_service.dart';
 
 class VehicleTrackingMapScreen extends StatefulWidget {
   final String bookingId;
@@ -354,13 +355,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
 
       if (newData != null) {
         debugPrint('🔄 [REFRESH] API data received: driver=(${newData.driverLocation.lat},${newData.driverLocation.lng}) status=${newData.driverLocation.driverStatus} speed=${newData.driverLocation.speedKmh}');
-        debugPrint('🔄 [REFRESH] auto_timeline_points: ${newData.autoTimelinePoints.length} items');
-        for (int i = 0; i < newData.autoTimelinePoints.length; i++) {
-          final pt = newData.autoTimelinePoints[i];
-          if (pt['passed_at'] != null) {
-            debugPrint('🔄 [REFRESH]   [$i] "${pt['name']}" PASSED at ${pt['passed_at']}');
-          }
-        }
+        debugPrint('🔄 [REFRESH] passed_stops from DB: ${newData.passedStops.length} items, breadcrumbs: ${newData.driverBreadcrumbs.length}');
         final oldPickup = _trackingData?.pickup;
         final oldDrop = _trackingData?.drop;
         final previousVehiclePosition = _currentLatLng;
@@ -619,34 +614,20 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
 
           await _setupMarkersAndPolylines();
         } else {
-          // ── Update timeline/stops ONLY on manual refresh (button tap) ──
-          // Auto-poll only moves the driver marker, nothing else
+          // ── Update passed stops from API on each refresh ──
+          // Sync newly confirmed passed stops into _fixedStops
+          if (forceRouteRefresh || true) {
+            _syncPassedStopsFromApi(newData.passedStops);
+          }
+          // Detect if driver passed any upcoming (client-generated) stop
+          if (_currentLatLng != null && _pickupLatLng != null) {
+            await _checkAndSavePassedStops();
+          }
           if (forceRouteRefresh) {
-            final freshAutoStops = newData.autoTimelinePoints;
-            if (freshAutoStops.isNotEmpty && _fixedStops.isNotEmpty) {
-              int updatedCount = 0;
-              for (int i = 0; i < _fixedStops.length && i < freshAutoStops.length; i++) {
-                final fresh = freshAutoStops[i];
-                if (fresh['passed_at'] != null && _fixedStops[i]['passed_at'] != fresh['passed_at']) {
-                  _fixedStops[i]['passed_at'] = fresh['passed_at'];
-                  updatedCount++;
-                }
-                if (fresh['estimated_arrival'] != null) {
-                  _fixedStops[i]['estimated_arrival'] = fresh['estimated_arrival'];
-                }
-                if (fresh['estimated_date'] != null) {
-                  _fixedStops[i]['estimated_date'] = fresh['estimated_date'];
-                }
-              }
-              debugPrint('🔄 [REFRESH] ✅ Updated _fixedStops: $updatedCount new passed_at values');
-              if (_currentLatLng != null) _updateProgress(_currentLatLng!);
-              // Rebuild green line with latest position
-              _buildGreenFromPolyline();
-              unawaited(_refreshHomeToVehicleRoute());
-              if (mounted) setState(() {});
-            } else {
-              debugPrint('🔄 [REFRESH] ⚠️ No fixedStops to update');
-            }
+            if (_currentLatLng != null) _updateProgress(_currentLatLng!);
+            _buildGreenFromPolyline();
+            unawaited(_refreshHomeToVehicleRoute());
+            if (mounted) setState(() {});
           }
 
           // Silent update — only move vehicle marker if REAL movement detected.
@@ -1138,63 +1119,270 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       // actual reroute set the timestamp.
     });
 
-    // ── FIXED TIMELINE: prefer backend's auto_timeline_points (authoritative
-    // passed_at from real GPS breadcrumbs). Fall back to client-side
-    // generation only when the backend has no stops yet (very early in
-    // the trip, before a route has been computed server-side).
-    final autoStops = _trackingData?.autoTimelinePoints ?? const [];
-    if (autoStops.isNotEmpty) {
-      // Backend stops include name, lat, lng, dist_fraction, passed_at,
-      // estimated_arrival, estimated_date. Sort by dist_fraction so the
-      // timeline renders in route order; this also matches how `isPassed`
-      // is keyed on `_currentStopIndex`.
-      final mapped = autoStops.map((pt) {
-        return <String, dynamic>{
-          'name': pt['name']?.toString() ?? 'Stop',
-          'lat': (pt['lat'] as num?)?.toDouble() ?? 0.0,
-          'lng': (pt['lng'] as num?)?.toDouble() ?? 0.0,
-          'dist_fraction': (pt['dist_fraction'] as num?)?.toDouble() ?? 0.0,
-          'is_key_stop': false,
-          if (pt['passed_at'] != null) 'passed_at': pt['passed_at'],
-          if (pt['estimated_arrival'] != null) 'estimated_arrival': pt['estimated_arrival'],
-          if (pt['estimated_date'] != null) 'estimated_date': pt['estimated_date'],
-        };
-      }).toList()
-        ..sort((a, b) => (a['dist_fraction'] as double)
-            .compareTo(b['dist_fraction'] as double));
-      _enforceMonotonicPassedAt(mapped);
-      setState(() {
-        _fixedStops = mapped;
-        _isLoadingFixedStops = false;
-      });
-      debugPrint('🗺️ [FIXED-STOPS] From auto_timeline_points: ${mapped.length} stops');
-      for (int i = 0; i < mapped.length; i++) {
-        debugPrint('🗺️ [FIXED-STOPS]   [$i] name="${mapped[i]['name']}" passed_at=${mapped[i]['passed_at']} est_arrival=${mapped[i]['estimated_arrival']} fraction=${mapped[i]['dist_fraction']}');
-      }
-      // Also log backend timeline items
-      final tl = _trackingData?.timeline ?? [];
-      debugPrint('🗺️ [BACKEND-TIMELINE] ${tl.length} items from vehicle_tracking DB:');
-      for (int i = 0; i < tl.length; i++) {
-        debugPrint('🗺️ [BACKEND-TIMELINE]   [$i] title="${tl[i].title}" time="${tl[i].time}" date="${tl[i].date}" status="${tl[i].status}" lat=${tl[i].lat} lng=${tl[i].lng}');
-      }
-      // Still need the full route polyline for sub-stop generation on tap
-      // and for the small-map preview.
-      await _fetchFullRoutePolyline();
-      debugPrint('📊 [INIT] After fetchFullRoutePolyline: _fullRoutePolyline=${_fullRoutePolyline.length}, _fullRouteCumulativeDistances=${_fullRouteCumulativeDistances.length}, _currentLatLng=$_currentLatLng');
-      // Always recompute stop index from driver's actual position — never from cache
-      if (_currentLatLng != null) {
-        _updateProgress(_currentLatLng!);
-        debugPrint('📊 [INIT] After _updateProgress: _currentStopIndex=$_currentStopIndex');
-      }
-      _fixedStopsGenerated = true;
-    } else if (!_fixedStopsGenerated && _pickupLatLng != null && _destinationLatLng != null) {
-      await _fetchFullRouteAndGenerateFixedStops();
-      // Always recompute stop index from driver's actual position — never from cache
-      if (_currentLatLng != null) _updateProgress(_currentLatLng!);
+    // ── FIXED TIMELINE: passed stops from DB (API) + upcoming generated client-side ──
+    if (!_fixedStopsGenerated && _pickupLatLng != null && _destinationLatLng != null) {
+      await _buildFixedStopsFromPassedAndUpcoming();
       _fixedStopsGenerated = true;
     }
-    // Check if driver reached the next stop
     if (_currentLatLng != null) _updateProgress(_currentLatLng!);
+  }
+
+  // ── Build _fixedStops from API passed_stops + client-generated upcoming ──
+  Future<void> _buildFixedStopsFromPassedAndUpcoming() async {
+    if (_pickupLatLng == null || _destinationLatLng == null) return;
+    setState(() => _isLoadingFixedStops = true);
+
+    // 1. Passed stops from DB (permanent, actual times)
+    final passedFromApi = (_trackingData?.passedStops ?? []).map((pt) {
+      return <String, dynamic>{
+        'name': pt['name']?.toString() ?? 'Stop',
+        'lat': (pt['lat'] as num?)?.toDouble() ?? 0.0,
+        'lng': (pt['lng'] as num?)?.toDouble() ?? 0.0,
+        'dist_fraction': 0.0,
+        'passed_at': pt['passed_at']?.toString(),
+        'is_key_stop': false,
+      };
+    }).toList();
+
+    // 1b. Route waypoints (key delivery stops — always shown)
+    final waypoints = (_trackingData?.routeWaypoints ?? [])
+      ..sort((a, b) => a.priority.compareTo(b.priority));
+    final waypointStops = waypoints
+        .where((wp) => wp.lat != 0 && wp.lng != 0)
+        .map((wp) {
+      final isWpPassed = wp.status == 5 || wp.status == 6;
+      return <String, dynamic>{
+        'name': wp.name.isNotEmpty ? wp.name.split(',').first.trim() : 'Stop',
+        'lat': wp.lat,
+        'lng': wp.lng,
+        'dist_fraction': 0.0,
+        'is_key_stop': true,
+        if (isWpPassed) 'passed_at': DateTime.now().toIso8601String(),
+      };
+    }).toList();
+
+    // 2. Fetch full polyline for fraction computation + sub-stop support
+    await _fetchFullRoutePolyline();
+
+    // Assign dist_fraction to passed stops + waypoint stops via polyline projection
+    if (_fullRoutePolyline.isNotEmpty) {
+      final totalDist = _fullRouteCumulativeDistances.isNotEmpty
+          ? _fullRouteCumulativeDistances.last
+          : 0.0;
+      for (final stop in [...passedFromApi, ...waypointStops]) {
+        final sLat = stop['lat'] as double;
+        final sLng = stop['lng'] as double;
+        double minD = double.infinity;
+        int bestIdx = 0;
+        for (int i = 0; i < _fullRoutePolyline.length; i++) {
+          final d = _haversineDistance(LatLng(sLat, sLng), _fullRoutePolyline[i]);
+          if (d < minD) { minD = d; bestIdx = i; }
+        }
+        stop['dist_fraction'] = totalDist > 0
+            ? _fullRouteCumulativeDistances[bestIdx] / totalDist
+            : 0.0;
+      }
+    }
+
+    // 3. Generate upcoming stops client-side from driver → destination
+    final driverPos = _currentLatLng ?? _pickupLatLng!;
+    final remainingKm = (_trackingData?.remainingDistanceKm ?? 0).toDouble();
+    // When trip hasn't started yet (remainingKm == 0), use full route distance
+    // from polyline so the stop count is correct even before the driver moves.
+    final polyTotalDistKm = _fullRouteCumulativeDistances.isNotEmpty
+        ? _fullRouteCumulativeDistances.last / 1000
+        : 0.0;
+    final effectiveRemainingKm = remainingKm > 0
+        ? remainingKm
+        : (polyTotalDistKm > 0 ? polyTotalDistKm : 1.0);
+
+    List<Map<String, dynamic>> upcomingStops = await TrackingStopsService.generateUpcomingStops(
+      driverPosition: driverPos,
+      destination: _destinationLatLng!,
+      remainingDistanceKm: effectiveRemainingKm,
+    );
+
+    // Fallback: if Google API failed, sample stops from cached polyline and
+    // reverse-geocode them with the right distance-aware strategy.
+    if (upcomingStops.isEmpty && _fullRoutePolyline.length >= 2) {
+      final polyTotalDist = _fullRouteCumulativeDistances.isNotEmpty
+          ? _fullRouteCumulativeDistances.last
+          : 0.0;
+      final stopCount = TrackingStopsService.recommendedStopCount(effectiveRemainingKm);
+      if (stopCount > 0 && polyTotalDist > 0) {
+        final interval = polyTotalDist / (stopCount + 1);
+        final List<LatLng> candidatePts = [];
+        for (int s = 1; s <= stopCount; s++) {
+          final targetDist = interval * s;
+          int idx = 0;
+          for (int j = 1; j < _fullRouteCumulativeDistances.length; j++) {
+            if (_fullRouteCumulativeDistances[j] >= targetDist) { idx = j; break; }
+          }
+          candidatePts.add(_fullRoutePolyline[idx]);
+        }
+        // Reverse-geocode in parallel using distance-aware strategy
+        final names = await Future.wait(
+          candidatePts.map((pt) => GoogleMapsService.reverseGeocode(
+              pt, routeDistanceKm: effectiveRemainingKm)),
+        );
+        for (int s = 0; s < candidatePts.length; s++) {
+          final name = names[s] ?? 'Stop ${s + 1}';
+          upcomingStops.add({
+            'name': name,
+            'lat': candidatePts[s].latitude,
+            'lng': candidatePts[s].longitude,
+            'status': 'upcoming',
+          });
+        }
+        debugPrint('🛣️ [STOPS] Fallback: ${upcomingStops.length} stops from polyline with geocoding');
+      }
+    }
+
+    // Convert upcoming stops to _fixedStops format with dist_fraction
+    final totalDist = _fullRouteCumulativeDistances.isNotEmpty
+        ? _fullRouteCumulativeDistances.last
+        : 0.0;
+    final upcomingMapped = upcomingStops.map((s) {
+      final sLat = (s['lat'] as num?)?.toDouble() ?? 0.0;
+      final sLng = (s['lng'] as num?)?.toDouble() ?? 0.0;
+      double fraction = 0.0;
+      if (_fullRoutePolyline.isNotEmpty && totalDist > 0) {
+        double minD = double.infinity;
+        int bestIdx = 0;
+        for (int i = 0; i < _fullRoutePolyline.length; i++) {
+          final d = _haversineDistance(LatLng(sLat, sLng), _fullRoutePolyline[i]);
+          if (d < minD) { minD = d; bestIdx = i; }
+        }
+        fraction = _fullRouteCumulativeDistances[bestIdx] / totalDist;
+      }
+      return <String, dynamic>{
+        'name': s['name']?.toString() ?? 'Stop',
+        'lat': sLat,
+        'lng': sLng,
+        'dist_fraction': fraction,
+        'is_key_stop': false,
+        // No passed_at — this is upcoming
+      };
+    }).toList();
+
+    // 4. Merge: passed (from DB) + waypoints (key stops) + upcoming (client-generated)
+    // Filter upcoming stops that duplicate a passed stop or waypoint (by name or proximity)
+    final fixedStopList = [...passedFromApi, ...waypointStops];
+    final fixedNames = fixedStopList.map((s) => (s['name'] as String).toLowerCase()).toSet();
+    final filtered = upcomingMapped.where((s) {
+      final name = (s['name'] as String).toLowerCase();
+      if (fixedNames.contains(name)) return false;
+      // Also filter by proximity — drop upcoming if within 500m of any fixed stop
+      final sLat = s['lat'] as double;
+      final sLng = s['lng'] as double;
+      for (final p in fixedStopList) {
+        final d = _haversineDistance(LatLng(sLat, sLng), LatLng(p['lat'] as double, p['lng'] as double));
+        if (d < 500) return false;
+      }
+      return true;
+    }).toList();
+
+    // Also filter duplicate waypoints against each other (by proximity)
+    final deduplicatedWaypoints = <Map<String, dynamic>>[];
+    for (final wp in waypointStops) {
+      final wpLat = wp['lat'] as double;
+      final wpLng = wp['lng'] as double;
+      bool dupOfPassed = false;
+      for (final p in passedFromApi) {
+        final d = _haversineDistance(LatLng(wpLat, wpLng), LatLng(p['lat'] as double, p['lng'] as double));
+        if (d < 500) { dupOfPassed = true; break; }
+      }
+      if (!dupOfPassed) deduplicatedWaypoints.add(wp);
+    }
+
+    final allStops = [...passedFromApi, ...deduplicatedWaypoints, ...filtered]
+      ..sort((a, b) => (a['dist_fraction'] as double).compareTo(b['dist_fraction'] as double));
+
+    _enforceMonotonicPassedAt(allStops);
+
+    if (mounted) {
+      setState(() {
+        _fixedStops = allStops;
+        _isLoadingFixedStops = false;
+      });
+    }
+    debugPrint('🗺️ [FIXED-STOPS] ${passedFromApi.length} passed (DB) + ${deduplicatedWaypoints.length} waypoints + ${filtered.length} upcoming (client) = ${allStops.length} total');
+    if (_currentLatLng != null) _updateProgress(_currentLatLng!);
+  }
+
+  // ── Sync newly confirmed passed stops from API into _fixedStops ──
+  void _syncPassedStopsFromApi(List<Map<String, dynamic>> apiPassedStops) {
+    if (apiPassedStops.isEmpty || _fixedStops.isEmpty) return;
+    int updated = 0;
+    for (final apiStop in apiPassedStops) {
+      final apiName = (apiStop['name'] as String? ?? '').toLowerCase();
+      final passedAt = apiStop['passed_at']?.toString();
+      if (passedAt == null) continue;
+      // Match by name or proximity
+      for (int i = 0; i < _fixedStops.length; i++) {
+        if (_fixedStops[i]['passed_at'] != null) continue; // already passed
+        final stopName = (_fixedStops[i]['name'] as String? ?? '').toLowerCase();
+        final sLat = _fixedStops[i]['lat'] as double;
+        final sLng = _fixedStops[i]['lng'] as double;
+        final aLat = (apiStop['lat'] as num?)?.toDouble() ?? 0.0;
+        final aLng = (apiStop['lng'] as num?)?.toDouble() ?? 0.0;
+        final dist = _haversineDistance(LatLng(sLat, sLng), LatLng(aLat, aLng));
+        if (stopName == apiName || dist < 300) {
+          _fixedStops[i]['passed_at'] = passedAt;
+          _fixedStops[i].remove('estimated_arrival');
+          _fixedStops[i].remove('estimated_date');
+          updated++;
+          break;
+        }
+      }
+    }
+    if (updated > 0) {
+      debugPrint('🔄 [SYNC] $updated stops marked passed from API');
+      if (mounted) setState(() {});
+    }
+  }
+
+  // ── Detect driver passing a client-generated upcoming stop → save to DB ──
+  final Set<String> _savedPassedStopNames = {};
+  Future<void> _checkAndSavePassedStops() async {
+    if (_currentLatLng == null || _pickupLatLng == null) return;
+    final driverDist = _haversineDistance(_pickupLatLng!, _currentLatLng!);
+
+    for (int i = 0; i < _fixedStops.length; i++) {
+      final stop = _fixedStops[i];
+      if (stop['passed_at'] != null) continue; // already confirmed passed
+      final name = stop['name'] as String? ?? '';
+      if (_savedPassedStopNames.contains(name)) continue;
+
+      final sLat = stop['lat'] as double;
+      final sLng = stop['lng'] as double;
+      final stopDist = _haversineDistance(_pickupLatLng!, LatLng(sLat, sLng));
+
+      // Driver is past this stop (more than 300m ahead of it)
+      if (driverDist > stopDist + 300) {
+        _savedPassedStopNames.add(name);
+        // Optimistically mark as passed in UI
+        final now = DateTime.now().toIso8601String();
+        if (mounted) {
+          setState(() {
+            _fixedStops[i]['passed_at'] = now;
+            _fixedStops[i].remove('estimated_arrival');
+            _fixedStops[i].remove('estimated_date');
+          });
+        }
+        // Save to DB
+        final distKm = stopDist / 1000;
+        unawaited(TrackingStopsService.savePassedStop(
+          bookingId: widget.bookingId,
+          name: name,
+          lat: sLat,
+          lng: sLng,
+          distFromPickupKm: distKm,
+          order: i,
+        ));
+        debugPrint('💾 [SAVE-STOP] "$name" saved as passed (driverDist=${driverDist.toStringAsFixed(0)}m > stopDist=${stopDist.toStringAsFixed(0)}m)');
+      }
+    }
   }
 
   bool _shouldRefreshRoute({bool forceRefresh = false}) {
@@ -3720,12 +3908,13 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           // API confirmed passed — use real time
           time = _formatDateTime(passedAt);
         } else if (apiEta != null && apiEta.isNotEmpty) {
-          // Use API's estimated arrival (works for both passed-without-passed_at and future)
+          // API provided estimated arrival
           time = apiEta;
+        } else {
+          // Client-generated upcoming stop — compute ETA from route fraction
+          final eta = _getTimeForFraction(stopFraction);
+          time = (eta.isNotEmpty && eta != '-') ? eta : 'Upcoming';
         }
-
-        // No time = don't show this stop
-        if (time == null || time == '-') continue;
 
         // Fractions for sub-stop generation on tap
         final nextFraction = i < _fixedStops.length - 1
@@ -3992,23 +4181,16 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       });
     }
 
-    // Intermediate stops from server (auto_timeline_points)
-    final List<Map<String, dynamic>> autoStops = [];
-    for (final pt in (_trackingData?.autoTimelinePoints ?? [])) {
-      final lat = (pt['lat'] as num?)?.toDouble() ?? 0.0;
-      final lng = (pt['lng'] as num?)?.toDouble() ?? 0.0;
-      if (lat == 0 && lng == 0) continue;
-      autoStops.add({
+    // Passed stops from DB (no auto_timeline_points — client generates upcoming)
+    final List<Map<String, dynamic>> autoStops = (_trackingData?.passedStops ?? []).map((pt) {
+      return {
         'name': pt['name']?.toString() ?? 'Stop',
-        'lat': lat,
-        'lng': lng,
+        'lat': (pt['lat'] as num?)?.toDouble() ?? 0.0,
+        'lng': (pt['lng'] as num?)?.toDouble() ?? 0.0,
         'is_key_stop': false,
         if (pt['passed_at'] != null) 'passed_at': pt['passed_at'],
-        if (pt['estimated_arrival'] != null)
-          'estimated_arrival': pt['estimated_arrival'],
-        if (pt['estimated_date'] != null) 'estimated_date': pt['estimated_date'],
-      });
-    }
+      };
+    }).where((s) => (s['lat'] as double) != 0 || (s['lng'] as double) != 0).toList();
 
     final allStops = [...waypointStops, ...autoStops];
 
@@ -4083,23 +4265,16 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       });
     }
 
-    // Intermediate stops from server (auto_timeline_points)
-    final List<Map<String, dynamic>> autoStops = [];
-    for (final pt in (_trackingData?.autoTimelinePoints ?? [])) {
-      final lat = (pt['lat'] as num?)?.toDouble() ?? 0.0;
-      final lng = (pt['lng'] as num?)?.toDouble() ?? 0.0;
-      if (lat == 0 && lng == 0) continue;
-      autoStops.add({
+    // Passed stops from DB (no auto_timeline_points — client generates upcoming)
+    final List<Map<String, dynamic>> autoStops = (_trackingData?.passedStops ?? []).map((pt) {
+      return {
         'name': pt['name']?.toString() ?? 'Stop',
-        'lat': lat,
-        'lng': lng,
+        'lat': (pt['lat'] as num?)?.toDouble() ?? 0.0,
+        'lng': (pt['lng'] as num?)?.toDouble() ?? 0.0,
         'is_key_stop': false,
         if (pt['passed_at'] != null) 'passed_at': pt['passed_at'],
-        if (pt['estimated_arrival'] != null)
-          'estimated_arrival': pt['estimated_arrival'],
-        if (pt['estimated_date'] != null) 'estimated_date': pt['estimated_date'],
-      });
-    }
+      };
+    }).where((s) => (s['lat'] as double) != 0 || (s['lng'] as double) != 0).toList();
 
     final allStops = [...waypointStops, ...autoStops];
     for (final stop in allStops) {
@@ -4300,7 +4475,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       final stops = decoded.map((item) {
         return Map<String, dynamic>.from(item);
       }).toList();
-      final apiPassedSignature = (_trackingData?.autoTimelinePoints ?? [])
+      final apiPassedSignature = (_trackingData?.passedStops ?? [])
           .map((pt) => pt['passed_at']?.toString() ?? '')
           .join('|');
       final cachePassedSignature =

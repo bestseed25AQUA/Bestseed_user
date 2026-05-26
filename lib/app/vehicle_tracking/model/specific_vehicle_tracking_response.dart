@@ -62,9 +62,12 @@ class TrackingData {
   final String? vehicleDescription;
   final String? inProgressAt;
   final List<RouteWaypoint> routeWaypoints;
-  // Server-computed intermediate stops — same list across all three apps
-  // so customer, employee and admin web always show identical location names.
-  final List<Map<String, dynamic>> autoTimelinePoints;
+  final double totalDistanceKm;
+  final double remainingDistanceKm;
+  // Passed stops saved in DB — actual times, permanent history
+  final List<Map<String, dynamic>> passedStops;
+  // Last ~60 GPS breadcrumbs for client-side path drawing and stop detection
+  final List<Map<String, dynamic>> driverBreadcrumbs;
   // True when driver has marked the booking as delivered (status == 5).
   // Authoritative signal for showing "Reached" on destination in the timeline.
   final bool isDelivered;
@@ -86,7 +89,10 @@ class TrackingData {
     this.vehicleDescription,
     this.inProgressAt,
     this.routeWaypoints = const [],
-    this.autoTimelinePoints = const [],
+    this.totalDistanceKm = 0,
+    this.remainingDistanceKm = 0,
+    this.passedStops = const [],
+    this.driverBreadcrumbs = const [],
     this.isDelivered = false,
     this.deliveredAt,
   });
@@ -142,7 +148,13 @@ class TrackingData {
               ?.map((e) => RouteWaypoint.fromJson(e))
               .toList() ??
           [],
-      autoTimelinePoints: (json['auto_timeline_points'] as List<dynamic>?)
+      totalDistanceKm: (json['total_distance_km'] as num?)?.toDouble() ?? 0,
+      remainingDistanceKm: (json['remaining_distance_km'] as num?)?.toDouble() ?? 0,
+      passedStops: (json['passed_stops'] as List<dynamic>?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          [],
+      driverBreadcrumbs: (json['driver_breadcrumbs'] as List<dynamic>?)
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??
           [],
@@ -176,9 +188,10 @@ class TrackingData {
 
       deliveryUpdates: DeliveryUpdates.fromJson(json['delivery_updates']),
 
-      timeline: (json['timeline'] as List<dynamic>)
-          .map((e) => TimelineItem.fromJson(e))
-          .toList(),
+      timeline: (json['timeline'] as List<dynamic>?)
+              ?.map((e) => TimelineItem.fromJson(e))
+              .toList() ??
+          [],
       vendorMobile: json['vendor_mobile']?.toString(),
       vehicleDescription: json['vehicle_description']?.toString(),
       inProgressAt: json['in_progress_at']?.toString(),
@@ -186,7 +199,13 @@ class TrackingData {
               ?.map((e) => RouteWaypoint.fromJson(e))
               .toList() ??
           [],
-      autoTimelinePoints: (json['auto_timeline_points'] as List<dynamic>?)
+      totalDistanceKm: (json['total_distance_km'] as num?)?.toDouble() ?? 0,
+      remainingDistanceKm: (json['remaining_distance_km'] as num?)?.toDouble() ?? 0,
+      passedStops: (json['passed_stops'] as List<dynamic>?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          [],
+      driverBreadcrumbs: (json['driver_breadcrumbs'] as List<dynamic>?)
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??
           [],
