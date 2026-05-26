@@ -511,27 +511,27 @@ class GoogleMapsService {
           ? cumulativeDistances[driverSplitIndex]
           : 0;
 
-      // Determine number of stops based on route distance (minimum 3 always)
-      int numStops;
-      if (totalDistanceMeters < 200000) {
-        numStops = min(3, maxStops);
-      } else if (totalDistanceMeters < 500000) {
-        numStops = min(5, maxStops);
-      } else {
-        numStops = maxStops;
-      }
+      // Use maxStops directly — caller already computed the correct count
+      // via TrackingStopsService.recommendedStopCount(distanceKm).
+      // The old internal cap (min(5, maxStops) for <500km) was overriding
+      // the caller's value and capping a 411km route at 5 stops instead of 10.
+      final int numStops = maxStops;
 
-      // Sample evenly-spaced intermediate stops
+      // Sample 2× candidate stops then deduplicate to get numStops unique names.
+      // Over-sampling ensures we still hit the target even after geocoding dedup
+      // (e.g. two sample points in the same city collapse to one name).
       List<Map<String, dynamic>> stops = [];
       if (numStops > 0 && totalPolylineDist > 0) {
-        double interval = totalPolylineDist / (numStops + 1);
-        for (int i = 1; i <= numStops; i++) {
+        final candidateCount = numStops * 2;
+        final List<Map<String, dynamic>> candidates = [];
+        double interval = totalPolylineDist / (candidateCount + 1);
+        for (int i = 1; i <= candidateCount; i++) {
           double targetDist = interval * i;
           LatLng point = _interpolatePointOnPolyline(
               targetDist, fullPolyline, cumulativeDistances);
           double fraction = targetDist / totalPolylineDist;
           bool passed = targetDist <= driverDistanceOnRoute;
-          stops.add({
+          candidates.add({
             'location': point,
             'distance_fraction': fraction,
             'estimated_seconds': (totalDurationSeconds * fraction).round(),
@@ -539,28 +539,27 @@ class GoogleMapsService {
           });
         }
 
-        // Reverse geocode all stops in parallel — pass route distance so
-        // the naming strategy matches the route scale.
+        // Reverse geocode all candidates in parallel — distance-aware naming.
         final routeDistKm = totalDistanceMeters / 1000.0;
         List<String?> names = await Future.wait(
-          stops.map((s) => reverseGeocode(s['location'] as LatLng,
+          candidates.map((s) => reverseGeocode(s['location'] as LatLng,
               routeDistanceKm: routeDistKm)),
         );
-        for (int i = 0; i < stops.length; i++) {
-          stops[i]['name'] = names[i] ?? 'Unknown';
+        for (int i = 0; i < candidates.length; i++) {
+          candidates[i]['name'] = names[i] ?? 'Unknown';
         }
 
-        // Remove all duplicate names (keep first occurrence)
-        List<Map<String, dynamic>> uniqueStops = [];
+        // Deduplicate: keep first occurrence of each name, skip Unknown.
+        // Stop once we have numStops unique named stops.
         Set<String> seenNames = {};
-        for (var stop in stops) {
+        for (var stop in candidates) {
+          if (stops.length >= numStops) break;
           final name = stop['name'] as String;
           if (name != 'Unknown' && !seenNames.contains(name)) {
-            uniqueStops.add(stop);
+            stops.add(stop);
             seenNames.add(name);
           }
         }
-        stops = uniqueStops;
       }
 
       final result = {
