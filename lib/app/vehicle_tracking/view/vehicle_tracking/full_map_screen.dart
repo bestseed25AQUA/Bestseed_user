@@ -14,12 +14,13 @@ class FullScreenMapPage extends StatefulWidget {
   final String driverName;
 
   final List<LatLng> routePoints;
-  final List<LatLng> driverToPickupPoints;
+  final List<LatLng> completedRoutePoints;
 
   final BitmapDescriptor? driverIcon;
   final BitmapDescriptor? pickupIcon;
   final BitmapDescriptor? destinationIcon;
 
+  final double driverBearing;
   final String lastUpdateTime;
   final String lastUpdateAddress;
 
@@ -33,10 +34,11 @@ class FullScreenMapPage extends StatefulWidget {
     required this.driverLng,
     required this.driverName,
     required this.routePoints,
-    this.driverToPickupPoints = const [],
+    this.completedRoutePoints = const [],
     required this.driverIcon,
     required this.pickupIcon,
     required this.destinationIcon,
+    this.driverBearing = 0,
     required this.lastUpdateTime,
     required this.lastUpdateAddress,
   });
@@ -120,6 +122,9 @@ class _FullScreenMapPageState extends State<FullScreenMapPage> {
                   markerId: const MarkerId("driver"),
                   position: driver,
                   icon: widget.driverIcon!,
+                  anchor: const Offset(0.5, 0.5),
+                  rotation: widget.driverBearing,
+                  flat: true,
                 ),
             },
             polylines: {
@@ -130,13 +135,12 @@ class _FullScreenMapPageState extends State<FullScreenMapPage> {
                   color: Colors.blue,
                   width: 5,
                 ),
-              if (widget.driverToPickupPoints.length >= 2)
+              if (widget.completedRoutePoints.length >= 2)
                 Polyline(
-                  polylineId: const PolylineId("driver_to_pickup"),
-                  points: widget.driverToPickupPoints,
+                  polylineId: const PolylineId("completed_route"),
+                  points: widget.completedRoutePoints,
                   color: const Color(0xFF34A853),
-                  width: 5,
-                  patterns: [PatternItem.dot, PatternItem.gap(10)],
+                  width: 6,
                 ),
             },
           ),

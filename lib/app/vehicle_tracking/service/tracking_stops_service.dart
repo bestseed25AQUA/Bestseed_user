@@ -12,13 +12,17 @@ import 'package:seedsuser/app/utils/google_maps_service.dart';
 class TrackingStopsService {
   /// Calculate recommended stop count based on total distance.
   static int recommendedStopCount(double totalDistanceKm) {
-    if (totalDistanceKm <= 3) return 1;
-    if (totalDistanceKm <= 20) return 3;
-    if (totalDistanceKm <= 100) return 5;
-    if (totalDistanceKm <= 200) return 7;
-    if (totalDistanceKm <= 500) return 10;
-    if (totalDistanceKm <= 1000) return 13;
-    return 15;
+    if (totalDistanceKm <= 0.5) return 0;
+    if (totalDistanceKm <= 2) return 1;
+    if (totalDistanceKm <= 5) return 2;
+    if (totalDistanceKm <= 10) return 3;
+    if (totalDistanceKm <= 20) return 4;
+    if (totalDistanceKm <= 50) return 5;
+    if (totalDistanceKm <= 100) return 7;
+    if (totalDistanceKm <= 200) return 9;
+    if (totalDistanceKm <= 500) return 12;
+    if (totalDistanceKm <= 1000) return 15;
+    return 18;
   }
 
   /// Calculate sub-stop count based on gap between two main stops.

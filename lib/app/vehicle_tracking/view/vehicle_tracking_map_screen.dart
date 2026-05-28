@@ -255,6 +255,15 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   // `journey_start + fraction × original`, so a halt at any stop pushes
   // every downstream stop forward by the halt duration automatically.
   int _remainingDurationSeconds = 0;
+  DateTime _remainingDurationSetAt = DateTime.now();
+
+  /// Returns the remaining seconds adjusted for wall-clock time elapsed
+  /// since the value was last set by the Directions API.
+  int get _liveRemainingSeconds {
+    if (_remainingDurationSeconds <= 0) return 0;
+    final elapsed = DateTime.now().difference(_remainingDurationSetAt).inSeconds;
+    return (_remainingDurationSeconds - elapsed).clamp(0, _remainingDurationSeconds);
+  }
 
   // Refresh state
   DateTime _lastRefreshedAt = DateTime.now();
@@ -300,7 +309,9 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       if (!mounted) return;
       _liveTrackingTimer = Timer.periodic(_liveTrackingPollInterval, (_) {
         if (mounted && !_isRefreshing) {
-          _refreshData();
+          _refreshData().catchError((e) {
+            debugPrint('🔄 [REFRESH] Timer error: $e');
+          });
         }
       });
     });
@@ -333,15 +344,22 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       zoom: 10.0,
     );
 
-    // Load custom markers first (both sizes)
+    // Load custom markers (non-blocking, fast — just image decoding)
     await _loadCustomMarkers();
 
-    // Then setup markers and routes
-    await _setupMarkersAndPolylines();
-
-    setState(() {
-      _lastRefreshedAt = DateTime.now();
-    });
+    // Setup markers, route and polylines — show UI as soon as markers are ready
+    try {
+      await _setupMarkersAndPolylines();
+    } catch (e) {
+      debugPrint('🗺️ [INIT] Route setup error: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingRoute = false;
+          _lastRefreshedAt = DateTime.now();
+        });
+      }
+    }
   }
 
   Future<void> _refreshData({bool forceRouteRefresh = false}) async {
@@ -374,21 +392,40 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           // rejection streak followed by an accepted point produces a
           // visible "snap back to pickup → straight line forward" jump.
           //
-          // Skip processing entirely when the new position is within ~2 m
-          // of the previously rendered position. The marker holds, no
-          // index update, no breadcrumb noise. We still tick the refresh
-          // timestamp so the "Updated X ago" UI keeps moving.
-          if (!forceRouteRefresh &&
-              previousVehiclePosition != null &&
-              _haversineMeters(previousVehiclePosition, newPos) < 2) {
-            debugPrint('🔄 [REFRESH] ⏭️ Skipped — driver moved <2m (stale poll)');
-            _lastRefreshedAt = DateTime.now();
-            return; // exits the try block; finally still runs
-          }
-          debugPrint('🔄 [REFRESH] ✅ Processing new position');
+          // Check if driver actually moved — used to skip breadcrumb noise,
+          // but always update position, stops, and ETA.
+          final bool driverMoved = forceRouteRefresh ||
+              previousVehiclePosition == null ||
+              _haversineMeters(previousVehiclePosition, newPos) >= 2;
 
+          if (!driverMoved) {
+            debugPrint('🔄 [REFRESH] Driver stationary (<2m) — updating stops/ETA only');
+          } else {
+            debugPrint('🔄 [REFRESH] ✅ Processing new position');
+          }
+
+          // Always update position so marker and ETA reflect latest
           _currentVehiclePosition = newPos;
           _currentLatLng = newPos;
+
+          // Update ETA from remaining distance (recalculate on every poll)
+          if (_destinationLatLng != null) {
+            double etaDistKm = (newData.remainingDistanceKm ?? 0).toDouble();
+            // If API remaining_distance_km is 0 or stale, use haversine
+            if (etaDistKm <= 0) {
+              etaDistKm = _haversineDistance(_currentLatLng!, _destinationLatLng!) / 1000;
+            }
+            if (etaDistKm > 0.1) {
+              // Use 40 km/h average for city, higher for highway
+              final avgSpeedKmh = etaDistKm > 50 ? 60.0 : 40.0;
+              final etaSeconds = ((etaDistKm / avgSpeedKmh) * 3600).round();
+              // Set fresh — no countdown needed, recalculated every poll
+              _remainingDurationSeconds = etaSeconds;
+              _remainingDurationSetAt = DateTime.now();
+              _estimatedDuration = _formatDuration(etaSeconds);
+              debugPrint('🕐 [ETA] dist=${etaDistKm.toStringAsFixed(1)}km speed=${avgSpeedKmh}kmh → ${_formatDuration(etaSeconds)}');
+            }
+          }
 
           // Update speed estimate for dynamic thresholds (city vs highway)
           _updateSpeedEstimate(newPos);
@@ -396,6 +433,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           // ── Use backend is_moving flag to stop drawing when stationary ──
           _driverIsMoving = newData.driverLocation.isMoving;
 
+          // ── Collect GPS breadcrumb (actual path driven) — only when moved ──
+          if (!driverMoved) {
+            // Skip breadcrumb processing but continue to stops/ETA below
+          } else {
           // ── Collect GPS breadcrumb (actual path driven) ──
           // Pipeline: filter → validate → buffer → snap → commit
           // CITY: strict snapping, never raw GPS, higher thresholds
@@ -549,6 +590,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
               }
             }
           }
+        } // end if (driverMoved) else breadcrumb block
         }
 
         // Check if route endpoints changed (rare — usually only driver moves)
@@ -556,32 +598,35 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         final dropChanged = oldDrop?.name != newData.drop.name;
         final routeChanged = pickupChanged || dropChanged;
 
-        if (routeChanged) {
-          // Route rebuild — reset route-related state
-          _routeStops = [];
-          _routeStartTime = null;
-          _totalRouteDurationSeconds = 0;
-          _estimatedDuration = '';
-          _fullPolyline = [];
-          _cumulativeDistances = [];
-          _currentSegmentIndex = 0;
-          _expandedSegmentIndex = null;
-          _subStopsCache = {};
-          _loadingSegment = null;
-          // Reset fixed timeline so it regenerates from new full route
-          _fixedStopsGenerated = false;
-          _fixedStops = [];
-          _currentStopIndex = -1;
-          _fullRoutePolyline = [];
-          _fullRouteCumulativeDistances = [];
-          _fullRouteDurationSeconds = 0;
-          _passedStopTimes = {};
-          // Clear cached stops so they regenerate
-          SharedPreferences.getInstance().then((prefs) {
-            prefs.remove('fixed_stops_${widget.bookingId}');
-            prefs.remove('stop_index_${widget.bookingId}');
-            prefs.remove('passed_stop_times_${widget.bookingId}');
-          });
+        // Retry full setup if route never loaded (polyline empty)
+        final routeNeverLoaded = _fullPolyline.isEmpty && _pickupLatLng != null && _destinationLatLng != null;
+
+        if (routeChanged || routeNeverLoaded) {
+          if (routeNeverLoaded && !routeChanged) {
+            debugPrint('🔄 [REFRESH] Route never loaded — retrying full setup');
+          }
+          // Only reset state on actual route change, not on retry
+          if (routeChanged) {
+            _routeStops = [];
+            _routeStartTime = null;
+            _totalRouteDurationSeconds = 0;
+            _estimatedDuration = '';
+            _remainingDurationSeconds = 0;
+            _remainingDurationSetAt = DateTime.now();
+            _fullPolyline = [];
+            _cumulativeDistances = [];
+            _currentSegmentIndex = 0;
+            _expandedSegmentIndex = null;
+            _subStopsCache = {};
+            _loadingSegment = null;
+            _fixedStopsGenerated = false;
+            _fixedStops = [];
+            _currentStopIndex = -1;
+            _fullRoutePolyline = [];
+            _fullRouteCumulativeDistances = [];
+            _fullRouteDurationSeconds = 0;
+            _passedStopTimes = {};
+          }
 
           // Only reset breadcrumbs if PICKUP changed (new journey origin).
           // If only destination changed, keep the driven path — it's still
@@ -604,30 +649,45 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
             // Wipe any leftover green-polyline cache from older app versions
             // (the timeline-from-API system that was removed) so nothing stale
             // resurfaces on the new journey.
-            SharedPreferences.getInstance().then((prefs) {
-              prefs.remove('green_polyline_v2_${widget.bookingId}');
-              prefs.remove('green_signature_v2_${widget.bookingId}');
-              prefs.remove('green_polyline_${widget.bookingId}');
-              prefs.remove('green_signature_${widget.bookingId}');
-            });
+            // No cache to clear — all data is fresh from API
           }
 
           await _setupMarkersAndPolylines();
         } else {
-          // ── Update passed stops from API on each refresh ──
-          // Sync newly confirmed passed stops into _fixedStops
-          if (forceRouteRefresh || true) {
-            _syncPassedStopsFromApi(newData.passedStops);
+          // Ensure pickup/destination are set (might be null if initial setup failed)
+          if (_pickupLatLng == null && newData.pickup.lat != 0 && newData.pickup.lng != 0) {
+            _pickupLatLng = LatLng(newData.pickup.lat, newData.pickup.lng);
           }
-          // Detect if driver passed any upcoming (client-generated) stop
-          if (_currentLatLng != null && _pickupLatLng != null) {
-            await _checkAndSavePassedStops();
+          if (_destinationLatLng == null && newData.drop.lat != 0 && newData.drop.lng != 0) {
+            _destinationLatLng = LatLng(newData.drop.lat, newData.drop.lng);
           }
+
+          // Rebuild timeline whenever API passed stop count changes.
+          // Always rebuild from scratch to ensure API names take priority
+          // over client-generated stop names.
+          final apiPassedCount = newData.passedStops.length;
+          final currentApiStopCount = _fixedStops.where((s) =>
+              s['api_time'] != null).length;
+          debugPrint('🔄 [POLL] apiPassed=$apiPassedCount currentApi=$currentApiStopCount fixedStops=${_fixedStops.length} driver=(${_currentLatLng?.latitude},${_currentLatLng?.longitude})');
+          if (apiPassedCount != currentApiStopCount || (_fixedStops.isEmpty && apiPassedCount > 0)) {
+            debugPrint('🔄 [POLL] Rebuilding timeline (passed count changed)');
+            _fixedStopsGenerated = false;
+            await _buildFixedStopsFromPassedAndUpcoming();
+            _fixedStopsGenerated = true;
+            debugPrint('🔄 [POLL] Rebuild done. fixedStops=${_fixedStops.length}');
+          } else {
+            debugPrint('🔄 [POLL] No rebuild needed — stops unchanged');
+          }
+
+          // Always update progress so vehicle icon moves in timeline
+          if (_currentLatLng != null) _updateProgress(_currentLatLng!);
           if (forceRouteRefresh) {
-            if (_currentLatLng != null) _updateProgress(_currentLatLng!);
             _buildGreenFromPolyline();
             unawaited(_refreshHomeToVehicleRoute());
-            if (mounted) setState(() {});
+          }
+          // Only call setState if no rebuild happened (rebuild does its own setState)
+          if (apiPassedCount == currentApiStopCount && mounted) {
+            setState(() {});
           }
 
           // Silent update — only move vehicle marker if REAL movement detected.
@@ -844,12 +904,14 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     if (_pickupLatLng != null && _destinationLatLng != null) {
       // Separate waypoints into delivered (completed) and remaining (pending/in-progress)
       // Sorted by priority so polyline follows the intended delivery order
+      // Use ALL waypoints (including completed ones) so the route polyline
+      // always goes through Vijayawada etc. — the green covered path needs
+      // the full road geometry, not just the remaining portion.
       final allWaypoints = _trackingData!.routeWaypoints
           .where((wp) => wp.lat != 0 && wp.lng != 0)
           .toList()
         ..sort((a, b) => a.priority.compareTo(b.priority));
       final remainingWaypoints = allWaypoints
-          .where((wp) => !wp.isCompleted)
           .map((wp) => LatLng(wp.lat, wp.lng))
           .toList();
 
@@ -891,6 +953,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         final remainingSeconds =
             routeData['remaining_duration_seconds'] as int? ?? 0;
         _remainingDurationSeconds = remainingSeconds;
+        _remainingDurationSetAt = DateTime.now();
 
         // Route start time from driver's last update
         final driverLocData = _trackingData!.driverLocation;
@@ -1103,14 +1166,15 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     _calculateInitialCameraPosition();
 
     // Green completed line: try Directions API first, fallback to polyline slice
-    // Show fallback immediately so green line appears instantly, then upgrade
-    // when the API responds with road-aligned points.
     _buildGreenFromPolyline();
     unawaited(_refreshHomeToVehicleRoute());
 
+    // Merge green line into polylines set (don't overwrite it)
+    final h2v = _buildHomeToVehiclePolyline();
+    if (h2v != null) polylines.add(h2v);
+
     setState(() {
       _polylines = polylines;
-      _isLoadingRoute = false;
       // NOTE: do NOT seed `_lastRouteRefreshAt` here. If we do, the
       // cooldown gate blocks the first reroute for `_rerouteCooldown`
       // seconds after setup — and if the customer opens the screen
@@ -1120,6 +1184,18 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     });
 
     // ── FIXED TIMELINE: passed stops from DB (API) + upcoming generated client-side ──
+    // Force rebuild if: no stops yet, or at destination with stale upcoming stops.
+    final apiHasStops = (_trackingData?.passedStops ?? []).isNotEmpty;
+    if (_fixedStopsGenerated && _fixedStops.isEmpty && apiHasStops) {
+      _fixedStopsGenerated = false; // rebuild — API has stops but we don't
+    }
+    final bool atDest = _currentLatLng != null &&
+        _destinationLatLng != null &&
+        _haversineDistance(_currentLatLng!, _destinationLatLng!) < 500;
+    if (atDest && _fixedStopsGenerated) {
+      final hasUpcoming = _fixedStops.any((s) => s['api_time'] == null && s['passed_at'] == null);
+      if (hasUpcoming) _fixedStopsGenerated = false;
+    }
     if (!_fixedStopsGenerated && _pickupLatLng != null && _destinationLatLng != null) {
       await _buildFixedStopsFromPassedAndUpcoming();
       _fixedStopsGenerated = true;
@@ -1130,46 +1206,74 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   // ── Build _fixedStops from API passed_stops + client-generated upcoming ──
   Future<void> _buildFixedStopsFromPassedAndUpcoming() async {
     if (_pickupLatLng == null || _destinationLatLng == null) return;
-    setState(() => _isLoadingFixedStops = true);
+    // Only show loading on first load, not on rebuilds (silent update)
+    if (_fixedStops.isEmpty) {
+      if (_fixedStops.isEmpty) setState(() => _isLoadingFixedStops = true);
+    }
 
     // 1. Passed stops from DB (permanent, actual times)
-    final passedFromApi = (_trackingData?.passedStops ?? []).map((pt) {
+    // Filter out stops whose name is just a city/state from pickup or destination
+    // address (e.g. "Hyderabad", "Telangana", "Andhra Pradesh").
+    final pickupAddr = _trackingData?.pickup.name ?? '';
+    final dropAddr = _trackingData?.drop.name ?? '';
+    final Set<String> cityNames = {};
+    for (final addr in [pickupAddr, dropAddr]) {
+      for (final part in addr.split(',')) {
+        final p = part.trim().toLowerCase();
+        if (p.isNotEmpty) cityNames.add(p);
+      }
+    }
+    // Also exclude common broad names
+    cityNames.addAll(['india', 'in']);
+
+    final passedFromApi = (_trackingData?.passedStops ?? [])
+        .where((pt) {
+          final name = (pt['name']?.toString() ?? '').toLowerCase().trim();
+          return name.isNotEmpty && !cityNames.contains(name);
+        })
+        .map((pt) {
       return <String, dynamic>{
         'name': pt['name']?.toString() ?? 'Stop',
         'lat': (pt['lat'] as num?)?.toDouble() ?? 0.0,
         'lng': (pt['lng'] as num?)?.toDouble() ?? 0.0,
         'dist_fraction': 0.0,
         'passed_at': pt['passed_at']?.toString(),
+        // Store raw API time/date for direct display (avoids re-parsing)
+        'api_time': pt['time']?.toString(),
+        'api_date': pt['date']?.toString(),
         'is_key_stop': false,
       };
     }).toList();
 
-    // 1b. Route waypoints (key delivery stops — always shown)
-    final waypoints = (_trackingData?.routeWaypoints ?? [])
-      ..sort((a, b) => a.priority.compareTo(b.priority));
-    final waypointStops = waypoints
-        .where((wp) => wp.lat != 0 && wp.lng != 0)
+    // 1b. Route waypoints (key delivery stops — e.g. Secunderabad via booking 829)
+    // Admin-set waypoints always show. Only skip if exact same coords as drop.
+    final waypointStops = (_trackingData?.routeWaypoints ?? [])
+        .where((wp) {
+          if (wp.lat == 0 || wp.lng == 0) return false;
+          // Skip only if exact same location as destination (within 500m)
+          if (_destinationLatLng != null &&
+              _haversineDistance(LatLng(wp.lat, wp.lng), _destinationLatLng!) < 500) return false;
+          return true;
+        })
         .map((wp) {
-      final isWpPassed = wp.status == 5 || wp.status == 6;
       return <String, dynamic>{
         'name': wp.name.isNotEmpty ? wp.name.split(',').first.trim() : 'Stop',
         'lat': wp.lat,
         'lng': wp.lng,
-        'dist_fraction': 0.0,
+        'dist_fraction': 0.0, // computed below via polyline projection
         'is_key_stop': true,
-        if (isWpPassed) 'passed_at': DateTime.now().toIso8601String(),
       };
     }).toList();
 
     // 2. Fetch full polyline for fraction computation + sub-stop support
     await _fetchFullRoutePolyline();
 
-    // Assign dist_fraction to passed stops + waypoint stops via polyline projection
-    if (_fullRoutePolyline.isNotEmpty) {
-      final totalDist = _fullRouteCumulativeDistances.isNotEmpty
-          ? _fullRouteCumulativeDistances.last
-          : 0.0;
-      for (final stop in [...passedFromApi, ...waypointStops]) {
+    // Assign dist_fraction to passed stops + waypoint stops
+    final allStopsToFraction = [...passedFromApi, ...waypointStops];
+    if (_fullRoutePolyline.isNotEmpty && _fullRouteCumulativeDistances.isNotEmpty) {
+      // Polyline available — use projection for accurate fraction
+      final totalDist = _fullRouteCumulativeDistances.last;
+      for (final stop in allStopsToFraction) {
         final sLat = stop['lat'] as double;
         final sLng = stop['lng'] as double;
         double minD = double.infinity;
@@ -1182,78 +1286,143 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
             ? _fullRouteCumulativeDistances[bestIdx] / totalDist
             : 0.0;
       }
-    }
-
-    // 3. Generate upcoming stops client-side along full remaining route:
-    //    driver → [pickup if not yet reached] → [uncompleted waypoints] → destination
-    final driverPos = _currentLatLng ?? _pickupLatLng!;
-    final remainingKm = (_trackingData?.remainingDistanceKm ?? 0).toDouble();
-    final polyTotalDistKm = _fullRouteCumulativeDistances.isNotEmpty
-        ? _fullRouteCumulativeDistances.last / 1000
-        : 0.0;
-    final effectiveRemainingKm = remainingKm > 0
-        ? remainingKm
-        : (polyTotalDistKm > 0 ? polyTotalDistKm : 1.0);
-
-    // Build ordered mandatory waypoints the driver still has to visit:
-    // 1. Pickup — if driver hasn't reached it yet (>500m away)
-    // 2. Uncompleted route_waypoints in priority order
-    final List<LatLng> mandatoryWaypoints = [];
-    if (_pickupLatLng != null) {
-      final distToPickup = _haversineDistance(driverPos, _pickupLatLng!);
-      if (distToPickup > 500) {
-        mandatoryWaypoints.add(_pickupLatLng!);
+    } else if (_pickupLatLng != null && _destinationLatLng != null) {
+      // Fallback: use haversine distance ratio (pickup → stop / pickup → dest)
+      final totalDist = _haversineDistance(_pickupLatLng!, _destinationLatLng!);
+      if (totalDist > 0) {
+        for (final stop in allStopsToFraction) {
+          final sLat = stop['lat'] as double;
+          final sLng = stop['lng'] as double;
+          final stopDist = _haversineDistance(_pickupLatLng!, LatLng(sLat, sLng));
+          stop['dist_fraction'] = (stopDist / totalDist).clamp(0.0, 1.0);
+        }
       }
     }
-    final unvisitedWaypoints = (_trackingData?.routeWaypoints ?? [])
-        .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isCompleted)
-        .toList()
-      ..sort((a, b) => a.priority.compareTo(b.priority));
-    for (final wp in unvisitedWaypoints) {
-      mandatoryWaypoints.add(LatLng(wp.lat, wp.lng));
+
+    // 3. Generate upcoming stops client-side for the route portion NOT covered
+    //    by API passed stops. Uses last passed stop (or pickup) as origin so
+    //    that stops always fill the gap to destination — even if driver has arrived.
+    final driverPos = _currentLatLng ?? _pickupLatLng!;
+
+    // Use last API passed stop as origin for upcoming stops generation.
+    // This fills the gap between the last confirmed stop and destination,
+    // even if the driver has already arrived at destination.
+    LatLng upcomingOrigin = driverPos;
+    if (passedFromApi.isNotEmpty) {
+      final lastPassed = passedFromApi.last;
+      final lpLat = lastPassed['lat'] as double;
+      final lpLng = lastPassed['lng'] as double;
+      upcomingOrigin = LatLng(lpLat, lpLng);
     }
-    debugPrint('🛣️ [STOPS] Route: driver → ${mandatoryWaypoints.length} waypoints → destination');
 
-    List<Map<String, dynamic>> upcomingStops = await TrackingStopsService.generateUpcomingStops(
-      driverPosition: driverPos,
-      destination: _destinationLatLng!,
-      remainingDistanceKm: effectiveRemainingKm,
-      waypoints: mandatoryWaypoints,
-    );
-
-    // Fallback: if Google API failed, sample stops from cached polyline and
-    // reverse-geocode them with the right distance-aware strategy.
-    if (upcomingStops.isEmpty && _fullRoutePolyline.length >= 2) {
-      final polyTotalDist = _fullRouteCumulativeDistances.isNotEmpty
-          ? _fullRouteCumulativeDistances.last
+    List<Map<String, dynamic>> upcomingStops = [];
+    {
+      final remainingKm = _haversineDistance(upcomingOrigin, _destinationLatLng!) / 1000;
+      final polyTotalDistKm = _fullRouteCumulativeDistances.isNotEmpty
+          ? _fullRouteCumulativeDistances.last / 1000
           : 0.0;
-      final stopCount = TrackingStopsService.recommendedStopCount(effectiveRemainingKm);
-      if (stopCount > 0 && polyTotalDist > 0) {
-        final interval = polyTotalDist / (stopCount + 1);
-        final List<LatLng> candidatePts = [];
-        for (int s = 1; s <= stopCount; s++) {
-          final targetDist = interval * s;
-          int idx = 0;
-          for (int j = 1; j < _fullRouteCumulativeDistances.length; j++) {
-            if (_fullRouteCumulativeDistances[j] >= targetDist) { idx = j; break; }
+      final effectiveRemainingKm = remainingKm > 1
+          ? remainingKm
+          : (polyTotalDistKm > 0 ? polyTotalDistKm : 1.0);
+
+      // Generate if there's meaningful distance left (>1km from origin to dest)
+      if (remainingKm > 1) {
+        // Build ordered mandatory waypoints still ahead of the origin
+        final List<LatLng> mandatoryWaypoints = [];
+        final unvisitedWaypoints = (_trackingData?.routeWaypoints ?? [])
+            .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isCompleted)
+            .toList()
+          ..sort((a, b) => a.priority.compareTo(b.priority));
+        for (final wp in unvisitedWaypoints) {
+          // Only include waypoints that are ahead of the origin
+          final wpDistFromPickup = _haversineDistance(_pickupLatLng!, LatLng(wp.lat, wp.lng));
+          final originDistFromPickup = _haversineDistance(_pickupLatLng!, upcomingOrigin);
+          if (wpDistFromPickup > originDistFromPickup) {
+            mandatoryWaypoints.add(LatLng(wp.lat, wp.lng));
           }
-          candidatePts.add(_fullRoutePolyline[idx]);
         }
-        // Reverse-geocode in parallel using distance-aware strategy
-        final names = await Future.wait(
-          candidatePts.map((pt) => GoogleMapsService.reverseGeocode(
-              pt, routeDistanceKm: effectiveRemainingKm)),
+        debugPrint('🛣️ [STOPS] Route: origin(${upcomingOrigin.latitude.toStringAsFixed(2)},${upcomingOrigin.longitude.toStringAsFixed(2)}) → ${mandatoryWaypoints.length} waypoints → destination');
+
+        upcomingStops = await TrackingStopsService.generateUpcomingStops(
+          driverPosition: upcomingOrigin,
+          destination: _destinationLatLng!,
+          remainingDistanceKm: effectiveRemainingKm,
+          waypoints: mandatoryWaypoints,
         );
-        for (int s = 0; s < candidatePts.length; s++) {
-          final name = names[s] ?? 'Stop ${s + 1}';
-          upcomingStops.add({
-            'name': name,
-            'lat': candidatePts[s].latitude,
-            'lng': candidatePts[s].longitude,
-            'status': 'upcoming',
-          });
+      }
+    }
+
+    // Fallback 1: if no stops, generate from straight-line midpoints + geocode
+    if (upcomingStops.isEmpty && _pickupLatLng != null && _destinationLatLng != null) {
+      final distKm = _haversineDistance(upcomingOrigin, _destinationLatLng!) / 1000;
+      final stopCount = TrackingStopsService.recommendedStopCount(distKm);
+      // For short routes (<10km), skip city name filter because the whole
+      // route is within the same city — filtering removes all results.
+      final bool skipCityFilter = distKm < 10;
+      if (stopCount > 0 && distKm > 0.5) {
+        final oLat = upcomingOrigin.latitude;
+        final oLng = upcomingOrigin.longitude;
+        final dLat = _destinationLatLng!.latitude;
+        final dLng = _destinationLatLng!.longitude;
+        for (int s = 1; s <= stopCount; s++) {
+          final frac = s / (stopCount + 1);
+          final lat = oLat + (dLat - oLat) * frac;
+          final lng = oLng + (dLng - oLng) * frac;
+          final name = await GoogleMapsService.reverseGeocode(
+            LatLng(lat, lng), routeDistanceKm: distKm);
+          // Always filter pickup address parts even on short routes
+          final pickupParts = pickupAddr.split(',').map((p) => p.trim().toLowerCase()).where((p) => p.isNotEmpty).toSet();
+          final nameLower = (name ?? '').toLowerCase().trim();
+          if (name != null && name.isNotEmpty &&
+              !pickupParts.contains(nameLower) &&
+              (skipCityFilter || !cityNames.contains(nameLower))) {
+            upcomingStops.add({
+              'name': name,
+              'lat': lat,
+              'lng': lng,
+              'status': 'upcoming',
+            });
+          }
         }
-        debugPrint('🛣️ [STOPS] Fallback: ${upcomingStops.length} stops from polyline with geocoding');
+        debugPrint('🛣️ [STOPS] Midpoint fallback: ${upcomingStops.length} stops (skipCityFilter=$skipCityFilter)');
+      }
+    }
+
+    // Fallback 2: if Google API failed, sample stops from cached polyline.
+    if (upcomingStops.isEmpty && _fullRoutePolyline.length >= 2) {
+      final fallbackRemainingKm = _haversineDistance(upcomingOrigin, _destinationLatLng!) / 1000;
+      if (fallbackRemainingKm > 1) {
+        final polyTotalDist = _fullRouteCumulativeDistances.isNotEmpty
+            ? _fullRouteCumulativeDistances.last
+            : 0.0;
+        final stopCount = TrackingStopsService.recommendedStopCount(fallbackRemainingKm);
+        if (stopCount > 0 && polyTotalDist > 0) {
+          final interval = polyTotalDist / (stopCount + 1);
+          final List<LatLng> candidatePts = [];
+          for (int s = 1; s <= stopCount; s++) {
+            final targetDist = interval * s;
+            int idx = 0;
+            for (int j = 1; j < _fullRouteCumulativeDistances.length; j++) {
+              if (_fullRouteCumulativeDistances[j] >= targetDist) { idx = j; break; }
+            }
+            candidatePts.add(_fullRoutePolyline[idx]);
+          }
+          // Reverse-geocode in parallel using distance-aware strategy
+          final names = await Future.wait(
+            candidatePts.map((pt) => GoogleMapsService.reverseGeocode(
+                pt, routeDistanceKm: fallbackRemainingKm)),
+          );
+          for (int s = 0; s < candidatePts.length; s++) {
+            final name = names[s] ?? 'Stop ${s + 1}';
+            upcomingStops.add({
+              'name': name,
+              'lat': candidatePts[s].latitude,
+              'lng': candidatePts[s].longitude,
+              'status': 'upcoming',
+            });
+          }
+          debugPrint('🛣️ [STOPS] Fallback: ${upcomingStops.length} stops from polyline with geocoding');
+        }
       }
     }
 
@@ -1285,12 +1454,25 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     }).toList();
 
     // 4. Merge: passed (from DB) + waypoints (key stops) + upcoming (client-generated)
-    // Filter upcoming stops that duplicate a passed stop or waypoint (by name or proximity)
+    // For short routes (<10km), skip city name filter — entire route is in same area
+    final totalRouteKm = (_pickupLatLng != null && _destinationLatLng != null)
+        ? _haversineDistance(_pickupLatLng!, _destinationLatLng!) / 1000
+        : 999.0;
+    final bool shortRoute = totalRouteKm < 10;
     final fixedStopList = [...passedFromApi, ...waypointStops];
     final fixedNames = fixedStopList.map((s) => (s['name'] as String).toLowerCase()).toSet();
     final filtered = upcomingMapped.where((s) {
       final name = (s['name'] as String).toLowerCase();
       if (fixedNames.contains(name)) return false;
+      // Always filter pickup address parts (even on short routes)
+      // Only skip drop address filter for short routes
+      final pickupParts = <String>{};
+      for (final part in (pickupAddr).split(',')) {
+        final p = part.trim().toLowerCase();
+        if (p.isNotEmpty) pickupParts.add(p);
+      }
+      if (pickupParts.contains(name)) return false;
+      if (!shortRoute && cityNames.contains(name)) return false;
       // Also filter by proximity — drop upcoming if within 500m of any fixed stop
       final sLat = s['lat'] as double;
       final sLng = s['lng'] as double;
@@ -1329,80 +1511,8 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     if (_currentLatLng != null) _updateProgress(_currentLatLng!);
   }
 
-  // ── Sync newly confirmed passed stops from API into _fixedStops ──
-  void _syncPassedStopsFromApi(List<Map<String, dynamic>> apiPassedStops) {
-    if (apiPassedStops.isEmpty || _fixedStops.isEmpty) return;
-    int updated = 0;
-    for (final apiStop in apiPassedStops) {
-      final apiName = (apiStop['name'] as String? ?? '').toLowerCase();
-      final passedAt = apiStop['passed_at']?.toString();
-      if (passedAt == null) continue;
-      // Match by name or proximity
-      for (int i = 0; i < _fixedStops.length; i++) {
-        if (_fixedStops[i]['passed_at'] != null) continue; // already passed
-        final stopName = (_fixedStops[i]['name'] as String? ?? '').toLowerCase();
-        final sLat = _fixedStops[i]['lat'] as double;
-        final sLng = _fixedStops[i]['lng'] as double;
-        final aLat = (apiStop['lat'] as num?)?.toDouble() ?? 0.0;
-        final aLng = (apiStop['lng'] as num?)?.toDouble() ?? 0.0;
-        final dist = _haversineDistance(LatLng(sLat, sLng), LatLng(aLat, aLng));
-        if (stopName == apiName || dist < 300) {
-          _fixedStops[i]['passed_at'] = passedAt;
-          _fixedStops[i].remove('estimated_arrival');
-          _fixedStops[i].remove('estimated_date');
-          updated++;
-          break;
-        }
-      }
-    }
-    if (updated > 0) {
-      debugPrint('🔄 [SYNC] $updated stops marked passed from API');
-      if (mounted) setState(() {});
-    }
-  }
+  // ── Sync passed stops from API into _fixedStops on each poll ──
 
-  // ── Detect driver passing a client-generated upcoming stop → save to DB ──
-  final Set<String> _savedPassedStopNames = {};
-  Future<void> _checkAndSavePassedStops() async {
-    if (_currentLatLng == null || _pickupLatLng == null) return;
-    final driverDist = _haversineDistance(_pickupLatLng!, _currentLatLng!);
-
-    for (int i = 0; i < _fixedStops.length; i++) {
-      final stop = _fixedStops[i];
-      if (stop['passed_at'] != null) continue; // already confirmed passed
-      final name = stop['name'] as String? ?? '';
-      if (_savedPassedStopNames.contains(name)) continue;
-
-      final sLat = stop['lat'] as double;
-      final sLng = stop['lng'] as double;
-      final stopDist = _haversineDistance(_pickupLatLng!, LatLng(sLat, sLng));
-
-      // Driver is past this stop (more than 300m ahead of it)
-      if (driverDist > stopDist + 300) {
-        _savedPassedStopNames.add(name);
-        // Optimistically mark as passed in UI
-        final now = DateTime.now().toIso8601String();
-        if (mounted) {
-          setState(() {
-            _fixedStops[i]['passed_at'] = now;
-            _fixedStops[i].remove('estimated_arrival');
-            _fixedStops[i].remove('estimated_date');
-          });
-        }
-        // Save to DB
-        final distKm = stopDist / 1000;
-        unawaited(TrackingStopsService.savePassedStop(
-          bookingId: widget.bookingId,
-          name: name,
-          lat: sLat,
-          lng: sLng,
-          distFromPickupKm: distKm,
-          order: i,
-        ));
-        debugPrint('💾 [SAVE-STOP] "$name" saved as passed (driverDist=${driverDist.toStringAsFixed(0)}m > stopDist=${stopDist.toStringAsFixed(0)}m)');
-      }
-    }
-  }
 
   bool _shouldRefreshRoute({bool forceRefresh = false}) {
     if (forceRefresh) return true;
@@ -1446,6 +1556,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     // Reroute origin = current driver position, so the entire new
     // duration IS the remaining duration.
     _remainingDurationSeconds = _totalRouteDurationSeconds;
+    _remainingDurationSetAt = DateTime.now();
 
     // Reset segment index AND snap pipeline state for the new route
     // geometry — bearing/parallel references no longer apply.
@@ -1512,11 +1623,11 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       // Arrived: drop the in-flight 'completed' / 'remaining' / dotted
       // green lines. The 'completed' breadcrumb polyline is intentionally
       // not redrawn — replaced by the green dotted home→vehicle polyline.
+      // Arrived: keep green line (home_to_vehicle), remove blue route lines
       final arrivedPolylines = _polylines
           .where((p) =>
               p.polylineId.value != 'completed' &&
-              p.polylineId.value != 'remaining' &&
-              p.polylineId.value != 'home_to_vehicle')
+              p.polylineId.value != 'remaining')
           .toSet();
       if (mounted) setState(() => _polylines = arrivedPolylines);
       return;
@@ -2671,9 +2782,9 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
                       ),
                       if (!arrivedAtDrop)
                         Text(
-                          // Stable ETA — no adaptive speed scaling
-                          _remainingDurationSeconds > 0
-                              ? _formatDuration(_remainingDurationSeconds)
+                          // Live ETA — decreases with wall-clock time
+                          _liveRemainingSeconds > 0
+                              ? _formatDuration(_liveRemainingSeconds)
                               : _estimatedDuration,
                           style: TextStyle(
                             fontSize: width * 0.038,
@@ -2868,9 +2979,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     if (_trackingData == null) return const SizedBox.shrink();
 
     final driverLoc = _trackingData!.driverLocation;
-    final locationName = driverLoc.name.isNotEmpty
-        ? driverLoc.name
-        : 'Location not available';
+    final locationName = _resolveDriverLocationName();
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -2911,7 +3020,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           ),
           SizedBox(width: width * 0.03),
           GestureDetector(
-            onTap: _isRefreshing ? null : _refreshData,
+            onTap: _isRefreshing ? null : () => _refreshData(forceRouteRefresh: true),
             child: Container(
               width: width * 0.12,
               height: width * 0.12,
@@ -3249,10 +3358,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   Widget _buildLiveStatusBar(double width, double height) {
     if (_trackingData == null) return const SizedBox.shrink();
 
-    final driverLoc = _trackingData!.driverLocation;
-    final locationName = driverLoc.name.isNotEmpty
-        ? driverLoc.name
-        : 'Tracking...';
+    final locationName = _resolveDriverLocationName();
 
     return Container(
       margin: EdgeInsets.symmetric(
@@ -3722,7 +3828,9 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     );
   }
 
-  /// Handle timeline item tap — expand/collapse sub-stops
+  /// Handle timeline item tap — expand/collapse sub-stops.
+  /// For passed stops (from API), only show substops from the API's sub_stops[].
+  /// For upcoming stops (client-generated), generate substops from polyline.
   void _onTimelineTap(
     int segmentIndex,
     double prevFraction,
@@ -3740,7 +3848,39 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       return;
     }
 
-    // Need to generate sub-stops
+    // segmentIndex = fixedStopIndex + 1, so the stop is at index segmentIndex - 1
+    final stopIndex = segmentIndex - 1;
+    if (stopIndex >= 0 && stopIndex < _fixedStops.length) {
+      final stop = _fixedStops[stopIndex];
+      final isPassedStop = stop['api_time'] != null || stop['passed_at'] != null;
+
+      if (isPassedStop) {
+        // Passed stop — only use API's sub_stops, never generate client-side
+        final apiSubStops = (_trackingData?.passedStops ?? [])
+            .firstWhereOrNull((ps) =>
+                (ps['name'] as String?)?.toLowerCase() ==
+                (stop['name'] as String?)?.toLowerCase())
+            ?['sub_stops'] as List?;
+
+        final subStops = (apiSubStops ?? [])
+            .map((s) => <String, dynamic>{
+                  'name': s['name']?.toString() ?? '',
+                  'lat': (s['lat'] as num?)?.toDouble() ?? 0.0,
+                  'lng': (s['lng'] as num?)?.toDouble() ?? 0.0,
+                  'api_time': s['time']?.toString(),
+                })
+            .where((s) => (s['name'] as String).isNotEmpty)
+            .toList();
+
+        setState(() {
+          _subStopsCache[segmentIndex] = subStops;
+          _expandedSegmentIndex = subStops.isNotEmpty ? segmentIndex : null;
+        });
+        return;
+      }
+    }
+
+    // Upcoming stop — generate sub-stops from polyline
     if (_fullPolyline.isEmpty || _cumulativeDistances.isEmpty) return;
 
     setState(() {
@@ -3774,6 +3914,12 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
 
     final hasCurrentLocation = driverLoc.lat != 0 && driverLoc.lng != 0;
 
+    // Is destination reached? (delivered or driver within 30m of drop)
+    final bool isReached = _trackingData!.isDelivered ||
+        (hasCurrentLocation &&
+            _destinationLatLng != null &&
+            _haversineDistance(LatLng(driverLoc.lat, driverLoc.lng), _destinationLatLng!) < 30);
+
     List<Widget> timelineItems = [];
 
     // Compute destination-arrival up-front: once the booking is formally
@@ -3790,61 +3936,80 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     // Check if driver is AT a fixed stop (within threshold) — if so, merge into that stop.
     // Disabled once the driver reaches the destination, otherwise the last
     // fixed stop keeps the live truck icon even though the driver has moved on.
-    bool driverAtFixedStop = false;
-    if (!driverAtDest &&
-        hasCurrentLocation &&
-        _currentStopIndex >= 0 &&
-        _currentStopIndex < _fixedStops.length) {
-      final currentStop = _fixedStops[_currentStopIndex];
-      final stopLatLng = LatLng(currentStop['lat'] as double, currentStop['lng'] as double);
-      final dist = _haversineDistance(_currentLatLng!, stopLatLng);
-      driverAtFixedStop = dist < 10000; // within 10km = driver is at this stop
-    }
-
-    // Vehicle widget — only show as separate item if NOT at a fixed stop, NOT
-    // near pickup, AND not at the destination (otherwise it duplicates the
-    // "Destination Reached" indicator).
+    // Is the driver still near the pickup? (within 500m)
     final bool driverNearPickup = hasCurrentLocation &&
         _pickupLatLng != null &&
-        _haversineDistance(_currentLatLng!, _pickupLatLng!) < 10000; // within 10km
+        _haversineDistance(_currentLatLng!, _pickupLatLng!) < 500;
+
+    // Vehicle widget — always show as separate row after all passed stops.
+    // Never merge into a fixed stop — driver's actual location should always
+    // be visible between passed and upcoming stops.
     final bool willInsertVehicleWidget = hasCurrentLocation &&
-        !driverAtFixedStop &&
-        !driverNearPickup &&
-        !driverAtDest;
+        !driverNearPickup;
 
     /// -------- Pickup (always green, always first) --------
-    // Use journey start time for pickup, not driver's current updatedAt
     final pickupTime = (_trackingData!.inProgressAt != null && _trackingData!.inProgressAt!.isNotEmpty)
         ? _formatDateTime(_trackingData!.inProgressAt)
         : _formatDateTime(driverLoc.updatedAt);
-    // Pickup's connector is green only when the NEXT visible item is
-    // also "passed". The next visible item is either:
-    //   - the vehicle widget (always passed, pulsing) if it'll be
-    //     inserted right after pickup, OR
-    //   - the first fixed stop, which is passed iff `_currentStopIndex >= 0`.
-    // Without this, the green connector below pickup always extended
-    // down into the next stop's icon — making customers think the
-    // truck had reached that stop even though it hadn't.
     final bool pickupNextIsPassed = willInsertVehicleWidget
         ? true
         : (_fixedStops.isNotEmpty && _currentStopIndex >= 0);
+
+    // First stop fraction for substop generation on pickup tap
+    final double firstStopFraction = _fixedStops.isNotEmpty ? _getStopFraction(0) : 1.0;
+
     timelineItems.add(
-      _buildTimelineItem(
-        width,
-        height,
-        Icons.location_on,
-        Colors.green,
-        'Pickup started from',
-        pickup.name.isNotEmpty ? pickup.name : 'N/A',
-        pickupTime,
-        isFirst: true,
-        isPassed: true,
-        isNextPassed: pickupNextIsPassed,
+      GestureDetector(
+        onTap: () {
+          _onTimelineTap(0, 0.0, firstStopFraction);
+        },
+        child: _buildTimelineItem(
+          width,
+          height,
+          driverNearPickup ? Icons.local_shipping : Icons.location_on,
+          Colors.green,
+          'Pickup started from',
+          pickup.name.isNotEmpty ? pickup.name : 'N/A',
+          pickupTime,
+          isFirst: true,
+          isPassed: true,
+          isNextPassed: pickupNextIsPassed,
+          isPulsing: driverNearPickup && !driverAtDest,
+        ),
       ),
     );
 
+    // Show substops for pickup → first stop segment
+    if (_expandedSegmentIndex == 0) {
+      String nextStopTime = '-';
+      String nextStopName = '';
+      if (_fixedStops.isNotEmpty) {
+        nextStopName = (_fixedStops[0]['name'] as String?) ?? '';
+        final nextApiTime = _fixedStops[0]['api_time'] as String?;
+        final nextPassedAt = _fixedStops[0]['passed_at'] as String?;
+        if (nextApiTime != null && nextApiTime.isNotEmpty) {
+          nextStopTime = nextApiTime;
+        } else if (nextPassedAt != null && nextPassedAt.isNotEmpty) {
+          nextStopTime = _formatDateTime(nextPassedAt);
+        }
+      }
+      timelineItems.add(
+        _buildSubTimeline(
+          width,
+          height,
+          0,
+          _loadingSegment == 0,
+          Colors.green,
+          parentTime: pickupTime,
+          nextStopTime: nextStopTime,
+          parentStopName: pickup.name,
+          nextStopName: nextStopName,
+        ),
+      );
+    }
+
     Widget? vehicleWidget;
-    if (willInsertVehicleWidget) {
+    if (willInsertVehicleWidget && !isReached) {
       // Vehicle widget's connector goes down to the next unpassed
       // fixed stop, so its connector is grey (next item is NOT passed).
       vehicleWidget = _buildTimelineItem(
@@ -3852,7 +4017,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         height,
         Icons.local_shipping,
         Colors.green,
-        driverLoc.name.isNotEmpty ? driverLoc.name : 'Current Location',
+        _resolveDriverLocationName(),
         _formatDate(driverLoc.updatedAt),
         _formatDateTime(driverLoc.updatedAt),
         isPulsing: true,
@@ -3884,19 +4049,59 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         ),
       );
     } else {
+      // Find the index of the last API-confirmed passed stop
+      int lastPassedIdx = -1;
       for (int i = 0; i < _fixedStops.length; i++) {
-        // Passed: from API's passed_at OR driver is past this stop's position
-        final hasBackendPassedAt =
-            _fixedStops[i]['passed_at'] != null &&
-            (_fixedStops[i]['passed_at'] as String).isNotEmpty;
-        // Fallback: if driver's dist_fraction > stop's dist_fraction, driver has passed it
-        final stopFractionForPass = (_fixedStops[i]['dist_fraction'] as num?)?.toDouble() ?? 0;
-        final driverFraction = _currentDriverFraction();
-        final driverPastStop = driverFraction > 0 && stopFractionForPass > 0 && driverFraction > stopFractionForPass;
-        final isPassed = driverAtDest || hasBackendPassedAt || driverPastStop;
+        final hasApi = (_fixedStops[i]['api_time'] != null &&
+                (_fixedStops[i]['api_time'] as String).isNotEmpty) ||
+            (_fixedStops[i]['passed_at'] != null &&
+                (_fixedStops[i]['passed_at'] as String).isNotEmpty);
+        if (hasApi) lastPassedIdx = i;
+      }
 
-        // Insert vehicle AFTER the last passed stop (right before first grey stop)
-        if (!vehicleInserted && vehicleWidget != null && !isPassed) {
+      // Pre-compute upcoming stop times to ensure they are monotonically increasing
+      final Map<int, String> _upcomingTimes = {};
+      if (_currentLatLng != null && _destinationLatLng != null) {
+        DateTime lastTime = DateTime.now();
+        for (int i = 0; i < _fixedStops.length; i++) {
+          final hasApi = (_fixedStops[i]['api_time'] != null &&
+                  (_fixedStops[i]['api_time'] as String).isNotEmpty) ||
+              (_fixedStops[i]['passed_at'] != null &&
+                  (_fixedStops[i]['passed_at'] as String).isNotEmpty);
+          if (hasApi) continue; // passed stops use API time
+          if (i <= lastPassedIdx) continue; // skipped stops
+
+          final sLat = (_fixedStops[i]['lat'] as num).toDouble();
+          final sLng = (_fixedStops[i]['lng'] as num).toDouble();
+          final distFromDriver = _haversineDistance(_currentLatLng!, LatLng(sLat, sLng));
+          final speedKmh = _trackingData?.driverLocation.speedKmh?.toDouble() ?? 0;
+          final avgSpeed = speedKmh > 5 ? speedKmh : 40;
+          final etaMinutes = ((distFromDriver / 1000) / avgSpeed * 60).round().clamp(1, 99999);
+          final stopTime = DateTime.now().add(Duration(minutes: etaMinutes));
+
+          // Ensure monotonic: each stop time must be >= previous
+          final effectiveTime = stopTime.isAfter(lastTime) ? stopTime : lastTime.add(const Duration(minutes: 3));
+          _upcomingTimes[i] = _formatDateTimeObj(effectiveTime);
+          lastTime = effectiveTime;
+        }
+      }
+
+      for (int i = 0; i < _fixedStops.length; i++) {
+        final hasBackendPassedAt =
+            (_fixedStops[i]['passed_at'] != null &&
+                (_fixedStops[i]['passed_at'] as String).isNotEmpty) ||
+            (_fixedStops[i]['api_time'] != null &&
+                (_fixedStops[i]['api_time'] as String).isNotEmpty);
+        final isPassed = hasBackendPassedAt;
+
+        // Skip unpassed stops that are before or at the last passed stop
+        if (!isPassed && i <= lastPassedIdx) continue;
+
+        // If destination reached → skip all upcoming (unpassed) stops
+        if (!isPassed && isReached) continue;
+
+        // Insert vehicle AFTER the last passed stop (i == lastPassedIdx + 1 area)
+        if (!vehicleInserted && vehicleWidget != null && !isReached && i > lastPassedIdx) {
           timelineItems.add(vehicleWidget);
           vehicleInserted = true;
         }
@@ -3904,16 +4109,14 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         final stop = _fixedStops[i];
         final name = stop['name'] as String? ?? 'Stop ${i + 1}';
         final isKeyStop = stop['is_key_stop'] == true;
-        final isDriverHere = driverAtFixedStop && i == _currentStopIndex;
+        final isDriverHere = false; // Driver always shows as separate vehicle widget
 
-        if (i == 0) debugPrint('🗺️ [RENDER] Rendering ${_fixedStops.length} fixed stops, _currentStopIndex=$_currentStopIndex');
+        if (i == 0) debugPrint('🗺️ [RENDER] Rendering ${_fixedStops.length} fixed stops, lastPassedIdx=$lastPassedIdx isReached=$isReached');
         final stopColor = isPassed ? Colors.green : Colors.black;
         String? subtitle;
         if (isDriverHere) {
           subtitle = _formatDate(driverLoc.updatedAt);
         } else if (isPassed) {
-          // Customer-side: never surface the operational "Key Stop" tag
-          // (it's an admin / vendor concept). Just show pass status here.
           subtitle = 'Passed';
         }
 
@@ -3921,40 +4124,28 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         final stopFraction = _getStopFraction(i);
         String? time;
         final passedAt = stop['passed_at'] as String?;
+        final apiTime = stop['api_time'] as String?;
         final apiEta = stop['estimated_arrival'] as String?;
 
-        if (passedAt != null && passedAt.isNotEmpty) {
-          // API confirmed passed — use real time
+        if (apiTime != null && apiTime.isNotEmpty) {
+          time = apiTime;
+        } else if (passedAt != null && passedAt.isNotEmpty) {
           time = _formatDateTime(passedAt);
+        } else if (_upcomingTimes.containsKey(i)) {
+          time = _upcomingTimes[i]!;
         } else if (apiEta != null && apiEta.isNotEmpty) {
-          // API provided estimated arrival
           time = apiEta;
         } else {
-          // Client-generated upcoming stop — compute ETA from route fraction
-          final eta = _getTimeForFraction(stopFraction);
-          time = (eta.isNotEmpty && eta != '-') ? eta : 'Upcoming';
+          time = 'Upcoming';
         }
 
-        // Fractions for sub-stop generation on tap
         final nextFraction = i < _fixedStops.length - 1
             ? _getStopFraction(i + 1)
             : 1.0;
         final segmentIndex = i + 1;
 
-        // Connector below this stop is green only when the NEXT
-        // visible item is also passed. Cases:
-        //   - Not the last fixed stop → next visible item is the next
-        //     fixed stop, passed iff `(i + 1) <= _currentStopIndex`.
-        //   - Last fixed stop → next visible item is the destination,
-        //     which is "passed" only when the truck is past every
-        //     fixed stop (`_currentStopIndex >= _fixedStops.length - 1`
-        //     plus the truck is at/past the destination — for which we
-        //     just check the same passed flag the destination item uses).
-        final bool nextIsPassed = driverAtDest
-            ? true
-            : ((i < _fixedStops.length - 1)
-                ? (i + 1) <= _currentStopIndex
-                : _currentStopIndex >= _fixedStops.length);
+        // Connector: green if next visible item is also passed or reached
+        final bool nextIsPassed = isReached || (i < lastPassedIdx);
 
         timelineItems.add(
           GestureDetector(
@@ -3982,15 +4173,49 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         final isLoading = _loadingSegment == segmentIndex;
 
         if (isExpanded) {
-          // Get next stop's time for interpolation
           String nextStopTime = '-';
-          if (i < _fixedStops.length - 1) {
-            final nextPassedAt = _fixedStops[i + 1]['passed_at'] as String?;
-            if (nextPassedAt != null && nextPassedAt.isNotEmpty) {
-              nextStopTime = _formatDateTime(nextPassedAt);
-            } else {
-              final nextApiEta = _fixedStops[i + 1]['estimated_arrival'] as String?;
-              nextStopTime = (nextApiEta != null && nextApiEta.isNotEmpty) ? nextApiEta : '-';
+          String nextStopName = '';
+
+          // If this is the last passed stop, substops should end at current
+          // time (driver is between here and next upcoming stop)
+          if (i == lastPassedIdx && !isReached) {
+            nextStopTime = _formatDateTimeObj(DateTime.now());
+            nextStopName = _resolveDriverLocationName();
+          } else {
+            // Find the NEXT VISIBLE stop
+            for (int j = i + 1; j < _fixedStops.length; j++) {
+              final jHasApi = (_fixedStops[j]['api_time'] != null &&
+                      (_fixedStops[j]['api_time'] as String).isNotEmpty) ||
+                  (_fixedStops[j]['passed_at'] != null &&
+                      (_fixedStops[j]['passed_at'] as String).isNotEmpty);
+              if (!jHasApi && j <= lastPassedIdx) continue;
+              if (!jHasApi && isReached) continue;
+
+              nextStopName = (_fixedStops[j]['name'] as String?) ?? '';
+              final nextApiTime = _fixedStops[j]['api_time'] as String?;
+              final nextPassedAt = _fixedStops[j]['passed_at'] as String?;
+              if (nextApiTime != null && nextApiTime.isNotEmpty) {
+                nextStopTime = nextApiTime;
+              } else if (nextPassedAt != null && nextPassedAt.isNotEmpty) {
+                nextStopTime = _formatDateTime(nextPassedAt);
+              } else if (_upcomingTimes.containsKey(j)) {
+                nextStopTime = _upcomingTimes[j]!;
+              } else {
+                final nf = _getStopFraction(j);
+                final eta = _getTimeForFraction(nf);
+                nextStopTime = (eta.isNotEmpty && eta != '-') ? eta : '-';
+              }
+              break;
+            }
+            // If no next stop found, use destination time
+            if (nextStopTime == '-') {
+              nextStopName = destination.name;
+              final destTime = isReached
+                  ? _formatDateTime(driverLoc.updatedAt)
+                  : _getTimeForFraction(1.0);
+              if (destTime.isNotEmpty && destTime != '-') {
+                nextStopTime = destTime;
+              }
             }
           }
           timelineItems.add(
@@ -4000,8 +4225,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
               segmentIndex,
               isLoading,
               isPassed ? Colors.green : Colors.grey,
-              parentTime: time,
+              parentTime: time ?? '-',
               nextStopTime: nextStopTime,
+              parentStopName: name,
+              nextStopName: nextStopName,
             ),
           );
         }
@@ -4018,13 +4245,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     }
 
     /// -------- Destination --------
-    // Mark as "Reached" when the driver is at the drop (within 30 m) or the
-    // booking has been formally delivered. Otherwise show the ETA computed
-    // from the route fraction.
-    final bool isReached = _trackingData!.isDelivered ||
-        (_currentLatLng != null &&
-            _destinationLatLng != null &&
-            _haversineDistance(_currentLatLng!, _destinationLatLng!) < 30);
+    // isReached already computed at the top of this method.
 
     final String destinationTime = isReached
         ? (_trackingData!.deliveredAt != null &&
@@ -4033,16 +4254,19 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
             : _formatDateTime(driverLoc.updatedAt))
         : _getTimeForFraction(1.0);
 
+    final destAddress = destination.name.isNotEmpty ? destination.name : null;
     timelineItems.add(
       _buildTimelineItem(
         width,
         height,
         isReached ? Icons.check_circle : Icons.flag,
         isReached ? Colors.green : Colors.black,
-        'Destination',
         isReached
-            ? (_trackingData!.isDelivered ? 'Delivered' : 'Reached')
-            : (destination.name.isNotEmpty ? destination.name : 'N/A'),
+            ? (_trackingData!.isDelivered ? 'Destination Delivered' : 'Destination Reached')
+            : 'Destination',
+        isReached
+            ? destAddress
+            : (destAddress ?? 'N/A'),
         destinationTime,
         isLast: true,
         isPassed: isReached,
@@ -4145,7 +4369,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   Future<void> _fetchFullRouteAndGenerateFixedStops() async {
     if (_pickupLatLng == null || _destinationLatLng == null) return;
 
-    setState(() => _isLoadingFixedStops = true);
+    if (_fixedStops.isEmpty) setState(() => _isLoadingFixedStops = true);
 
     // Include ALL waypoints for the full route, sorted by priority
     final sortedWps = (_trackingData?.routeWaypoints ?? [])
@@ -4266,7 +4490,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     }
     _fullRouteCumulativeDistances = cumDist;
 
-    if (mounted) setState(() => _isLoadingFixedStops = true);
+    if (mounted && _fixedStops.isEmpty) setState(() => _isLoadingFixedStops = true);
 
     // Include only remaining (uncompleted) route_waypoints
     final remainingWps = (_trackingData?.routeWaypoints ?? [])
@@ -4362,12 +4586,6 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     for (final stop in allStops) { stop.remove('_sortDist'); }
     debugPrint('🗺️ [REROUTE-STOPS] ${passedStops.length} passed + ${waypointStops.length} waypoints + ${filteredUpcoming.length} upcoming = ${allStops.length} total');
 
-    // Clear old cache and persist new stops
-    final prefs = await SharedPreferences.getInstance();
-    prefs.remove('fixed_stops_${widget.bookingId}');
-    prefs.remove('stop_index_${widget.bookingId}');
-    prefs.remove('passed_stop_times_${widget.bookingId}');
-
     if (mounted) {
       setState(() {
         _fixedStops = allStops;
@@ -4376,7 +4594,6 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     }
 
     _fixedStopsGenerated = true;
-    await _saveFixedStops();
 
     debugPrint('✅ Timeline regenerated after reroute: ${allStops.length} stops');
   }
@@ -4404,7 +4621,25 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     final currentFraction = _currentDriverFraction();
     debugPrint('📊 [PROGRESS] currentFraction=$currentFraction, polyline=${_fullRoutePolyline.length} pts, driverLat=${currentLocation.latitude}, driverLng=${currentLocation.longitude}');
     if (currentFraction <= 0 || _fullRoutePolyline.isEmpty) {
-      debugPrint('📊 [PROGRESS] ❌ SKIPPED — fraction=$currentFraction polyline=${_fullRoutePolyline.length}');
+      // Fallback: use straight-line distance from pickup to determine
+      // which stops the driver has already passed.
+      if (_pickupLatLng != null && _fixedStops.isNotEmpty) {
+        final driverDistFromPickup =
+            _haversineDistance(currentLocation, _pickupLatLng!);
+        int fallbackIndex = -1;
+        for (int i = 0; i < _fixedStops.length; i++) {
+          final sLat = (_fixedStops[i]['lat'] as num?)?.toDouble();
+          final sLng = (_fixedStops[i]['lng'] as num?)?.toDouble();
+          if (sLat == null || sLng == null) continue;
+          final stopDist =
+              _haversineDistance(_pickupLatLng!, LatLng(sLat, sLng));
+          if (driverDistFromPickup >= stopDist) fallbackIndex = i;
+        }
+        if (fallbackIndex != _currentStopIndex) {
+          debugPrint('📊 [PROGRESS] distance fallback: $_currentStopIndex → $fallbackIndex');
+          setState(() => _currentStopIndex = fallbackIndex);
+        }
+      }
       return;
     }
 
@@ -4681,7 +4916,7 @@ for (var stop in stops) {
     // this branch is just the fallback for the edge case where the
     // lock hasn't been written yet.
     final currentFraction = _currentDriverFraction();
-    if (fraction <= currentFraction || _remainingDurationSeconds <= 0) {
+    if (fraction <= currentFraction || _liveRemainingSeconds <= 0) {
       DateTime? baseTime;
       if (_trackingData?.inProgressAt != null && _trackingData!.inProgressAt!.isNotEmpty) {
         try {
@@ -4763,26 +4998,27 @@ for (var stop in stops) {
   /// isn't enough data or the truck is too slow to compute a meaningful
   /// scale factor. See `_getTimeForFraction` for full rationale.
   int _adaptiveRemainingSeconds() {
-    if (_remainingDurationSeconds <= 0) return _remainingDurationSeconds;
-    if (_estimatedSpeedKmh < 5) return _remainingDurationSeconds;
-    if (_fullRouteCumulativeDistances.isEmpty) return _remainingDurationSeconds;
+    final live = _liveRemainingSeconds;
+    if (live <= 0) return live;
+    if (_estimatedSpeedKmh < 5) return live;
+    if (_fullRouteCumulativeDistances.isEmpty) return live;
 
     final totalRouteMeters = _fullRouteCumulativeDistances.last;
     final totalDurationSec = _fullRouteDurationSeconds > 0
         ? _fullRouteDurationSeconds
         : _totalRouteDurationSeconds;
     if (totalRouteMeters <= 0 || totalDurationSec <= 0) {
-      return _remainingDurationSeconds;
+      return live;
     }
 
     final expectedAvgKmh = (totalRouteMeters / totalDurationSec) * 3.6;
-    if (expectedAvgKmh < 1) return _remainingDurationSeconds;
+    if (expectedAvgKmh < 1) return live;
 
     // scale > 1 → driver is slower than expected → ETA grows.
     // scale < 1 → driver is faster than expected → ETA shrinks.
     final rawScale = expectedAvgKmh / _estimatedSpeedKmh;
     final scale = rawScale.clamp(0.5, 2.0);
-    return (_remainingDurationSeconds * scale).round();
+    return (live * scale).round();
   }
 
   /// Build the sub-timeline items between two main stops
@@ -4794,6 +5030,8 @@ for (var stop in stops) {
     Color lineColor, {
     String parentTime = '-',
     String nextStopTime = '-',
+    String parentStopName = '',
+    String nextStopName = '',
   }) {
     if (isLoading && !_subStopsCache.containsKey(segmentIndex)) {
       return Row(
@@ -4832,8 +5070,29 @@ for (var stop in stops) {
       );
     }
 
-    final subStops = _subStopsCache[segmentIndex];
-    if (subStops == null || subStops.isEmpty) return const SizedBox.shrink();
+    final rawSubStops = _subStopsCache[segmentIndex];
+    if (rawSubStops == null || rawSubStops.isEmpty) return const SizedBox.shrink();
+
+    // Filter out substops that duplicate the parent, next stop, or any
+    // city/state from the pickup/destination address (e.g. "Hyderabad").
+    final parentLower = parentStopName.toLowerCase().trim();
+    final nextLower = nextStopName.toLowerCase().trim();
+    final Set<String> excludeNames = {parentLower, nextLower};
+    // Add pickup and destination address components (split by comma)
+    final pickupName = _trackingData?.pickup.name ?? '';
+    final dropName = _trackingData?.drop.name ?? '';
+    for (final addr in [pickupName, dropName]) {
+      for (final part in addr.split(',')) {
+        final p = part.trim().toLowerCase();
+        if (p.isNotEmpty) excludeNames.add(p);
+      }
+    }
+    final subStops = rawSubStops.where((s) {
+      final n = (s['name'] as String? ?? '').toLowerCase().trim();
+      if (n.isEmpty) return false;
+      return !excludeNames.contains(n);
+    }).toList();
+    if (subStops.isEmpty) return const SizedBox.shrink();
 
     // Parse parent and next stop times for interpolation
     DateTime? parentDt = _tryParseDisplayTime(parentTime);
@@ -4847,15 +5106,20 @@ for (var stop in stops) {
           final sub = subStops[idx];
           String subTime = '-';
 
-          // Interpolate between parentTime and nextStopTime
-          if (parentDt != null && nextDt != null && nextDt.isAfter(parentDt)) {
+          // Use API time if available (passed substops from backend)
+          final apiSubTime = sub['api_time'] as String?;
+          if (apiSubTime != null && apiSubTime.isNotEmpty) {
+            subTime = apiSubTime;
+          }
+          // Otherwise interpolate between parentTime and nextStopTime
+          else if (parentDt != null && nextDt != null && nextDt.isAfter(parentDt)) {
             final totalMs = nextDt.difference(parentDt).inMilliseconds;
-            // Evenly space substops between parent and next
             final fraction = (idx + 1) / (subStops.length + 1);
             final subDt = parentDt.add(Duration(milliseconds: (totalMs * fraction).round()));
             subTime = _formatDateTimeObj(subDt);
+          } else if (parentDt != null && nextDt != null && parentDt == nextDt) {
+            subTime = parentTime;
           } else if (parentDt != null) {
-            // No valid next time — estimate ~15 min gaps
             final subDt = parentDt.add(Duration(minutes: 15 * (idx + 1)));
             subTime = _formatDateTimeObj(subDt);
           }
@@ -5024,6 +5288,49 @@ for (var stop in stops) {
         : (local.hour == 0 ? 12 : local.hour);
     final amPm = local.hour >= 12 ? 'PM' : 'AM';
     return '${hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')} $amPm';
+  }
+
+  /// Returns a meaningful location name for the driver.
+  /// Falls back to the nearest stop name when the API returns empty/generic text.
+  String _resolveDriverLocationName() {
+    final driverLoc = _trackingData?.driverLocation;
+    if (driverLoc == null) return 'Current Location';
+
+    // If backend returned a real address, use it
+    final name = driverLoc.name;
+    if (name.isNotEmpty &&
+        name != 'Location not available' &&
+        name != 'N/A') {
+      return name;
+    }
+
+    // Fallback: find nearest stop to driver's current position
+    if (_currentLatLng != null && _fixedStops.isNotEmpty) {
+      String? nearestName;
+      double minDist = double.infinity;
+      for (final stop in _fixedStops) {
+        final sLat = (stop['lat'] as num?)?.toDouble();
+        final sLng = (stop['lng'] as num?)?.toDouble();
+        if (sLat == null || sLng == null) continue;
+        final d = _haversineDistance(_currentLatLng!, LatLng(sLat, sLng));
+        if (d < minDist) {
+          minDist = d;
+          nearestName = stop['name'] as String?;
+        }
+      }
+      // Also check destination
+      if (_destinationLatLng != null) {
+        final destDist = _haversineDistance(_currentLatLng!, _destinationLatLng!);
+        if (destDist < minDist) {
+          nearestName = _trackingData?.drop.name.split(',').first.trim();
+        }
+      }
+      if (nearestName != null && nearestName.isNotEmpty) {
+        return 'Near $nearestName';
+      }
+    }
+
+    return 'Current Location';
   }
 
   String _formatDuration(int totalSeconds) {
@@ -5271,10 +5578,8 @@ for (var stop in stops) {
     String lastUpdateDate = _formatDate(driverLoc.updatedAt);
     print("checking for last update $lastUpdateDate");
     print("checking for last update $lastUpdateTime");
-    // Get location name from API response
-    String locationName = driverLoc.name.isNotEmpty
-        ? driverLoc.name
-        : 'Location not available';
+    // Get location name — resolve from nearest stop if API didn't geocode
+    String locationName = _resolveDriverLocationName();
 
     return Container(
       padding: EdgeInsets.symmetric(

@@ -14,11 +14,13 @@ class MapSectionWidget extends StatelessWidget {
   final String driverName;
 
   final List<LatLng> routePoints;
-  final List<LatLng> driverToPickupPoints;
+  final List<LatLng> completedRoutePoints;
 
   final BitmapDescriptor? driverIcon;
   final BitmapDescriptor? pickupIcon;
   final BitmapDescriptor? destinationIcon;
+
+  final double driverBearing;
 
   // Added callback to return map controller to parent
   final Function(GoogleMapController controller) onMapCreated;
@@ -33,10 +35,11 @@ class MapSectionWidget extends StatelessWidget {
     required this.driverLng,
     required this.driverName,
     required this.routePoints,
-    this.driverToPickupPoints = const [],
+    this.completedRoutePoints = const [],
     required this.driverIcon,
     required this.pickupIcon,
     required this.destinationIcon,
+    this.driverBearing = 0,
     required this.onMapCreated,
   });
 
@@ -99,6 +102,9 @@ class MapSectionWidget extends StatelessWidget {
                     markerId: const MarkerId("driver"),
                     position: driver,
                     icon: driverIcon!,
+                    anchor: const Offset(0.5, 0.5),
+                    rotation: driverBearing,
+                    flat: true,
                     infoWindow: InfoWindow(title: driverName),
                   ),
               },
@@ -111,13 +117,12 @@ class MapSectionWidget extends StatelessWidget {
                     color: Colors.blue,
                     width: 5,
                   ),
-                if (driverToPickupPoints.length >= 2)
+                if (completedRoutePoints.length >= 2)
                   Polyline(
-                    polylineId: const PolylineId("driver_to_pickup"),
-                    points: driverToPickupPoints,
+                    polylineId: const PolylineId("completed_route"),
+                    points: completedRoutePoints,
                     color: const Color(0xFF34A853),
-                    width: 5,
-                    patterns: [PatternItem.dot, PatternItem.gap(10)],
+                    width: 6,
                   ),
               },
             ),

@@ -44,7 +44,8 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
   LatLng? driverLoc;
 
   List<LatLng> routePoints = [];
-  List<LatLng> driverToPickupPoints = [];
+  List<LatLng> completedRoutePoints = [];
+  List<LatLng> remainingRoutePoints = [];
 
   BitmapDescriptor? driverIcon;
   BitmapDescriptor? pickupIcon;
@@ -359,20 +360,48 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
       debugPrint('🗺️ [POLYLINE] ❌ Route failed: $e');
     }
 
-    if (driverLoc != null) {
-      try {
-        final approach = await poly.getRouteBetweenCoordinates(
-          request: PolylineRequest(
-            origin: PointLatLng(driverLoc!.latitude, driverLoc!.longitude),
-            destination: PointLatLng(pickup!.latitude, pickup!.longitude),
-            mode: TravelMode.driving,
-          ),
-        );
-        driverToPickupPoints = approach.points.map((p) => LatLng(p.latitude, p.longitude)).toList();
-      } catch (e) {
-        driverToPickupPoints = [driverLoc!, pickup!];
+    // Split the route at the driver's current position
+    _splitRouteAtDriver();
+  }
+
+  /// Splits [routePoints] (pickup→drop) at the nearest point to [driverLoc].
+  /// [completedRoutePoints] = pickup → driver (green covered path, follows road).
+  /// [remainingRoutePoints] = driver → drop (blue remaining path, follows road).
+  void _splitRouteAtDriver() {
+    if (routePoints.isEmpty) {
+      completedRoutePoints = [];
+      remainingRoutePoints = [];
+      return;
+    }
+    if (driverLoc == null) {
+      completedRoutePoints = [];
+      remainingRoutePoints = List.from(routePoints);
+      return;
+    }
+
+    // Find the nearest polyline point to the driver's current position
+    int nearestIdx = 0;
+    double minDist = double.infinity;
+    for (int i = 0; i < routePoints.length; i++) {
+      final d = _distMeters(
+        driverLoc!.latitude, driverLoc!.longitude,
+        routePoints[i].latitude, routePoints[i].longitude,
+      );
+      if (d < minDist) {
+        minDist = d;
+        nearestIdx = i;
       }
     }
+
+    completedRoutePoints = [
+      ...routePoints.sublist(0, nearestIdx + 1),
+      driverLoc!,
+    ];
+    remainingRoutePoints = [
+      driverLoc!,
+      ...routePoints.sublist(nearestIdx),
+    ];
+    debugPrint('🗺️ [SPLIT] completed=${completedRoutePoints.length} remaining=${remainingRoutePoints.length} nearestIdx=$nearestIdx');
   }
 
   /// Build timeline: merge backend timeline + auto_timeline_points + saved passed stops.
@@ -656,8 +685,8 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
                           driverLat: d.driverLocation.lat,
                           driverLng: d.driverLocation.lng,
                           driverName: d.driverLocation.name,
-                          routePoints: routePoints,
-                          driverToPickupPoints: driverToPickupPoints,
+                          routePoints: remainingRoutePoints.isNotEmpty ? remainingRoutePoints : routePoints,
+                          completedRoutePoints: completedRoutePoints,
                           driverIcon: driverIcon,
                           pickupIcon: pickupIcon,
                           destinationIcon: destinationIcon,
@@ -676,8 +705,8 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
                     driverLat: d.driverLocation.lat,
                     driverLng: d.driverLocation.lng,
                     driverName: d.driverLocation.name,
-                    routePoints: routePoints,
-                    driverToPickupPoints: driverToPickupPoints,
+                    routePoints: remainingRoutePoints.isNotEmpty ? remainingRoutePoints : routePoints,
+                    completedRoutePoints: completedRoutePoints,
                     driverIcon: driverIcon,
                     pickupIcon: pickupIcon,
                     destinationIcon: destinationIcon,
@@ -709,7 +738,16 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
                 ),
 
                 // ── Timeline ──
-                TimelineSectionWidget(items: _buildMergedTimeline(d)),
+                TimelineSectionWidget(
+                  items: _buildMergedTimeline(d),
+                  pickupLat: pickup?.latitude,
+                  pickupLng: pickup?.longitude,
+                  driverLat: driverLoc?.latitude,
+                  driverLng: driverLoc?.longitude,
+                  driverAddress: d.driverLocation.name.isNotEmpty
+                      ? d.driverLocation.name
+                      : null,
+                ),
 
                 const SizedBox(height: 20),
                 Row(
