@@ -12,6 +12,7 @@ import 'package:seedsuser/app/dashboard/dashboard.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/notification/notification_service.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
+import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 
 class OtpVerifyController extends GetxController {
   // Observables
@@ -160,6 +161,10 @@ class OtpVerifyController extends GetxController {
 
         // Register FCM token with server after login
         NotificationService().registerToken();
+
+        // Fetch all home banners before navigating — so home screen has data
+        final bannerCtrl = Get.find<HomeBannerController>();
+        bannerCtrl.fetchAll(); // fire-and-forget, home screen will show shimmer until loaded
 
         Get.offAll(() => DashboardScreen());
       } else {

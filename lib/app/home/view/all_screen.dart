@@ -60,9 +60,13 @@ class _HomePageState extends State<HomePage>
   void initState() {
     super.initState();
 
-    // Fetch banners if not yet loaded — handles the manual login flow where the
-    // splash screen is bypassed and fetchAll() was never called.
-    if (_homeBannerController.bannersHome.isEmpty) {
+    // Always fetch all banners — handles login flow where splash was bypassed,
+    // and ensures spot/farm/deals banners load even if home banner was cached.
+    if (_homeBannerController.bannersSpotHatcheries.isEmpty ||
+        _homeBannerController.bannersFarmManagement.isEmpty ||
+        _homeBannerController.bannersMedicine.isEmpty ||
+        _homeBannerController.bannersHome.isEmpty) {
+      print('📱 [HOME] Fetching all banners — some are missing');
       _homeBannerController.fetchAll();
     }
 
@@ -328,41 +332,33 @@ class _HomePageState extends State<HomePage>
                             width: double.infinity,
                             initDelay: 0,
                           )
-                        : SizedBox(
-                            width: double.infinity,
-                            height: AppSize.height * .15,
-                            child: Image(
-                              image: CachedNetworkImageProvider(
-                                homeBanners.first.url,
-                              ),
+                        : Builder(builder: (ctx) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              _homeBannerController.isVideoReady.value = true;
+                            });
+                            return SizedBox(
                               width: double.infinity,
                               height: AppSize.height * .15,
-                              fit: BoxFit.cover,
-                              frameBuilder:
-                                  (
-                                    context,
-                                    child,
-                                    frame,
-                                    wasSynchronouslyLoaded,
-                                  ) {
-                                    if (wasSynchronouslyLoaded ||
-                                        frame != null) {
-                                      return child;
-                                    }
-                                    return _shimmerBox(
-                                      double.infinity,
-                                      AppSize.height * .15,
-                                    );
-                                  },
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Image.asset(
-                                    'assets/images/logo.png',
-                                    width: double.infinity,
-                                    height: AppSize.height * .15,
-                                    fit: BoxFit.cover,
-                                  ),
-                            ),
-                          )
+                              child: Image(
+                                image: CachedNetworkImageProvider(
+                                  homeBanners.first.url,
+                                ),
+                                width: double.infinity,
+                                height: AppSize.height * .15,
+                                fit: BoxFit.cover,
+                                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                                  if (wasSynchronouslyLoaded || frame != null) return child;
+                                  return _shimmerBox(double.infinity, AppSize.height * .15);
+                                },
+                                errorBuilder: (context, error, stackTrace) => Image.asset(
+                                  'assets/images/logo.png',
+                                  width: double.infinity,
+                                  height: AppSize.height * .15,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            );
+                          })
                   : _homeBannerController.isHomeLoading.value
                   ? _shimmerBox(double.infinity, AppSize.height * .15)
                   : Image.asset(
@@ -492,6 +488,7 @@ class _HomePageState extends State<HomePage>
           //   end: Alignment.bottomRight,
           // ),
           color: Colors.transparent,
+          border: Border.all(color: Colors.grey.shade300, width: 0.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.06),
@@ -1015,8 +1012,10 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
   @override
   void initState() {
     super.initState();
+    print('🎥 [VIDEO] Step 1: initState called, url=${widget.url}');
     WidgetsBinding.instance.addObserver(this);
     if (widget.initDelay > 0) {
+      print('🎥 [VIDEO] Step 2: Waiting ${widget.initDelay}ms before init');
       Future.delayed(Duration(milliseconds: widget.initDelay), () {
         if (mounted) _initializeVideo();
       });
@@ -1026,7 +1025,9 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
   }
 
   Future<void> _initializeVideo() async {
+    print('🎥 [VIDEO] Step 3: _initializeVideo called, url=${widget.url}');
     try {
+      print('🎥 [VIDEO] Step 4: Creating VideoPlayerController...');
       final controller = VideoPlayerController.networkUrl(
         Uri.parse(widget.url),
         httpHeaders: const {
@@ -1037,20 +1038,29 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
         },
       );
       _videoController = controller;
+      print('🎥 [VIDEO] Step 5: Calling controller.initialize()...');
       await controller.initialize();
+      print('🎥 [VIDEO] Step 6: Initialized! size=${controller.value.size}, duration=${controller.value.duration}');
       if (!mounted) {
+        print('🎥 [VIDEO] ❌ Not mounted after init, disposing');
         controller.dispose();
         return;
       }
       await controller.setLooping(true);
       await controller.setVolume(0);
+      print('🎥 [VIDEO] Step 7: Calling play()...');
       await controller.play();
       controller.addListener(_onVideoUpdate);
       _retryCount = 0;
       _startHeartbeat();
-      if (mounted) setState(() => _isInitialized = true);
+      print('🎥 [VIDEO] Step 8: ✅ Video playing! _isInitialized=true');
+      if (mounted) {
+        setState(() => _isInitialized = true);
+        // Signal home screen that video is ready
+        try { Get.find<HomeBannerController>().isVideoReady.value = true; } catch (_) {}
+      }
     } catch (e) {
-      debugPrint('Video init failed: $e');
+      print('🎥 [VIDEO] ❌ Failed at init: $e (retry ${_retryCount + 1}/$_maxRetries)');
       _scheduleRetry();
     }
   }

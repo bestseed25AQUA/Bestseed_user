@@ -194,10 +194,14 @@ class _HomeScreenState extends State<HomeScreen>
         body: Builder(
           builder: (context) {
             final categories = _homeController.categories;
-            return _tabController == null || (categories.isEmpty)
+            final bannersLoading = _homeBannerController.isHomeLoading.value && _homeBannerController.bannersHome.isEmpty;
+            final showShimmer = _tabController == null || categories.isEmpty || bannersLoading;
+            print('📱 [HOME] tabController=${_tabController != null}, categories=${categories.length}, bannersLoading=$bannersLoading, bannersHome=${_homeBannerController.bannersHome.length}, isVideoReady=${_homeBannerController.isVideoReady.value} → ${showShimmer ? "SHIMMER" : "HOME PAGE"}');
+            return showShimmer
                 ? CustomRefereshIndicator(
                     onRefresh: () async {
                       _homeBannerController.fetchBannersTop();
+                      _homeBannerController.fetchHomeBanner();
                       await _homeController.changeHomeData('', '');
                     },
                     child: homeShimmer(context),

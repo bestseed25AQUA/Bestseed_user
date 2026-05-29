@@ -28,6 +28,7 @@ class HomeBannerController extends GetxController {
   var bannersFarmManagement = <BannerItem>[].obs;
   var isFarmLoading = true.obs;
   var isHomeLoading = true.obs;
+  var isVideoReady = false.obs; // true when vehicle availability video is initialized and playing
   var bannersSection1Bg = <BannerItem>[].obs;
 
   @override

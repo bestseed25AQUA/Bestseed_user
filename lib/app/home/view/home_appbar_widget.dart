@@ -213,6 +213,8 @@ class _HomeAppBarState extends State<HomeAppBar> {
                                               fit: BoxFit.contain,
                                               colorBlendMode:
                                                   BlendMode.modulate,
+                                              errorBuilder: (_, __, ___) =>
+                                                  const Icon(Icons.cloud, size: 30, color: Colors.white),
                                             ),
                                           ),
 
