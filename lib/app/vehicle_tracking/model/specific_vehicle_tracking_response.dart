@@ -67,7 +67,7 @@ class TrackingData {
   // Passed stops saved in DB — actual times, permanent history
   final List<Map<String, dynamic>> passedStops;
   // Last ~60 GPS breadcrumbs for client-side path drawing and stop detection
-  final List<Map<String, dynamic>> driverBreadcrumbs;
+  final List<dynamic> driverBreadcrumbs;
   // True when driver has marked the booking as delivered (status == 5).
   // Authoritative signal for showing "Reached" on destination in the timeline.
   final bool isDelivered;
@@ -154,10 +154,7 @@ class TrackingData {
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??
           [],
-      driverBreadcrumbs: (json['driver_breadcrumbs'] as List<dynamic>?)
-              ?.map((e) => Map<String, dynamic>.from(e as Map))
-              .toList() ??
-          [],
+      driverBreadcrumbs: (json['driver_breadcrumbs'] as List<dynamic>?) ?? [],
       isDelivered: json['is_delivered'] ?? false,
       deliveredAt: json['delivered_at']?.toString(),
     );
@@ -205,10 +202,7 @@ class TrackingData {
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??
           [],
-      driverBreadcrumbs: (json['driver_breadcrumbs'] as List<dynamic>?)
-              ?.map((e) => Map<String, dynamic>.from(e as Map))
-              .toList() ??
-          [],
+      driverBreadcrumbs: (json['driver_breadcrumbs'] as List<dynamic>?) ?? [],
       isDelivered: json['is_delivered'] ?? false,
       deliveredAt: json['delivered_at']?.toString(),
     );

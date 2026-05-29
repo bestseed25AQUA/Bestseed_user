@@ -1550,11 +1550,24 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       if (!dupOfPassed) deduplicatedWaypoints.add(wp);
     }
 
+    // Deduplicate upcoming stops against each other (geocoding spelling variants)
+    final deduplicatedUpcoming = <Map<String, dynamic>>[];
+    for (final s in filtered) {
+      final sLat = s['lat'] as double;
+      final sLng = s['lng'] as double;
+      bool tooClose = false;
+      for (final existing in deduplicatedUpcoming) {
+        final d = _haversineDistance(LatLng(sLat, sLng), LatLng(existing['lat'] as double, existing['lng'] as double));
+        if (d < 500) { tooClose = true; break; }
+      }
+      if (!tooClose) deduplicatedUpcoming.add(s);
+    }
+
     // Sort passed stops by API order (fixed), upcoming by dist_fraction
     passedFromApi.sort((a, b) => ((a['api_order'] as int?) ?? 0).compareTo((b['api_order'] as int?) ?? 0));
-    filtered.sort((a, b) => (a['dist_fraction'] as double).compareTo(b['dist_fraction'] as double));
+    deduplicatedUpcoming.sort((a, b) => (a['dist_fraction'] as double).compareTo(b['dist_fraction'] as double));
     // Passed first (in API order), then waypoints, then upcoming (by fraction)
-    final allStops = [...passedFromApi, ...deduplicatedWaypoints, ...filtered];
+    final allStops = [...passedFromApi, ...deduplicatedWaypoints, ...deduplicatedUpcoming];
 
     _enforceMonotonicPassedAt(allStops);
 
@@ -1564,7 +1577,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         _isLoadingFixedStops = false;
       });
     }
-    debugPrint('🗺️ [FIXED-STOPS] ${passedFromApi.length} passed (DB) + ${deduplicatedWaypoints.length} waypoints + ${filtered.length} upcoming (client) = ${allStops.length} total');
+    debugPrint('🗺️ [FIXED-STOPS] ${passedFromApi.length} passed (DB) + ${deduplicatedWaypoints.length} waypoints + ${deduplicatedUpcoming.length} upcoming (client) = ${allStops.length} total');
     if (_currentLatLng != null) _updateProgress(_currentLatLng!);
   }
 
@@ -2471,81 +2484,140 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   /// fresh Directions API call. Self-throttles: skips when neither endpoint
   /// moved meaningfully since the last fetch (30 m for home, 50 m for the
   /// truck). Fire-and-forget — schedules a setState on completion.
+  List<LatLng>? _homeToFirstBreadcrumbRoute; // cached road path from home to first breadcrumb
+
   Future<void> _refreshHomeToVehicleRoute() async {
-    if (_h2vFetching) return;
-    final home = _homeMarkerLatLng ?? _pickupLatLng;
-    if (home == null) return;
+    final homePoint = _homeMarkerLatLng ?? _pickupLatLng;
+    final breadcrumbs = _trackingData?.driverBreadcrumbs ?? [];
 
-    // If driver location not available yet, try fallback from polyline
-    if (_currentLatLng == null) {
-      _buildGreenFromPolyline();
-      return;
-    }
-    final vehicle = _snapToRoute(_currentLatLng!);
-
-    if (_h2vFetchedHome != null && _h2vFetchedVehicle != null) {
-      final homeDelta = _haversineMeters(_h2vFetchedHome!, home);
-      final vehicleDelta = _haversineMeters(_h2vFetchedVehicle!, vehicle);
-      if (homeDelta < 30 && vehicleDelta < 50) return;
-    }
-
-    _h2vFetching = true;
-    debugPrint('🟢 [H2V] Fetching green route: home=(${home.latitude},${home.longitude}) → vehicle=(${vehicle.latitude},${vehicle.longitude})');
-    try {
-      final pts = await GoogleMapsService.getDirectionsHighRes(
-        origin: home,
-        destination: vehicle,
-      );
-      debugPrint('🟢 [H2V] Got ${pts.length} points');
-      if (!mounted) return;
-      if (pts.length < 2) {
-        // API failed — fallback to slicing the existing route polyline
-        debugPrint('🟢 [H2V] API returned < 2 points, using polyline fallback');
-        _buildGreenFromPolyline();
-        return;
+    // Fetch road-aligned path from home to first breadcrumb (once)
+    if (_homeToFirstBreadcrumbRoute == null && homePoint != null && breadcrumbs.isNotEmpty) {
+      LatLng? firstBc;
+      for (final bc in breadcrumbs) {
+        if (bc is List && bc.length >= 2) {
+          final lat = (bc[0] as num?)?.toDouble();
+          final lng = (bc[1] as num?)?.toDouble();
+          if (lat != null && lng != null && lat != 0 && lng != 0) {
+            firstBc = LatLng(lat, lng);
+            break;
+          }
+        } else if (bc is Map) {
+          final lat = (bc['lat'] as num?)?.toDouble();
+          final lng = (bc['lng'] as num?)?.toDouble();
+          if (lat != null && lng != null && lat != 0 && lng != 0) {
+            firstBc = LatLng(lat, lng);
+            break;
+          }
+        }
       }
-      _homeToVehiclePoints = pts;
-      _h2vFetchedHome = home;
-      _h2vFetchedVehicle = vehicle;
 
+      if (firstBc != null && _haversineDistance(homePoint, firstBc) > 100) {
+        try {
+          final pts = await GoogleMapsService.getDirectionsHighRes(
+            origin: homePoint,
+            destination: firstBc,
+          );
+          if (pts.length >= 2) {
+            _homeToFirstBreadcrumbRoute = pts;
+          }
+        } catch (e) {
+          debugPrint('🟢 [H2V] Home→firstBC route error: $e');
+        }
+      } else {
+        _homeToFirstBreadcrumbRoute = []; // no road path needed (close enough)
+      }
+    }
+
+    _buildGreenFromPolyline();
+  }
+
+  /// Build green line from driver_breadcrumbs (actual driven path).
+  /// Filters out GPS spikes (>10km jumps) and null/empty values.
+  /// Always covers passed stops — if breadcrumbs don't reach a passed stop,
+  /// that stop's lat/lng is inserted to keep the path continuous.
+  void _buildGreenFromPolyline() {
+    final breadcrumbs = _trackingData?.driverBreadcrumbs ?? [];
+    final passedStops = _trackingData?.passedStops ?? [];
+    final driverPos = _currentLatLng;
+
+    final List<LatLng> greenPoints = [];
+
+    // 1. Add road-aligned path from home to first breadcrumb (if available)
+    //    Otherwise just add home point
+    final homePoint = _homeMarkerLatLng ?? _pickupLatLng;
+    if (_homeToFirstBreadcrumbRoute != null && _homeToFirstBreadcrumbRoute!.isNotEmpty) {
+      greenPoints.addAll(_homeToFirstBreadcrumbRoute!);
+    } else if (homePoint != null) {
+      greenPoints.add(homePoint);
+    }
+
+    // 2. Add breadcrumb points (filter spikes)
+    LatLng? lastPoint = homePoint;
+    for (final bc in breadcrumbs) {
+      double? lat, lng;
+      // Handle both formats: [lat,lng] array or {lat,lng} map
+      if (bc is List && bc.length >= 2) {
+        lat = (bc[0] as num?)?.toDouble();
+        lng = (bc[1] as num?)?.toDouble();
+      } else if (bc is Map) {
+        lat = (bc['lat'] as num?)?.toDouble();
+        lng = (bc['lng'] as num?)?.toDouble();
+      }
+      if (lat == null || lng == null || lat == 0 || lng == 0) continue;
+
+      final point = LatLng(lat, lng);
+
+      // Spike filter: skip if >10km jump from last point
+      if (lastPoint != null) {
+        final dist = _haversineDistance(lastPoint, point);
+        if (dist > 10000) continue; // >10km = GPS spike, skip
+      }
+
+      greenPoints.add(point);
+      lastPoint = point;
+    }
+
+    // 3. Ensure all passed stops are covered (insert if missing from breadcrumbs)
+    for (final ps in passedStops) {
+      final lat = (ps['lat'] as num?)?.toDouble();
+      final lng = (ps['lng'] as num?)?.toDouble();
+      if (lat == null || lng == null || lat == 0 || lng == 0) continue;
+
+      final stopPoint = LatLng(lat, lng);
+      // Check if any breadcrumb is within 500m of this stop
+      bool covered = greenPoints.any((gp) => _haversineDistance(gp, stopPoint) < 500);
+      if (!covered) {
+        // Insert stop at correct position (after nearest existing point)
+        int insertIdx = greenPoints.length;
+        double minDist = double.infinity;
+        for (int i = 0; i < greenPoints.length; i++) {
+          final d = _haversineDistance(greenPoints[i], stopPoint);
+          if (d < minDist) { minDist = d; insertIdx = i + 1; }
+        }
+        greenPoints.insert(insertIdx.clamp(0, greenPoints.length), stopPoint);
+      }
+    }
+
+    // 4. Add driver current position as last point
+    if (driverPos != null && greenPoints.isNotEmpty) {
+      final lastGreen = greenPoints.last;
+      if (_haversineDistance(lastGreen, driverPos) > 5) { // >5m away
+        greenPoints.add(driverPos);
+      }
+    }
+
+    // 5. Draw green line
+    if (greenPoints.length >= 2) {
+      _homeToVehiclePoints = greenPoints;
+
+      if (!mounted) return;
       final refreshed = _polylines
           .where((p) => p.polylineId.value != 'home_to_vehicle')
           .toSet();
       final h2v = _buildHomeToVehiclePolyline();
       if (h2v != null) refreshed.add(h2v);
       setState(() => _polylines = refreshed);
-    } catch (e) {
-      debugPrint('🟢 [H2V] Error: $e, using polyline fallback');
-      _buildGreenFromPolyline();
-    } finally {
-      _h2vFetching = false;
     }
-  }
-
-  /// Fallback: build green line by slicing the full route polyline
-  /// from start to the driver's current segment. No API call needed.
-  void _buildGreenFromPolyline() {
-    if (_fullRoutePolyline.length < 2) return;
-
-    final endIdx = _currentLatLng != null
-        ? _findNearestPolylineIndex(_currentLatLng!, _fullRoutePolyline)
-        : _currentSegmentIndex;
-
-    if (endIdx <= 0) return;
-
-    final greenPoints = _fullRoutePolyline.sublist(0, (endIdx + 1).clamp(0, _fullRoutePolyline.length));
-    if (greenPoints.length < 2) return;
-
-    _homeToVehiclePoints = greenPoints;
-    debugPrint('🟢 [H2V] Fallback green line: ${greenPoints.length} points from polyline');
-
-    if (!mounted) return;
-    final refreshed = _polylines
-        .where((p) => p.polylineId.value != 'home_to_vehicle')
-        .toSet();
-    final h2v = _buildHomeToVehiclePolyline();
-    if (h2v != null) refreshed.add(h2v);
-    setState(() => _polylines = refreshed);
   }
 
   int _findNearestPolylineIndex(LatLng point, List<LatLng> polyline) {
@@ -2796,7 +2868,21 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
             right: 0,
             child: Center(
               child: Builder(builder: (context) {
+                // Check if destination reached (same logic as isReached in timeline)
+                final destFirst = _trackingData?.drop.name.split(',').first.trim().toLowerCase() ?? '';
+                bool passedAtDest = false;
+                for (final ps in _trackingData?.passedStops ?? []) {
+                  final psName = (ps['name'] as String? ?? '').toLowerCase().trim();
+                  if (psName == destFirst) { passedAtDest = true; break; }
+                  final psLat = (ps['lat'] as num?)?.toDouble() ?? 0;
+                  final psLng = (ps['lng'] as num?)?.toDouble() ?? 0;
+                  if (_destinationLatLng != null && psLat != 0 && psLng != 0 &&
+                      _haversineDistance(LatLng(psLat, psLng), _destinationLatLng!) < 500) {
+                    passedAtDest = true; break;
+                  }
+                }
                 final bool arrivedAtDrop = (_trackingData?.isDelivered ?? false) ||
+                    passedAtDest ||
                     (_currentLatLng != null &&
                         _destinationLatLng != null &&
                         _haversineDistance(_currentLatLng!, _destinationLatLng!) <
