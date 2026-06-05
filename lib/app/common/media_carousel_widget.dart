@@ -1,8 +1,8 @@
-import 'dart:typed_data';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:seedsuser/app/common/full_media_screen.dart';
-import 'package:video_thumbnail/video_thumbnail.dart';
+import 'package:seedsuser/app/utils/video_thumbnail_cache.dart';
 
 class MediaCarouselWidget extends StatefulWidget {
   final List<String> mediaUrls;
@@ -183,6 +183,19 @@ class MiniMediaCarousel extends StatefulWidget {
 class _MiniMediaCarouselState extends State<MiniMediaCarousel> {
   int _currentPage = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    // Prefetch posters for any videos so they appear instantly on scroll.
+    final videoUrls = <String>[];
+    for (var i = 0; i < widget.mediaUrls.length; i++) {
+      final url = widget.mediaUrls[i];
+      final type = i < widget.mediaTypes.length ? widget.mediaTypes[i] : 'image';
+      if (type == 'video' || _isVideoUrl(url)) videoUrls.add(url);
+    }
+    if (videoUrls.isNotEmpty) VideoThumbnailCache.instance.warm(videoUrls);
+  }
+
   bool _isVideoUrl(String url) {
     final lowerUrl = url.toLowerCase();
     return lowerUrl.endsWith('.mp4') ||
@@ -294,7 +307,8 @@ class VideoPlayerPreview extends StatefulWidget {
 }
 
 class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
-  Uint8List? thumbnail;
+  File? _thumbnail;
+  bool _loading = true;
 
   @override
   void initState() {
@@ -302,16 +316,31 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     _loadThumbnail();
   }
 
-  Future<void> _loadThumbnail() async {
-    final data = await VideoThumbnail.thumbnailData(
-      video: widget.url,
-      imageFormat: ImageFormat.JPEG,
-      maxHeight: 350, // banner height
-      quality: 75,
-    );
+  @override
+  void didUpdateWidget(covariant VideoPlayerPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      _thumbnail = null;
+      _loading = true;
+      _loadThumbnail();
+    }
+  }
 
+  Future<void> _loadThumbnail() async {
+    // Generated once and cached to disk — instant on every subsequent view.
+    // onUpdated fires later if the backend's video changed, swapping in the
+    // latest frame without the user re-opening the screen.
+    final file = await VideoThumbnailCache.instance.get(
+      widget.url,
+      onUpdated: (fresh) {
+        if (mounted) setState(() => _thumbnail = fresh);
+      },
+    );
     if (mounted) {
-      setState(() => thumbnail = data);
+      setState(() {
+        _thumbnail = file;
+        _loading = false;
+      });
     }
   }
 
@@ -320,12 +349,29 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     return SizedBox(
       width: widget.width ?? MediaQuery.of(context).size.width,
       height: widget.height ?? 350,
-      child: thumbnail == null
-          ? const Center(child: CircularProgressIndicator())
+      child: _thumbnail == null
+          ? Container(
+              color: Colors.black12,
+              child: Center(
+                // Spinner only while generating the first time; otherwise a
+                // play affordance so the (failed-thumbnail) video stays tappable.
+                child: _loading
+                    ? const CircularProgressIndicator()
+                    : Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.play_arrow,
+                            color: Colors.white, size: 40),
+                      ),
+              ),
+            )
           : Stack(
               fit: StackFit.expand,
               children: [
-                Image.memory(thumbnail!, fit: BoxFit.cover),
+                Image.file(_thumbnail!, fit: BoxFit.cover, gaplessPlayback: true),
 
                 // ▶ Play icon overlay (optional)
                 Center(

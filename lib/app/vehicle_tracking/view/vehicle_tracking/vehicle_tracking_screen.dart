@@ -127,6 +127,12 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
 
       debugPrint('🗺️ [TRACK] driver=(${d.driverLocation.lat},${d.driverLocation.lng}) updatedAt=${d.driverLocation.updatedAt} speed=${d.driverLocation.speedKmh}');
 
+      // On poll updates, re-split the polyline at driver's new position
+      // so green (completed) and blue (remaining) lines follow the road
+      if (!isInitial && routePoints.isNotEmpty) {
+        _splitRouteAtDriver();
+      }
+
       // Print full timeline from API
       debugPrint('🗺️ [TIMELINE] ── Backend timeline: ${d.timeline.length} items ──');
       for (int i = 0; i < d.timeline.length; i++) {

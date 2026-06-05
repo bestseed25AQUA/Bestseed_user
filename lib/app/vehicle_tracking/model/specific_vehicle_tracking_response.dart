@@ -68,6 +68,11 @@ class TrackingData {
   final List<Map<String, dynamic>> passedStops;
   // Last ~60 GPS breadcrumbs for client-side path drawing and stop detection
   final List<dynamic> driverBreadcrumbs;
+  // Road-snapped ACTUAL driven path ([[lat,lng], ...]). Built by the backend by
+  // snapping the driver's real breadcrumbs to the road network (Google Roads
+  // API), so it covers the actual points but follows road geometry. This is the
+  // authoritative source for the GREEN (travelled) line — never the planned route.
+  final List<dynamic> trackingPath;
   // True when driver has marked the booking as delivered (status == 5).
   // Authoritative signal for showing "Reached" on destination in the timeline.
   final bool isDelivered;
@@ -93,6 +98,7 @@ class TrackingData {
     this.remainingDistanceKm = 0,
     this.passedStops = const [],
     this.driverBreadcrumbs = const [],
+    this.trackingPath = const [],
     this.isDelivered = false,
     this.deliveredAt,
   });
@@ -155,6 +161,7 @@ class TrackingData {
               .toList() ??
           [],
       driverBreadcrumbs: (json['driver_breadcrumbs'] as List<dynamic>?) ?? [],
+      trackingPath: (json['tracking_path'] as List<dynamic>?) ?? [],
       isDelivered: json['is_delivered'] ?? false,
       deliveredAt: json['delivered_at']?.toString(),
     );
@@ -203,6 +210,7 @@ class TrackingData {
               .toList() ??
           [],
       driverBreadcrumbs: (json['driver_breadcrumbs'] as List<dynamic>?) ?? [],
+      trackingPath: (json['tracking_path'] as List<dynamic>?) ?? [],
       isDelivered: json['is_delivered'] ?? false,
       deliveredAt: json['delivered_at']?.toString(),
     );

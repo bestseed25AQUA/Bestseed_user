@@ -15,6 +15,16 @@ class _ContactUsPageState extends State<ContactUsPage> {
   final ContactController _contactController = Get.put(ContactController());
 
   @override
+  void initState() {
+    super.initState();
+    // Re-fetch whenever this section mounts. Get.put only runs onInit() the
+    // first time the controller is registered, so a reused controller whose
+    // first fetch failed or returned empty would otherwise keep the section
+    // permanently hidden. Fetching here guarantees a fresh attempt each time.
+    _contactController.fetchContacts();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Obx(() {
       if (_contactController.isLoading.value) {

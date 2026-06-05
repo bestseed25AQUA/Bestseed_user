@@ -5,93 +5,122 @@ import 'package:seedsuser/app/common/app_color.dart';
 
 class LocationPermissionDialog extends StatelessWidget {
   final VoidCallback onEnable;
+  final VoidCallback? onLater;
 
   const LocationPermissionDialog({
     super.key,
     required this.onEnable,
+    this.onLater,
   });
 
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
     return SafeArea(
-      // Ensure the card is never hidden behind gesture nav bar or button nav bar.
-      // MediaQuery.viewPaddingOf gives the PHYSICAL inset regardless of whether
-      // the OS already reserved space — SafeArea.minimum ensures at least 8 dp
-      // even on devices that report zero inset (e.g. full-screen mode).
       minimum: EdgeInsets.only(bottom: bottomInset > 0 ? 0 : 8),
       child: Container(
-      margin: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 8,
-        bottom: bottomInset > 0 ? bottomInset + 8 : 8,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.location_on,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+        margin: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 8,
+          bottom: bottomInset > 0 ? bottomInset + 8 : 8,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
               children: [
-                Text(
-                  'Location access is off',
-                  style: GoogleFonts.roboto(
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.location_on,
                     color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    size: 24,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Allow location to get accurate delivery',
-                  style: GoogleFonts.roboto(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 12,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Location access is off',
+                        style: GoogleFonts.roboto(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Allow location to get accurate delivery',
+                        style: GoogleFonts.roboto(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  children: [
+                    ElevatedButton(
+                      onPressed: onEnable,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 8,
+                        ),
+                      ),
+                      child: Text(
+                        'Enable',
+                        style: GoogleFonts.roboto(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    // "Later" below the enable row
+                    if (onLater != null) ...[
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: onLater,
+                        child: Text(
+                          'Later',
+                          style: GoogleFonts.roboto(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.underline,
+                            decorationColor: Colors.white.withValues(
+                              alpha: 0.85,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 12),
-          ElevatedButton(
-            onPressed: onEnable,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            ),
-            child: Text(
-              'Enable',
-              style: GoogleFonts.roboto(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -101,10 +130,7 @@ class LocationPermissionDialog extends StatelessWidget {
 class LocationPermissionOverlay extends StatelessWidget {
   final VoidCallback onEnable;
 
-  const LocationPermissionOverlay({
-    super.key,
-    required this.onEnable,
-  });
+  const LocationPermissionOverlay({super.key, required this.onEnable});
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +150,7 @@ class LocationPermissionOverlay extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -198,15 +224,36 @@ class LocationPermissionService {
         permission == LocationPermission.whileInUse;
   }
 
-  /// Check if location service is enabled
+  /// Check if location service is enabled (with timeout for devices where it hangs)
   static Future<bool> isLocationServiceEnabled() async {
-    return await Geolocator.isLocationServiceEnabled();
+    try {
+      return await Geolocator.isLocationServiceEnabled()
+          .timeout(const Duration(seconds: 3), onTimeout: () {
+        debugPrint('📍 [SERVICE] isLocationServiceEnabled TIMED OUT (3s)');
+        return false;
+      });
+    } catch (e) {
+      debugPrint('📍 [SERVICE] isLocationServiceEnabled error: $e');
+      return false;
+    }
   }
 
   /// Request location permission (shows in-app dialog, doesn't navigate out)
   static Future<LocationPermissionResult> requestLocationPermission() async {
-    // Check if location services are enabled
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    // Check if location services are enabled (with timeout for OPPO/MediaTek hang)
+    debugPrint('📍 [SERVICE] requestLocationPermission — checking service...');
+    bool serviceEnabled = false;
+    try {
+      serviceEnabled = await Geolocator.isLocationServiceEnabled()
+          .timeout(const Duration(seconds: 3), onTimeout: () {
+        debugPrint('📍 [SERVICE] isLocationServiceEnabled TIMED OUT — GPS likely OFF');
+        return false;
+      });
+    } catch (e) {
+      debugPrint('📍 [SERVICE] isLocationServiceEnabled error: $e');
+      serviceEnabled = false;
+    }
+    debugPrint('📍 [SERVICE] serviceEnabled=$serviceEnabled');
     if (!serviceEnabled) {
       return LocationPermissionResult.serviceDisabled;
     }
@@ -251,7 +298,7 @@ class LocationPermissionService {
         desiredAccuracy: LocationAccuracy.high,
       );
     } catch (e) {
-      print('Error getting current position: $e');
+      debugPrint('Error getting current position: $e');
       return null;
     }
   }

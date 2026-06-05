@@ -42,6 +42,8 @@ class _HomeAppBarState extends State<HomeAppBar> {
   final _homeBannerController = Get.put(HomeBannerController());
   final _profileController = Get.find<ProfileController>();
 
+  Worker? _locationWorker;
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +52,26 @@ class _HomeAppBarState extends State<HomeAppBar> {
     debugPrint('🌤️ [WEATHER] Current state: temperature=$temperature, _weatherFetched=$_weatherFetched');
     debugPrint('🌤️ [WEATHER] Saved location: lat=${_locationController.selectedLatiude.value}, lng=${_locationController.selectedLongitude.value}, city=${_locationController.selectedCity.value}');
     _fetchWeatherFromGPS();
+
+    // Re-fetch weather when location is updated (e.g. after granting permission)
+    _locationWorker = ever(_locationController.locationUpdatedCount, (_) {
+      debugPrint('🌤️ [WEATHER] locationUpdatedCount changed — refreshing weather');
+      final lat = _locationController.selectedLatiude.value;
+      final lng = _locationController.selectedLongitude.value;
+      if (lat.isNotEmpty && lng.isNotEmpty) {
+        debugPrint('🌤️ [WEATHER] Using detected coordinates: lat=$lat, lng=$lng');
+        fetchWeatherByCoordinates(lat, lng);
+      } else {
+        debugPrint('🌤️ [WEATHER] No coordinates yet — fetching from GPS');
+        _fetchWeatherFromGPS();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _locationWorker?.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchWeatherFromGPS() async {
@@ -62,11 +84,22 @@ class _HomeAppBarState extends State<HomeAppBar> {
         debugPrint('🌤️ [WEATHER] ❌ Location permission denied — showing nothing');
         return;
       }
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      debugPrint('🌤️ [WEATHER] Step 3: checking isLocationServiceEnabled (timeout 3s)...');
+      bool serviceEnabled = false;
+      try {
+        serviceEnabled = await Geolocator.isLocationServiceEnabled()
+            .timeout(const Duration(seconds: 3), onTimeout: () {
+          debugPrint('🌤️ [WEATHER] ⚠️ isLocationServiceEnabled TIMED OUT — GPS likely OFF');
+          return false;
+        });
+      } catch (e) {
+        debugPrint('🌤️ [WEATHER] ⚠️ isLocationServiceEnabled error: $e');
+        serviceEnabled = false;
+      }
       debugPrint('🌤️ [WEATHER] Step 3: GPS service enabled=$serviceEnabled');
 
       if (!serviceEnabled) {
-        debugPrint('🌤️ [WEATHER] ❌ GPS service disabled — showing nothing');
+        debugPrint('🌤️ [WEATHER] ❌ GPS OFF — skipping weather (will retry when locationUpdatedCount changes)');
         return;
       }
 

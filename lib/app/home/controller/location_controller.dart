@@ -14,6 +14,10 @@ class LocationController extends GetxController {
   var allLocationLoading = false.obs;
   var isAutoDetectingLocation = false.obs;
 
+  /// Incremented when location permission is granted and location is detected.
+  /// Widgets can listen to this to refresh weather/UI.
+  var locationUpdatedCount = 0.obs;
+
   /// Store all locations list
   var allLocations = <Map<String, dynamic>>[].obs;
 
@@ -241,11 +245,14 @@ class LocationController extends GetxController {
         selectedLocationId.value = '';
       }
     } on FormatException catch (e) {
-      CustomToast.error("Failed to fetch default location");
+      // Don't show a failure toast on the home screen.
+      // CustomToast.error("Failed to fetch default location");
     } on Exception catch (e) {
-      CustomToast.error("Failed to fetch default location");
+      // Don't show a failure toast on the home screen.
+      // CustomToast.error("Failed to fetch default location");
     } catch (e) {
-      CustomToast.error("Failed to fetch default location");
+      // Don't show a failure toast on the home screen.
+      // CustomToast.error("Failed to fetch default location");
     }
   }
 
@@ -263,18 +270,15 @@ class LocationController extends GetxController {
         return null;
       }
 
-      // Check location permission
+      // Check location permission. Do NOT trigger the native permission dialog
+      // here — this runs automatically on home load, and the home screen
+      // already shows its own in-app "Enable location" sheet. Two prompts at
+      // once is confusing. Only auto-detect when permission is already granted;
+      // otherwise no-op and let the in-app sheet handle the ask.
       LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          print('Location permission denied');
-          return null;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        print('Location permission permanently denied');
+      if (permission != LocationPermission.always &&
+          permission != LocationPermission.whileInUse) {
+        print('Location not granted — skipping silent auto-detect');
         return null;
       }
 
@@ -387,6 +391,7 @@ class LocationController extends GetxController {
         selectedFullAddress.value = fullAddress;
 
         print('Auto-detected location saved: $locationName');
+        locationUpdatedCount.value++;
         return response['data'];
       }
 

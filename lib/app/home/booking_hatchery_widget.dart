@@ -64,46 +64,183 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     return '';
   }
 
-  Future<Position?> getCurrentLocation() async {
-    currentPosition = await _getCurrentLocation();
+  Future<Position?> getCurrentLocation({
+    bool promptIfDisabled = false,
+    bool requestPermissionIfNeeded = true,
+  }) async {
+    currentPosition = await _getCurrentLocation(
+      promptIfDisabled: promptIfDisabled,
+      requestPermissionIfNeeded: requestPermissionIfNeeded,
+    );
     return currentPosition;
   }
 
-  Future<Position?> _getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      CustomToast.show(message: 'location is not enabled');
-      return null;
+  /// Ask the user to enable device location, and open the device location
+  /// settings if they agree.
+  Future<void> _askEnableLocation() async {
+    if (!mounted) return;
+    final shouldOpen = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.location_off, size: 50, color: AppColors.primary),
+              const SizedBox(height: 16),
+              Text(
+                'Location is off',
+                style: GoogleFonts.roboto(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Please turn on location / GPS on your device to select your '
+                'dropping location.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[700],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[300],
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: Text(
+                        'Open Settings',
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (shouldOpen == true) {
+      await Geolocator.openLocationSettings();
     }
+  }
 
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+  Future<Position?> _getCurrentLocation({
+    bool promptIfDisabled = false,
+    bool requestPermissionIfNeeded = true,
+  }) async {
+    try {
+      // 1) Permission first. We DON'T gate on isLocationServiceEnabled() up
+      //    front — on some OPPO/MediaTek devices it false-negatives / hangs
+      //    (the rest of the app deliberately avoids it for the same reason).
+      LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
-        CustomToast.show(message: 'Permission denied');
+        // On auto/init calls we must NOT fire the native permission dialog —
+        // the home screen already shows its own in-app "Enable location" sheet,
+        // and two prompts at once is confusing. Only request when an explicit
+        // user action asked for it.
+        if (!requestPermissionIfNeeded) return null;
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.deniedForever) {
+        CustomToast.show(
+          message: 'Location permission is permanently denied. '
+              'Please enable it in Settings.',
+        );
+        await Geolocator.openAppSettings();
         return null;
       }
-    }
+      if (permission == LocationPermission.denied) {
+        CustomToast.show(message: 'Location permission denied');
+        return null;
+      }
 
-    if (permission == LocationPermission.deniedForever) {
-      CustomToast.show(message: 'Permission Permanently denied');
+      // 2) Try a fresh fix with a timeout; fall back to last known position so
+      //    a slow / indoor GPS lock doesn't dead-end the user.
+      Position? position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 15),
+          ),
+        ).timeout(const Duration(seconds: 16));
+      } catch (e) {
+        debugPrint('getCurrentPosition failed, trying last known: $e');
+        position = await Geolocator.getLastKnownPosition();
+      }
+
+      // 3) Still nothing → GPS is genuinely off. Take the user to the device
+      //    location settings so they can turn it on (instead of a dead-end
+      //    toast).
+      if (position == null) {
+        final serviceOn = await Geolocator.isLocationServiceEnabled()
+            .timeout(const Duration(seconds: 3), onTimeout: () => false);
+        if (!serviceOn) {
+          // Location/GPS is off → ask the user to enable it from device
+          // settings (only when triggered by an explicit user action).
+          if (promptIfDisabled) {
+            await _askEnableLocation();
+          } else {
+            CustomToast.show(
+              message: 'Please turn on location / GPS to continue.',
+            );
+          }
+        } else {
+          CustomToast.show(message: 'Unable to get current location. Try again.');
+        }
+        return null;
+      }
+
+      debugPrint('====current location get successfully=======');
+      currentPosition = position;
+      return position;
+    } catch (e) {
+      debugPrint('_getCurrentLocation error: $e');
       return null;
     }
-
-    // Try last known position first for speed
-    final lastKnown = await Geolocator.getLastKnownPosition();
-    if (lastKnown != null && currentPosition == null) {
-      currentPosition = lastKnown;
-    }
-
-    // Then get accurate position
-    final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.medium,
-    );
-    print('====current location get successfully=======');
-    return position;
   }
 
   @override
@@ -151,7 +288,10 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
   @override
   void initState() {
     super.initState();
-    getCurrentLocation();
+    // Silent on load: only read the location if permission is already granted.
+    // Never trigger the native permission dialog here — the home screen shows
+    // its own in-app "Enable location" sheet for that.
+    getCurrentLocation(requestPermissionIfNeeded: false);
     _autoFillUserData();
   }
 
@@ -390,15 +530,15 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
 
                 // Show loading while getting location
                 setState(() => _isGettingLocation = true);
-                currentPosition = await getCurrentLocation();
+                currentPosition =
+                    await getCurrentLocation(promptIfDisabled: true);
                 if (!mounted) return;
                 setState(() => _isGettingLocation = false);
 
                 if (currentPosition == null) {
-                  CustomToast.show(
-                    message:
-                        'Unable to get current location. Please enable location services.',
-                  );
+                  // _getCurrentLocation already prompts (enable-location dialog
+                  // or a specific toast) for the exact failure reason, so don't
+                  // stack another generic toast here.
                   return;
                 }
 

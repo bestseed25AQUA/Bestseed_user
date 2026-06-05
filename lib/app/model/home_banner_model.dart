@@ -21,12 +21,14 @@ class BannerItem {
   String title;
   String type; // "image" or "video"
   String url;
+  String? thumbnail; // thumbnail image URL (for video banners)
 
   BannerItem({
     required this.title,
     required this.type,
     required this.url,
     this.id,
+    this.thumbnail,
   });
 
   factory BannerItem.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,7 @@ class BannerItem {
       title: json['title'] ?? '',
       type: json['type'] ?? 'image',
       url: json['url'] ?? '',
+      thumbnail: json['thumbnail'],
     );
   }
 
@@ -43,5 +46,6 @@ class BannerItem {
         'title': title,
         'type': type,
         'url': url,
+        'thumbnail': thumbnail,
       };
 }

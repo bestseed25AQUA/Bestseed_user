@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/auth/view/splash_screen.dart';
+import 'package:seedsuser/app/common/app_globals.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/language/controller/language_controller.dart';
 import 'package:seedsuser/app/notification/notification_service.dart';
@@ -20,7 +21,7 @@ class MyHttpOverrides extends HttpOverrides {
   }
 }
 
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+@override
 void main() async {
   HttpOverrides.global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,18 +43,17 @@ void main() async {
 Future<void> initializeApp() async {
   await Firebase.initializeApp();
   await GetStorage.init();
-
   final notificationService = NotificationService();
   await notificationService.initialize();
   await notificationService.subscribeToTopic('all_users');
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatelessWidget{
   const MyApp({super.key});
   @override
   Widget build(BuildContext context){
     return GetBuilder<LanguageController>(
-      builder: (languageController) {
+      builder: (languageController){
         return LayoutBuilder(
           builder: (context, constraints){
             AppSize.init(context);
@@ -70,8 +70,7 @@ class MyApp extends StatelessWidget {
                   AppLocalizations.delegate,
                   GlobalMaterialLocalizations.delegate,
                   GlobalWidgetsLocalizations.delegate,
-                  GlobalCupertinoLocalizations.delegate,
-                ],
+                  GlobalCupertinoLocalizations.delegate],
                 supportedLocales: const [
                   Locale('en', 'US'),
                   Locale('te', 'IN'),

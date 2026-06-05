@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:seedsuser/app/auth/view/login_screen.dart';
 import 'package:seedsuser/app/booking/view/booking_detail_screen.dart';
+import 'package:seedsuser/app/common/force_logout_notice.dart';
 import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/notification/notification_details_screen.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
@@ -22,6 +23,9 @@ Future<void> _clearUserSessionInBackground() async {
     final sp = await SharedPreferences.getInstance();
     await sp.remove('user_token');
     await sp.remove('user_mobile');
+    // Raise the notice flag so the login screen explains why, when reopened.
+    // (Same key as ForceLogoutNotice — this isolate can't use that class.)
+    await sp.setBool('force_logout_pending', true);
   } catch (e) {
     print('FCM bg force-logout: failed to clear prefs -> $e');
   }
@@ -182,6 +186,7 @@ class NotificationService {
   /// Mirrors the network_utils 401 force-logout path.
   Future<void> _handleForceLogout() async {
     print('FCM: force_logout received — clearing user session');
+    await ForceLogoutNotice.raise();
     await AuthLocalStorage.clear();
     Get.offAll(() => LoginWithMobileScreen());
   }

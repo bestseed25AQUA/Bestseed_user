@@ -39,6 +39,13 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
   void initState() {
     super.initState();
     _initializeFilter();
+    // Fetch broodstock data only when we don't already have it in memory, and
+    // only now that this screen is open (the controller no longer auto-fetches
+    // in onInit, so nothing fetches on the home tab). When the list is empty
+    // the fetch turns on the shimmer.
+    if (controller.broodStocks.isEmpty) {
+      controller.fetchInitialData();
+    }
   }
 
   void _initializeFilter() {
@@ -170,7 +177,8 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                                   ),
                                 ),
                                 const Spacer(),
-                                if (!controller.isLoading.value)
+                                if (!controller.isLoading.value &&
+                                    !controller.isInitialLoading.value)
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 10, vertical: 4),
@@ -194,7 +202,8 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                           const SizedBox(height: 12),
 
                           // List
-                          if (controller.isLoading.value)
+                          if (controller.isLoading.value ||
+                              controller.isInitialLoading.value)
                             _buildShimmerList()
                           else if (controller.filteredBroodStocks.isEmpty)
                             _buildEmptyState()
@@ -407,7 +416,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          data.hatcheryName,
+                          data.hatcheryName.isNotEmpty ? data.hatcheryName : 'Hatchery',
                           style: GoogleFonts.roboto(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
@@ -472,26 +481,29 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
               ),
             ),
 
-            // Info chips row
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-              child: Row(
-                children: [
-                  _infoChip(
-                    Icons.inventory_2_outlined,
-                    data.availableQuantity.replaceAll("Pieces", "").trim(),
-                    'Pieces',
-                  ),
-                  const SizedBox(width: 8),
-                  if (data.importedDate.isNotEmpty)
-                    _infoChip(
-                      Icons.calendar_today_outlined,
-                      data.importedDate,
-                      'Imported',
-                    ),
-                ],
+            // Info chips row — only show if at least one has data
+            if (data.availableQuantity.isNotEmpty || data.importedDate.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                child: Row(
+                  children: [
+                    if (data.availableQuantity.isNotEmpty)
+                      _infoChip(
+                        Icons.inventory_2_outlined,
+                        data.availableQuantity.replaceAll("Pieces", "").trim(),
+                        'Pieces',
+                      ),
+                    if (data.availableQuantity.isNotEmpty && data.importedDate.isNotEmpty)
+                      const SizedBox(width: 8),
+                    if (data.importedDate.isNotEmpty)
+                      _infoChip(
+                        Icons.calendar_today_outlined,
+                        data.importedDate,
+                        'Imported',
+                      ),
+                  ],
+                ),
               ),
-            ),
 
             // Description
             if (data.description.isNotEmpty)
@@ -620,8 +632,12 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
         textColor = Colors.grey.shade700;
         icon = Icons.block_rounded;
         break;
-      default:
-        return const SizedBox.shrink();
+      case BroodstockStatus.unknown:
+        label = 'Status Unknown';
+        bgColor = Colors.grey.shade100;
+        textColor = Colors.grey.shade600;
+        icon = Icons.info_outline_rounded;
+        break;
     }
 
     return Container(
@@ -676,6 +692,29 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
               style: GoogleFonts.roboto(
                 fontSize: 13,
                 color: Colors.grey.shade400,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => controller.getBroodStock(),
+              icon: const Icon(Icons.refresh, size: 18),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+              ),
+              label: Text(
+                'Retry',
+                style: GoogleFonts.roboto(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],

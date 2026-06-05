@@ -26,6 +26,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final ProfileController profileController = Get.put(ProfileController());
 
   @override
+  void initState() {
+    super.initState();
+    // Always refresh on open. Get.put returns the existing controller instance
+    // without re-running onInit, so if its first fetch (at app start) came back
+    // empty/failed, the screen would otherwise show "No name available"/"N/A"
+    // forever even though the API now returns valid data.
+    profileController.getProfile();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),

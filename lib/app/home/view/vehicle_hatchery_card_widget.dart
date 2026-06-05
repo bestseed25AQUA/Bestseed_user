@@ -92,7 +92,8 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
                     child: SizedBox(
                       height: 140,
                       width: double.infinity,
-                      child: validImages.isEmpty
+                      child:
+                       validImages.isEmpty
                           ? Container(
                               color: Colors.grey.withOpacity(.08),
                               child: Center(
@@ -100,7 +101,8 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
                                     size: 40, color: Colors.grey[300]),
                               ),
                             )
-                          : validImages.length == 1
+                          :
+                           validImages.length == 1
                           ? (_isVideo(validImages.first))
                               ? InlineVideoPlayer(
                                   url: validImages.first,

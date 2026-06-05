@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show debugPrint;
+
 enum BroodstockStatus {
   available,
   comingSoon,
@@ -19,14 +21,30 @@ class BroodstockModel {
   });
 
   factory BroodstockModel.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    final List<BroodstockData> parsed = [];
+
+    if (rawData is List) {
+      for (int i = 0; i < rawData.length; i++) {
+        try {
+          if (rawData[i] is Map<String, dynamic>) {
+            parsed.add(BroodstockData.fromJson(rawData[i]));
+          } else {
+            debugPrint('🦐 [BROOD MODEL] item[$i] is not a Map: ${rawData[i].runtimeType}');
+          }
+        } catch (e) {
+          debugPrint('🦐 [BROOD MODEL] ❌ Failed to parse item[$i]: $e');
+          debugPrint('🦐 [BROOD MODEL] Raw item[$i]: ${rawData[i]}');
+        }
+      }
+    } else {
+      debugPrint('🦐 [BROOD MODEL] data is not a List: ${rawData.runtimeType}');
+    }
+
     return BroodstockModel(
-      status: json['status'] ?? false,
-      message: json['message'] ?? '',
-      data:
-          (json['data'] as List<dynamic>?)
-              ?.map((item) => BroodstockData.fromJson(item))
-              .toList() ??
-          [],
+      status: json['status'] == true,
+      message: json['message']?.toString() ?? '',
+      data: parsed,
     );
   }
 
@@ -79,35 +97,61 @@ class BroodstockData {
   });
 
   factory BroodstockData.fromJson(Map<String, dynamic> json) {
-    // Safely extract location and vendor as Map
-    final location = json['location'] is Map ? json['location'] as Map : null;
-    final vendor = json['vendor'] is Map ? json['vendor'] as Map : null;
-    final category = json['category'] is Map ? json['category'] as Map : null;
+    // Safely extract nested objects — API may send String, Map, null, or int
+    final rawLocation = json['location'];
+    final rawVendor = json['vendor'];
+    final rawCategory = json['category'];
+
+    final location = rawLocation is Map<String, dynamic> ? rawLocation : <String, dynamic>{};
+    final vendor = rawVendor is Map<String, dynamic> ? rawVendor : <String, dynamic>{};
+
+    // category can be a Map like {"category_name":"Tiger"} or a String like "Tiger"
+    String categoryName = '';
+    if (rawCategory is Map) {
+      categoryName = rawCategory['category_name']?.toString() ?? '';
+    } else if (rawCategory is String) {
+      categoryName = rawCategory;
+    }
+    // Fallback to top-level category_name if nested is empty
+    if (categoryName.isEmpty) {
+      categoryName = json['category_name']?.toString() ?? '';
+    }
+
+    // Parse images — could be List<String>, List<dynamic>, null, or even a single String
+    final rawImages = json['images'];
+    List<String> imagesList = [];
+    if (rawImages is List) {
+      imagesList = rawImages.map((e) => e?.toString() ?? '').where((e) => e.isNotEmpty).toList();
+    } else if (rawImages is String && rawImages.isNotEmpty) {
+      imagesList = [rawImages];
+    }
+
+    // id/hatcheryId — could be int, String, or null
+    int safeInt(dynamic val) {
+      if (val is int) return val;
+      if (val is String) return int.tryParse(val) ?? 0;
+      return 0;
+    }
 
     return BroodstockData(
-      id: json['id'] ?? 0,
-      hatcheryId: json['hatchery_id'] ?? 0,
+      id: safeInt(json['id']),
+      hatcheryId: safeInt(json['hatchery_id']),
       hatcheryName: json['hatchery_name']?.toString() ?? '',
       supplierName: json['supplier_name']?.toString() ?? '',
-      categoryName: category?['category_name']?.toString() ?? '',
+      categoryName: categoryName,
       description: json['description']?.toString() ?? '',
       availableQuantity: json['available_quantity']?.toString() ?? '',
       availableOn: json['available_on']?.toString() ?? '',
       packingStart: json['packing_start']?.toString() ?? '',
-      vendorName: vendor?['vendor_name']?.toString() ?? '',
-      vendorAddress: vendor?['vendor_address']?.toString() ?? '',
-      latitude: (location?['latitude'] ?? vendor?['latitude'] ?? '').toString(),
-      longitude: (location?['longitude'] ?? vendor?['longitude'] ?? '').toString(),
-      locationName: location?['location_name']?.toString() ?? '',
+      vendorName: vendor['vendor_name']?.toString() ?? json['vendor_name']?.toString() ?? '',
+      vendorAddress: vendor['vendor_address']?.toString() ?? json['vendor_address']?.toString() ?? '',
+      latitude: (location['latitude'] ?? vendor['latitude'] ?? '').toString(),
+      longitude: (location['longitude'] ?? vendor['longitude'] ?? '').toString(),
+      locationName: location['location_name']?.toString() ?? json['location_name']?.toString() ?? '',
       image: json['image']?.toString() ?? '',
       importedDate: json['imported_date']?.toString() ?? '',
-      images: List.generate(
-        (json['images'] != null && json['images'] is List)
-            ? (json['images'] as List).length
-            : 0,
-        (index) => json['images'][index].toString(),
-      ),
-      status: broodstockStatusFromString(json['status']?.toString()),
+      images: imagesList,
+      status: broodstockStatusFromString(json['status']),
     );
   }
 
@@ -116,7 +160,7 @@ class BroodstockData {
     'hatchery_id': hatcheryId,
     'hatchery_name': hatcheryName,
     'supplier_name': supplierName,
-    'description' : description,
+    'description': description,
     'imported_date': importedDate,
     'category': {'category_name': categoryName},
     'available_quantity': availableQuantity,
@@ -131,12 +175,14 @@ class BroodstockData {
       'longitude': longitude,
       'location_name': locationName,
     },
-    'images': image,
+    'image': image,
+    'images': images,
   };
 }
 
-BroodstockStatus broodstockStatusFromString(String? value) {
-  switch (value?.toLowerCase().trim()) {
+BroodstockStatus broodstockStatusFromString(dynamic value) {
+  final str = value?.toString().toLowerCase().trim() ?? '';
+  switch (str) {
     case '1':
     case 'available':
       return BroodstockStatus.available;
@@ -149,12 +195,15 @@ BroodstockStatus broodstockStatusFromString(String? value) {
       return BroodstockStatus.upcoming;
     case '4':
     case 'shortly_available':
+    case 'shortly available':
       return BroodstockStatus.shortlyAvailable;
     case '5':
     case 'closed':
       return BroodstockStatus.closed;
     default:
+      if (str.isNotEmpty) {
+        debugPrint('🦐 [BROOD MODEL] Unknown status value: "$str"');
+      }
       return BroodstockStatus.unknown;
   }
 }
-

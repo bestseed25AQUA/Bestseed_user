@@ -21,7 +21,8 @@ class FullMediaScreen extends StatefulWidget {
   State<FullMediaScreen> createState() => _FullMediaScreenState();
 }
 
-class _FullMediaScreenState extends State<FullMediaScreen> {
+class _FullMediaScreenState extends State<FullMediaScreen>
+    with WidgetsBindingObserver {
   late PageController _pageController;
   late int _currentIndex;
 
@@ -30,16 +31,37 @@ class _FullMediaScreenState extends State<FullMediaScreen> {
   final Map<int, ChewieController> _chewieControllers = {};
   final Map<int, bool> _videoLoading = {};
   final Map<int, bool> _videoError = {};
+  bool _wasPlayingBeforePause = false;
+
+  String get _tag => 'FullMediaScreen';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
+    debugPrint('$_tag: initState — ${widget.mediaUrls.length} media items, startIndex=$_currentIndex');
 
     // Initialize video if current is video
     if (_isVideo(_currentIndex)) {
       _initializeVideo(_currentIndex);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_isVideo(_currentIndex)) return;
+    final c = _videoControllers[_currentIndex];
+    if (c == null || !c.value.isInitialized) return;
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _wasPlayingBeforePause = c.value.isPlaying;
+      debugPrint('$_tag: lifecycle → background (wasPlaying=$_wasPlayingBeforePause, index=$_currentIndex)');
+      if (_wasPlayingBeforePause) _chewieControllers[_currentIndex]?.pause();
+    } else if (state == AppLifecycleState.resumed) {
+      debugPrint('$_tag: lifecycle → resumed');
+      if (_wasPlayingBeforePause) _chewieControllers[_currentIndex]?.play();
     }
   }
 
@@ -51,6 +73,7 @@ class _FullMediaScreenState extends State<FullMediaScreen> {
   Future<void> _initializeVideo(int index) async {
     if (_videoControllers.containsKey(index)) return;
 
+    debugPrint('$_tag: initializing video at index $index...');
     setState(() {
       _videoLoading[index] = true;
       _videoError[index] = false;
@@ -58,6 +81,7 @@ class _FullMediaScreenState extends State<FullMediaScreen> {
 
     final videoUrl = widget.mediaUrls[index].trim();
     if (videoUrl.isEmpty) {
+      debugPrint('$_tag: ERROR — video URL empty at index $index');
       setState(() {
         _videoError[index] = true;
         _videoLoading[index] = false;
@@ -74,9 +98,11 @@ class _FullMediaScreenState extends State<FullMediaScreen> {
           'Accept-Encoding': 'identity',
           'Connection': 'keep-alive',
         },
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
       );
 
       await controller.initialize();
+      debugPrint('$_tag: video[$index] initialized — duration=${controller.value.duration.inSeconds}s');
 
       final chewieController = ChewieController(
         videoPlayerController: controller,
@@ -100,8 +126,10 @@ class _FullMediaScreenState extends State<FullMediaScreen> {
           _chewieControllers[index] = chewieController;
           _videoLoading[index] = false;
         });
+        debugPrint('$_tag: video[$index] ready, autoPlay=${index == _currentIndex}');
       }
     } catch (e) {
+      debugPrint('$_tag: video[$index] init FAILED: $e');
       if (mounted) {
         setState(() {
           _videoError[index] = true;
@@ -112,8 +140,10 @@ class _FullMediaScreenState extends State<FullMediaScreen> {
   }
 
   void _onPageChanged(int index) {
+    debugPrint('$_tag: page changed $_currentIndex → $index');
     // Pause previous video if it was playing
     if (_isVideo(_currentIndex) && _chewieControllers.containsKey(_currentIndex)) {
+      debugPrint('$_tag: pausing video at index $_currentIndex');
       _chewieControllers[_currentIndex]?.pause();
     }
 
@@ -126,6 +156,7 @@ class _FullMediaScreenState extends State<FullMediaScreen> {
       if (!_videoControllers.containsKey(index)) {
         _initializeVideo(index);
       } else {
+        debugPrint('$_tag: resuming video at index $index');
         _chewieControllers[index]?.play();
       }
     }
@@ -151,6 +182,8 @@ class _FullMediaScreenState extends State<FullMediaScreen> {
 
   @override
   void dispose() {
+    debugPrint('$_tag: dispose — cleaning up ${_videoControllers.length} video controllers');
+    WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
     for (var controller in _chewieControllers.values) {
       controller.dispose();

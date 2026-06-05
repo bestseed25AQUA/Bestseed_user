@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/animated_view_custom.dart';
 import 'package:seedsuser/app/common/custom_dropdown.dart';
 import 'package:seedsuser/app/common/custom_icon_appbar.dart';
@@ -287,7 +288,11 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      if (controller.isLoading.value)
+                      // Gate the price-table shimmer on isPriceLoading (the flag
+                      // the price fetch actually uses) — not isLoading (which is
+                      // only for locations/categories). Otherwise the Retry/empty
+                      // state showed during the price fetch instead of a loader.
+                      if (controller.isPriceLoading.value)
                         AnimatedAppearance(
                           child: ListView.builder(
                             itemCount: 3,
@@ -306,9 +311,43 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
                         )
                       else if (priceData == null || priceData.prices.isEmpty)
                         SizedBox(
-                          height: 80,
-                          child: const Center(
-                            child: Text("No prices available."),
+                          height: 140,
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  "No prices available.",
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                ElevatedButton.icon(
+                                  onPressed: () => controller.getPrices(),
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 10,
+                                    ),
+                                  ),
+                                  label: Text(
+                                    'Retry',
+                                    style: GoogleFonts.roboto(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         )
                       else if (priceData.prices.isNotEmpty)

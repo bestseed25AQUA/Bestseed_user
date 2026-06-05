@@ -184,22 +184,42 @@ class VideoPlayerBanner extends StatefulWidget {
   State<VideoPlayerBanner> createState() => _VideoPlayerBannerState();
 }
 
-class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
+class _VideoPlayerBannerState extends State<VideoPlayerBanner>
+    with WidgetsBindingObserver {
   VideoPlayerController? _controller;
   bool _hasError = false;
   bool _isInitialized = false;
+  bool _wasPlayingBeforePause = false;
+
+  String get _tag => 'HomeBannerVideo[${widget.url.split('/').last.split('?').first}]';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeVideo();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final c = _controller;
+    if (c == null || !_isInitialized) return;
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _wasPlayingBeforePause = c.value.isPlaying;
+      debugPrint('$_tag: lifecycle → background (wasPlaying=$_wasPlayingBeforePause)');
+      if (_wasPlayingBeforePause) c.pause();
+    } else if (state == AppLifecycleState.resumed) {
+      debugPrint('$_tag: lifecycle → resumed');
+      if (_wasPlayingBeforePause) c.play();
+    }
+  }
+
   Future<void> _initializeVideo() async {
-    final videoUrl =  widget.url.trim();
+    final videoUrl = widget.url.trim();
 
     if (videoUrl.isEmpty) {
-      print('VideoPlayerBanner: ERROR - Video URL is empty!');
+      debugPrint('$_tag: ERROR — URL is empty');
       if (mounted) setState(() => _hasError = true);
       return;
     }
@@ -211,13 +231,13 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
         throw FormatException('Invalid URL scheme');
       }
     } catch (e) {
-      print('VideoPlayerBanner: ERROR - Invalid URL: $videoUrl');
+      debugPrint('$_tag: ERROR — Invalid URL: $videoUrl');
       if (mounted) setState(() => _hasError = true);
       return;
     }
 
     try {
-      print('VideoPlayerBanner: Initializing video: $videoUrl');
+      debugPrint('$_tag: initializing...');
       _controller = VideoPlayerController.networkUrl(
         uri,
         httpHeaders: {
@@ -226,30 +246,28 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
           'Accept-Encoding': 'identity',
           'Connection': 'keep-alive',
         },
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
       );
       await _controller!.initialize();
       _controller!.setVolume(0);
       _controller!.setLooping(true);
+      _controller!.play();
       if (mounted) {
-        setState(() {
-          _isInitialized = true;
-        });
+        setState(() => _isInitialized = true);
       }
-      print('VideoPlayerBanner: Video initialized successfully');
+      debugPrint('$_tag: initialized & playing — duration=${_controller!.value.duration.inSeconds}s');
     } catch (e) {
-      print('VideoPlayerBanner: Video initialization error!');
-      print('VideoPlayerBanner: URL = $videoUrl');
-      print('VideoPlayerBanner: Error = $e');
+      debugPrint('$_tag: init FAILED: $e');
       if (mounted) {
-        setState(() {
-          _hasError = true;
-        });
+        setState(() => _hasError = true);
       }
     }
   }
 
   @override
   void dispose() {
+    debugPrint('$_tag: dispose');
+    WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     super.dispose();
   }

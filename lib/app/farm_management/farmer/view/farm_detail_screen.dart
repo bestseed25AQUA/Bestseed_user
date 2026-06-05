@@ -3,12 +3,12 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/app_globals.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/harvest_bottom.dart';
-import 'package:seedsuser/main.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'dart:io';

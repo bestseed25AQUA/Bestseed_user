@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:get/get.dart';
-import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/app_cache_helper.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
@@ -10,8 +9,8 @@ import 'package:seedsuser/app/home/model/hatcheries_model.dart';
 import 'package:seedsuser/app/model/category_model.dart';
 import 'package:seedsuser/app/model/price_home_model.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
-import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
+import 'package:seedsuser/app/utils/app_names_constants.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
 
@@ -30,9 +29,7 @@ class HomeController extends GetxController {
     getBrands();
   }
 
-  final _broodStockController = Get.put(BroodStockController());
   final _newsSpecificController = Get.put(NewsSpecificController());
-  final _seedsPriceController = Get.put(SeedsPriceController());
   final _hatcheryController = Get.put(HatcheryUpdatesController());
 
   RxString selectedCategoryId = ''.obs;
@@ -43,16 +40,12 @@ class HomeController extends GetxController {
 
     // hatcheries api
     await getHatcheries(categoryId);
-    // price api
-    getPricesForHome();
 
-    //brood stocks api
-    await _broodStockController.getBroodStockForHome(
-      // categoryId: categoryId,
-      // locationId: locationId,
-      categoryId: '',
-      locationId: '',
-    );
+    // NOTE: price and broodstock are intentionally NOT fetched here anymore.
+    // Price loads only on the Price screen and broodstock only on the
+    // Broodstock screen (avoids the home request burst + "failed to fetch"
+    // toast).
+
     // medicine home api
     await _newsSpecificController.fetch(
       'medicine news',
@@ -100,13 +93,14 @@ class HomeController extends GetxController {
         // ⭐ Pass data to search filter controller
         try { await AppCacheHelper.save('categories', response.body); } catch (e) { debugPrint('Cache save failed (categories): $e'); }
       } else {
-        CustomToast.error("Failed to fetch categories ");
+        // CustomToast.error("Failed to fetch categories ");
       }
-    } catch (e, s) {
-      print('enter in get cat error');
-      print(e);
-      print(s);
-      CustomToast.error("Something went wrong  ");
+    } catch (e) {
+      debugPrint("Categories API Error: $e");
+      // Don't show a failure toast on the home screen.
+      // if (e.toString().contains('Network Issue')) {
+      //   CustomToast.error(AppConstNames.networkError);
+      // }
     } finally {
       isLoading.value = false;
     }
@@ -146,12 +140,15 @@ class HomeController extends GetxController {
         brands.assignAll(brandList.map((e) => BrandModel.fromJson(e)).toList());
         try { await AppCacheHelper.save('brands', response.body); } catch (e) { debugPrint('Cache save failed (brands): $e'); }
       } else {
-        CustomToast.error("Failed to fetch brands ");
+        // Don't show a failure toast on the home screen.
+        // CustomToast.error("Failed to fetch brands ");
       }
-    } catch (e, s) {
-      print('Brand API Error  ');
-      print(s);
-      CustomToast.error("Something went wrong  ");
+    } catch (e) {
+      debugPrint("Brands API Error: $e");
+      // Don't show a failure toast on the home screen.
+      // if (e.toString().contains('Network Issue')) {
+      //   CustomToast.error(AppConstNames.networkError);
+      // }
     } finally {
       isLoading.value = false;
     }
@@ -202,12 +199,11 @@ class HomeController extends GetxController {
         );
         try { await AppCacheHelper.save(cacheKey, response.body); } catch (e) { debugPrint('Cache save failed (hatcheries): $e'); }
       } else {
-        CustomToast.error("Failed to fetch hatcheries");
+        // Don't show a failure toast on the home screen.
+        // CustomToast.error("Failed to fetch hatcheries");
       }
-    } catch (e, s) {
-      print("Hatchery API Error  ");
-      print(s);
-      CustomToast.error("Something went wrong");
+    } catch (e) {
+      debugPrint("Hatchery API Error: $e");
     } finally {}
   }
 
@@ -243,10 +239,15 @@ class HomeController extends GetxController {
         homePriceData.value = PriceHomeModel.fromJson(data);
         try { await AppCacheHelper.save('home_seed_prices', response.body); } catch (e) { debugPrint('Cache save failed (home_seed_prices): $e'); }
       } else {
-        CustomToast.error("Failed to fetch prices ");
+        // Don't show a failure toast on the home screen.
+        // CustomToast.error("Failed to fetch prices ");
       }
     } catch (e) {
-      CustomToast.error("Something went wrong  ");
+      debugPrint("Prices API Error: $e");
+      // Don't show a failure toast on the home screen.
+      // if (e.toString().contains('Network Issue')) {
+      //   CustomToast.error(AppConstNames.networkError);
+      // }
     }
   }
 }

@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/auth/controller/auth_controller.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
+import 'package:seedsuser/app/common/force_logout_notice.dart';
 import 'package:seedsuser/app/common/terms_and_conditions_screen.dart';
 import 'package:seedsuser/app/common/privacy_policy_screen.dart';
 
@@ -24,6 +25,16 @@ class _LoginWithMobileScreenState extends State<LoginWithMobileScreen> {
 
   // Initialize AuthController
   final AuthController authController = Get.put(AuthController());
+
+  @override
+  void initState() {
+    super.initState();
+    // If we landed here because the account was signed in on another device,
+    // show the explanation once the screen is mounted.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ForceLogoutNotice.showIfPending(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

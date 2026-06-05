@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
@@ -113,69 +114,181 @@ class VideoPlayerBanner extends StatefulWidget {
   State<VideoPlayerBanner> createState() => _VideoPlayerBannerState();
 }
 
-class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
-  late VideoPlayerController _controller;
+class _VideoPlayerBannerState extends State<VideoPlayerBanner>
+    with WidgetsBindingObserver {
+  VideoPlayerController? _controller;
+  bool _hasError = false;
+  bool _isInitialized = false;
+
+  // Debounced buffering — only show spinner after 800ms of continuous buffering
+  bool _showBuffering = false;
+  Timer? _bufferingDebounce;
+  bool _lastRawBuffering = false;
+
+  bool _wasPlayingBeforePause = false;
+
+  String get _tag => 'VideoPlayerBanner[${widget.url.split('/').last.split('?').first}]';
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.network(widget.url)
-      ..initialize().then((_) {
-        setState(() {});
-        _controller.setVolume(0);
-        _controller.play();
-        _controller.setLooping(true);
-      });
+    WidgetsBinding.instance.addObserver(this);
+    debugPrint('$_tag: initState');
+    _initVideo();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final c = _controller;
+    if (c == null || !_isInitialized) return;
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _wasPlayingBeforePause = c.value.isPlaying;
+      debugPrint('$_tag: lifecycle → background (wasPlaying=$_wasPlayingBeforePause)');
+      if (_wasPlayingBeforePause) c.pause();
+    } else if (state == AppLifecycleState.resumed) {
+      debugPrint('$_tag: lifecycle → resumed');
+      if (_wasPlayingBeforePause) c.play();
+    }
+  }
+
+  Future<void> _initVideo() async {
+    try {
+      debugPrint('$_tag: initializing...');
+      _controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.url),
+        httpHeaders: {
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+          'Accept': '*/*',
+          'Accept-Encoding': 'identity',
+          'Connection': 'keep-alive',
+        },
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
+      _controller!.addListener(_onUpdate);
+      await _controller!.initialize();
+      if (mounted) {
+        debugPrint('$_tag: initialized — duration=${_controller!.value.duration.inSeconds}s, starting playback');
+        _controller!.setVolume(0);
+        _controller!.setLooping(true);
+        _controller!.play();
+        setState(() => _isInitialized = true);
+      }
+    } catch (e) {
+      debugPrint('$_tag: init FAILED: $e');
+      if (mounted) setState(() => _hasError = true);
+    }
+  }
+
+  void _onUpdate() {
+    final c = _controller;
+    if (c == null || !mounted) return;
+    final v = c.value;
+
+    // --- Debounced buffering ---
+    final rawBuffering = v.isBuffering;
+    if (rawBuffering != _lastRawBuffering) {
+      _lastRawBuffering = rawBuffering;
+      _bufferingDebounce?.cancel();
+      if (rawBuffering) {
+        _bufferingDebounce = Timer(const Duration(milliseconds: 800), () {
+          if (mounted && _lastRawBuffering) {
+            debugPrint('$_tag: buffering confirmed (>800ms) pos=${v.position.inMilliseconds}ms');
+            setState(() => _showBuffering = true);
+          }
+        });
+      } else {
+        if (_showBuffering) {
+          debugPrint('$_tag: buffering ended pos=${v.position.inMilliseconds}ms');
+          setState(() => _showBuffering = false);
+        }
+      }
+    }
+
+    if (v.hasError && !_hasError) {
+      debugPrint('$_tag: ERROR from controller: ${v.errorDescription}');
+      setState(() => _hasError = true);
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    debugPrint('$_tag: dispose');
+    WidgetsBinding.instance.removeObserver(this);
+    _bufferingDebounce?.cancel();
+    _controller?.removeListener(_onUpdate);
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return _controller.value.isInitialized
-        ? SizedBox(
+    if (_hasError) {
+      return Container(
         height: 160,
         width: double.infinity,
-          child: Stack(
-              children: [
-                SizedBox(
-                  height: 160,
-                  width: double.infinity,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: AspectRatio(
-                      aspectRatio: _controller.value.aspectRatio,
-                      child: VideoPlayer(_controller),
-                    ),
-                  ),
-                ),
-          
-                Center(
-                  child: Icon(
-                    Icons.play_circle_fill,
-                    color: Colors.white,
-                    size: 70,
-                  ),
-                ),
-              ],
-            ),
-        )
-        : Shimmer.fromColors(
-            baseColor: Colors.grey.shade300,
-            highlightColor: Colors.grey.shade100,
-          
-            child: Container(
-              height: 150,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: Icon(Icons.play_circle_fill, color: Colors.white, size: 70),
+        ),
+      );
+    }
+
+    if (!_isInitialized || _controller == null) {
+      return Shimmer.fromColors(
+        baseColor: Colors.grey.shade300,
+        highlightColor: Colors.grey.shade100,
+        child: Container(
+          height: 150,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 160,
+      width: double.infinity,
+      child: Stack(
+        children: [
+          SizedBox(
+            height: 160,
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: AspectRatio(
+                aspectRatio: _controller!.value.aspectRatio,
+                child: VideoPlayer(_controller!),
               ),
             ),
-          );
+          ),
+          if (_showBuffering)
+            const Center(
+              child: SizedBox(
+                width: 32,
+                height: 32,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
+              ),
+            ),
+          if (!_showBuffering)
+            Center(
+              child: Icon(
+                Icons.play_circle_fill,
+                color: Colors.white,
+                size: 70,
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }

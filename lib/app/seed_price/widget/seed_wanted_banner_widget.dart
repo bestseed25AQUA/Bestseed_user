@@ -132,8 +132,10 @@ class _VideoPlayerBannerState extends State<VideoPlayerBanner> {
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.network(widget.url)
-      ..initialize().then((_) {
+    _controller = VideoPlayerController.networkUrl(
+      Uri.parse(widget.url),
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+    )..initialize().then((_) {
         if (mounted) setState(() {});
         _controller.setVolume(0);
         _controller.setLooping(true);

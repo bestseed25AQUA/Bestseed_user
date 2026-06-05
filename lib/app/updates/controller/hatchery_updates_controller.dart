@@ -77,13 +77,15 @@ class HatcheryUpdatesController extends GetxController {
         hatcheryHomeData.value = HatcheryModel.fromJson(data);
         try { await AppCacheHelper.save('hatchery_home_updates', response.body); } catch (e) { debugPrint('Cache save failed (hatchery_home_updates): $e'); }
       } else {
-        CustomToast.error("Failed to fetch ");
+        // Don't show a failure toast on the home screen.
+        // CustomToast.error("Failed to fetch ");
       }
     } catch (e,s) {
       print('=============++++++++++++==================');
       print(e.toString());
       print(s.toString());
-      CustomToast.error("Something went wrong  ");
+      // Don't show a failure toast on the home screen.
+      // CustomToast.error("Something went wrong  ");
     } finally {
     }
   }

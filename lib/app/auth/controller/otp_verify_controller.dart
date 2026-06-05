@@ -13,6 +13,7 @@ import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/notification/notification_service.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
+import 'package:seedsuser/app/home/controller/home_controller.dart';
 
 class OtpVerifyController extends GetxController {
   // Observables
@@ -162,11 +163,30 @@ class OtpVerifyController extends GetxController {
         // Register FCM token with server after login
         NotificationService().registerToken();
 
-        // Fetch all home banners before navigating — so home screen has data
-        final bannerCtrl = Get.find<HomeBannerController>();
-        bannerCtrl.fetchAll(); // fire-and-forget, home screen will show shimmer until loaded
+        // Preload home essentials (above-the-fold banner data + cached banner
+        // video) BEFORE navigating, so the fresh-login path opens a populated,
+        // fast Home — same as the already-logged-in splash path. Bounded by a
+        // timeout so a slow network never strands the user on the OTP screen;
+        // on timeout we navigate anyway and Home falls back to its own loading.
+        try {
+          final preloads = <Future>[];
+          if (Get.isRegistered<HomeBannerController>()) {
+            preloads.add(Get.find<HomeBannerController>().preloadEssential());
+          }
+          // Warm the Home categories (tab bar) during login so the first Home
+          // open doesn't sit on a big shimmer while the categories network call
+          // runs there. getCategories() also caches them, so even if the
+          // controller is re-created later, Home loads instantly from cache.
+          final home = Get.isRegistered<HomeController>()
+              ? Get.find<HomeController>()
+              : Get.put(HomeController());
+          preloads.add(home.getCategories());
+          await Future.wait(preloads).timeout(const Duration(seconds: 4));
+        } catch (e) {
+          debugPrint('OTP preload not finished in time (non-fatal): $e');
+        }
 
-        Get.offAll(() => DashboardScreen());
+        Get.offAll(() => DashboardScreen(fromLogin: true));
       } else {
         // Show the error message from API response
         final errorMessage = data['message'] ?? "Invalid OTP. Please try again.";

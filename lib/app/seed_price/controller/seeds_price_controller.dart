@@ -25,7 +25,12 @@ class SeedsPriceController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    fetchData();
+    // Fetch only when we don't already have data in memory (so reusing the
+    // controller doesn't re-hit the API). isPriceLoading starts true, so the
+    // price screen shows its shimmer until this first fetch completes.
+    if (locations.isEmpty || categories.isEmpty) {
+      fetchData();
+    }
   }
 
   Future<void> fetchData() async {
@@ -166,7 +171,7 @@ class SeedsPriceController extends GetxController {
         debugPrint('[API] Loaded ${categories.length} categories & cached');
       } else {
         if (categories.isEmpty) {
-          CustomToast.error("Failed to fetch categories ");
+          // CustomToast.error("Failed to fetch categories ");
         }
       }
     } catch (e) {
@@ -218,7 +223,8 @@ class SeedsPriceController extends GetxController {
         debugPrint('[API] Loaded prices & cached for cat=$catId loc=$locId');
       } else {
         if (priceData.value == null) {
-          CustomToast.error("Failed to fetch prices");
+          // Don't show a failure toast — the screen shows a Retry state instead.
+          // CustomToast.error("Failed to fetch prices");
         }
       }
     } catch (e) {
@@ -244,7 +250,8 @@ class SeedsPriceController extends GetxController {
         final data = jsonDecode(response.body);
         homePriceData.value = PriceModel.fromJson(data);
       } else {
-        CustomToast.error("Failed to fetch prices ");
+        // Don't show a failure toast for prices.
+        // CustomToast.error("Failed to fetch prices ");
       }
     } catch (e) {
       CustomToast.error("Something went wrong");

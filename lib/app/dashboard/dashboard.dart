@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,6 +16,7 @@ import 'package:seedsuser/app/home/view/home_screen.dart';
 import 'package:seedsuser/app/home/widget/location_permission_dialog.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/news_ads_screen.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
+import 'package:seedsuser/app/utils/session_service.dart';
 import 'package:seedsuser/app/seed_price/view/seed_price_screen.dart';
 import 'package:seedsuser/app/updates/view/update_screen.dart';
 import 'package:seedsuser/app/booking/controller/my_booking_controller.dart';
@@ -25,13 +27,19 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  /// True when reached straight from the login (OTP) flow. In that case the
+  /// location prompt is MANDATORY (no "Later", not dismissible). On a normal
+  /// app start (already logged in) it stays optional.
+  final bool fromLogin;
+
+  const DashboardScreen({super.key, this.fromLogin = false});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
   final DashboardController controller = Get.put(DashboardController());
   final HomeController _homeController = Get.put(HomeController());
   final LocationController _locationController = Get.put(LocationController());
@@ -39,14 +47,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final MyBookingController _bookingController = Get.put(MyBookingController());
 
   bool _isCheckingPermission = true;
+  bool _waitingForSettingsReturn = false; // true when user is in device settings
 
-  final List<Widget> pages = [
-    HomeScreen(),
-    SeedPricesScreen(),
-    BroodStockScreen(),
-    NewsAdsScreen(),
-    UpdatesScreen(),
+  // Lazy tab construction: each tab's screen (and therefore its API fetch) is
+  // built only when that tab is first opened — not all at once on app start.
+  // This spreads out network calls (so price/broodstock/news/etc. don't all
+  // fire and race at launch, which caused intermittent "didn't load") and lets
+  // each screen show its own loader at the moment it's opened.
+  final List<Widget Function()> _pageBuilders = [
+    () => HomeScreen(),
+    () => SeedPricesScreen(),
+    () => BroodStockScreen(),
+    () => NewsAdsScreen(),
+    () => UpdatesScreen(),
   ];
+  final Map<int, Widget> _builtPages = {};
+
+  Widget _pageAt(int index, int currentIndex) {
+    // Build (and cache) a tab the first time it becomes the selected tab.
+    if (index == currentIndex) {
+      _builtPages[index] ??= _pageBuilders[index]();
+    }
+    return _builtPages[index] ?? const SizedBox.shrink();
+  }
 
   final List<String> icons = [
     'assets/images/home.png',
@@ -68,93 +91,154 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool isDeviceConnected = false;
   bool isAlertSet = false;
 
+  // Single-device login: periodically verify this device's token is still
+  // valid. If the same account logs in on another phone, the backend revokes
+  // this token → the profile ping returns 401 → automatic logout + redirect to
+  // the login screen (handled inside SessionService/getRequest).
+  Timer? _sessionTimer;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     getConnectivity();
     _checkLocationPermission();
+    _startSessionWatch();
   }
 
-  /// Check location permission on app start
-  Future<void> _checkLocationPermission() async {
-    setState(() {
-      _isCheckingPermission = true;
-    });
+  /// Validate the session now, then keep validating while the app is open so a
+  /// logged-out-elsewhere device gets kicked out even if it's sitting idle.
+  void _startSessionWatch() {
+    SessionService.validate();
+    _sessionTimer?.cancel();
+    _sessionTimer = Timer.periodic(
+      const Duration(seconds: 60),
+      (_) => SessionService.validate(),
+    );
+  }
 
-    bool hasPermission =
-        await LocationPermissionService.isLocationPermissionGranted();
-    bool serviceEnabled =
-        await LocationPermissionService.isLocationServiceEnabled();
-
-    if (!hasPermission || !serviceEnabled) {
-      setState(() {
-        _isCheckingPermission = false;
-      });
-      // Show bottom sheet after frame is built
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showLocationBottomSheet();
-      });
-    } else {
-      setState(() {
-        _isCheckingPermission = false;
-      });
-      // Auto-detect current location
-      _autoDetectLocation();
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Re-check the session immediately on resume — covers the case where the
+      // account was used on another phone while this one was backgrounded.
+      SessionService.validate();
+      if (_waitingForSettingsReturn) {
+        _waitingForSettingsReturn = false;
+        debugPrint('📍 [LOC] App RESUMED from settings — checking GPS...');
+        // Small delay to let GPS service fully register
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) _checkAndRetryPermission();
+        });
+      }
     }
   }
 
-  /// Show location permission bottom sheet
+  /// Check location permission on app start.
+  /// NOTE: isLocationServiceEnabled() hangs on OPPO/MediaTek devices, so we
+  /// skip it entirely when permission is granted. If GPS is truly off,
+  /// getCurrentPosition() inside _autoDetectLocation will fail and we handle that.
+  Future<void> _checkLocationPermission() async {
+    debugPrint('📍 [LOC] Checking location permission...');
+    try {
+      setState(() {
+        _isCheckingPermission = true;
+      });
+
+      bool hasPermission =
+          await LocationPermissionService.isLocationPermissionGranted();
+      debugPrint('📍 [LOC] hasPermission=$hasPermission');
+
+      setState(() {
+        _isCheckingPermission = false;
+      });
+
+      if (!hasPermission) {
+        debugPrint('📍 [LOC] ❌ No permission — showing bottom sheet');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showLocationBottomSheet();
+        });
+      } else {
+        // Permission granted — skip isLocationServiceEnabled (hangs on OPPO).
+        // Just try to get location directly. If GPS is off, it will fail gracefully.
+        debugPrint('📍 [LOC] ✅ Permission granted — auto-detecting location');
+        _autoDetectLocation().then((_) {
+          _locationController.locationUpdatedCount.value++;
+          debugPrint('📍 [LOC] ✅ locationUpdatedCount incremented → weather will refresh');
+        });
+      }
+    } catch (e) {
+      debugPrint('📍 [LOC] ❌ _checkLocationPermission CRASHED: $e');
+      setState(() {
+        _isCheckingPermission = false;
+      });
+    }
+  }
+
+  /// Show location permission bottom sheet.
+  ///
+  /// Location is always OPTIONAL now — including the very first time after the
+  /// login (OTP) flow. The sheet is always dismissible and always shows the
+  /// "Later" action so the user is never forced to enable location.
   void _showLocationBottomSheet() {
+    debugPrint('📍 [LOC] Showing location permission bottom sheet '
+        '(fromLogin=${widget.fromLogin}, optional always)');
+
     showModalBottomSheet(
       context: context,
-      isDismissible: false,
-      enableDrag: false,
+      // Always optional → allow dismiss/drag.
+      isDismissible: true,
+      enableDrag: true,
       backgroundColor: Colors.transparent,
       useSafeArea: true,
       builder: (context) {
-        return PopScope(
-          canPop: false,
-          onPopInvokedWithResult: (didPop, _) {
-            if (!didPop) {
-              SystemNavigator.pop();
-            }
+        return LocationPermissionDialog(
+          onEnable: () async {
+            debugPrint('📍 [LOC] User tapped ENABLE');
+            Navigator.pop(context);
+            await _handleEnableLocation();
           },
-          child: LocationPermissionDialog(
-            onEnable: () async {
-              Navigator.pop(context);
-              await _handleEnableLocation();
-            },
-          ),
+          // Always show "Later" — never mandatory.
+          onLater: () {
+            debugPrint('📍 [LOC] User tapped LATER — hiding popup');
+            Navigator.pop(context);
+          },
         );
       },
     );
   }
 
-  /// Handle enable location button press
+  /// Handle enable location button press.
+  /// Skips isLocationServiceEnabled (hangs on OPPO) — just requests permission
+  /// directly and tries to get location. If GPS is off, getCurrentPosition fails.
   Future<void> _handleEnableLocation() async {
-    final result = await LocationPermissionService.requestLocationPermission();
+    debugPrint('📍 [LOC] Requesting permission (skip service check)...');
 
-    switch (result) {
-      case LocationPermissionResult.granted:
-        // Permission granted, fetch location immediately
-        _autoDetectLocation();
-        break;
-
-      case LocationPermissionResult.serviceDisabled:
-        // GPS/Location service is disabled, show dialog to enable
-        _showEnableGPSDialog();
-        break;
-
-      case LocationPermissionResult.deniedForever:
-        // Permission permanently denied, show dialog to open app settings
-        _showOpenSettingsDialog();
-        break;
-
-      case LocationPermissionResult.denied:
-        // Permission denied, show bottom sheet again
-        _showLocationBottomSheet();
-        break;
+    // Just request permission — don't check isLocationServiceEnabled
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
     }
+    debugPrint('📍 [LOC] Permission after request: $permission');
+
+    if (permission == LocationPermission.deniedForever) {
+      debugPrint('📍 [LOC] ❌ Denied forever — showing app settings dialog');
+      _showOpenSettingsDialog();
+      return;
+    }
+
+    if (permission == LocationPermission.denied) {
+      debugPrint('📍 [LOC] ❌ Denied — respecting choice');
+      return;
+    }
+
+    // Permission granted — try to get location directly
+    debugPrint('📍 [LOC] ✅ GRANTED — fetching location + weather');
+    _locationController.locationUpdatedCount.value++;
+    _autoDetectLocation().then((_) {
+      _locationController.locationUpdatedCount.value++;
+      debugPrint('📍 [LOC] ✅ autoDetect done, weather refreshed');
+    });
   }
 
   /// Show dialog when GPS/Location service is disabled
@@ -208,11 +292,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       onPressed: () {
+                        debugPrint('📍 [LOC] GPS dialog — user tapped LATER');
                         Navigator.pop(context);
-                        _showLocationBottomSheet();
                       },
                       child: Text(
-                        'Cancel',
+                        'Later',
                         style: GoogleFonts.roboto(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -233,11 +317,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       onPressed: () async {
+                        debugPrint('📍 [LOC] GPS dialog — opening location settings');
                         Navigator.pop(context);
+                        _waitingForSettingsReturn = true;
+                        debugPrint('📍 [LOC] Waiting for user to return from settings...');
                         await LocationPermissionService.openLocationSettings();
-                        // Check again after user returns from settings
-                        await Future.delayed(const Duration(milliseconds: 500));
-                        _checkAndRetryPermission();
                       },
                       child: Text(
                         'Open Settings',
@@ -309,11 +393,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       onPressed: () {
+                        debugPrint('📍 [LOC] Settings dialog — user tapped LATER');
                         Navigator.pop(context);
-                        _showLocationBottomSheet();
                       },
                       child: Text(
-                        'Cancel',
+                        'Later',
                         style: GoogleFonts.roboto(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -334,11 +418,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       onPressed: () async {
+                        debugPrint('📍 [LOC] Settings dialog — opening app settings');
                         Navigator.pop(context);
+                        _waitingForSettingsReturn = true;
+                        debugPrint('📍 [LOC] App settings — waiting for user to return...');
                         await LocationPermissionService.openAppSettings();
-                        // Check again after user returns from settings
-                        await Future.delayed(const Duration(milliseconds: 500));
-                        _checkAndRetryPermission();
                       },
                       child: Text(
                         'Open Settings',
@@ -359,26 +443,65 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Check permission again after returning from settings
+  /// After returning from settings, skip isLocationServiceEnabled (it hangs on OPPO/MediaTek).
+  /// Instead, directly try to get GPS position — if it works, GPS is on.
   Future<void> _checkAndRetryPermission() async {
-    bool hasPermission =
-        await LocationPermissionService.isLocationPermissionGranted();
-    bool serviceEnabled =
-        await LocationPermissionService.isLocationServiceEnabled();
+    debugPrint('📍 [LOC] Returned from settings — trying GPS directly (skip service check)...');
+    try {
+      bool hasPermission =
+          await LocationPermissionService.isLocationPermissionGranted();
+      debugPrint('📍 [LOC] After settings: hasPermission=$hasPermission');
 
-    if (hasPermission && serviceEnabled) {
-      _autoDetectLocation();
-    } else {
-      _showLocationBottomSheet();
+      if (!hasPermission) {
+        debugPrint('📍 [LOC] ❌ Still no permission after settings');
+        return;
+      }
+
+      // Don't call isLocationServiceEnabled — it hangs on this device.
+      // Just try getting position directly. If GPS is off, it fails fast.
+      debugPrint('📍 [LOC] Trying getCurrentPosition directly (timeout 8s)...');
+      try {
+        final position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.low,
+          timeLimit: const Duration(seconds: 8),
+        );
+        debugPrint('📍 [LOC] ✅ GPS works! lat=${position.latitude}, lng=${position.longitude}');
+        // GPS is working — fetch location + weather
+        _locationController.locationUpdatedCount.value++;
+        _autoDetectLocation().then((_) {
+          _locationController.locationUpdatedCount.value++;
+          debugPrint('📍 [LOC] ✅ autoDetect done after settings');
+        });
+      } catch (e) {
+        debugPrint('📍 [LOC] ❌ GPS position failed: $e — GPS may still be OFF');
+        _showEnableGPSDialog();
+      }
+    } catch (e) {
+      debugPrint('📍 [LOC] ❌ _checkAndRetryPermission error: $e');
     }
   }
 
   /// Auto-detect current location
   Future<void> _autoDetectLocation() async {
-    await _profileController.getProfile();
-    final farmerId = _profileController.profile.value?.id.toString() ?? '';
-    if (farmerId.isNotEmpty) {
-      await _locationController.autoDetectCurrentLocation(farmerId: farmerId);
+    debugPrint('📍 [LOC] Auto-detecting location...');
+    try {
+      await _profileController.getProfile();
+      final farmerId = _profileController.profile.value?.id.toString() ?? '';
+      if (farmerId.isNotEmpty) {
+        debugPrint('📍 [LOC] Calling autoDetectCurrentLocation (farmerId=$farmerId)');
+        final result = await _locationController.autoDetectCurrentLocation(farmerId: farmerId);
+        if (result != null) {
+          debugPrint('📍 [LOC] ✅ Location detected: ${_locationController.selectedCity.value} '
+              '(${_locationController.selectedLatiude.value}, ${_locationController.selectedLongitude.value})');
+          debugPrint('📍 [LOC] ✅ Weather will refresh via locationUpdatedCount listener');
+        } else {
+          debugPrint('📍 [LOC] ❌ autoDetectCurrentLocation returned null');
+        }
+      } else {
+        debugPrint('📍 [LOC] ❌ No farmerId — cannot detect location');
+      }
+    } catch (e) {
+      debugPrint('📍 [LOC] ❌ Auto-detect failed: $e');
     }
   }
 
@@ -397,6 +520,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Navigator.pop(context);
         }
         setState(() => isAlertSet = false);
+      }
+
+      // Internet just came back — re-verify the session immediately. If the
+      // account was logged in elsewhere while this device was offline, the
+      // token is now revoked and this kicks the user to login right away.
+      if (currentStatus) {
+        SessionService.validate();
       }
     });
   }
@@ -423,6 +553,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ],
     ),
   );
+
+  @override
+  void dispose() {
+    _sessionTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -553,10 +690,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           // Return true to exit, false to stay
         },
         child: Scaffold(
-          body: Obx(() => IndexedStack(
-                index: controller.currentIndex.value,
-                children: pages,
-              )),
+          body: Obx(() {
+            final idx = controller.currentIndex.value;
+            return IndexedStack(
+              index: idx,
+              children: List.generate(
+                _pageBuilders.length,
+                (i) => _pageAt(i, idx),
+              ),
+            );
+          }),
           floatingActionButton: Obx(() {
             if (controller.currentIndex.value != 0) return const SizedBox();
             if (!_bookingController.hasInProgressBooking) return const SizedBox();

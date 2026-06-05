@@ -46,7 +46,10 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
   final homeController = Get.put(HomeController());
 
   int _currentIndex = 0;
-  bool _isVideoPlaying = false; // Track if any video is playing to pause auto-scroll
+  // NOTE: We no longer use setState to toggle this. Changing autoPlay dynamically
+  // causes CarouselSlider to rebuild and destroy the InlineVideoPlayer widget,
+  // which is the root cause of the play-stop-play-stop loop.
+  // Auto-scroll stays enabled; users can use fullscreen for uninterrupted video.
   @override
   void initState() {
     super.initState();
@@ -211,12 +214,8 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                             url: mediaUrl,
                                             title: data?.title ?? 'Video',
                                             height: boxHeight - 20,
-                                            onPlayStateChanged: (isPlaying) {
-                                              // Pause/resume auto-scroll based on video play state
-                                              setState(() {
-                                                _isVideoPlaying = isPlaying;
-                                              });
-                                            },
+                                            isActive: _currentIndex == index,
+                                            tabIndex: 3, // News & Ads dashboard tab
                                           ),
                                         ),
                                       );
@@ -224,16 +223,12 @@ class _NewsAdsScreenState extends State<NewsAdsScreen> {
                                   },
                                   options: CarouselOptions(
                                     height: boxHeight - 20,
-                                    autoPlay: !_isVideoPlaying, // Pause auto-scroll when video is playing
+                                    autoPlay: true,
                                     enlargeCenterPage: true,
                                     viewportFraction: 0.9,
                                     onPageChanged: (index, reason) {
                                       setState(() {
                                         _currentIndex = index;
-                                        // Stop video when carousel slides to another item
-                                        if (_isVideoPlaying) {
-                                          _isVideoPlaying = false;
-                                        }
                                       });
                                     },
                                   ),

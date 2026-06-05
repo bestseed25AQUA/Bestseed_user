@@ -158,6 +158,7 @@ class HatcherySuppliersWidget extends StatelessWidget {
               const SizedBox(height: 4),
 
               // Supplier + Imported Date
+              if (data.supplierName.isNotEmpty || data.importedDate.isNotEmpty)
               Row(
                 children: [
                   Expanded(

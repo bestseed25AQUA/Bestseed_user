@@ -6,6 +6,7 @@ import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/booking_hatchery_widget.dart';
 import 'package:seedsuser/app/common/media_carousel_widget.dart';
 import 'package:seedsuser/app/model/vehicle_available_model.dart';
+import 'package:seedsuser/app/utils/video_thumbnail_cache.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class VehicleAvailabilityDetailScreen extends StatefulWidget {
@@ -39,6 +40,9 @@ class _VehicleAvailabilityDetailScreenState
   @override
   void initState() {
     super.initState();
+    // Prefetch posters for every video so swiping the carousel is instant.
+    VideoThumbnailCache.instance
+        .warm(widget.vehicleAvailability.images.where(_isVideo));
   }
 
   @override

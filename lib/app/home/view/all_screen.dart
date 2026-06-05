@@ -1,15 +1,16 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/best_deals/view/best_deals_screen.dart';
-import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/animated_view_custom.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:seedsuser/app/common/safe_network_image.dart';
+import 'package:seedsuser/app/utils/video_file_cache.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/farm_management/coming_soon_screen.dart';
 import 'package:seedsuser/app/home/contact_us.dart';
@@ -23,7 +24,6 @@ import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
 import 'package:seedsuser/app/home/widget/hatchery_widgets.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
-import 'package:seedsuser/app/seed_price/controller/seeds_price_controller.dart';
 import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
 import 'package:seedsuser/app/spot_hatchery/view/spot_hatchery_screen.dart';
 import 'package:seedsuser/app/home/today_price_widget.dart';
@@ -49,9 +49,7 @@ class _HomePageState extends State<HomePage>
   late Animation<Offset> _rightAnimation;
 
   final dashboardCtrl = Get.find<DashboardController>();
-  final _broodStockController = Get.put(BroodStockController());
   final _newsSpecificController = Get.put(NewsSpecificController());
-  final _seedsPriceController = Get.put(SeedsPriceController());
   final _homeController = Get.put(HomeController());
   final _homeBannerController = Get.find<HomeBannerController>();
   final _hatcheryController = Get.put(HatcheryUpdatesController());
@@ -227,7 +225,11 @@ class _HomePageState extends State<HomePage>
             bottomLeft: Radius.circular(20),
             bottomRight: Radius.circular(20),
           ),
-          child: _AutoLoopBannerVideo(url: banner.url, height: 73),
+          child: _AutoLoopBannerVideo(
+            url: banner.url,
+            height: 73,
+            thumbnailUrl: banner.thumbnail,
+          ),
         );
       }
       return GestureDetector(
@@ -298,7 +300,9 @@ class _HomePageState extends State<HomePage>
     return Obx(() {
       final homeBanners = _homeBannerController.bannersHome;
       if (homeBanners.isNotEmpty) {
-        debugPrint('🎬 Vehicle banner: type=${homeBanners.first.type}, url=${homeBanners.first.url}');
+        debugPrint(
+          '🎬 Vehicle banner: type=${homeBanners.first.type}, url=${homeBanners.first.url}',
+        );
       }
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -310,29 +314,20 @@ class _HomePageState extends State<HomePage>
               AppAnimations.fade(VehicleAvailabilityScreen()),
             );
           },
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: homeBanners.isNotEmpty
-                  ? homeBanners.first.type == 'video'
-                        ? _AutoLoopBannerVideo(
-                            key: ValueKey('home_${homeBanners.first.url}'),
-                            url: homeBanners.first.url,
-                            height: AppSize.height * .15,
-                            width: double.infinity,
-                            initDelay: 0,
-                          )
-                        : Builder(builder: (ctx) {
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: homeBanners.isNotEmpty
+                ? homeBanners.first.type == 'video'
+                      ? _AutoLoopBannerVideo(
+                          key: ValueKey('home_${homeBanners.first.url}'),
+                          url: homeBanners.first.url,
+                          height: AppSize.height * .15,
+                          width: double.infinity,
+                          initDelay: 0,
+                          thumbnailUrl: homeBanners.first.thumbnail,
+                        )
+                      : Builder(
+                          builder: (ctx) {
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               _homeBannerController.isVideoReady.value = true;
                             });
@@ -346,28 +341,41 @@ class _HomePageState extends State<HomePage>
                                 width: double.infinity,
                                 height: AppSize.height * .15,
                                 fit: BoxFit.cover,
-                                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                                  if (wasSynchronouslyLoaded || frame != null) return child;
-                                  return _shimmerBox(double.infinity, AppSize.height * .15);
-                                },
-                                errorBuilder: (context, error, stackTrace) => Image.asset(
-                                  'assets/images/logo.png',
-                                  width: double.infinity,
-                                  height: AppSize.height * .15,
-                                  fit: BoxFit.cover,
-                                ),
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return _shimmerBox(
+                                        double.infinity,
+                                        AppSize.height * .15,
+                                      );
+                                    },
+                                frameBuilder:
+                                    (
+                                      context,
+                                      child,
+                                      frame,
+                                      wasSynchronouslyLoaded,
+                                    ) {
+                                      if (wasSynchronouslyLoaded ||
+                                          frame != null)
+                                        return child;
+                                      return _shimmerBox(
+                                        double.infinity,
+                                        AppSize.height * .15,
+                                      );
+                                    },
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Image.asset(
+                                      'assets/images/logo.png',
+                                      width: double.infinity,
+                                      height: AppSize.height * .15,
+                                      fit: BoxFit.cover,
+                                    ),
                               ),
                             );
-                          })
-                  : _homeBannerController.isHomeLoading.value
-                  ? _shimmerBox(double.infinity, AppSize.height * .15)
-                  : Image.asset(
-                      'assets/images/logo.png',
-                      width: double.infinity,
-                      height: AppSize.height * .15,
-                      fit: BoxFit.cover,
-                    ),
-            ),
+                          },
+                        )
+                : _shimmerBox(double.infinity, AppSize.height * .15),
           ),
         ),
       );
@@ -421,6 +429,9 @@ class _HomePageState extends State<HomePage>
                               networkMediaType: spotIcons.isNotEmpty
                                   ? spotIcons.first.type
                                   : null,
+                              networkThumbnailUrl: spotIcons.isNotEmpty
+                                  ? spotIcons.first.thumbnail
+                                  : null,
                               videoInitDelay: 1000,
                               isLoading: loading,
                             ),
@@ -456,6 +467,9 @@ class _HomePageState extends State<HomePage>
                             : null,
                         networkMediaType: farmIcons.isNotEmpty
                             ? farmIcons.first.type
+                            : null,
+                        networkThumbnailUrl: farmIcons.isNotEmpty
+                            ? farmIcons.first.thumbnail
                             : null,
                         videoInitDelay: 2000,
                         isLoading: loading,
@@ -617,6 +631,7 @@ class _HomePageState extends State<HomePage>
     VoidCallback onTap, {
     String? networkImageUrl,
     String? networkMediaType,
+    String? networkThumbnailUrl,
     int videoInitDelay = 0,
     bool isLoading = false,
   }) {
@@ -626,6 +641,8 @@ class _HomePageState extends State<HomePage>
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           color: Colors.white,
@@ -650,6 +667,7 @@ class _HomePageState extends State<HomePage>
                             height: constraints.maxHeight,
                             width: constraints.maxWidth,
                             initDelay: videoInitDelay,
+                            thumbnailUrl: networkThumbnailUrl,
                           );
                         },
                       )
@@ -669,18 +687,14 @@ class _HomePageState extends State<HomePage>
                                 'Feature card image failed for "$text": '
                                 'url=$normalizedUrl, error=$error',
                               );
-                              return _featureCardFallback(
-                                iconPath,
-                                text,
-                                fallbackText: 'hello',
-                              );
+                              return _featureCardFallback(iconPath, text);
                             },
                           );
                         },
                       )
               : isLoading
               ? _shimmerBox(double.infinity, double.infinity)
-              : _featureCardFallback(iconPath, text, fallbackText: 'hello'),
+              : _featureCardFallback(iconPath, text),
         ),
       ),
     );
@@ -988,6 +1002,7 @@ class _AutoLoopBannerVideo extends StatefulWidget {
   final double height;
   final double? width;
   final int initDelay;
+  final String? thumbnailUrl; // API-provided thumbnail image URL
 
   const _AutoLoopBannerVideo({
     super.key,
@@ -995,6 +1010,7 @@ class _AutoLoopBannerVideo extends StatefulWidget {
     required this.height,
     this.width,
     this.initDelay = 0,
+    this.thumbnailUrl,
   });
 
   @override
@@ -1005,19 +1021,72 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
     with WidgetsBindingObserver {
   VideoPlayerController? _videoController;
   bool _isInitialized = false;
+  // True only once a real video frame has been decoded & presented. Until then
+  // the poster thumbnail stays on top so the user never sees a black flash
+  // (on first load AND on app-resume, where the decoder surface is recreated).
+  bool _videoVisible = false;
+  // Playback position when we (re)started waiting for a frame. The video is
+  // revealed only once position moves past this — proof a fresh frame rendered.
+  Duration _frameWaitBaseline = Duration.zero;
+  // App foreground state — the heartbeat only auto-resumes while foregrounded.
+  bool _appForeground = true;
   Timer? _heartbeat;
   int _retryCount = 0;
   static const _maxRetries = 3;
 
+  // Tab-awareness: pause video when user switches away from home tab (index 0)
+  // to free up the hardware decoder for other screens' videos.
+  Worker? _tabWorker;
+  bool _pausedForTab = false;
+
   @override
   void initState() {
     super.initState();
-    print('🎥 [VIDEO] Step 1: initState called, url=${widget.url}');
     WidgetsBinding.instance.addObserver(this);
-    if (widget.initDelay > 0) {
-      print('🎥 [VIDEO] Step 2: Waiting ${widget.initDelay}ms before init');
+
+    // Listen to tab changes via DashboardController
+    try {
+      final dashCtrl = Get.find<DashboardController>();
+      debugPrint(
+        '🎥 [WIDGET] tab listener attached — current tab=${dashCtrl.currentIndex.value}',
+      );
+      _pausedForTab = dashCtrl.currentIndex.value != 0;
+      _tabWorker = ever(dashCtrl.currentIndex, (int idx) {
+        if (idx != 0) {
+          // Not on home tab — pause to free decoder
+          if (!_pausedForTab) {
+            debugPrint('🎥 [WIDGET] tab switched away (idx=$idx) — pausing');
+            _pausedForTab = true;
+          }
+          if (_isInitialized && _videoController != null) {
+            _videoController?.pause();
+            _heartbeat?.cancel();
+          }
+        } else {
+          // Back on home tab — resume
+          if (_pausedForTab) {
+            debugPrint('🎥 [WIDGET] tab switched back to home — resuming');
+            _pausedForTab = false;
+          }
+          if (_isInitialized && _videoController != null) {
+            _videoController?.play();
+            _startHeartbeat();
+          }
+        }
+      });
+    } catch (e) {
+      debugPrint(
+        '🎥 [WIDGET] tab listener FAILED: $e — video will always play',
+      );
+    }
+
+    if (_pausedForTab) {
+      debugPrint(
+        '🎥 [WIDGET] initState — tab not visible, skipping video init',
+      );
+    } else if (widget.initDelay > 0) {
       Future.delayed(Duration(milliseconds: widget.initDelay), () {
-        if (mounted) _initializeVideo();
+        if (mounted && !_pausedForTab) _initializeVideo();
       });
     } else {
       _initializeVideo();
@@ -1025,101 +1094,257 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
   }
 
   Future<void> _initializeVideo() async {
-    print('🎥 [VIDEO] Step 3: _initializeVideo called, url=${widget.url}');
+    debugPrint(
+      '🎥 [WIDGET] init — loading: ${widget.url} (pausedForTab=$_pausedForTab)',
+    );
+    File? cachedFile; // declared here so the catch can clean up a bad file
     try {
-      print('🎥 [VIDEO] Step 4: Creating VideoPlayerController...');
-      final controller = VideoPlayerController.networkUrl(
-        Uri.parse(widget.url),
-        httpHeaders: const {
-          'User-Agent':
-              'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 '
-              '(KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
-          'Connection': 'keep-alive',
-        },
-      );
+      // Dispose previous controller if retrying
+      try {
+        _videoController?.dispose();
+      } catch (_) {}
+      _videoController = null;
+      _videoVisible = false; // show poster until the new first frame renders
+      _frameWaitBaseline = Duration.zero;
+
+      // Prefer a locally cached file (preloaded on splash) — initializes fast
+      // with no network streaming. Fall back to the network and cache it for
+      // next time. The poster shows until the first frame renders either way.
+      cachedFile = await VideoFileCache.instance.get(widget.url);
+      if (!mounted) return;
+
+      final VideoPlayerController controller;
+      if (cachedFile != null) {
+        debugPrint('🎥 [WIDGET] init — playing from cached file');
+        controller = VideoPlayerController.file(
+          cachedFile,
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
+      } else {
+        debugPrint('🎥 [WIDGET] init — streaming (no cache yet), caching for next time');
+        VideoFileCache.instance.ensure(widget.url); // background, for next launch
+        controller = VideoPlayerController.networkUrl(
+          Uri.parse(widget.url),
+          httpHeaders: const {
+            'User-Agent':
+                'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 '
+                '(KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+            'Connection': 'keep-alive',
+          },
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
+      }
       _videoController = controller;
-      print('🎥 [VIDEO] Step 5: Calling controller.initialize()...');
+      debugPrint(
+        '🎥 [WIDGET] init — initializing (poster shows meanwhile)...',
+      );
+      // NO timeout — let ExoPlayer download at its own pace.
+      // Shimmer/thumbnail shows in the meantime. If there's a real error,
+      // ExoPlayer reports it via hasError which heartbeat catches.
       await controller.initialize();
-      print('🎥 [VIDEO] Step 6: Initialized! size=${controller.value.size}, duration=${controller.value.duration}');
+      debugPrint(
+        '🎥 [WIDGET] init — ✅ initialized size=${controller.value.size}',
+      );
       if (!mounted) {
-        print('🎥 [VIDEO] ❌ Not mounted after init, disposing');
-        controller.dispose();
+        try {
+          controller.dispose();
+        } catch (_) {}
         return;
       }
       await controller.setLooping(true);
       await controller.setVolume(0);
-      print('🎥 [VIDEO] Step 7: Calling play()...');
       await controller.play();
       controller.addListener(_onVideoUpdate);
       _retryCount = 0;
       _startHeartbeat();
-      print('🎥 [VIDEO] Step 8: ✅ Video playing! _isInitialized=true');
+      debugPrint('🎥 [WIDGET] init — ✅ VIDEO PLAYING');
       if (mounted) {
         setState(() => _isInitialized = true);
-        // Signal home screen that video is ready
-        try { Get.find<HomeBannerController>().isVideoReady.value = true; } catch (_) {}
       }
     } catch (e) {
-      print('🎥 [VIDEO] ❌ Failed at init: $e (retry ${_retryCount + 1}/$_maxRetries)');
+      debugPrint(
+        '🎥 [WIDGET] init — ❌ FAILED: $e (retry ${_retryCount + 1}/$_maxRetries)',
+      );
+      // If a cached file failed to initialize it may be corrupt/incomplete —
+      // delete it so the retry streams from network instead of looping on it.
+      if (cachedFile != null) {
+        try {
+          if (await cachedFile.exists()) await cachedFile.delete();
+          debugPrint('🎥 [WIDGET] init — removed bad cached file');
+        } catch (_) {}
+      }
+      try {
+        _videoController?.dispose();
+      } catch (_) {}
+      _videoController = null;
       _scheduleRetry();
     }
   }
 
-  /// Periodic check every 2s — if video is not playing, force play().
-  /// Catches stalls from buffering hiccups, decoder pauses, or missed
-  /// listener callbacks.
+  /// Periodic check — recovers errors AND keeps the muted banner looping.
+  /// The banner is muted, so there's no audio focus to respect: if it pauses
+  /// unexpectedly while on the Home tab and foregrounded, resume it so it keeps
+  /// auto-looping smoothly. (Tab-switch / background pauses are handled
+  /// elsewhere and excluded via _pausedForTab / _appForeground.)
   void _startHeartbeat() {
     _heartbeat?.cancel();
-    _heartbeat = Timer.periodic(const Duration(seconds: 2), (_) {
-      _ensurePlaying();
+    _heartbeat = Timer.periodic(const Duration(seconds: 5), (_) {
+      _checkHealth();
     });
   }
 
-  void _ensurePlaying() {
-    final vc = _videoController;
-    if (vc == null || !_isInitialized || !mounted) return;
+  void _checkHealth() {
+    try {
+      final vc = _videoController;
+      if (vc == null || !mounted) return;
+      final v = vc.value;
 
-    // If the controller errored out, re-init from scratch.
-    if (vc.value.hasError) {
-      debugPrint('Video error detected, re-initializing...');
-      _disposeController();
-      _isInitialized = false;
-      if (mounted) setState(() {});
-      _scheduleRetry();
-      return;
-    }
+      if (v.hasError) {
+        debugPrint('🎥 [PING] ❌ Error detected — re-initializing...');
+        _disposeController();
+        _isInitialized = false;
+        if (mounted) setState(() {});
+        _scheduleRetry();
+        return;
+      }
 
-    if (!vc.value.isPlaying && vc.value.isInitialized) {
-      vc.play();
+      // Muted banner should always be looping while visible. If it paused
+      // unexpectedly (not for tab/background) and isn't buffering, resume it.
+      if (!v.isPlaying &&
+          v.isInitialized &&
+          _isInitialized &&
+          !_pausedForTab &&
+          _appForeground &&
+          !v.isBuffering) {
+        debugPrint(
+          '🎥 [PING] paused (pos=${v.position.inMilliseconds}ms) — resuming muted banner loop',
+        );
+        if (!v.isLooping) vc.setLooping(true);
+        vc.play();
+      }
+    } catch (e) {
+      debugPrint('🎥 [PING] Error: $e');
     }
   }
 
+  bool _lastPlayingState = false;
   void _onVideoUpdate() {
+    // Track every play→stop or stop→play transition from ExoPlayer
     final vc = _videoController;
-    if (vc == null || !mounted) return;
-    // If errored mid-playback, the heartbeat will handle re-init.
-    // If paused unexpectedly, resume immediately.
-    if (!vc.value.hasError &&
-        !vc.value.isPlaying &&
-        vc.value.isInitialized &&
-        _isInitialized) {
-      vc.play();
+    if (vc == null || !_isInitialized) return;
+    final v = vc.value;
+
+    // Reveal the video only once a fresh frame is actually on the surface,
+    // detected by playback position ADVANCING past the wait-baseline while
+    // playing and not buffering. Using advancement (not just position>0) keeps
+    // this correct on resume too — there position is already >0 but no new
+    // frame has rendered yet, so we must wait for it to move again.
+    if (!_videoVisible &&
+        v.isInitialized &&
+        !v.hasError &&
+        v.isPlaying &&
+        !v.isBuffering &&
+        v.position > _frameWaitBaseline) {
+      if (mounted) setState(() => _videoVisible = true);
     }
+
+    final playing = v.isPlaying;
+    if (playing != _lastPlayingState) {
+      debugPrint(
+        '🎥 [BANNER] ${playing ? "▶ PLAYING" : "⏸ STOPPED"} reason=EXOPLAYER_INTERNAL '
+        'pos=${v.position.inMilliseconds}ms '
+        'buffering=${v.isBuffering} '
+        'hasError=${v.hasError} '
+        'pausedForTab=$_pausedForTab',
+      );
+      _lastPlayingState = playing;
+    }
+    // Do NOT force play() here — listener fires every frame (60fps).
+    // Heartbeat handles recovery.
   }
 
   void _scheduleRetry() {
-    if (_retryCount >= _maxRetries || !mounted) return;
+    if (_retryCount >= _maxRetries || !mounted) {
+      debugPrint('🎥 [RETRY] Max retries reached ($_maxRetries) — giving up');
+      return;
+    }
     _retryCount++;
-    final delay = Duration(seconds: 2 * _retryCount);
-    Future.delayed(delay, () {
+    final delaySec = 2 * _retryCount;
+    debugPrint('🎥 [RETRY] Retry $_retryCount/$_maxRetries in ${delaySec}s...');
+    Future.delayed(Duration(seconds: delaySec), () {
       if (mounted) _initializeVideo();
     });
   }
 
+  bool _wasPlayingBeforeBackground = false;
+  bool _hideVideoSurface = false;
+  bool _alreadyBackgrounded =
+      false; // guard against duplicate lifecycle events on OPPO
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _isInitialized) {
-      _videoController?.play();
+    // Track foreground state always (even before the controller is ready) so
+    // the heartbeat never auto-resumes the loop while the app is backgrounded.
+    _appForeground = state == AppLifecycleState.resumed;
+    try {
+      final vc = _videoController;
+      if (vc == null || !_isInitialized) return;
+      if (state == AppLifecycleState.paused ||
+          state == AppLifecycleState.inactive) {
+        // Only capture wasPlaying on the FIRST background event.
+        // OPPO fires paused/inactive multiple times — second time video
+        // is already paused so wasPlaying=false overwrites the real value.
+        if (!_alreadyBackgrounded) {
+          _wasPlayingBeforeBackground = vc.value.isPlaying;
+          _alreadyBackgrounded = true;
+        }
+        debugPrint(
+          '🎥 [BANNER] LIFECYCLE → background (wasPlaying=$_wasPlayingBeforeBackground, duplicate=${_alreadyBackgrounded})',
+        );
+        _hideVideoSurface = true;
+        if (mounted) setState(() {});
+        vc.pause();
+      } else if (state == AppLifecycleState.resumed) {
+        _alreadyBackgrounded = false; // reset for next background cycle
+        // Hide the (now stale/black) surface and show the poster again until a
+        // fresh frame is decoded. _onVideoUpdate re-reveals once position moves
+        // past this baseline.
+        _videoVisible = false;
+        _frameWaitBaseline = vc.value.position;
+        if (_wasPlayingBeforeBackground && !_pausedForTab) {
+          debugPrint(
+            '🎥 [BANNER] LIFECYCLE → resumed — seeking to force frame render',
+          );
+          // Seek to current position to force ExoPlayer to decode a frame
+          // before we show the video surface again
+          final pos = vc.value.position;
+          vc.seekTo(pos).then((_) {
+            vc.play();
+            // Unblock the surface; opacity stays 0 (poster shown) until
+            // _videoVisible flips when a real frame advances in.
+            Future.delayed(const Duration(milliseconds: 300), () {
+              if (mounted) {
+                _hideVideoSurface = false;
+                setState(() {});
+                debugPrint('🎥 [BANNER] LIFECYCLE → video surface restored');
+              }
+            });
+          });
+        } else {
+          // Not resuming playback — still show thumbnail, unhide after delay
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              _hideVideoSurface = false;
+              setState(() {});
+            }
+          });
+          debugPrint(
+            '🎥 [BANNER] LIFECYCLE → resumed — NOT resuming (wasPlaying=$_wasPlayingBeforeBackground, pausedForTab=$_pausedForTab)',
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('🎥 [BANNER] LIFECYCLE error: $e');
     }
   }
 
@@ -1130,49 +1355,104 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
       _disposeController();
       _isInitialized = false;
       _retryCount = 0;
+
       _initializeVideo();
     }
   }
 
   void _disposeController() {
     _heartbeat?.cancel();
-    _videoController?.removeListener(_onVideoUpdate);
-    _videoController?.dispose();
+    try {
+      _videoController?.removeListener(_onVideoUpdate);
+      _videoController?.dispose();
+    } catch (_) {}
     _videoController = null;
+    _videoVisible = false; // re-show poster until the next first frame
+    _frameWaitBaseline = Duration.zero;
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _tabWorker?.dispose();
     _disposeController();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final vc = _videoController;
-    if (!_isInitialized || vc == null || !vc.value.isInitialized) {
-      return Shimmer.fromColors(
-        baseColor: Colors.grey.shade200,
-        highlightColor: Colors.grey.shade100,
-        child: Container(
-          width: widget.width ?? double.infinity,
-          height: widget.height,
-          color: Colors.white,
+    try {
+      final vc = _videoController;
+      final videoReady = _isInitialized && vc != null && vc.value.isInitialized;
+
+      // Stack: thumbnail always behind video.
+      // If video goes black (pause, resume, error, buffering) → thumbnail shows through instantly.
+      return SizedBox(
+        width: widget.width ?? double.infinity,
+        height: widget.height,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Layer 1: Thumbnail/shimmer — always present behind video so any
+            // black/empty frame (before first frame, buffering, resume) shows
+            // the poster through instead of black.
+            _thumbnail(),
+
+            // Layer 2: Video — mounted as soon as initialized so it can decode
+            // its first frame, but kept transparent until that frame is
+            // actually presented (_videoVisible) and the surface is valid.
+            // AnimatedOpacity cross-fades it in for a smooth swap.
+            if (videoReady)
+              AnimatedOpacity(
+                opacity: (_videoVisible && !_hideVideoSurface) ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 250),
+                child: FittedBox(
+                  fit: BoxFit.cover,
+                  child: SizedBox(
+                    width: vc.value.size.width,
+                    height: vc.value.size.height,
+                    child: VideoPlayer(vc),
+                  ),
+                ),
+              ),
+          ],
         ),
       );
+    } catch (e) {
+      debugPrint('🎥 [WIDGET] Build error: $e');
+      return _thumbnail();
     }
+  }
 
-    return Container(
-      color: Colors.white.withOpacity(.5),
-      width: widget.width ?? double.infinity,
-      height: widget.height,
-      child: FittedBox(
+  /// Thumbnail image from API, or shimmer fallback.
+  /// Always rendered behind the video so any black frame is instantly covered.
+  Widget _thumbnail() {
+    if (widget.thumbnailUrl != null && widget.thumbnailUrl!.isNotEmpty) {
+      // CachedNetworkImage so it hits the same cache warmed on the splash/OTP
+      // preload — the poster paints instantly instead of re-downloading.
+      return CachedNetworkImage(
+        imageUrl: widget.thumbnailUrl!,
+        width: widget.width ?? double.infinity,
+        height: widget.height,
         fit: BoxFit.cover,
-        child: SizedBox(
-          width: vc.value.size.width,
-          height: vc.value.size.height,
-          child: VideoPlayer(vc),
+        fadeInDuration: Duration.zero,
+        placeholder: (_, __) => _shimmerPlaceholder(),
+        errorWidget: (_, __, ___) => _shimmerPlaceholder(),
+      );
+    }
+    return _shimmerPlaceholder();
+  }
+
+  Widget _shimmerPlaceholder() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade200,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        width: widget.width ?? double.infinity,
+        height: widget.height,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
         ),
       ),
     );

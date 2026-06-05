@@ -34,7 +34,7 @@ class ProfileController extends GetxController {
         final data = jsonDecode(response.body);
         profile.value = ProfileModel.fromJson(data);
       } else {
-        CustomToast.error("Failed to fetch profile ");
+        // CustomToast.error("Failed to fetch profile ");
       }
     } catch (e) {
       CustomToast.error("Something went wrong  ");

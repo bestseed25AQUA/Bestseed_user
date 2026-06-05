@@ -16,17 +16,38 @@ class FullScreenVideoPlayer extends StatefulWidget {
   State<FullScreenVideoPlayer> createState() => _FullScreenVideoPlayerState();
 }
 
-class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer> {
+class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer>
+    with WidgetsBindingObserver {
   VideoPlayerController? _videoPlayerController;
   ChewieController? _chewieController;
   bool _hasError = false;
   String _errorMessage = '';
   bool _isLoading = true;
+  bool _wasPlayingBeforePause = false;
+
+  String get _tag => 'FullScreenVideo[${widget.url.split('/').last.split('?').first}]';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    debugPrint('$_tag: initState');
     _initializeVideo();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final c = _videoPlayerController;
+    if (c == null || !c.value.isInitialized) return;
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _wasPlayingBeforePause = c.value.isPlaying;
+      debugPrint('$_tag: lifecycle → background (wasPlaying=$_wasPlayingBeforePause)');
+      if (_wasPlayingBeforePause) c.pause();
+    } else if (state == AppLifecycleState.resumed) {
+      debugPrint('$_tag: lifecycle → resumed');
+      if (_wasPlayingBeforePause) c.play();
+    }
   }
 
   Future<void> _initializeVideo() async {
@@ -38,7 +59,7 @@ class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer> {
 
     final videoUrl = widget.url.trim();
     if (videoUrl.isEmpty) {
-      print('FullScreenVideoPlayer: ERROR - Video URL is empty!');
+      debugPrint('$_tag: ERROR — URL is empty');
       if (mounted) {
         setState(() {
           _hasError = true;
@@ -50,7 +71,7 @@ class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer> {
     }
 
     try {
-      print('FullScreenVideoPlayer: Initializing video: $videoUrl');
+      debugPrint('$_tag: initializing...');
 
       _videoPlayerController = VideoPlayerController.networkUrl(
         Uri.parse(videoUrl),
@@ -60,9 +81,11 @@ class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer> {
           'Accept-Encoding': 'identity',
           'Connection': 'keep-alive',
         },
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
       );
 
       await _videoPlayerController!.initialize();
+      debugPrint('$_tag: initialized — duration=${_videoPlayerController!.value.duration.inSeconds}s');
 
       _chewieController = ChewieController(
         videoPlayerController: _videoPlayerController!,
@@ -109,9 +132,9 @@ class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer> {
           _isLoading = false;
         });
       }
-      print('FullScreenVideoPlayer: Video initialized successfully');
+      debugPrint('$_tag: playback started');
     } catch (e) {
-      print('FullScreenVideoPlayer: Video initialization error: $e');
+      debugPrint('$_tag: initialization FAILED: $e');
       if (mounted) {
         String message = e.toString();
         if (message.contains('EXCEEDS_CAPABILITIES') ||
@@ -129,6 +152,8 @@ class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer> {
 
   @override
   void dispose() {
+    debugPrint('$_tag: dispose');
+    WidgetsBinding.instance.removeObserver(this);
     _chewieController?.dispose();
     _videoPlayerController?.dispose();
     super.dispose();

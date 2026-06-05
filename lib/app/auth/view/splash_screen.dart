@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/auth/view/login_screen.dart';
@@ -71,7 +70,25 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _checkLoginStatus() async {
+    // Started as early as possible (parallel with app init): loads the
+    // above-the-fold banner data + downloads the home banner video to a local
+    // file so Home shows real data with the video ready to play from disk.
+    Future<void>? preloadFuture;
     try {
+      // Kick off banner + media prefetch as EARLY as possible (in parallel with
+      // app init) so the logo, vehicle availability video, best deals, spot
+      // hatchery and farm management are warmed before Home renders.
+      try {
+        final earlyToken = await AuthLocalStorage.getToken();
+        if (earlyToken != null &&
+            earlyToken.isNotEmpty &&
+            Get.isRegistered<HomeBannerController>()) {
+          preloadFuture = Get.find<HomeBannerController>().preloadEssential();
+        }
+      } catch (e) {
+        debugPrint('Splash early banner prefetch skipped: $e');
+      }
+
       // Request App Tracking Transparency permission on iOS
       if (Platform.isIOS) {
         final status = await AppTrackingTransparency.trackingAuthorizationStatus;
@@ -81,56 +98,30 @@ class _SplashScreenState extends State<SplashScreen>
         }
       }
 
-      // Run heavy init (Firebase, notifications, storage) while splash animates
+      // Run heavy init with 5s timeout — never block splash forever
       try {
-        await initializeApp();
+        await initializeApp().timeout(const Duration(seconds: 5));
       } catch (e) {
-        debugPrint('Splash initializeApp error (non-fatal): $e');
+        debugPrint('Splash initializeApp error/timeout (non-fatal): $e');
       }
       final token = await AuthLocalStorage.getToken();
 
       debugPrint("Splash token check: ${token != null && token.isNotEmpty ? 'Token found (${token.substring(0, token.length > 10 ? 10 : token.length)}...)' : 'No token'}");
 
       if (token != null && token.isNotEmpty) {
+        // Fire-and-forget — don't block splash.
         NotificationService().registerToken();
 
-        // Fetch all home banners in parallel. Future.any guarantees we move on
-        // once either all banners finish loading OR the 8-second timer fires —
-        // whichever comes first — so the splash never blocks indefinitely.
-        final bannerCtrl = Get.find<HomeBannerController>();
-        await Future.any([
-          bannerCtrl.fetchAll(),
-          Future.delayed(const Duration(seconds: 8)),
-        ]);
-
-        if (!mounted) return;
-
-        // Pre-cache all banner images so the home screen renders them
-        // instantly with no shimmer or fallback flash.
-        final imageUrls = [
-          ...bannerCtrl.bannersHome,
-          ...bannerCtrl.bannersSection1Bg,
-          ...bannerCtrl.bannersSpotHatcheries,
-          ...bannerCtrl.bannersFarmManagement,
-          ...bannerCtrl.bannersMedicine,
-          ...bannerCtrl.bannersBackGround,
-          ...bannerCtrl.bannersTop,
-        ]
-            .where((b) => b.type == 'image' && b.url.trim().isNotEmpty)
-            .map((b) => b.url.trim())
-            .toSet()
-            .toList();
-
-        if (imageUrls.isNotEmpty && mounted) {
-          await Future.any([
-            Future.wait(
-              imageUrls
-                  .map((url) => precacheImage(CachedNetworkImageProvider(url), context)
-                      .catchError((_) {}))
-                  .toList(),
-            ),
-            Future.delayed(const Duration(seconds: 5)),
-          ]);
+        // Wait for Home essentials (data + cached banner video) so Home shows
+        // populated instead of shimmering — bounded so the splash never hangs.
+        // On timeout/error we navigate anyway; Home falls back to its own
+        // loading states and streams the video.
+        if (preloadFuture != null) {
+          try {
+            await preloadFuture.timeout(const Duration(seconds: 4));
+          } catch (e) {
+            debugPrint('Splash preload not finished in time (non-fatal): $e');
+          }
         }
 
         if (!mounted) return;

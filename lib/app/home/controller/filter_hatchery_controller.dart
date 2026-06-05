@@ -57,7 +57,8 @@ class FilterHatcheryController extends GetxController {
         // Show all hatcheries initially
         hatcherFilteredData.value = modelData;
       } else {
-        CustomToast.error("Failed to fetch prices ");
+        // Don't show a failure toast for prices.
+        // CustomToast.error("Failed to fetch prices ");
       }
     } catch (e) {
       CustomToast.error("Something went wrong  ");

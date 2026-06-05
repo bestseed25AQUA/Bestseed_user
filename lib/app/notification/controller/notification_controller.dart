@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/notification/model/push_notification_model.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
+import 'package:seedsuser/app/utils/network_utils.dart';
 
 class NotificationController extends GetxController {
   final notifications = <PushNotificationModel>[].obs;
@@ -61,6 +62,9 @@ class NotificationController extends GetxController {
         headers: headers,
       );
 
+      // Revoked token (logged in elsewhere) → force logout.
+      if (checkUnauthorizedResponse(response)) return;
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['status'] == true && data['notifications'] != null) {
@@ -92,6 +96,9 @@ class NotificationController extends GetxController {
             '${NetworkConfig.baseURL}/farmer/push-notifications?page=$nextPage&per_page=10'),
         headers: headers,
       );
+
+      // Revoked token (logged in elsewhere) → force logout.
+      if (checkUnauthorizedResponse(response)) return;
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);

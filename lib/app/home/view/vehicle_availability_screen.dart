@@ -128,6 +128,15 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
   void initState() {
     super.initState();
     _initSpeech();
+
+    // The controller is created once via Get.put and reused across visits, so
+    // onInit's fetch only runs the first time. On a reopen the instance still
+    // holds stale data with isLoading=false, which showed the old list with no
+    // shimmer until a manual refresh. Re-fetch here when not already loading so
+    // the shimmer appears immediately and the list is fresh on every open.
+    if (!controller.isLoading.value) {
+      controller.fetchVehicleAvailability();
+    }
   }
 
   Future<void> _initSpeech() async {

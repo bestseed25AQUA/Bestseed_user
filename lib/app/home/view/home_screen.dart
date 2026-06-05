@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -7,6 +6,8 @@ import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/home/controller/filter_controller.dart';
 import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
+import 'package:seedsuser/app/booking/controller/my_booking_controller.dart';
+import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/controller/location_controller.dart';
 import 'package:seedsuser/app/home/view/all_screen.dart';
@@ -34,6 +35,16 @@ class _HomeScreenState extends State<HomeScreen>
   final ProfileController profileController = Get.put(ProfileController());
   final newsSpecificController = Get.put(NewsSpecificController());
   final _homeBannerController = Get.put(HomeBannerController());
+  final DashboardController _dashboardController =
+      Get.put(DashboardController());
+
+  /// Re-fetches home data when the Home tab is reopened. Needed because the
+  /// dashboard keeps tabs alive in an IndexedStack, so initState never re-runs.
+  Worker? _homeTabWorker;
+  /// Builds the tab bar the moment categories arrive (cache, then network) so
+  /// the shimmer doesn't linger through the full network call on first login.
+  Worker? _catWorker;
+  bool _refreshing = false;
 
   @override
   void initState() {
@@ -44,11 +55,41 @@ class _HomeScreenState extends State<HomeScreen>
     }
     _homeController.selectedCategoryId.value = '';
     _homeController.getHatcheries('');
-    _homeController.getPricesForHome();
-    // ever(_homeController.categories, (_) {
-    //   _initTabController();
-    //   if (mounted) setState(() {});
-    // });
+    // Price/broodstock are fetched on their own screens now, not on home.
+
+    // When the user comes back to the Home tab, refresh anything that didn't
+    // load (e.g. the first fetch failed or raced ahead of the location).
+    _homeTabWorker = ever(_dashboardController.currentIndex, (int index) {
+      if (index == 0) _refreshHomeIfEmpty();
+    });
+  }
+
+  /// Refreshes the important home sections only when they're currently empty,
+  /// so a transient failure doesn't leave the screen blank until a manual pull.
+  Future<void> _refreshHomeIfEmpty() async {
+    if (_refreshing) return;
+
+    // Price/broodstock are no longer part of the home, so they're not in this
+    // "is the home empty?" check anymore.
+    final bool coreEmpty = _homeController.categories.isEmpty ||
+        _homeController.hatcheries.isEmpty;
+    if (!coreEmpty) return;
+
+    _refreshing = true;
+    try {
+      if (_homeController.categories.isEmpty) {
+        await _homeController.getCategories();
+        _initTabController();
+      }
+      _homeBannerController.fetchBannersTop();
+      _homeBannerController.fetchHomeBanner();
+      await _homeController.changeHomeData(
+        _homeController.selectedCategoryId.value,
+        _locationController.selectedLocationId.value,
+      );
+    } finally {
+      _refreshing = false;
+    }
   }
 
   fetchData() async {
@@ -78,42 +119,52 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   int currentTabIndex = 0;
-  void _initTabController() async {
-    print('=====++1+++');
-    if (_homeController.categories.isEmpty) {
-      await _homeController.getCategories();
-    }
-    print('+++++2+++++');
+  void _initTabController() {
+    // Build the tabs as soon as categories are available — and again if the
+    // network refresh changes them. getCategories() fills the list from cache
+    // first (instant) and only then awaits the network; reacting to the list
+    // here means the shimmer disappears the moment data is loaded instead of
+    // waiting for the full network round-trip (the long first-login shimmer).
+    _catWorker ??= ever(_homeController.categories, (_) => _buildTabs());
+
     if (_homeController.categories.isNotEmpty) {
-      print('+++++3+ is not empty++++');
-      _tabController?.dispose();
-      _tabController = TabController(
-        length: _homeController.categories.length + 1, // All + categories
-        vsync: this,
-      );
-      _tabController?.addListener(() {
-        currentTabIndex = (_tabController?.index ?? 0);
-        _homeController.selectedCategoryId.value = (currentTabIndex == 0)
-            ? ''
-            : _homeController.categories[currentTabIndex - 1].id.toString();
-
-        _homeController.selectedCateogryName.value = (currentTabIndex == 0)
-            ? ''
-            : _homeController.categories[currentTabIndex - 1].categoryName
-                  .toString();
-
-        if ((_tabController?.index ?? 0) == 0) {
-          _homeController.selectedCateogryName.value = '';
-        }
-      });
-      if (mounted) {
-        setState(() {});
-      }
+      _buildTabs();
+    } else {
+      _homeController.getCategories();
     }
+  }
+
+  void _buildTabs() {
+    if (!mounted) return;
+    if (_homeController.categories.isEmpty) return;
+    final newLength = _homeController.categories.length + 1; // All + categories
+    // Already built for this exact set — don't recreate (avoids flicker).
+    if (_tabController != null && _tabController!.length == newLength) return;
+
+    _tabController?.dispose();
+    _tabController = TabController(length: newLength, vsync: this);
+    _tabController?.addListener(() {
+      currentTabIndex = (_tabController?.index ?? 0);
+      _homeController.selectedCategoryId.value = (currentTabIndex == 0)
+          ? ''
+          : _homeController.categories[currentTabIndex - 1].id.toString();
+
+      _homeController.selectedCateogryName.value = (currentTabIndex == 0)
+          ? ''
+          : _homeController.categories[currentTabIndex - 1].categoryName
+                .toString();
+
+      if ((_tabController?.index ?? 0) == 0) {
+        _homeController.selectedCateogryName.value = '';
+      }
+    });
+    setState(() {});
   }
 
   @override
   void dispose() {
+    _homeTabWorker?.dispose();
+    _catWorker?.dispose();
     _tabController?.dispose();
     super.dispose();
   }
@@ -194,9 +245,11 @@ class _HomeScreenState extends State<HomeScreen>
         body: Builder(
           builder: (context) {
             final categories = _homeController.categories;
-            final bannersLoading = _homeBannerController.isHomeLoading.value && _homeBannerController.bannersHome.isEmpty;
-            final showShimmer = _tabController == null || categories.isEmpty || bannersLoading;
-            print('📱 [HOME] tabController=${_tabController != null}, categories=${categories.length}, bannersLoading=$bannersLoading, bannersHome=${_homeBannerController.bannersHome.length}, isVideoReady=${_homeBannerController.isVideoReady.value} → ${showShimmer ? "SHIMMER" : "HOME PAGE"}');
+            // Don't wait for banners — let home page show immediately once
+            // categories + tabController are ready. Each banner section has
+            // its own shimmer/loading state so they appear as they arrive.
+            final showShimmer = _tabController == null || categories.isEmpty;
+            debugPrint('📱 [HOME] tabController=${_tabController != null}, categories=${categories.length} → ${showShimmer ? "SHIMMER" : "HOME PAGE"}');
             return showShimmer
                 ? CustomRefereshIndicator(
                     onRefresh: () async {
@@ -214,6 +267,10 @@ class _HomeScreenState extends State<HomeScreen>
                         onRefresh: () async {
                           _homeBannerController.fetchBannersTop();
                           await _homeController.changeHomeData('', '');
+                          // Refresh booking list for Live Tracking count
+                          try {
+                            Get.find<MyBookingController>().fetchBookings();
+                          } catch (_) {}
                         },
                         child: const HomePage(),
                       ),

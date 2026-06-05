@@ -954,8 +954,10 @@ class _InlineVideoPlayerState extends State<_InlineVideoPlayer> {
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
-      ..initialize().then((_) {
+    _controller = VideoPlayerController.networkUrl(
+      Uri.parse(widget.url),
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+    )..initialize().then((_) {
         _controller.setVolume(0);
         setState(() {});
       });
@@ -1045,8 +1047,10 @@ class _FullScreenVideoState extends State<_FullScreenVideo> {
   @override
   void initState() {
     super.initState();
-    controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
-      ..initialize().then((_) {
+    controller = VideoPlayerController.networkUrl(
+      Uri.parse(widget.url),
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+    )..initialize().then((_) {
         setState(() {});
         controller.play();
       });

@@ -7,6 +7,7 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/http.dart';
 import 'package:seedsuser/app/auth/view/login_screen.dart';
+import 'package:seedsuser/app/common/force_logout_notice.dart';
 import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/utils/app_names_constants.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
@@ -20,6 +21,9 @@ Future<void> _handle401() async {
   _isHandling401 = true;
   try {
     debugPrint('TOKEN EXPIRED: Clearing session and redirecting to login');
+    // Raise the notice flag so the login screen explains the user was signed
+    // out because the account was used on another device (single-device login).
+    await ForceLogoutNotice.raise();
     await AuthLocalStorage.clear();
     Get.offAll(() => LoginWithMobileScreen());
   } finally {
@@ -39,12 +43,27 @@ bool _checkUnauthorized(http.Response response) {
   return false;
 }
 
+/// Public hook for callers that issue their own http requests (not through the
+/// wrappers in this file) so a revoked token (logged in on another device)
+/// still forces logout. Returns true if a 401 was handled.
+bool checkUnauthorizedResponse(http.Response response) =>
+    _checkUnauthorized(response);
+
 Future<Map<String, String>> buildHeader() async {
   String token = await AuthLocalStorage.getToken() ?? "";
   print("User Token : $token");
 
-  return {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'};
-  return {'Content-Type': 'application/json', 'Authorization': 'Bearer 171|Gi4Ipjsy1nCcDr2za89jEBBLXfITzhu5opToq2Ccaf744df2'};
+  // 'Accept: application/json' is REQUIRED. Without it, Laravel treats an
+  // invalid/revoked token as a web request and returns a 302 → HTML login
+  // page (status 200) instead of a 401. The app would then try to JSON-decode
+  // HTML (→ "failed to fetch", empty profile → "No name available"/"N/A") and
+  // the 401 auto-logout would never fire. With Accept:json, a bad token returns
+  // a proper 401 → _handle401 logs the user out cleanly.
+  return {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'Authorization': 'Bearer $token',
+  };
 }
 
 Map<String, String> buildImageHeader() {
@@ -129,11 +148,15 @@ Future<http.Response> getRequest({
           onTimeout: (() => throw AppConstNames.networkError),
         );
 
-    debugPrint('getRequest params: $params');
-    debugPrint('headers : $headers');
     debugPrint('getRequest URL: $endPoint');
     debugPrint('getRequest status code ${response.statusCode}');
-    debugPrint('getRequest status body ${response.body.toString()}');
+    // Only log a short preview of the body. A backend 500 returns a huge HTML
+    // error page (hundreds of KB); printing it in full floods the log on every
+    // poll and freezes the UI isolate.
+    final body = response.body;
+    debugPrint(body.length > 500
+        ? 'getRequest status body (truncated ${body.length} chars): ${body.substring(0, 500)}'
+        : 'getRequest status body $body');
 
     _checkUnauthorized(response);
     return response;
@@ -156,6 +179,7 @@ Future<String> getImage({required String endPoint, String? params}) async {
     debugPrint('getRequest params: $params');
     debugPrint('getRequest URL  ndPoint');
     debugPrint('getRequest body ${response.body}');
+    _checkUnauthorized(response);
     return jsonDecode(response.body);
   } catch (e) {
     print(e);
@@ -249,6 +273,7 @@ Future<Response> uploadFile({
   final picBody = response.body;
   print(picBody);
 
+  _checkUnauthorized(response);
   return response;
 }
 
@@ -291,6 +316,10 @@ Future<http.StreamedResponse> multipartPostRequest({
           throw TimeoutException("Request Timeout, please try again."),
     );
 
+    // A revoked token (logged in on another device) must force logout here too.
+    if (streamedResponse.statusCode == 401) {
+      _handle401();
+    }
     return streamedResponse;
   } catch (e, s) {
     debugPrint("-----multipartPostRequest Error------");

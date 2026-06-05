@@ -9,8 +9,14 @@ import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
 
 class BroodStockController extends GetxController {
+  static const _tag = '🦐 [BROOD]';
+
   /// State
   final isLoading = false.obs;
+  // True for the WHOLE initial load (fetchInitialData). Drives the shimmer so it
+  // doesn't flicker off to the empty/Retry state between the sub-fetches
+  // (getCategories toggles isLoading off before getBroodStock turns it on).
+  final isInitialLoading = false.obs;
   final categories = <Category>[].obs;
   final broodStocks = <BroodstockData>[].obs;
   final homeBroodStocks = <BroodstockData>[].obs;
@@ -37,83 +43,117 @@ class BroodStockController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    fetchInitialData();
+    // NOTE: do NOT auto-fetch here. The broodstock data is fetched only when the
+    // Broodstock screen opens (broad_stock_screen calls fetchInitialData in its
+    // initState). This keeps the home tab — which also instantiates this
+    // controller to read `homeBroodStocks` — from fetching broodstock at start.
   }
 
-  /// Fetch default filter settings from API
+  // ── Default Filter ──────────────────────────────────────────────────
   Future<void> getDefaultFilter() async {
+    debugPrint('$_tag getDefaultFilter...');
     try {
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/broodstock-default-filter",
         headers: await buildHeader(),
       );
 
-      print('=====get default filter api========');
-      print(response.body);
+      debugPrint('$_tag getDefaultFilter status=${response.statusCode}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
+        final data = _safeJsonDecode(response.body, 'getDefaultFilter');
+        if (data == null) return;
+
         if (data['status'] == true && data['data'] != null) {
           final filterData = data['data'];
-          defaultCategory.value = filterData['category'] ?? 'Tiger';
-          selectedMonth.value = filterData['month'] ?? DateTime.now().month.toString().padLeft(2, '0');
-          selectedYear.value = filterData['year'] ?? DateTime.now().year.toString();
-          defaultMonthYear.value = filterData['display_month_year'] ?? '';
+          if (filterData is! Map) {
+            debugPrint('$_tag ❌ getDefaultFilter data is not Map: ${filterData.runtimeType}');
+            return;
+          }
+          defaultCategory.value = filterData['category']?.toString() ?? 'Tiger';
+          selectedMonth.value = filterData['month']?.toString() ?? DateTime.now().month.toString().padLeft(2, '0');
+          selectedYear.value = filterData['year']?.toString() ?? DateTime.now().year.toString();
+          defaultMonthYear.value = filterData['display_month_year']?.toString() ?? '';
+          debugPrint('$_tag ✅ defaultFilter: cat=${defaultCategory.value}, month=${selectedMonth.value}, year=${selectedYear.value}, display=${defaultMonthYear.value}');
+        } else {
+          debugPrint('$_tag getDefaultFilter: status=${data['status']}, message=${data['message']}');
         }
+      } else {
+        debugPrint('$_tag ❌ getDefaultFilter HTTP ${response.statusCode}');
       }
-    } catch (e) {
-      print('Error fetching default filter: $e');
-      // Use fallback defaults
+    } catch (e, s) {
+      debugPrint('$_tag ❌ getDefaultFilter error: $e');
+      debugPrint('$_tag stack: $s');
       final now = DateTime.now();
       selectedMonth.value = now.month.toString().padLeft(2, '0');
       selectedYear.value = now.year.toString();
     }
   }
 
-  /// Fetch available months that have broodstock data (all categories combined)
+  // ── Available Months ────────────────────────────────────────────────
   Future<void> fetchAvailableMonths() async {
+    debugPrint('$_tag fetchAvailableMonths...');
     try {
       isMonthsLoading.value = true;
-      final endpoint =
-          "${NetworkConfig.baseURL}/farmer/broodstock-available-months";
-
       final response = await getRequest(
-        endPoint: endpoint,
+        endPoint: "${NetworkConfig.baseURL}/farmer/broodstock-available-months",
         headers: await buildHeader(),
       );
 
+      debugPrint('$_tag fetchAvailableMonths status=${response.statusCode}');
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
+        final data = _safeJsonDecode(response.body, 'fetchAvailableMonths');
+        if (data == null) return;
+
         if (data['status'] == true && data['data'] is List) {
+          final rawList = data['data'] as List;
           final List<Map<String, String>> months = [];
-          for (var item in data['data']) {
-            months.add({
-              'month': item['month']?.toString() ?? '',
-              'year': item['year']?.toString() ?? '',
-              'month_name': item['month_name']?.toString() ?? '',
-              'display': item['display']?.toString() ?? '',
-            });
+          for (int i = 0; i < rawList.length; i++) {
+            try {
+              final item = rawList[i];
+              if (item is Map) {
+                months.add({
+                  'month': item['month']?.toString() ?? '',
+                  'year': item['year']?.toString() ?? '',
+                  'month_name': item['month_name']?.toString() ?? '',
+                  'display': item['display']?.toString() ?? '',
+                });
+              } else {
+                debugPrint('$_tag ⚠️ availableMonths[$i] is not Map: ${item.runtimeType}');
+              }
+            } catch (e) {
+              debugPrint('$_tag ❌ availableMonths[$i] parse error: $e');
+            }
           }
           availableMonths.assignAll(months);
+          debugPrint('$_tag ✅ availableMonths: ${months.length} months loaded');
+        } else {
+          debugPrint('$_tag availableMonths: status=${data['status']}, data type=${data['data']?.runtimeType}');
         }
+      } else {
+        debugPrint('$_tag ❌ fetchAvailableMonths HTTP ${response.statusCode}');
       }
-    } catch (e) {
-      print('Error fetching available months: $e');
+    } catch (e, s) {
+      debugPrint('$_tag ❌ fetchAvailableMonths error: $e');
+      debugPrint('$_tag stack: $s');
     } finally {
       isMonthsLoading.value = false;
     }
   }
 
-  /// Fetch both categories & broodstock initially
+  // ── Initial Data ────────────────────────────────────────────────────
   Future<void> fetchInitialData() async {
-    // First fetch the default filter from API
-    await getDefaultFilter();
+    debugPrint('$_tag fetchInitialData START');
+    // Keep the shimmer on for the ENTIRE initial load so it never flickers to
+    // the empty/Retry state between sub-fetches.
+    isInitialLoading.value = true;
+    try {
+      await getDefaultFilter();
+      await getCategories();
 
-    await getCategories();
-
-    // Set default category based on API response
-    if (categories.isNotEmpty) {
-      try {
+      // Set default category
+      if (categories.isNotEmpty) {
         bool isFound = false;
         for (var category in categories) {
           if (category.categoryName.toLowerCase() == defaultCategory.value.toLowerCase()) {
@@ -123,9 +163,8 @@ class BroodStockController extends GetxController {
           }
         }
         if (!isFound) {
-          // Fallback to Tiger if API default not found
           for (var category in categories) {
-            if (category.categoryName == "Tiger") {
+            if (category.categoryName.toLowerCase() == "tiger") {
               selectedCategory.value = category;
               isFound = true;
               break;
@@ -135,60 +174,83 @@ class BroodStockController extends GetxController {
         if (!isFound) {
           selectedCategory.value = categories.first;
         }
-      } catch (e) {
-        selectedCategory.value = categories.first;
+        debugPrint('$_tag selectedCategory: ${selectedCategory.value?.categoryName ?? "null"}');
+      } else {
+        debugPrint('$_tag ⚠️ No categories loaded — cannot select default');
       }
-    }
 
-    // If default filter didn't set month/year, use current date
-    if (selectedMonth.value.isEmpty) {
-      final now = DateTime.now();
-      selectedMonth.value = now.month.toString().padLeft(2, '0');
-      selectedYear.value = now.year.toString();
-    }
+      if (selectedMonth.value.isEmpty) {
+        final now = DateTime.now();
+        selectedMonth.value = now.month.toString().padLeft(2, '0');
+        selectedYear.value = now.year.toString();
+      }
 
-    await fetchAvailableMonths();
-    await getBroodStock();
+      await fetchAvailableMonths();
+      await getBroodStock();
+      debugPrint('$_tag fetchInitialData DONE');
+    } catch (e, s) {
+      debugPrint('$_tag ❌ fetchInitialData error: $e');
+      debugPrint('$_tag stack: $s');
+    } finally {
+      isInitialLoading.value = false;
+    }
   }
 
-  /// Fetch broodstock categories
+  // ── Categories ──────────────────────────────────────────────────────
   Future<void> getCategories() async {
+    debugPrint('$_tag getCategories...');
     try {
       isLoading.value = true;
-
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/categories",
         headers: await buildHeader(),
       );
 
+      debugPrint('$_tag getCategories status=${response.statusCode}');
+
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = _safeJsonDecode(response.body, 'getCategories');
+        if (data == null) return;
+
         final catList = data['categories'];
         if (catList is List) {
-          categories.assignAll(
-            catList.map((e) => Category.fromJson(e)).toList(),
-          );
+          final parsed = <Category>[];
+          for (int i = 0; i < catList.length; i++) {
+            try {
+              if (catList[i] is Map<String, dynamic>) {
+                parsed.add(Category.fromJson(catList[i]));
+              } else {
+                debugPrint('$_tag ⚠️ categories[$i] is not Map: ${catList[i].runtimeType}');
+              }
+            } catch (e) {
+              debugPrint('$_tag ❌ categories[$i] parse error: $e');
+            }
+          }
+          categories.assignAll(parsed);
+          debugPrint('$_tag ✅ categories: ${parsed.length} loaded');
+        } else {
+          debugPrint('$_tag ❌ categories field is ${catList.runtimeType}, expected List');
         }
       } else {
-        CustomToast.error(
-          "Failed to fetch categories (Code )",
-        );
+        debugPrint('$_tag ❌ getCategories HTTP ${response.statusCode}');
       }
-    } catch (e) {
-      CustomToast.error("Error fetching categories  ");
+    } catch (e, s) {
+      debugPrint('$_tag ❌ getCategories error: $e');
+      debugPrint('$_tag stack: $s');
     } finally {
       isLoading.value = false;
     }
   }
 
-  /// Fetch broodstock list
+  // ── Broodstock List ─────────────────────────────────────────────────
   Future<void> getBroodStock() async {
     if (selectedCategory.value == null) {
-      // CustomToast.error("Please select a category.");
+      debugPrint('$_tag getBroodStock skipped — no category selected');
       return;
     }
 
-    try{
+    debugPrint('$_tag getBroodStock: cat=${selectedCategory.value!.categoryName}, month=${selectedMonth.value}, year=${selectedYear.value}, search=${searchQuery.value}');
+    try {
       isLoading.value = true;
       final endpoint =
           "${NetworkConfig.baseURL}/farmer/broodstocks_list"
@@ -197,56 +259,79 @@ class BroodStockController extends GetxController {
           "&month=${selectedMonth.value.toLowerCase()}"
           "&year=${selectedYear.value}";
 
+      debugPrint('$_tag getBroodStock URL: $endpoint');
+
       final response = await getRequest(
         endPoint: endpoint,
         headers: await buildHeader(),
       );
 
+      debugPrint('$_tag getBroodStock status=${response.statusCode}, bodyLen=${response.body.length}');
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
+        final data = _safeJsonDecode(response.body, 'getBroodStock');
+        if (data == null) {
+          broodStocks.clear();
+          filteredBroodStocks.clear();
+          return;
+        }
 
         if (data['status'] == true && data['data'] is List) {
+          final rawList = data['data'] as List;
+          debugPrint('$_tag getBroodStock: ${rawList.length} raw items from API');
+
           final model = BroodstockModel.fromJson(data);
           broodStocks.assignAll(model.data);
-          filteredBroodStocks.assignAll(model.data); //
+          filteredBroodStocks.assignAll(model.data);
+          debugPrint('$_tag ✅ getBroodStock: ${model.data.length} parsed successfully');
+
+          if (rawList.length != model.data.length) {
+            debugPrint('$_tag ⚠️ ${rawList.length - model.data.length} items failed to parse');
+          }
         } else {
           broodStocks.clear();
           filteredBroodStocks.clear();
-          CustomToast.info(data['message'] ?? "No broodstock found.");
+          final msg = data['message']?.toString() ?? 'No broodstock found';
+          debugPrint('$_tag getBroodStock: status=${data['status']}, message=$msg, data type=${data['data']?.runtimeType}');
+          if (data['status'] != true) {
+            CustomToast.info(msg);
+          }
         }
       } else {
-        CustomToast.error(
-          "Failed to fetch brood stock (Code )",
-        );
+        debugPrint('$_tag ❌ getBroodStock HTTP ${response.statusCode}: ${response.body.length > 200 ? response.body.substring(0, 200) : response.body}');
+        broodStocks.clear();
+        filteredBroodStocks.clear();
       }
-    } catch (e) {
-      CustomToast.error("Error fetching brood stock  ");
+    } catch (e, s) {
+      debugPrint('$_tag ❌ getBroodStock error: $e');
+      debugPrint('$_tag stack: $s');
+      broodStocks.clear();
+      filteredBroodStocks.clear();
     } finally {
       isLoading.value = false;
     }
   }
 
- Future<void> getBroodStockForHome({required String categoryId, required String locationId}) async {
+  // ── Broodstock for Home ─────────────────────────────────────────────
+  Future<void> getBroodStockForHome({required String categoryId, required String locationId}) async {
+    debugPrint('$_tag getBroodStockForHome: catId=$categoryId, locId=$locationId');
     try {
       // Load from cache first
       try {
         final cached = await AppCacheHelper.get('broodstock_home');
         if (cached != null) {
-          final data = jsonDecode(cached);
-          if (data['status'] == true && data['data'] is List) {
+          final data = _safeJsonDecode(cached, 'broodstock_home cache');
+          if (data != null && data['status'] == true && data['data'] is List) {
             final model = BroodstockModel.fromJson(data);
-            final limitedData = model.data.length > 5
-                ? model.data.sublist(0, 5)
-                : model.data;
+            final limitedData = model.data.length > 5 ? model.data.sublist(0, 5) : model.data;
             homeBroodStocks.assignAll(limitedData);
+            debugPrint('$_tag ✅ cache: ${limitedData.length} home broodstocks');
           }
         }
       } catch (e) {
-        debugPrint('Cache read failed (broodstock_home): $e');
+        debugPrint('$_tag ⚠️ cache read failed: $e');
       }
 
-      // Use default filter values from admin config (same as BroodStock screen)
-      // First fetch defaults if not already loaded
       if (defaultCategory.value.isEmpty) {
         await getDefaultFilter();
       }
@@ -266,103 +351,100 @@ class BroodStockController extends GetxController {
           "?category=$category"
           "&month=$month"
           "&year=$year";
-      print('==============calling getBroodStockForHome============');
-      print(endpoint);
+
+      debugPrint('$_tag getBroodStockForHome URL: $endpoint');
 
       final response = await getRequest(
         endPoint: endpoint,
         headers: await buildHeader(),
       );
-      print('=========getBroodStockForHome data=========');
-      print(response.body);
+
+      debugPrint('$_tag getBroodStockForHome status=${response.statusCode}');
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
+        final data = _safeJsonDecode(response.body, 'getBroodStockForHome');
+        if (data == null) return;
+
         if (data['status'] == true && data['data'] is List) {
           final model = BroodstockModel.fromJson(data);
-          // Limit to max 5 items for home screen
-          final limitedData = model.data.length > 5
-              ? model.data.sublist(0, 5)
-              : model.data;
+          final limitedData = model.data.length > 5 ? model.data.sublist(0, 5) : model.data;
           homeBroodStocks.assignAll(limitedData);
+          debugPrint('$_tag ✅ getBroodStockForHome: ${limitedData.length} items');
         } else {
           homeBroodStocks.clear();
+          debugPrint('$_tag getBroodStockForHome: status=${data['status']}, data type=${data['data']?.runtimeType}');
         }
-        try { await AppCacheHelper.save('broodstock_home', response.body); } catch (e) { debugPrint('Cache save failed (broodstock_home): $e'); }
+        try {
+          await AppCacheHelper.save('broodstock_home', response.body);
+        } catch (e) {
+          debugPrint('$_tag ⚠️ cache save failed: $e');
+        }
       } else {
-        CustomToast.error(
-          "Failed to fetch brood stock (Code )",
-        );
+        debugPrint('$_tag ❌ getBroodStockForHome HTTP ${response.statusCode}');
       }
-    } catch (e,s) {
-      print('=========get brood stock for home=========');
-      print(e.toString());
-      print(s.toString());
-      CustomToast.error("Error fetching brood stock  ");
-    } finally {
+    } catch (e, s) {
+      debugPrint('$_tag ❌ getBroodStockForHome error: $e');
+      debugPrint('$_tag stack: $s');
     }
   }
 
-
-  /// 🔹 Local filter (client-side) for broodstock search
+  // ── Local Search Filter ─────────────────────────────────────────────
   void filterBroodStocks(String query) {
     searchQuery.value = query;
-
     if (query.isEmpty) {
-      // Show all if search is cleared
       filteredBroodStocks.assignAll(broodStocks);
     } else {
       final lowerQuery = query.toLowerCase();
       filteredBroodStocks.assignAll(
         broodStocks.where((item) {
-          final hatchery = item.hatcheryName.toLowerCase();
-          final supplier = item.supplierName.toLowerCase();
-          final location = item.locationName.toLowerCase();
-          final count = item.availableQuantity.toLowerCase();
-          final importedDate = item.importedDate.toLowerCase();
-          final description = item.description.toLowerCase();
-          return hatchery.contains(lowerQuery) ||
-              supplier.contains(lowerQuery) ||
-              location.contains(lowerQuery) ||
-              count.contains(lowerQuery) ||
-              importedDate.contains(lowerQuery) ||
-              description.contains(lowerQuery);
+          return item.hatcheryName.toLowerCase().contains(lowerQuery) ||
+              item.supplierName.toLowerCase().contains(lowerQuery) ||
+              item.locationName.toLowerCase().contains(lowerQuery) ||
+              item.availableQuantity.toLowerCase().contains(lowerQuery) ||
+              item.importedDate.toLowerCase().contains(lowerQuery) ||
+              item.description.toLowerCase().contains(lowerQuery);
         }).toList(),
       );
     }
+    debugPrint('$_tag filterBroodStocks: query="$query", results=${filteredBroodStocks.length}/${broodStocks.length}');
   }
 
-  /// Handle category dropdown change
+  // ── Filter Handlers ─────────────────────────────────────────────────
   void onCategoryChanged(Category? category) {
     if (category != null) {
+      debugPrint('$_tag onCategoryChanged: ${category.categoryName}');
       selectedCategory.value = category;
       getBroodStock();
     }
   }
 
-  /// Handle month-year dropdown updates
   void onMonthYearChanged(String month, String year) {
-    // Convert month name (Jan, Feb, etc.) to numeric (01, 02, etc.)
+    debugPrint('$_tag onMonthYearChanged: month=$month, year=$year');
     selectedMonth.value = _convertMonthNameToNumber(month);
     selectedYear.value = year;
     getBroodStock();
   }
 
-  /// Convert month name to numeric format
   String _convertMonthNameToNumber(String monthName) {
     const monthMap = {
-      'jan': '01',
-      'feb': '02',
-      'mar': '03',
-      'apr': '04',
-      'may': '05',
-      'jun': '06',
-      'jul': '07',
-      'aug': '08',
-      'sep': '09',
-      'oct': '10',
-      'nov': '11',
-      'dec': '12',
+      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
+      'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
+      'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12',
     };
     return monthMap[monthName.toLowerCase()] ?? monthName;
+  }
+
+  // ── Safe JSON Decode ────────────────────────────────────────────────
+  Map<String, dynamic>? _safeJsonDecode(String body, String context) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) return decoded;
+      debugPrint('$_tag ❌ $context: JSON decoded but is ${decoded.runtimeType}, not Map');
+      return null;
+    } catch (e) {
+      debugPrint('$_tag ❌ $context: JSON decode FAILED: $e');
+      debugPrint('$_tag body preview: ${body.length > 300 ? body.substring(0, 300) : body}');
+      return null;
+    }
   }
 }

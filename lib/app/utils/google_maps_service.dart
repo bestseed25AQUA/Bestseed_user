@@ -394,26 +394,48 @@ class GoogleMapsService {
             ? _haversineDistance(allPoints.first, driverPosition)
             : 0;
 
+        // The waypoints supplied here are the REMAINING (uncompleted) drops, so
+        // the driver is still heading to the FIRST of them — i.e. somewhere on
+        // LEG 0 (origin → first pending drop). Constrain the driver-snap search
+        // to leg 0 so a LATER leg that loops back near the driver can't hijack
+        // the match and make the "remaining" split skip the priority-1 drop
+        // (the Order #862 bug, where blue shot straight to the priority-2 drop).
+        final int leg0End =
+            legStartIndices.length > 1 ? legStartIndices[1] : allPoints.length;
+
         int driverIdx;
         if (pickupToDriverDist < 1000) {
           // Driver is within 1km of pickup (just started) — no completed portion
           driverIdx = 0;
         } else {
-          // Only search within a bounded range along the polyline
-          // (1.5x straight-line pickup→driver distance + 10km buffer for road curves)
-          double searchLimit = pickupToDriverDist * 1.5 + 10000;
-          double accDist = 0;
           driverIdx = 0;
           double minDist = double.infinity;
-          for (int i = 0; i < allPoints.length; i++) {
-            if (i > 0) {
-              accDist += _haversineDistance(allPoints[i - 1], allPoints[i]);
-            }
-            if (accDist > searchLimit) break; // Stop searching beyond reasonable range
+          for (int i = 0; i < leg0End; i++) {
             double dist = _haversineDistance(allPoints[i], driverPosition);
             if (dist < minDist) {
               minDist = dist;
               driverIdx = i;
+            }
+          }
+          // Safety net: if the driver isn't actually near leg 0 (e.g. a drop was
+          // physically reached but not yet marked complete, so they're already
+          // on a later leg), fall back to a bounded full-route nearest-point
+          // match so the split doesn't snap backwards to an old drop.
+          if (minDist > 500) {
+            double searchLimit = pickupToDriverDist * 1.5 + 10000;
+            double accDist = 0;
+            minDist = double.infinity;
+            driverIdx = 0;
+            for (int i = 0; i < allPoints.length; i++) {
+              if (i > 0) {
+                accDist += _haversineDistance(allPoints[i - 1], allPoints[i]);
+              }
+              if (accDist > searchLimit) break;
+              double dist = _haversineDistance(allPoints[i], driverPosition);
+              if (dist < minDist) {
+                minDist = dist;
+                driverIdx = i;
+              }
             }
           }
         }
@@ -482,10 +504,18 @@ class GoogleMapsService {
         }
         remainingSeconds = totalDurationSeconds;
       } else {
-        // No driver position, no waypoints — single leg, full route as remaining
-        final encodedPolyline =
-            route['overview_polyline']['points'] as String;
-        remainingPoints = _decodePolyline(encodedPolyline);
+        // No driver position, no waypoints — single leg, full route as remaining.
+        // Decode the per-STEP polylines (full road geometry) instead of the
+        // overview_polyline. overview_polyline is Douglas–Peucker-simplified and
+        // collapses curves into straight chords — that's the "part of the route
+        // shows a straight line" bug. Fall back to overview only if steps are
+        // somehow empty.
+        remainingPoints = _decodeStepsPolyline(legs[0]['steps'] as List);
+        if (remainingPoints.isEmpty) {
+          final encodedPolyline =
+              route['overview_polyline']['points'] as String;
+          remainingPoints = _decodePolyline(encodedPolyline);
+        }
         totalDurationSeconds = legs[0]['duration']['value'] as int;
         totalDistanceMeters = legs[0]['distance']['value'] as int;
         remainingSeconds = totalDurationSeconds;
