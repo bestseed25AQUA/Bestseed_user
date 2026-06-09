@@ -4437,6 +4437,35 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
 
     // segmentIndex = fixedStopIndex + 1, so the stop is at index segmentIndex - 1
     final stopIndex = segmentIndex - 1;
+
+    // Pickup segment (segmentIndex == 0): the pickup is a passed milestone, so
+    // its sub-stops must come from the backend only — never generate client-side
+    // points (which produced bogus stops like "Madhapur"). Match the pickup name
+    // against the API's passed_stops and use its sub_stops[].
+    if (segmentIndex == 0) {
+      final pickupName = _trackingData?.pickup.name.toLowerCase();
+      final apiSubStops = (_trackingData?.passedStops ?? [])
+          .firstWhereOrNull((ps) =>
+              (ps['name'] as String?)?.toLowerCase() == pickupName)
+          ?['sub_stops'] as List?;
+
+      final subStops = (apiSubStops ?? [])
+          .map((s) => <String, dynamic>{
+                'name': s['name']?.toString() ?? '',
+                'lat': (s['lat'] as num?)?.toDouble() ?? 0.0,
+                'lng': (s['lng'] as num?)?.toDouble() ?? 0.0,
+                'api_time': s['time']?.toString(),
+              })
+          .where((s) => (s['name'] as String).isNotEmpty)
+          .toList();
+
+      setState(() {
+        _subStopsCache[segmentIndex] = subStops;
+        _expandedSegmentIndex = subStops.isNotEmpty ? segmentIndex : null;
+      });
+      return;
+    }
+
     if (stopIndex >= 0 && stopIndex < _fixedStops.length) {
       final stop = _fixedStops[stopIndex];
       final isPassedStop = stop['api_time'] != null || stop['passed_at'] != null;
@@ -4639,8 +4668,8 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         Icons.local_shipping,
         Colors.green,
         _resolveDriverLocationName(),
-        _formatDate(driverLoc.updatedAt),
-        _formatDateTime(driverLoc.updatedAt),
+        _formatDateObj(DateTime.now()),
+        _formatDateTimeObj(DateTime.now()),
         isPulsing: true,
         isPassed: true,
         isNextPassed: false,
@@ -5945,6 +5974,11 @@ for (var stop in stops) {
         : (local.hour == 0 ? 12 : local.hour);
     final amPm = local.hour >= 12 ? 'PM' : 'AM';
     return '${hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')} $amPm';
+  }
+
+  String _formatDateObj(DateTime dateTime) {
+    final local = dateTime.isUtc ? dateTime.toLocal() : dateTime;
+    return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year}';
   }
 
   /// Returns a meaningful location name for the driver.
