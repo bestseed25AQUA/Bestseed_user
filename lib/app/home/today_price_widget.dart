@@ -107,7 +107,10 @@ class TodayPricesWidget extends StatelessWidget {
                     .map((loc) {
                       return _buildPriceSection(
                         title: loc.location,
+                        // Only show the first 3 sizes on the home preview;
+                        // full list is on the Price screen ("See all").
                         prices: loc.prices
+                            .take(3)
                             .map(
                               (p) => PriceItem(
                                 quantity: "${p.size}C",

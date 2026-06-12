@@ -12,6 +12,7 @@ import 'package:seedsuser/app/booking/view/booking_detail_screen.dart';
 import 'package:seedsuser/app/common/force_logout_notice.dart';
 import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/notification/notification_details_screen.dart';
+import 'package:seedsuser/app/rating/rating_prompt_service.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -199,6 +200,10 @@ class NotificationService {
         _handleForceLogout();
         return;
       }
+      // Booking just delivered while the app is open → show the rating popup
+      // in real time (in addition to the local notification banner).
+      RatingPromptService.instance
+          .onDeliveredPush(Map<String, dynamic>.from(message.data));
       _showLocalNotification(message);
     });
 
@@ -338,6 +343,8 @@ class NotificationService {
               body: body,
               image: image,
               module: module,
+              hatcheryId: data['hatchery_id']?.toString(),
+              hatcheryName: data['hatchery_name']?.toString(),
             ));
         break;
 

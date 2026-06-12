@@ -25,7 +25,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   TabController? _tabController;
   final HomeController _homeController = Get.find<HomeController>();
   final FilterController filterController = Get.put(FilterController());
@@ -49,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initTabController();
     if (_locationController.selectedLocationId.value.isEmpty) {
       getDefaultLocation();
@@ -163,10 +164,31 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _homeTabWorker?.dispose();
     _catWorker?.dispose();
     _tabController?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state != AppLifecycleState.resumed) return;
+    // User may have just enabled location / granted permission in device
+    // settings and returned. Re-detect if we still have no coordinates —
+    // autoDetectCurrentLocation self-guards on permission + GPS, and on success
+    // bumps locationUpdatedCount which makes the weather widget refresh too.
+    final haveLoc = _locationController.selectedLatiude.value.isNotEmpty &&
+        _locationController.selectedLongitude.value.isNotEmpty;
+    if (!haveLoc) {
+      final farmerId = profileController.profile.value?.id.toString() ?? '';
+      if (farmerId.isNotEmpty) {
+        _locationController.autoDetectCurrentLocation(farmerId: farmerId);
+      }
+    }
+    // Retry any home section that didn't load on a transient first-load failure.
+    _refreshHomeIfEmpty();
   }
 
   List<Widget> buildLoadingTabs(int length) {

@@ -99,19 +99,54 @@ class NotificationsScreen extends StatelessWidget {
   }
 
   void _handleNotificationTap(PushNotificationModel notification) {
-    if (notification.type == 'booking_status') {
-      final bookingId = notification.data?['booking_id'];
-      if (bookingId != null) {
-        Get.to(() => BookingDetailScreen(bookingId: bookingId.toString()));
+    debugPrint('🔔 [NOTIF TAP] id=${notification.id} type="${notification.type}" '
+        'module="${notification.module}" data=${notification.data}');
+
+    try {
+      // Booking notifications WITH a usable booking id → booking details.
+      if (notification.type == 'booking_status') {
+        final bookingId =
+            notification.data?['booking_id'] ?? notification.data?['id'];
+        if (bookingId != null && bookingId.toString().isNotEmpty) {
+          debugPrint('🔔 [NOTIF TAP] → BookingDetailScreen(bookingId=$bookingId)');
+          Get.to(
+            () => BookingDetailScreen(bookingId: bookingId.toString()),
+            preventDuplicates: false,
+          );
+          return;
+        }
+        debugPrint('🔔 [NOTIF TAP] booking_status but no usable booking id '
+            '→ falling back to NotificationDetailScreen');
       }
-    } else {
-      // admin_broadcast or other
-      Get.to(() => NotificationDetailScreen(
-            title: notification.title,
-            body: notification.body,
-            image: notification.image,
-            module: notification.module,
-          ));
+
+      // Everything else — admin broadcasts AND any notification without a usable
+      // booking id — opens the detail screen, so a tap ALWAYS does something
+      // instead of silently dead-ending (only showing the card ripple).
+      final hatcheryId = notification.data?['hatchery_id']?.toString();
+      final hatcheryName = notification.data?['hatchery_name']?.toString();
+      debugPrint('🔔 [NOTIF TAP] → NotificationDetailScreen('
+          'module="${notification.module}", hatcheryId=$hatcheryId, '
+          'hatcheryName=$hatcheryName)');
+      // preventDuplicates: false — NotificationDetailScreen is closed with the
+      // app-bar/system back (Navigator.pop), which can leave GetX's tracked
+      // "current route" still pointing at /NotificationDetailScreen. Without
+      // this, tapping a second notification of the same screen is blocked by
+      // the duplicate guard and nothing happens (only the card ripple shows).
+      Get.to(
+        () => NotificationDetailScreen(
+          title: notification.title,
+          body: notification.body,
+          image: notification.image,
+          module: notification.module,
+          hatcheryId: hatcheryId,
+          hatcheryName: hatcheryName,
+        ),
+        preventDuplicates: false,
+      );
+      debugPrint('🔔 [NOTIF TAP] navigation dispatched OK');
+    } catch (e, s) {
+      debugPrint('❌ [NOTIF TAP] navigation FAILED: $e');
+      debugPrint('❌ [NOTIF TAP] stack: $s');
     }
   }
 }

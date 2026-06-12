@@ -8,6 +8,7 @@ import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_best_seed_background.dart';
 import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/common/refresh_button.dart';
+import 'package:seedsuser/app/help/help_contact_service.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking_map_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../controller/my_booking_controller.dart';
@@ -1009,39 +1010,34 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               ],
             ),
           ),
-          if (vendorMobile != null && vendorMobile.isNotEmpty)
-            InkWell(
-              onTap: () async {
-                final uri = Uri(scheme: 'tel', path: vendorMobile);
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri);
-                }
-              },
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.call_rounded,
-                        color: Colors.white, size: 16),
-                    const SizedBox(width: 6),
-                    Text(
-                      "Call",
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
+          InkWell(
+            onTap: () => showHelpContactsSheet(context,
+                fallbackPhone: vendorMobile),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.call_rounded,
+                      color: Colors.white, size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    "Call",
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
+          ),
         ],
       ),
     );

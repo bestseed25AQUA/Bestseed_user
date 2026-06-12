@@ -10,6 +10,7 @@ import 'package:seedsuser/app/best_deals/view/best_deals_screen.dart';
 import 'package:seedsuser/app/news & ads/view/climate_news_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
 import 'package:seedsuser/app/home/view/hatchery_filter_screen.dart';
+import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 
 import 'package:seedsuser/app/news & ads/view/medicine_news_screen.dart';
 import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
@@ -25,12 +26,20 @@ class NotificationDetailScreen extends StatelessWidget {
   final String? image;
   final String? module;
 
+  /// When the notification targets a specific hatchery (module == 'Hatchery'),
+  /// these carry that hatchery so the chip opens its details page directly
+  /// instead of the general hatchery list. Null → fall back to the list.
+  final String? hatcheryId;
+  final String? hatcheryName;
+
   const NotificationDetailScreen({
     super.key,
     required this.title,
     required this.body,
     this.image,
     this.module,
+    this.hatcheryId,
+    this.hatcheryName,
   });
 
   @override
@@ -165,6 +174,20 @@ class NotificationDetailScreen extends StatelessWidget {
         screen = const FarmManagementScreen();
         break;
       case 'Hatchery':
+        // If the notification is tied to a specific hatchery, open that
+        // hatchery's details page directly; otherwise show the general list.
+        if (hatcheryId != null && hatcheryId!.isNotEmpty) {
+          // Use Get.to (not Navigator.push) so GetX manages the
+          // HatcheryCategoryController lifecycle — disposing and recreating it
+          // on each entry. With Navigator.push the controller is left in a
+          // stale state on re-entry, so a second tap doesn't refresh properly.
+          Get.to(() => HatcheryCateogryScreen(
+                hatcheryId: hatcheryId!,
+                hatcheryName: hatcheryName ?? '',
+                useHatcheryId: true,
+              ));
+          return;
+        }
         screen = const HatcheryFilterScreen();
         break;
       case 'Hatchery Updates':

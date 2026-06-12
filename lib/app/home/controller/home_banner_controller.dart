@@ -52,13 +52,16 @@ class HomeBannerController extends GetxController {
     debugPrint('📊 [BANNERS] fetchAll — starting priority fetch');
 
     // Priority 1: User sees these FIRST on home screen — logo (background),
-    // vehicle availability video, best deals, spot hatchery, farm management.
+    // vehicle availability video, best deals.
     // Fire all at once but don't wait for all — each updates UI independently
     // and warms its media (image/video poster) as soon as its data arrives.
+    //
+    // NOTE: spot hatchery & farm management are intentionally NOT fetched here.
+    // They are refreshed on every Home open via [refreshSpotAndFarm] so the
+    // user always sees today's banner and never a stale/old one (and so they
+    // don't compete in the duplicated startup request burst).
     _fetchWithRetry('home_banner', fetchHomeBanner);
     _fetchWithRetry('best_deals', fetchBannersMedicine);
-    _fetchWithRetry('spot_hatcheries', fetchSpotHatcheriesIcon);
-    _fetchWithRetry('farm_management', fetchFarmManagementIcon);
     _fetchWithRetry('banner_bg', fetchBannersBackground);
 
     // Priority 2: Below fold — slight delay so Priority 1 gets bandwidth first
@@ -71,6 +74,25 @@ class HomeBannerController extends GetxController {
     _fetchWithRetry('seed_price', fetchSeedPriceBanner);
   }
 
+  /// Re-fetch the Spot Hatchery & Farm Management icons fresh. Called on every
+  /// Home open (HomePage.initState) instead of caching them for the session, so:
+  ///   1. they load reliably on first login/open — they no longer compete in
+  ///      the duplicated startup request burst that could leave them blank, and
+  ///   2. the user never sees a stale/old banner.
+  /// The lists are cleared first: while fresh data loads the cards show a
+  /// shimmer, and if the fetch returns nothing they fall back to the static
+  /// icon — never an old banner.
+  Future<void> refreshSpotAndFarm() async {
+    bannersSpotHatcheries.clear();
+    bannersFarmManagement.clear();
+    isSpotLoading.value = true;
+    isFarmLoading.value = true;
+    await Future.wait([
+      _fetchWithRetry('spot_hatcheries', fetchSpotHatcheriesIcon),
+      _fetchWithRetry('farm_management', fetchFarmManagementIcon),
+    ]);
+  }
+
   /// Awaits the above-the-fold banner data AND downloads the home banner video
   /// to a local file, so the splash can hand Home fully-populated data with the
   /// video ready to play from disk. Below-the-fold banners fire without waiting.
@@ -78,11 +100,12 @@ class HomeBannerController extends GetxController {
   Future<void> preloadEssential() async {
     // Block only on the fast above-the-fold DATA (small JSON + small images) so
     // navigation stays quick and Home opens populated.
+    // Spot hatchery & farm management are NOT warmed here — they refresh on
+    // every Home open via [refreshSpotAndFarm] so the user always sees today's
+    // banner and never a stale one.
     await Future.wait([
       _fetchWithRetry('home_banner', fetchHomeBanner),
       _fetchWithRetry('best_deals', fetchBannersMedicine),
-      _fetchWithRetry('spot_hatcheries', fetchSpotHatcheriesIcon),
-      _fetchWithRetry('farm_management', fetchFarmManagementIcon),
       _fetchWithRetry('banner_bg', fetchBannersBackground),
     ]);
 

@@ -34,7 +34,13 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
     super.initState();
 
     _initSpeech();
-    // fetchBookings() is already called in controller's onInit()
+    // Fetch fresh on every open of THIS screen so it shows the shimmer first
+    // (fetchBookings(refresh:true) sets isLoading=true → bookingCardShimmer)
+    // and then the up-to-date list — instead of relying on the controller's
+    // app-start onInit fetch (which the dashboard live-tracking FAB also uses).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.fetchBookings(refresh: true);
+    });
 
     _scrollController.addListener(() {
       if (_scrollController.position.atEdge) {
@@ -931,7 +937,10 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
     final isCancelled = statusLower == "cancelled";
 
     return InkWell(
-      onTap: isCancelled ? ontapTryAgain : ontap,
+      // Tapping the card always opens the booking detail (which shows the
+      // cancellation reason for cancelled bookings). Re-booking happens only
+      // via the explicit "Try Again" button below.
+      onTap: ontap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),

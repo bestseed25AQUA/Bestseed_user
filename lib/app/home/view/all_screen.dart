@@ -58,13 +58,19 @@ class _HomePageState extends State<HomePage>
   void initState() {
     super.initState();
 
-    // Always fetch all banners — handles login flow where splash was bypassed,
-    // and ensures spot/farm/deals banners load even if home banner was cached.
-    if (_homeBannerController.bannersSpotHatcheries.isEmpty ||
-        _homeBannerController.bannersFarmManagement.isEmpty ||
-        _homeBannerController.bannersMedicine.isEmpty ||
+    // Spot Hatchery & Farm Management: always refresh on every Home open. This
+    // (1) loads them reliably on first login/open — the old `if (empty)`
+    // gate could leave them blank when the duplicated startup request burst
+    // starved them — and (2) clears any stale icon from earlier in the session
+    // so the user never sees an OLD banner (cards shimmer, then show today's
+    // banner or the static fallback).
+    _homeBannerController.refreshSpotAndFarm();
+
+    // Other banners (vehicle/home, best deals, background) — fetch once if
+    // missing; fine to keep for the session.
+    if (_homeBannerController.bannersMedicine.isEmpty ||
         _homeBannerController.bannersHome.isEmpty) {
-      print('📱 [HOME] Fetching all banners — some are missing');
+      print('📱 [HOME] Fetching banners — some are missing');
       _homeBannerController.fetchAll();
     }
 
@@ -1406,12 +1412,22 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
               AnimatedOpacity(
                 opacity: (_videoVisible && !_hideVideoSurface) ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 250),
-                child: FittedBox(
-                  fit: BoxFit.cover,
-                  child: SizedBox(
-                    width: vc.value.size.width,
-                    height: vc.value.size.height,
-                    child: VideoPlayer(vc),
+                // The video texture is YUV 4:2:0; on some GPUs the right/bottom
+                // border texel samples undefined chroma and renders as a 1px
+                // green seam after BoxFit.cover scaling. ClipRect + a tiny
+                // over-scale pushes that border texel just outside the visible
+                // box so the seam is clipped away on every device.
+                child: ClipRect(
+                  child: Transform.scale(
+                    scale: 1.03,
+                    child: FittedBox(
+                      fit: BoxFit.cover,
+                      child: SizedBox(
+                        width: vc.value.size.width,
+                        height: vc.value.size.height,
+                        child: VideoPlayer(vc),
+                      ),
+                    ),
                   ),
                 ),
               ),

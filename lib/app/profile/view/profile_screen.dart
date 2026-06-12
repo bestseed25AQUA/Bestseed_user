@@ -12,6 +12,7 @@ import 'package:seedsuser/app/profile/view/edit_profile_screen.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/booking_vehicle_list_screen.dart';
 import 'package:seedsuser/app/common/terms_and_conditions_screen.dart';
 import 'package:seedsuser/app/common/privacy_policy_screen.dart';
+import 'package:seedsuser/app/help/view/help_contacts_screen.dart';
 import 'package:seedsuser/l10n/app_localizations.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -148,7 +149,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: Icons.headset_mic_rounded,
               label: 'Help',
               color: const Color(0xFFF59E0B),
-              onTap: () {},
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const HelpContactsScreen()),
+              ),
             ),
           ],
         ),

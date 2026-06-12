@@ -30,11 +30,27 @@ class UpdatesScreen extends StatefulWidget {
 
 class _UpdatesScreenState extends State<UpdatesScreen> {
   final hatcheryUpdatesController = Get.put(HatcheryUpdatesController());
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     initunc();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 300) {
+      hatcheryUpdatesController.fetchMoreHatcheryUpdates();
+    }
   }
 
   initunc() async {
@@ -65,6 +81,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
           },
 
           child: SingleChildScrollView(
+            controller: _scrollController,
             physics: AlwaysScrollableScrollPhysics(),
             child: Column(
               children: [
@@ -127,6 +144,17 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                         },
                       );
                     },
+                  );
+                }),
+                Obx(() {
+                  if (!hatcheryUpdatesController.isLoadingMoreUpdates.value) {
+                    return const SizedBox.shrink();
+                  }
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   );
                 }),
               ],

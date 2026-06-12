@@ -41,10 +41,12 @@ class HomeController extends GetxController {
     // hatcheries api
     await getHatcheries(categoryId);
 
-    // NOTE: price and broodstock are intentionally NOT fetched here anymore.
-    // Price loads only on the Price screen and broodstock only on the
-    // Broodstock screen (avoids the home request burst + "failed to fetch"
-    // toast).
+    // Today's prices preview (first few sizes) for the home card.
+    await getPricesForHome();
+
+    // NOTE: full broodstock is intentionally NOT fetched here. Broodstock
+    // loads only on the Broodstock screen (avoids the home request burst +
+    // "failed to fetch" toast).
 
     // medicine home api
     await _newsSpecificController.fetch(

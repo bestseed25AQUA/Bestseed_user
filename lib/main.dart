@@ -8,6 +8,7 @@ import 'package:seedsuser/app/common/app_globals.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/language/controller/language_controller.dart';
 import 'package:seedsuser/app/notification/notification_service.dart';
+import 'package:seedsuser/app/rating/rating_prompt_service.dart';
 import 'package:seedsuser/app/utils/app_size.dart';
 import 'package:seedsuser/l10n/app_localizations.dart';
 import 'package:get_storage/get_storage.dart';
@@ -48,8 +49,49 @@ Future<void> initializeApp() async {
   await notificationService.subscribeToTopic('all_users');
 }
 
-class MyApp extends StatelessWidget{
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  // Only treat `resumed` as a background→foreground return if the app was
+  // actually paused first. This avoids firing during the cold-start splash
+  // transition (where showing a dialog over Splash would get dropped).
+  bool _wasPaused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Cold start / terminated → open is covered by the Dashboard landing
+    // check (it runs once the home screen is actually mounted), so we don't
+    // race the splash here.
+  }
+  
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.inactive) {
+      _wasPaused = true;
+    } else if (state == AppLifecycleState.resumed && _wasPaused) {
+      _wasPaused = false;
+      // Genuine background → foreground (incl. opening from recents): re-check
+      // so a delivery that happened while away shows its rating popup.
+      debugPrint('⭐[RATING] trigger: app RESUMED → checkPending');
+      RatingPromptService.instance.checkPending();
+    }
+  }
+
   @override
   Widget build(BuildContext context){
     return GetBuilder<LanguageController>(

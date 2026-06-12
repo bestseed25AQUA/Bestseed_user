@@ -48,6 +48,11 @@ class MyBookingController extends GetxController {
 
   var bookingList = <BookingData>[].obs;
 
+  // In-journey (status 4) bookings used by the home live-tracking FAB. Kept
+  // separate from [bookingList] because that list is paginated (10/page) and an
+  // in-journey booking can sit on any page — so the FAB could never rely on it.
+  var inProgressList = <BookingData>[].obs;
+
   var selectedMonth = ''.obs;
   var selectedYear = ''.obs;
   var selectedDate = ''.obs;
@@ -62,6 +67,36 @@ class MyBookingController extends GetxController {
   void onInit() {
     super.onInit();
     fetchBookings();
+    fetchInProgressBookings();
+  }
+
+  /// Fetch In-Journey (status 4) bookings for the live-tracking FAB. Queries the
+  /// backend with the status filter so it works regardless of how the full
+  /// booking list is paginated.
+  Future<void> fetchInProgressBookings() async {
+    try {
+      final uri = Uri.parse("${NetworkConfig.baseURL}/farmer/my-bookings")
+          .replace(queryParameters: {"status": "4", "page": "1"});
+
+      final response = await getRequest(
+        endPoint: uri.toString(),
+        headers: await buildHeader(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List<BookingData> items = (data["bookings"] as List? ?? [])
+            .map((e) => BookingData.fromJson(e))
+            // Guard client-side too: if the backend ignores the status filter,
+            // keep only genuine In-Journey (status 4) bookings so the FAB never
+            // shows for delivered/cancelled bookings.
+            .where((b) => b.status is Map && b.status['value'] == 4)
+            .toList();
+        inProgressList.assignAll(items);
+      }
+    } catch (e) {
+      debugPrint('fetchInProgressBookings failed: $e');
+    }
   }
 
   /// INITIAL / REFRESH LOAD
@@ -153,24 +188,12 @@ class MyBookingController extends GetxController {
     }
   }
 
-  bool get hasInProgressBooking {
-    return bookingList.any((b) =>
-        (b.status is Map && b.status['value'] == 4));
-  }
+  bool get hasInProgressBooking => inProgressList.isNotEmpty;
 
-  int get inProgressBookingCount {
-    return bookingList.where((b) =>
-        (b.status is Map && b.status['value'] == 4)).length;
-  }
+  int get inProgressBookingCount => inProgressList.length;
 
-  BookingData? get inProgressBooking {
-    try {
-      return bookingList.firstWhere((b) =>
-          (b.status is Map && b.status['value'] == 4));
-    } catch (_) {
-      return null;
-    }
-  }
+  BookingData? get inProgressBooking =>
+      inProgressList.isNotEmpty ? inProgressList.first : null;
 
   Future<void> cancelBooking(String bookingId, String reason,
       {String? otherReason}) async {
@@ -207,6 +230,7 @@ class MyBookingController extends GetxController {
         CustomToast.success('Cancelled');
         await fetchBookingDetail(bookingId);
         await fetchBookings(); // reload
+        await fetchInProgressBookings(); // keep tracking FAB in sync
       } else {
         CustomToast.error('Failed to Cancel');
       }

@@ -114,13 +114,35 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
       _trackingData = d;
       pickup = LatLng(d.pickup.lat, d.pickup.lng);
       drop = LatLng(d.drop.lat, d.drop.lng);
+      // Remember the previous fix BEFORE overwriting, so we can derive the
+      // vehicle's real heading from how it actually moved.
+      final LatLng? previousDriverLoc = driverLoc;
+
       driverLoc = (d.driverLocation.lat != 0 && d.driverLocation.lng != 0)
           ? LatLng(d.driverLocation.lat, d.driverLocation.lng)
           : null;
 
-      // Calculate bearing from driver (or pickup) toward destination
-      if (driverLoc != null && drop != null) {
-        _driverBearing = _calculateBearing(driverLoc!, drop!);
+      // Orient the truck to its ACTUAL direction of travel: the bearing from
+      // the previous driver position to the current one. This makes the icon
+      // face forward while advancing and turn around when the vehicle reverses,
+      // instead of always pointing at the destination.
+      if (driverLoc != null) {
+        if (previousDriverLoc != null) {
+          final movedMeters = _distMeters(
+            previousDriverLoc.latitude,
+            previousDriverLoc.longitude,
+            driverLoc!.latitude,
+            driverLoc!.longitude,
+          );
+          // Only re-orient on real movement (>= 5 m). Below that it's GPS
+          // jitter — keep the last heading so a stationary truck doesn't spin.
+          if (movedMeters >= 5) {
+            _driverBearing = _calculateBearing(previousDriverLoc, driverLoc!);
+          }
+        } else if (drop != null) {
+          // First fix — no prior point yet; face the destination to start.
+          _driverBearing = _calculateBearing(driverLoc!, drop!);
+        }
       } else if (pickup != null && drop != null) {
         _driverBearing = _calculateBearing(pickup!, drop!);
       }
@@ -290,30 +312,20 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
     );
   }
 
-  /// Loads delivery_truck.png rotated 180° so it faces north (up).
-  /// Google Maps marker [rotation] then handles the actual direction.
+  /// Loads truck.png (top-down truck, front/cab at the top → already faces
+  /// north/up at 0°). The Google Maps marker [rotation] then turns it to the
+  /// vehicle's actual heading, so NO baked-in rotation is applied here.
   Future<BitmapDescriptor> _loadTruckMarker(int size) async {
     try {
-      final data = await rootBundle.load('assets/images/delivery_truck.png');
+      final data = await rootBundle.load('assets/images/tracking_truck.png');
+      // Scale by width only so the truck keeps its aspect ratio (not squished).
       final codec = await ui.instantiateImageCodec(
         data.buffer.asUint8List(),
         targetWidth: size,
-        targetHeight: size,
       );
       final frame = await codec.getNextFrame();
-      final srcImage = frame.image;
-
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-      final s = size.toDouble();
-      canvas.translate(s / 2, s / 2);
-      canvas.rotate(math.pi); // 180° so asset faces north
-      canvas.translate(-s / 2, -s / 2);
-      canvas.drawImage(srcImage, Offset.zero, Paint());
-      final picture = recorder.endRecording();
-      final rotatedImage = await picture.toImage(size, size);
-
-      final byteData = await rotatedImage.toByteData(format: ui.ImageByteFormat.png);
+      final byteData =
+          await frame.image.toByteData(format: ui.ImageByteFormat.png);
       if (byteData != null) {
         return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
       }

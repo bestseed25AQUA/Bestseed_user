@@ -13,12 +13,14 @@ class PriceHomeModel {
 
   factory PriceHomeModel.fromJson(Map<String, dynamic> json) {
     return PriceHomeModel(
-      status: json['status'] ?? false,
-      category: json['category'] ?? '',
-      description: json['description'] ?? '',
-      data: json['data'] != null
-          ? List<PriceLocation>.from(
-              json['data'].map((x) => PriceLocation.fromJson(x)))
+      status: json['status'] == true,
+      category: json['category']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      data: json['data'] is List
+          ? (json['data'] as List)
+              .whereType<Map<String, dynamic>>()
+              .map((x) => PriceLocation.fromJson(x))
+              .toList()
           : [],
     );
   }
@@ -37,10 +39,13 @@ class PriceLocation {
 
   factory PriceLocation.fromJson(Map<String, dynamic> json) {
     return PriceLocation(
-      location: json['location'] ?? '',
-      msg: json['msg'] ?? '',
-      prices: json['prices'] != null
-          ? List<Price>.from(json['prices'].map((x) => Price.fromJson(x)))
+      location: json['location']?.toString() ?? '',
+      msg: json['msg']?.toString() ?? '',
+      prices: json['prices'] is List
+          ? (json['prices'] as List)
+              .whereType<Map<String, dynamic>>()
+              .map((x) => Price.fromJson(x))
+              .toList()
           : [],
     );
   }
@@ -54,8 +59,17 @@ class Price {
 
   factory Price.fromJson(Map<String, dynamic> json) {
     return Price(
-      size: json['size'] ?? '',
-      todayPrice: json['today_price'] ?? 0,
+      size: json['size']?.toString() ?? '',
+      // Backend may send int, double, or numeric string — parse defensively.
+      todayPrice: _toInt(json['today_price']),
     );
+  }
+
+  static int _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.round();
+    return int.tryParse(value?.toString() ?? '') ??
+        double.tryParse(value?.toString() ?? '')?.round() ??
+        0;
   }
 }

@@ -31,7 +31,8 @@ class HomeAppBar extends StatefulWidget {
   State<HomeAppBar> createState() => _HomeAppBarState();
 }
 
-class _HomeAppBarState extends State<HomeAppBar> {
+class _HomeAppBarState extends State<HomeAppBar>
+    with WidgetsBindingObserver {
   String? temperature;
   String? weatherIconUrl;
   bool _weatherFetched = false; // Only show weather after fresh fetch
@@ -47,6 +48,8 @@ class _HomeAppBarState extends State<HomeAppBar> {
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addObserver(this);
 
     debugPrint('🌤️ [WEATHER] initState called');
     debugPrint('🌤️ [WEATHER] Current state: temperature=$temperature, _weatherFetched=$_weatherFetched');
@@ -70,8 +73,21 @@ class _HomeAppBarState extends State<HomeAppBar> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _locationWorker?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // The user may have just enabled location / granted permission in the
+    // device settings and returned. If we never got a temperature, retry now —
+    // _fetchWeatherFromGPS re-checks permission + GPS and fetches if available.
+    if (state == AppLifecycleState.resumed && !_weatherFetched) {
+      debugPrint('🌤️ [WEATHER] App resumed & not fetched — retrying weather');
+      _fetchWeatherFromGPS();
+    }
   }
 
   Future<void> _fetchWeatherFromGPS() async {

@@ -95,6 +95,13 @@ class HatcheryUpdatesController extends GetxController {
   var isLoading = true.obs;
   Rx<HatcherUpdateModel?> hatcheryData = Rx<HatcherUpdateModel?>(null);
 
+  // Pagination state for the Updates list. The API returns 10 updates per page;
+  // without paging the screen could only ever show the first 10.
+  int _updatesPage = 1;
+  int _updatesLastPage = 1;
+  var isLoadingMoreUpdates = false.obs;
+  bool get hasMoreUpdates => _updatesPage < _updatesLastPage;
+
   Future<void> fetchHatcheryUpdates() async {
     // Show cached data immediately — no spinner if cache exists
     try {
@@ -108,18 +115,20 @@ class HatcheryUpdatesController extends GetxController {
       debugPrint('Cache read failed (hatchery_updates): $e');
     }
 
-    // Fetch fresh data silently in the background
+    // Fetch fresh data silently in the background. Always reset to page 1.
     try {
       if (hatcheryData.value == null) isLoading.value = true;
+      _updatesPage = 1;
 
       final response = await getRequest(
-        endPoint: "${NetworkConfig.baseURL}/farmer/hatchery-updates",
+        endPoint: "${NetworkConfig.baseURL}/farmer/hatchery-updates?page=1",
         headers: await buildHeader(),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         hatcheryData.value = HatcherUpdateModel.fromJson(data);
+        _updatesLastPage = (data['pagination']?['last_page'] as int?) ?? 1;
         try { await AppCacheHelper.save('hatchery_updates', response.body); } catch (e) { debugPrint('Cache save failed (hatchery_updates): $e'); }
       } else {
         if (hatcheryData.value == null) CustomToast.error("Failed to fetch ");
@@ -128,6 +137,40 @@ class HatcheryUpdatesController extends GetxController {
       if (hatcheryData.value == null) CustomToast.error("Something went wrong ");
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  /// Fetch the next page of updates and append to the existing list.
+  Future<void> fetchMoreHatcheryUpdates() async {
+    if (isLoadingMoreUpdates.value || !hasMoreUpdates) return;
+
+    isLoadingMoreUpdates.value = true;
+    try {
+      final nextPage = _updatesPage + 1;
+      final response = await getRequest(
+        endPoint:
+            "${NetworkConfig.baseURL}/farmer/hatchery-updates?page=$nextPage",
+        headers: await buildHeader(),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+        final more = HatcherUpdateModel.fromJson(data);
+        _updatesPage = nextPage;
+        _updatesLastPage = (data['pagination']?['last_page'] as int?) ?? _updatesLastPage;
+
+        final current = hatcheryData.value;
+        if (current?.data != null && more.data != null) {
+          current!.data!.addAll(more.data!);
+          hatcheryData.refresh();
+        } else if (more.data != null) {
+          hatcheryData.value = more;
+        }
+      }
+    } catch (e) {
+      debugPrint('Load more updates failed: $e');
+    } finally {
+      isLoadingMoreUpdates.value = false;
     }
   }
 

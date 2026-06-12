@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:seedsuser/app/rating/rating_prompt_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -104,6 +105,20 @@ class _DashboardScreenState extends State<DashboardScreen>
     getConnectivity();
     _checkLocationPermission();
     _startSessionWatch();
+
+    // Landing here means the user is logged in. Check once for a delivered
+    // booking that still needs a rating (covers the just-logged-in case the
+    // app-level cold-start check misses).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint('⭐[RATING] trigger: dashboard landing → checkPending');
+      RatingPromptService.instance.checkPending();
+    });
+
+    // Refresh the live-tracking FAB whenever the user returns to the Home tab,
+    // so a booking that just went In-Journey shows the button without a restart.
+    ever(controller.currentIndex, (idx) {
+      if (idx == 0) _bookingController.fetchInProgressBookings();
+    });
   }
 
   /// Validate the session now, then keep validating while the app is open so a
@@ -123,6 +138,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       // Re-check the session immediately on resume — covers the case where the
       // account was used on another phone while this one was backgrounded.
       SessionService.validate();
+      // A booking may have moved to In-Journey while backgrounded — refresh the
+      // live-tracking FAB.
+      _bookingController.fetchInProgressBookings();
       if (_waitingForSettingsReturn) {
         _waitingForSettingsReturn = false;
         debugPrint('📍 [LOC] App RESUMED from settings — checking GPS...');
