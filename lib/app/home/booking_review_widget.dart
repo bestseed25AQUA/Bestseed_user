@@ -15,6 +15,7 @@ class BookingReviewContent extends StatelessWidget {
       pieces,
       location,
       date,
+      deliveryDate,
       hatcheryId,
       hatcheryName,
       locationId,
@@ -37,6 +38,7 @@ class BookingReviewContent extends StatelessWidget {
     this.dropLat,
     this.dropLng,
     required this.date,
+    required this.deliveryDate,
     required this.hatcheryId,
     required this.hatcheryName,
     required this.locationId,
@@ -139,7 +141,11 @@ class BookingReviewContent extends StatelessWidget {
                       const Divider(),
                       _buildInfoRow('Dropping location', location),
                       const Divider(),
-                      _buildInfoRow('Preferred Delivery Date', date),
+                      _buildInfoRow('Packing Date', date),
+                      if (deliveryDate.toString().isNotEmpty) ...[
+                        const Divider(),
+                        _buildInfoRow('Preferred Delivery Date', deliveryDate),
+                      ],
                     ],
                   ),
                 ),
@@ -174,6 +180,7 @@ class BookingReviewContent extends StatelessWidget {
                             dropLat: dropLat,
                             dropLng: dropLng,
                             packingDate: date,
+                            deliveryDate: deliveryDate,
                             locationId: '3', // locationId,
                           );
                       if (isBookingId != null) {

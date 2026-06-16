@@ -352,7 +352,7 @@ class _RatingDialogState extends State<RatingDialog> {
                   ),
                 ),
               ),
-              if (p.bookingUid?.trim().isNotEmpty ?? false)
+              if (p.id.trim().isNotEmpty)
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -361,7 +361,7 @@ class _RatingDialogState extends State<RatingDialog> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    '#${p.bookingUid}',
+                    '- ${p.id}',
                     style: GoogleFonts.poppins(
                       fontSize: 11,
                       color: AppColors.primary,

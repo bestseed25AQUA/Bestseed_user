@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:seedsuser/app/help/contact_labels.dart';
 import 'package:seedsuser/app/model/contact_model.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'dart:convert';
@@ -55,21 +56,21 @@ class ContactController extends GetxController {
     isLoading.value = false;
   }
 
-  // Get first contact's phone number
-  String get phoneNumber {
-    if (contacts.isNotEmpty && contacts[0].phone.isNotEmpty) {
-      return contacts[0].phone;
+  /// The contact shown on the Home screen. Prefers the "Main Office" slot
+  /// configured in the admin panel, falling back to the first active contact so
+  /// a number always appears even if that slot isn't set.
+  ContactItem? get _homeContact {
+    for (final c in contacts) {
+      if (contactLabelMatches(c.label, ContactLabels.mainOffice)) return c;
     }
-    return '';
+    return contacts.isNotEmpty ? contacts.first : null;
   }
 
-  // Get first contact's whatsapp number
-  String get whatsappNumber {
-    if (contacts.isNotEmpty && contacts[0].whatsapp.isNotEmpty) {
-      return contacts[0].whatsapp;
-    }
-    return '';
-  }
+  // Main Office phone number (fallback: first active contact's phone)
+  String get phoneNumber => _homeContact?.phone ?? '';
+
+  // Main Office whatsapp number (fallback: first active contact's whatsapp)
+  String get whatsappNumber => _homeContact?.whatsapp ?? '';
 
   // Check if contacts are available
   bool get hasContacts => contacts.isNotEmpty;

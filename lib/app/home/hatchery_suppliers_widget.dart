@@ -40,16 +40,23 @@ class HatcherySuppliersWidget extends StatelessWidget {
               ],
             ),
             (broodStockController.homeBroodStocks.isEmpty)
-                ? Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 4,right: 8),
-                      child: Text(
-                        'No hatchery / broodstock found',
-                        style: TextStyle(fontSize: 14),
-                      ),
-                    ),
-                  )
+                // While the home preview is still loading (or before the first
+                // fetch finishes) show a shimmer — NOT the empty message — so a
+                // slow/retrying startup request never flashes "No hatchery found"
+                // over hatcheries that are about to appear.
+                ? (broodStockController.isHomeLoading.value ||
+                        !broodStockController.homeFetchCompleted.value)
+                    ? _loadingPlaceholder()
+                    : Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 4, right: 8),
+                          child: Text(
+                            'No available hatchery / broodstock found',
+                            style: TextStyle(fontSize: 14),
+                          )
+                        ),
+                      )
                 : Column(
                     children: List.generate(
                      ( broodStockController.homeBroodStocks.length <= 5 ) ? broodStockController.homeBroodStocks.length:5,
@@ -76,6 +83,30 @@ class HatcherySuppliersWidget extends StatelessWidget {
       );
     });
     
+  }
+
+  /// Shimmer shown while the home broodstock preview is loading, so the section
+  /// never flashes the empty message before the hatcheries arrive.
+  Widget _loadingPlaceholder() {
+    return Column(
+      children: List.generate(
+        2,
+        (_) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey.shade200,
+            highlightColor: Colors.grey.shade100,
+            child: Container(
+              height: 96,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
     Widget _buildHatcheryCard(BroodstockData data,BuildContext context) {

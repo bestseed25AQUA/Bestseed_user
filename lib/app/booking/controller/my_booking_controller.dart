@@ -260,6 +260,7 @@ class MyBookingController extends GetxController {
     double? dropLat,
     double? dropLng,
     required String packingDate,
+    String deliveryDate = '',
     required String locationId,
     required bool isSpotHatchery,
     required bool isVehicleHatchery,
@@ -277,6 +278,7 @@ class MyBookingController extends GetxController {
       print('====is spot hatchery $isSpotHatchery========');
       print("API ENDPOINT: ${NetworkConfig.baseURL}/farmer/$endpoint");
       final normalizedDate = normalizeDate(packingDate);
+      final normalizedDeliveryDate = normalizeDate(deliveryDate);
       Map<String, String> body = {
         "hatchery_id": hatcheryId.toString(),
         "hatchery_name": hatcheryName,
@@ -297,6 +299,9 @@ class MyBookingController extends GetxController {
       }
       if (normalizedDate != null) {
         body["packing_date"] = normalizedDate;
+      }
+      if (normalizedDeliveryDate != null) {
+        body["delivery_date"] = normalizedDeliveryDate;
       }
       if (dropLat != null) {
         body["drop_lat"] = dropLat.toString();

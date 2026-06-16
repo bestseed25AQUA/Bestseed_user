@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/local_storage.dart';
+import 'package:seedsuser/app/help/contact_labels.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 
 /// A support contact configured (and marked active) in the admin panel.
@@ -82,6 +83,7 @@ Future<void> launchHelpWhatsApp(String number) async {
 Future<void> showHelpContactsSheet(
   BuildContext context, {
   String? fallbackPhone,
+  String? preferredLabel,
 }) async {
   showModalBottomSheet(
     context: context,
@@ -96,6 +98,16 @@ Future<void> showHelpContactsSheet(
           final loading =
               snapshot.connectionState == ConnectionState.waiting;
           var contacts = snapshot.data ?? [];
+
+          // Prefer the slot this screen asked for (e.g. "Booking Help"), but
+          // fall back to all active contacts if that slot isn't configured so
+          // the sheet is never empty.
+          if (preferredLabel != null) {
+            final preferred = contacts
+                .where((c) => contactLabelMatches(c.label, preferredLabel))
+                .toList();
+            if (preferred.isNotEmpty) contacts = preferred;
+          }
 
           // Fall back to the vendor number if admin has no active contacts.
           if (!loading &&

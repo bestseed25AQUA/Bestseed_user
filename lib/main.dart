@@ -63,7 +63,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool _wasPaused = false;
 
   @override
-  void initState() {
+  void initState() { 
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     // Cold start / terminated → open is covered by the Dashboard landing
@@ -139,6 +139,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           },
         );
       },
-    );
+    );    
   }
 }

@@ -8,7 +8,10 @@ import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/best_deals/view/best_deals_screen.dart';
 
 import 'package:seedsuser/app/news & ads/view/climate_news_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
+// Farm Management section is still under development — notifications show the
+// Coming Soon screen instead of opening it.
+// import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
+import 'package:seedsuser/app/farm_management/coming_soon_screen.dart';
 import 'package:seedsuser/app/home/view/hatchery_filter_screen.dart';
 import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 
@@ -171,7 +174,11 @@ class NotificationDetailScreen extends StatelessWidget {
         screen = const ClimateNewsScreen();
         break;
       case 'Farm Management':
-        screen = const FarmManagementScreen();
+        // Farm Management is still "Under Development" — don't open the section
+        // from a notification. Show the same Coming Soon screen the home-screen
+        // Farm Management banner shows when tapped.
+        // screen = const FarmManagementScreen();
+        screen = const FarmManagementComingSoonScreen();
         break;
       case 'Hatchery':
         // If the notification is tied to a specific hatchery, open that

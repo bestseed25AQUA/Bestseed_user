@@ -52,6 +52,31 @@ class HatcheryCategoryController extends GetxController {
 
           print('✅ Categories fetched: ${hatcheryCateogoryData.value.data.length}');
           print('✅ Similar hatcheries: ${hatcheryCateogoryData.value.similarHatcheries.length}');
+
+          // ── 150km radius filter verification ──────────────────────────────
+          // Prints each similar hatchery with its distance so we can confirm
+          // the backend filtered to <=150km AND ordered nearest-first.
+          final similar = hatcheryCateogoryData.value.similarHatcheries;
+          final anyDistance = similar.any((s) => s.distanceKm != null);
+          if (!anyDistance) {
+            print('📏 [SIMILAR] No distance_km on any item → either OLD backend '
+                '(not deployed) OR the viewed hatchery has no lat/lng (fallback list).');
+          } else {
+            print('📏 [SIMILAR] distance check (should be ascending, all <=150km):');
+          }
+          for (var i = 0; i < similar.length; i++) {
+            final s = similar[i];
+            final d = s.distanceKm == null
+                ? 'null(no-coords)'
+                : '${s.distanceKm!.toStringAsFixed(1)} km';
+            print('   #${i + 1} ${s.hatcheryName} | ${s.location ?? "-"} '
+                '| ${s.status} | $d');
+          }
+          final over = similar.where((s) => (s.distanceKm ?? 0) > 150).toList();
+          if (over.isNotEmpty) {
+            print('⚠️ [SIMILAR] ${over.length} item(s) OVER 150km — filter NOT applied: '
+                '${over.map((s) => "${s.hatcheryName}(${s.distanceKm})").join(", ")}');
+          }
         } catch (e) {
           print('❌ JSON parsing error: $e');
         }

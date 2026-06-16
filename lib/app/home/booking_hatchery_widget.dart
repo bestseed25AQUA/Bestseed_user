@@ -42,6 +42,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
   final TextEditingController _dropLocController = TextEditingController();
   final TextEditingController _piecesController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
+  final TextEditingController _deliveryDateController = TextEditingController();
 
   String? _selectedSalinity;
   final List<String> _salinity = List.generate(41, (index) => '$index');
@@ -249,6 +250,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     _phoneController.dispose();
     _piecesController.dispose();
     _dateController.dispose();
+    _deliveryDateController.dispose();
     _unitController.dispose();
     _dropLocController.dispose();
     super.dispose();
@@ -548,6 +550,11 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
 
             _buildDateField(
               controller: _dateController,
+              label: "Packing date",
+              hint: "DD/MM/YYYY",
+            ),
+            _buildDateField(
+              controller: _deliveryDateController,
               label: "Preferred delivery date",
               hint: "DD/MM/YYYY",
             ),
@@ -598,6 +605,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                     calculatePrice(pieces, widget.price),
                     pieces,
                     _selectedSalinity,
+                    _deliveryDateController.text,
                   );
                 },
                 text: "Confirm Booking",
@@ -622,6 +630,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     String? estimatePrice,
     String pieces,
     String? salinity,
+    String deliveryDate,
   ) {
     showModalBottomSheet(
       context: context,
@@ -676,6 +685,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                         dropLat: _dropLat,
                         dropLng: _dropLng,
                         date: _dateController.text,
+                        deliveryDate: deliveryDate,
                         hatcheryId: widget.hatcheryId,
                         hatcheryName: widget.hatcheryName,
                         locationId: '',

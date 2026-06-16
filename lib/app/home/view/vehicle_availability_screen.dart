@@ -223,18 +223,76 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
     return earthRadiusKm * c;
   }
 
-  /// True if any of the vehicle's locations (or its primary location) lies
-  /// within `_radiusKm` of the user.
+  /// Shortest distance in km from point P (the user) to the travel segment
+  /// A→B (two consecutive route stops). Uses a local equirectangular
+  /// projection to km, which is accurate enough at the ~100 km filter scale.
+  /// This is what makes the filter route-aware: a post is relevant when the
+  /// user is near the PATH between stops, not only near a stop itself.
+  double _distanceToSegmentKm(
+    double pLat, double pLng,
+    double aLat, double aLng,
+    double bLat, double bLng,
+  ) {
+    const kmPerDegLat = 111.32;
+    double toRad(double d) => d * (3.141592653589793 / 180.0);
+    final kmPerDegLng = 111.32 * math.cos(toRad((aLat + bLat) / 2));
+
+    // Project to planar km coordinates relative to A.
+    final bx = (bLng - aLng) * kmPerDegLng;
+    final by = (bLat - aLat) * kmPerDegLat;
+    final px = (pLng - aLng) * kmPerDegLng;
+    final py = (pLat - aLat) * kmPerDegLat;
+
+    final segLenSq = bx * bx + by * by;
+    // Project P onto AB, clamped to the segment ends (t in [0,1]).
+    final t = segLenSq == 0
+        ? 0.0
+        : ((px * bx + py * by) / segLenSq).clamp(0.0, 1.0);
+    final closestX = t * bx;
+    final closestY = t * by;
+    final dx = px - closestX;
+    final dy = py - closestY;
+    return math.sqrt(dx * dx + dy * dy);
+  }
+
+  /// True if the vehicle's route passes within `_radiusKm` of the user.
+  ///
+  /// Route-aware: we check both the stops AND the travel segments between
+  /// consecutive stops, so a post is shown when the user is near the vehicle's
+  /// PATH (e.g. on the road between two cities) — not only when they're near
+  /// one of the listed stops. Falls back to the primary location point.
   bool _isWithinRadius(VehicleAvailability v) {
     if (_currentLat == null || _currentLng == null) return false;
     final ulat = _currentLat!;
     final ulng = _currentLng!;
-    for (final loc in v.locations) {
-      if (loc.latitude == null || loc.longitude == null) continue;
+
+    // Ordered route points that actually have coordinates.
+    final route = <VehicleLocation>[
+      for (final loc in v.locations)
+        if (loc.latitude != null && loc.longitude != null) loc,
+    ];
+
+    // 1) Any individual stop within the radius (also covers single-stop posts).
+    for (final loc in route) {
       if (_distanceKm(ulat, ulng, loc.latitude!, loc.longitude!) <= _radiusKm) {
         return true;
       }
     }
+
+    // 2) Travel path: distance to each segment between consecutive stops, so a
+    //    route that passes within the radius is matched even if no stop is.
+    for (var i = 0; i < route.length - 1; i++) {
+      final a = route[i];
+      final b = route[i + 1];
+      final d = _distanceToSegmentKm(
+        ulat, ulng,
+        a.latitude!, a.longitude!,
+        b.latitude!, b.longitude!,
+      );
+      if (d <= _radiusKm) return true;
+    }
+
+    // 3) Fall back to the primary location point.
     if (v.latitude != null && v.longitude != null) {
       if (_distanceKm(ulat, ulng, v.latitude!, v.longitude!) <= _radiusKm) {
         return true;

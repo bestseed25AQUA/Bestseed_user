@@ -22,6 +22,15 @@ class BroodStockController extends GetxController {
   final homeBroodStocks = <BroodstockData>[].obs;
   final filteredBroodStocks = <BroodstockData>[].obs;
 
+  /// Home "Hatchery / Broodstock" preview state. `isHomeLoading` drives the
+  /// shimmer so the widget never shows the "No hatchery found" message while
+  /// the data is still loading; `homeFetchCompleted` flips true once a fetch
+  /// has actually finished so the empty message only appears for a genuine
+  /// empty result.
+  final isHomeLoading = false.obs;
+  final homeFetchCompleted = false.obs;
+  bool _homeLoadInProgress = false;
+
   /// Selected filters
   final selectedCategory = Rx<Category?>(null);
   final selectedMonth = ''.obs;
@@ -313,7 +322,39 @@ class BroodStockController extends GetxController {
   }
 
   // ── Broodstock for Home ─────────────────────────────────────────────
-  Future<void> getBroodStockForHome({required String categoryId, required String locationId}) async {
+  /// Loads the home "Hatchery / Broodstock" preview. Cache-first + silent (no
+  /// toast), retried a few times on failure so a transient startup/OTP-burst
+  /// failure doesn't leave the section stuck on "No hatchery found" when
+  /// hatcheries actually exist.
+  Future<void> loadHomeBroodStock() async {
+    if (_homeLoadInProgress) {
+      debugPrint('$_tag loadHomeBroodStock skipped — already in progress');
+      return;
+    }
+    _homeLoadInProgress = true;
+    if (homeBroodStocks.isEmpty) isHomeLoading.value = true;
+    try {
+      const maxAttempts = 4;
+      for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+        final ok = await getBroodStockForHome(categoryId: '', locationId: '');
+        // Stop once the server answered (even with an empty list) or we have
+        // data to show; otherwise back off and retry the failed request.
+        if (ok || homeBroodStocks.isNotEmpty) break;
+        if (attempt < maxAttempts) {
+          if (homeBroodStocks.isEmpty) isHomeLoading.value = true;
+          await Future.delayed(Duration(seconds: attempt));
+        }
+      }
+    } finally {
+      isHomeLoading.value = false;
+      homeFetchCompleted.value = true;
+      _homeLoadInProgress = false;
+    }
+  }
+
+  /// Returns true when the server gave a definitive answer (success or a real
+  /// empty result) and false when the request failed and should be retried.
+  Future<bool> getBroodStockForHome({required String categoryId, required String locationId}) async {
     debugPrint('$_tag getBroodStockForHome: catId=$categoryId, locId=$locationId');
     try {
       // Load from cache first
@@ -363,7 +404,7 @@ class BroodStockController extends GetxController {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = _safeJsonDecode(response.body, 'getBroodStockForHome');
-        if (data == null) return;
+        if (data == null) return false; // couldn't parse — let caller retry
 
         if (data['status'] == true && data['data'] is List) {
           final model = BroodstockModel.fromJson(data);
@@ -379,12 +420,15 @@ class BroodStockController extends GetxController {
         } catch (e) {
           debugPrint('$_tag ⚠️ cache save failed: $e');
         }
+        return true; // server answered definitively (with data or empty)
       } else {
         debugPrint('$_tag ❌ getBroodStockForHome HTTP ${response.statusCode}');
+        return false; // HTTP error — let caller retry
       }
     } catch (e, s) {
       debugPrint('$_tag ❌ getBroodStockForHome error: $e');
       debugPrint('$_tag stack: $s');
+      return false; // network/parse error — let caller retry
     }
   }
 

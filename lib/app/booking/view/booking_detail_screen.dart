@@ -8,6 +8,7 @@ import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_best_seed_background.dart';
 import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/common/refresh_button.dart';
+import 'package:seedsuser/app/help/contact_labels.dart';
 import 'package:seedsuser/app/help/help_contact_service.dart';
 import 'package:seedsuser/app/vehicle_tracking/view/vehicle_tracking_map_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1012,7 +1013,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
           ),
           InkWell(
             onTap: () => showHelpContactsSheet(context,
-                fallbackPhone: vendorMobile),
+                fallbackPhone: vendorMobile,
+                preferredLabel: ContactLabels.bookingHelp),
             child: Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

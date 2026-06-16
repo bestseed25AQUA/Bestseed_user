@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/local_storage.dart';
+import 'package:seedsuser/app/help/contact_labels.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 
 /// Help → Contacts screen.
@@ -53,8 +54,14 @@ class _HelpContactsScreenState extends State<HelpContactsScreen> {
         final list = (body['contacts'] as List? ?? [])
             .map((e) => _Contact.fromJson(e as Map<String, dynamic>))
             .toList();
+        // This screen is the Profile → Help action, so show the "Profile Help"
+        // slot. Fall back to all active contacts if that slot isn't configured
+        // so the screen is never empty.
+        final preferred = list
+            .where((c) => contactLabelMatches(c.label, ContactLabels.profileHelp))
+            .toList();
         setState(() {
-          _contacts = list;
+          _contacts = preferred.isNotEmpty ? preferred : list;
           _loading = false;
         });
       } else {

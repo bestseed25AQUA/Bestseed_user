@@ -219,6 +219,9 @@ class SimilarHatchery {
   final String? availableOn;
   final String? image;
   final int isSpot;
+  // Distance (km) from the viewed hatchery, set by the 150km radius filter on
+  // the backend. Null when coordinates were unavailable (fallback list).
+  final double? distanceKm;
 
   SimilarHatchery({
     required this.id,
@@ -230,6 +233,7 @@ class SimilarHatchery {
     required this.availableOn,
     required this.image,
     required this.isSpot,
+    this.distanceKm,
   });
 
   factory SimilarHatchery.fromJson(Map<String, dynamic> json) {
@@ -254,6 +258,7 @@ class SimilarHatchery {
       isSpot: json["is_spot"] is int
           ? json["is_spot"]
           : int.tryParse("${json["is_spot"]}") ?? 0,
+      distanceKm: (json["distance_km"] as num?)?.toDouble(),
     );
   }
 }

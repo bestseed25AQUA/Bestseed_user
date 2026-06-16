@@ -88,9 +88,52 @@ class HomeBannerController extends GetxController {
     isSpotLoading.value = true;
     isFarmLoading.value = true;
     await Future.wait([
-      _fetchWithRetry('spot_hatcheries', fetchSpotHatcheriesIcon),
-      _fetchWithRetry('farm_management', fetchFarmManagementIcon),
+      _loadIconResilient(
+        name: 'spot_hatcheries',
+        fetcher: fetchSpotHatcheriesIcon,
+        loading: isSpotLoading,
+      ),
+      _loadIconResilient(
+        name: 'farm_management',
+        fetcher: fetchFarmManagementIcon,
+        loading: isFarmLoading,
+      ),
     ]);
+  }
+
+  /// Spot Hatchery & Farm Management icons are NOT preloaded — they fire from
+  /// HomePage.initState on every Home open, which on a fresh OTP login lands
+  /// right in the middle of the startup request burst (banners, categories,
+  /// profile, location, hatcheries…). A single attempt can be starved and fail
+  /// there, and once the fetcher's `finally` clears the loading flag with an
+  /// empty list the card drops to the static fallback — i.e. the real icon
+  /// "sometimes doesn't show" coming from OTP. So keep the shimmer up and retry
+  /// with backoff until the HTTP call actually succeeds, only falling back to
+  /// the static icon if every attempt fails.
+  Future<void> _loadIconResilient({
+    required String name,
+    required Future<void> Function() fetcher,
+    required RxBool loading,
+  }) async {
+    const maxAttempts = 4;
+    loading.value = true;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        // Throws only on a real failure; an HTTP-OK response (even an empty one,
+        // meaning no banner is configured) returns normally and we stop.
+        await fetcher();
+        return;
+      } catch (e) {
+        debugPrint('📊 [BANNERS] $name attempt $attempt/$maxAttempts failed: $e');
+        if (attempt < maxAttempts) {
+          // The fetcher's `finally` just cleared `loading`; re-assert it so the
+          // card shows the shimmer (not the fallback) during the backoff wait.
+          loading.value = true;
+          await Future.delayed(Duration(seconds: attempt));
+        }
+      }
+    }
+    debugPrint('📊 [BANNERS] $name failed after $maxAttempts attempts — fallback');
   }
 
   /// Awaits the above-the-fold banner data AND downloads the home banner video

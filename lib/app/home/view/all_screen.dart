@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/best_deals/view/best_deals_screen.dart';
+import 'package:seedsuser/app/broadstock/controller/brood_stock_controller.dart';
 import 'package:seedsuser/app/common/animated_view_custom.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:carousel_slider/carousel_slider.dart';
@@ -53,6 +54,7 @@ class _HomePageState extends State<HomePage>
   final _homeController = Get.put(HomeController());
   final _homeBannerController = Get.find<HomeBannerController>();
   final _hatcheryController = Get.put(HatcheryUpdatesController());
+  final _broodStockController = Get.put(BroodStockController());
 
   @override
   void initState() {
@@ -78,6 +80,12 @@ class _HomePageState extends State<HomePage>
         (_hatcheryController.hatcheryHomeData.value?.data.isEmpty ?? true)) {
       _hatcheryController.fetchHatcheryHomeUpdate();
     }
+
+    // Home "Hatchery / Broodstock" preview — cache-first, silent, retried.
+    // Without this the section stays empty and shows "No hatchery found"; the
+    // load self-guards against concurrent calls and a transient startup-burst
+    // failure so the real hatcheries reliably appear.
+    _broodStockController.loadHomeBroodStock();
 
     _controller = AnimationController(
       vsync: this,
