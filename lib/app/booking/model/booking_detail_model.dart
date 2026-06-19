@@ -12,6 +12,8 @@ class BookingDetailModel {
   final String estimatedPrice;
   final String droppingLocation;
   final String preferredDate;
+  // Farmer's preferred delivery date entered on the booking form (delivery_date).
+  final String deliveryDate;
   final int statusValue;
   final String note;
 
@@ -46,6 +48,7 @@ class BookingDetailModel {
     required this.droppingLocation,
     required this.note,
     required this.preferredDate,
+    required this.deliveryDate,
     required this.bookingStatus,
 
     required this.bookingId,
@@ -85,6 +88,7 @@ class BookingDetailModel {
       estimatedPrice: booking["estimated_price"]?.toString() ?? "",
       droppingLocation: booking["dropping_location"]?.toString() ?? "",
       preferredDate: booking["packing_date"]?.toString() ?? "",
+      deliveryDate: booking["delivery_date"]?.toString() ?? "",
 
       bookingStatus: statusList
           .map((e) => BookingStatusStep.fromJson(e))

@@ -92,11 +92,13 @@ class HomeBannerController extends GetxController {
         name: 'spot_hatcheries',
         fetcher: fetchSpotHatcheriesIcon,
         loading: isSpotLoading,
+        loaded: () => bannersSpotHatcheries.isNotEmpty,
       ),
       _loadIconResilient(
         name: 'farm_management',
         fetcher: fetchFarmManagementIcon,
         loading: isFarmLoading,
+        loaded: () => bannersFarmManagement.isNotEmpty,
       ),
     ]);
   }
@@ -114,26 +116,32 @@ class HomeBannerController extends GetxController {
     required String name,
     required Future<void> Function() fetcher,
     required RxBool loading,
+    required bool Function() loaded,
   }) async {
-    const maxAttempts = 4;
+    // More attempts + longer backoff so it outlasts the heavy first-login
+    // request burst, during which the (shared-hosting) staging DB intermittently
+    // returns 500 / "[2002] Operation not permitted" and starves these calls.
+    const maxAttempts = 6;
     loading.value = true;
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        // Throws only on a real failure; an HTTP-OK response (even an empty one,
-        // meaning no banner is configured) returns normally and we stop.
         await fetcher();
-        return;
+        // Success ONLY if data actually arrived. The fetch swallows HTTP errors
+        // (e.g. the DB-connection-limit 500) and returns empty without throwing,
+        // so we must check the list — not just "did it throw" — and keep
+        // retrying until it really loads.
+        if (loaded()) return;
+        debugPrint('📊 [BANNERS] $name attempt $attempt/$maxAttempts — empty/HTTP error, retrying');
       } catch (e) {
         debugPrint('📊 [BANNERS] $name attempt $attempt/$maxAttempts failed: $e');
-        if (attempt < maxAttempts) {
-          // The fetcher's `finally` just cleared `loading`; re-assert it so the
-          // card shows the shimmer (not the fallback) during the backoff wait.
-          loading.value = true;
-          await Future.delayed(Duration(seconds: attempt));
-        }
+      }
+      if (attempt < maxAttempts) {
+        // Keep the shimmer (not the static fallback) up during the backoff.
+        loading.value = true;
+        await Future.delayed(Duration(seconds: attempt + 1));
       }
     }
-    debugPrint('📊 [BANNERS] $name failed after $maxAttempts attempts — fallback');
+    debugPrint('📊 [BANNERS] $name gave up after $maxAttempts attempts — fallback');
   }
 
   /// Awaits the above-the-fold banner data AND downloads the home banner video

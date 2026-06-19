@@ -52,7 +52,7 @@ class HatcherySuppliersWidget extends StatelessWidget {
                         child: Padding(
                           padding: const EdgeInsets.only(left: 4, right: 8),
                           child: Text(
-                            'No available hatchery / broodstock found',
+                            'Available hatchery / broodstock found',
                             style: TextStyle(fontSize: 14),
                           )
                         ),

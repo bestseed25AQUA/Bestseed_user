@@ -652,22 +652,8 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               ),
               child: Column(
                 children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 10, bottom: 5),
-                    height: 5,
-                    width: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  // Align(
-                  //   alignment: Alignment.topRight,
-                  //   child: IconButton(
-                  //     icon: const Icon(Icons.close),
-                  //     onPressed: () => Navigator.pop(context),
-                  //   ),
-                  // ),
+                  // Slide indicator is rendered inside BookingReviewContent so
+                  // it always travels with the sheet content.
                   Expanded(
                     child: BookingReviewContent(
                         bottomSheetContext: context,

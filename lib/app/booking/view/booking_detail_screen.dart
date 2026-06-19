@@ -712,7 +712,13 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             _infoRow(
               Icons.calendar_today_rounded,
               "Delivery Date",
-              data.bookingDateTime.split(' ').first,
+              // Farmer's preferred delivery date from the booking form. Fall back
+              // to the vendor-set delivery datetime if the farmer didn't set one.
+              data.deliveryDate.isNotEmpty
+                  ? data.deliveryDate
+                  : (data.bookingDateTime.isNotEmpty
+                      ? data.bookingDateTime.split(' ').first
+                      : '-'),
             ),
             _infoDivider(),
             _infoRow(

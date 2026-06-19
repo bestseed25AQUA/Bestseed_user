@@ -17,6 +17,7 @@ import 'package:seedsuser/app/farm_management/coming_soon_screen.dart';
 import 'package:seedsuser/app/home/contact_us.dart';
 import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
+import 'package:seedsuser/app/model/home_banner_model.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/hatchery_suppliers_widget.dart';
 import 'package:seedsuser/app/home/hatchery_updates_widget.dart';
@@ -311,13 +312,58 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _vehicleBanner() {
+    final double h = AppSize.height * .15;
     return Obx(() {
       final homeBanners = _homeBannerController.bannersHome;
-      if (homeBanners.isNotEmpty) {
-        debugPrint(
-          '🎬 Vehicle banner: type=${homeBanners.first.type}, url=${homeBanners.first.url}',
+      // Use the first banner that actually has media. Picking blindly with
+      // `.first` meant that when a 2nd banner was added and an empty/invalid
+      // one ended up first, the whole Vehicle Availability banner went blank
+      // ("if I get 2 banners, vehicle availability not getting").
+      BannerItem? banner;
+      for (final b in homeBanners) {
+        if (b.url.trim().isNotEmpty) {
+          banner = b;
+          break;
+        }
+      }
+
+      final logoFallback = Image.asset(
+        'assets/images/logo.png',
+        width: double.infinity,
+        height: h,
+        fit: BoxFit.cover,
+      );
+
+      Widget content;
+      if (banner == null) {
+        // No renderable banner yet: shimmer while still loading, otherwise the
+        // static logo — never an endless grey box.
+        content = _homeBannerController.isHomeLoading.value
+            ? _shimmerBox(double.infinity, h)
+            : logoFallback;
+      } else if (banner.type == 'video') {
+        content = _AutoLoopBannerVideo(
+          key: ValueKey('home_${banner.url}'),
+          url: banner.url,
+          height: h,
+          width: double.infinity,
+          initDelay: 0,
+          thumbnailUrl: banner.thumbnail,
+        );
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _homeBannerController.isVideoReady.value = true;
+        });
+        content = _RetryingFeatureImage(
+          url: banner.url,
+          width: double.infinity,
+          height: h,
+          fit: BoxFit.cover,
+          placeholder: () => _shimmerBox(double.infinity, h),
+          fallback: () => logoFallback,
         );
       }
+
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: InkWell(
@@ -330,66 +376,7 @@ class _HomePageState extends State<HomePage>
           },
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: homeBanners.isNotEmpty
-                ? homeBanners.first.type == 'video'
-                      ? _AutoLoopBannerVideo(
-                          key: ValueKey('home_${homeBanners.first.url}'),
-                          url: homeBanners.first.url,
-                          height: AppSize.height * .15,
-                          width: double.infinity,
-                          initDelay: 0,
-                          thumbnailUrl: homeBanners.first.thumbnail,
-                        )
-                      : Builder(
-                          builder: (ctx) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              _homeBannerController.isVideoReady.value = true;
-                            });
-                            return SizedBox(
-                              width: double.infinity,
-                              height: AppSize.height * .15,
-                              child: Image(
-                                image: CachedNetworkImageProvider(
-                                  homeBanners.first.url,
-                                ),
-                                width: double.infinity,
-                                height: AppSize.height * .15,
-                                fit: BoxFit.cover,
-                                loadingBuilder:
-                                    (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return _shimmerBox(
-                                        double.infinity,
-                                        AppSize.height * .15,
-                                      );
-                                    },
-                                frameBuilder:
-                                    (
-                                      context,
-                                      child,
-                                      frame,
-                                      wasSynchronouslyLoaded,
-                                    ) {
-                                      if (wasSynchronouslyLoaded ||
-                                          frame != null)
-                                        return child;
-                                      return _shimmerBox(
-                                        double.infinity,
-                                        AppSize.height * .15,
-                                      );
-                                    },
-                                errorBuilder: (context, error, stackTrace) =>
-                                    Image.asset(
-                                      'assets/images/logo.png',
-                                      width: double.infinity,
-                                      height: AppSize.height * .15,
-                                      fit: BoxFit.cover,
-                                    ),
-                              ),
-                            );
-                          },
-                        )
-                : _shimmerBox(double.infinity, AppSize.height * .15),
+            child: SizedBox(width: double.infinity, height: h, child: content),
           ),
         ),
       );
@@ -687,22 +674,21 @@ class _HomePageState extends State<HomePage>
                       )
                     : LayoutBuilder(
                         builder: (context, constraints) {
-                          return SafeNetworkImage(
-                            imageUrl: normalizedUrl,
+                          // Retrying image — a single load failure during the
+                          // fresh-install/startup request burst used to stick on
+                          // the static fallback icon for the whole session (the
+                          // "farm management banner not showing on first open"
+                          // bug). This re-attempts the download a few times
+                          // before falling back.
+                          return _RetryingFeatureImage(
+                            url: normalizedUrl,
                             width: constraints.maxWidth,
                             height: constraints.maxHeight,
-                            fit: BoxFit.fill,
-                            placeholder: (context, url) => _shimmerBox(
+                            placeholder: () => _shimmerBox(
                               constraints.maxWidth,
                               constraints.maxHeight,
                             ),
-                            onFinalError: (_, url, error) {
-                              debugPrint(
-                                'Feature card image failed for "$text": '
-                                'url=$normalizedUrl, error=$error',
-                              );
-                              return _featureCardFallback(iconPath, text);
-                            },
+                            fallback: () => _featureCardFallback(iconPath, text),
                           );
                         },
                       )
@@ -1479,6 +1465,80 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
           borderRadius: BorderRadius.circular(14),
         ),
       ),
+    );
+  }
+}
+
+/// Feature-card image that survives a transient load failure. A single failed
+/// download (common during the fresh-install / startup request burst) used to
+/// drop the card to the static fallback icon for the whole session. This
+/// re-downloads a few times (evicting the failed cache entry each time, with a
+/// short backoff) before finally showing the fallback.
+class _RetryingFeatureImage extends StatefulWidget {
+  final String url;
+  final double width;
+  final double height;
+  final BoxFit fit;
+  final Widget Function() placeholder;
+  final Widget Function() fallback;
+
+  const _RetryingFeatureImage({
+    required this.url,
+    required this.width,
+    required this.height,
+    required this.placeholder,
+    required this.fallback,
+    this.fit = BoxFit.fill,
+  });
+
+  @override
+  State<_RetryingFeatureImage> createState() => _RetryingFeatureImageState();
+}
+
+class _RetryingFeatureImageState extends State<_RetryingFeatureImage> {
+  static const int _maxAttempts = 4;
+  int _attempt = 0;
+  bool _retryScheduled = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_attempt >= _maxAttempts) return widget.fallback();
+
+    return Image(
+      // Key changes per attempt so the Image re-resolves the provider on retry.
+      key: ValueKey('${widget.url}#$_attempt'),
+      image: CachedNetworkImageProvider(widget.url),
+      width: widget.width,
+      height: widget.height,
+      fit: widget.fit,
+      gaplessPlayback: true,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded || frame != null) return child;
+        return widget.placeholder();
+      },
+      errorBuilder: (context, error, stack) {
+        debugPrint(
+          'Feature card image failed (attempt ${_attempt + 1}/$_maxAttempts) '
+          'for ${widget.url}: $error',
+        );
+        if (!_retryScheduled) {
+          _retryScheduled = true;
+          final delay = Duration(seconds: _attempt + 1);
+          Future.delayed(delay, () async {
+            // Drop the failed entry so the next attempt actually re-downloads.
+            try {
+              await CachedNetworkImage.evictFromCache(widget.url);
+            } catch (_) {}
+            if (mounted) {
+              setState(() {
+                _attempt++;
+                _retryScheduled = false;
+              });
+            }
+          });
+        }
+        return widget.placeholder();
+      },
     );
   }
 }

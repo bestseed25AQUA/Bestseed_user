@@ -54,15 +54,22 @@ class HatcheryCategoryController extends GetxController {
           print('✅ Similar hatcheries: ${hatcheryCateogoryData.value.similarHatcheries.length}');
 
           // ── 150km radius filter verification ──────────────────────────────
-          // Prints each similar hatchery with its distance so we can confirm
-          // the backend filtered to <=150km AND ordered nearest-first.
+          // Prints the opened hatchery + each similar hatchery with its distance
+          // so we can confirm the backend filtered to <=150km of the opened
+          // hatchery's location AND ordered nearest-first.
+          final opened = hatcheryCateogoryData.value.data.isNotEmpty
+              ? hatcheryCateogoryData.value.data.first
+              : null;
+          print('📏 [SIMILAR] ════════════════════════════════════════════');
+          print('📏 [SIMILAR] Opened hatchery: ${opened?.hatcheryName ?? "?"} '
+              '| location: ${opened?.location?.name ?? "-"}');
           final similar = hatcheryCateogoryData.value.similarHatcheries;
+          print('📏 [SIMILAR] ${similar.length} similar hatcheries returned '
+              '(expected: within 150km, nearest-first):');
           final anyDistance = similar.any((s) => s.distanceKm != null);
           if (!anyDistance) {
-            print('📏 [SIMILAR] No distance_km on any item → either OLD backend '
-                '(not deployed) OR the viewed hatchery has no lat/lng (fallback list).');
-          } else {
-            print('📏 [SIMILAR] distance check (should be ascending, all <=150km):');
+            print('📏 [SIMILAR] ⚠️ No distance_km on any item → either OLD backend '
+                '(not deployed) OR the opened hatchery has no lat/lng (fallback list).');
           }
           for (var i = 0; i < similar.length; i++) {
             final s = similar[i];

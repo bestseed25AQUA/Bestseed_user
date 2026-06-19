@@ -27,7 +27,9 @@ class BookingReviewContent extends StatelessWidget {
   final bool isVehicleHatchery;
   final double? dropLat;
   final double? dropLng;
-  const BookingReviewContent({
+  // Drives the always-visible scroll indicator on the sheet's content.
+  final ScrollController _scrollController = ScrollController();
+  BookingReviewContent({
     super.key,
     required this.name,
     required this.phone,
@@ -56,45 +58,66 @@ class BookingReviewContent extends StatelessWidget {
 
     return Column(
       children: [
-        // Scrollable content
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Review Bookings',
-                      style: GoogleFonts.roboto(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(bottomSheetContext),
-                    ),
-                  ],
+        // Slide indicator (drag handle) so it's clear the sheet can be swiped.
+        Container(
+          margin: const EdgeInsets.only(top: 10, bottom: 6),
+          height: 5,
+          width: 44,
+          decoration: BoxDecoration(
+            color: Colors.grey[400],
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        // Header — stays fixed above the scrollable card.
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Review Bookings',
+                style: GoogleFonts.roboto(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 20),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(bottomSheetContext),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
 
-                // UI CARD
-                Container(
-                  padding: const EdgeInsets.all(16.0),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(15.0),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 6,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
+        // The card fills the remaining height and its details scroll INSIDE it,
+        // with an always-visible scroll indicator shown on the card's edge.
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+            child: Container(
+              // Less right padding so the scrollbar sits neatly inside the card.
+              padding: const EdgeInsets.fromLTRB(16, 16, 6, 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
                   ),
+                ],
+              ),
+              child: Scrollbar(
+                controller: _scrollController,
+                thumbVisibility: true,
+                thickness: 4,
+                radius: const Radius.circular(8),
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  // Room on the right so content doesn't sit under the scrollbar.
+                  padding: const EdgeInsets.only(right: 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -149,8 +172,7 @@ class BookingReviewContent extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-              ],
+              ),
             ),
           ),
         ),
