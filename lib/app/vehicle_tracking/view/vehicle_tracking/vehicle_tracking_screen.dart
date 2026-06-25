@@ -53,6 +53,22 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
 
   double _driverBearing = 0;
 
+  // ── Smooth vehicle movement (same feel as the vendor tracking map) ──
+  // Instead of the truck teleporting to its new GPS fix on every poll, it
+  // glides there over ~1s with easing, and the green/blue lines grow with it.
+  Timer? _markerAnimTimer;
+  static const int _markerAnimSteps = 25; // 25 × 40ms ≈ 1s glide
+  static const Duration _markerAnimStepDuration = Duration(milliseconds: 40);
+  LatLng? _animDriverPos; // interpolated marker position while gliding
+  // Monotonic split anchor: the green/blue boundary index never retreats, so
+  // GPS jitter can't pull the green line backward (vendor "freeze green").
+  int _lastSplitIdx = 0;
+
+  // Pushed to the full-screen map (a separate route that doesn't rebuild on our
+  // setState) every poll/glide frame, so its vehicle marker + lines stay live.
+  final ValueNotifier<TrackingLiveFrame> _liveFrame =
+      ValueNotifier(const TrackingLiveFrame());
+
   bool _isLoading = true;
   TrackingData? _trackingData;
   List<Map<String, dynamic>> _clientStops = [];
@@ -90,8 +106,9 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
 
     await _fetchAndProcess(isInitial: true);
 
-    // Start polling every 10 seconds
-    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    // Poll every 5s so the green/blue lines + vehicle refresh quickly (the
+    // glide smooths the gap between polls).
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       _fetchAndProcess(isInitial: false);
     });
   }
@@ -117,6 +134,8 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
       // Remember the previous fix BEFORE overwriting, so we can derive the
       // vehicle's real heading from how it actually moved.
       final LatLng? previousDriverLoc = driverLoc;
+      // Heading before this update — the glide eases from here to the new one.
+      final double oldBearing = _driverBearing;
 
       driverLoc = (d.driverLocation.lat != 0 && d.driverLocation.lng != 0)
           ? LatLng(d.driverLocation.lat, d.driverLocation.lng)
@@ -149,11 +168,28 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
 
       debugPrint('🗺️ [TRACK] driver=(${d.driverLocation.lat},${d.driverLocation.lng}) updatedAt=${d.driverLocation.updatedAt} speed=${d.driverLocation.speedKmh}');
 
-      // On poll updates, re-split the polyline at driver's new position
-      // so green (completed) and blue (remaining) lines follow the road
-      if (!isInitial && routePoints.isNotEmpty) {
-        _splitRouteAtDriver();
+      // Move the truck like the vendor map: glide smoothly to the new fix and
+      // grow the green/blue lines with it. On the first load (or no movement)
+      // just place it; only animate a real move so a parked truck doesn't drift.
+      if (isInitial || routePoints.isEmpty || previousDriverLoc == null || driverLoc == null) {
+        _animDriverPos = driverLoc;
+        if (!isInitial) _splitRouteAtDriver();
+      } else {
+        final moved = _distMeters(
+          previousDriverLoc.latitude, previousDriverLoc.longitude,
+          driverLoc!.latitude, driverLoc!.longitude,
+        );
+        if (moved >= 5) {
+          _driverBearing = oldBearing; // start the glide from the old heading
+          _animateDriverTo(previousDriverLoc, driverLoc!);
+        } else {
+          _animDriverPos = driverLoc;
+          _splitRouteAtDriver();
+        }
       }
+      // Always publish a frame for the full-screen map (covers the no-route
+      // case where _splitRouteAtDriver isn't called).
+      _pushLiveFrame();
 
       // Print full timeline from API
       debugPrint('🗺️ [TIMELINE] ── Backend timeline: ${d.timeline.length} items ──');
@@ -378,48 +414,148 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
       debugPrint('🗺️ [POLYLINE] ❌ Route failed: $e');
     }
 
-    // Split the route at the driver's current position
+    // New route → reset the monotonic split anchor, then split at the driver.
+    _lastSplitIdx = 0;
     _splitRouteAtDriver();
   }
 
-  /// Splits [routePoints] (pickup→drop) at the nearest point to [driverLoc].
-  /// [completedRoutePoints] = pickup → driver (green covered path, follows road).
-  /// [remainingRoutePoints] = driver → drop (blue remaining path, follows road).
-  void _splitRouteAtDriver() {
-    if (routePoints.isEmpty) {
+  /// Splits [routePoints] (pickup→drop) at the nearest point to the vehicle.
+  /// [completedRoutePoints] = pickup → vehicle (green covered path, follows road).
+  /// [remainingRoutePoints] = vehicle → drop (blue remaining path, follows road).
+  ///
+  /// [at] is the position to split at — defaults to the latest GPS fix, but the
+  /// smooth-movement glide passes the interpolated position so the lines grow
+  /// with the moving truck. The split index is MONOTONIC (never moves backward),
+  /// so GPS jitter can't make the green line retreat — same behaviour as vendor.
+  void _splitRouteAtDriver({LatLng? at}) {
+    final pos = at ?? driverLoc;
+    if (pos == null) {
       completedRoutePoints = [];
-      remainingRoutePoints = [];
-      return;
-    }
-    if (driverLoc == null) {
-      completedRoutePoints = [];
-      remainingRoutePoints = List.from(routePoints);
+      remainingRoutePoints =
+          routePoints.isNotEmpty ? List.from(routePoints) : [];
+      _pushLiveFrame();
       return;
     }
 
-    // Find the nearest polyline point to the driver's current position
-    int nearestIdx = 0;
-    double minDist = double.infinity;
-    for (int i = 0; i < routePoints.length; i++) {
-      final d = _distMeters(
-        driverLoc!.latitude, driverLoc!.longitude,
-        routePoints[i].latitude, routePoints[i].longitude,
-      );
-      if (d < minDist) {
-        minDist = d;
-        nearestIdx = i;
+    if (routePoints.length >= 2) {
+      // Find the point on the ROAD ROUTE the vehicle is currently on (its
+      // projection onto the route), searching only FORWARD from the last split
+      // so it never jumps backward (no behind/repeated green).
+      //
+      // GREEN = the route from the start up to that point — a real road-
+      // following line of where the driver came along (not straight lines that
+      // cut across roads the driver never used). BLUE = the route after it.
+      int bestSeg = _lastSplitIdx.clamp(0, routePoints.length - 2);
+      double bestDist = double.infinity;
+      LatLng bestProj = routePoints[bestSeg];
+      for (int i = bestSeg; i < routePoints.length - 1; i++) {
+        final proj = _projectOnSegment(pos, routePoints[i], routePoints[i + 1]);
+        final d = _distMeters(
+            pos.latitude, pos.longitude, proj.latitude, proj.longitude);
+        if (d < bestDist) {
+          bestDist = d;
+          bestSeg = i;
+          bestProj = proj;
+        } else if (bestDist < 300 && d > bestDist + 300) {
+          // We've locked onto the vehicle's local segment (within 300 m) and
+          // are now moving away — STOP. Otherwise the search would jump ahead
+          // to a far part of the route that happens to pass nearby (e.g. a
+          // highway interchange/loop), drawing green past the vehicle.
+          break;
+        }
       }
+      _lastSplitIdx = bestSeg;
+      completedRoutePoints = [...routePoints.sublist(0, bestSeg + 1), bestProj];
+      remainingRoutePoints = [bestProj, ...routePoints.sublist(bestSeg + 1)];
+    } else if (pickup != null) {
+      completedRoutePoints = [pickup!, pos];
+      remainingRoutePoints = drop != null ? [pos, drop!] : [pos];
+    } else {
+      completedRoutePoints = [pos];
+      remainingRoutePoints = drop != null ? [pos, drop!] : [pos];
     }
 
-    completedRoutePoints = [
-      ...routePoints.sublist(0, nearestIdx + 1),
-      driverLoc!,
-    ];
-    remainingRoutePoints = [
-      driverLoc!,
-      ...routePoints.sublist(nearestIdx),
-    ];
-    debugPrint('🗺️ [SPLIT] completed=${completedRoutePoints.length} remaining=${remainingRoutePoints.length} nearestIdx=$nearestIdx');
+    _pushLiveFrame();
+  }
+
+  /// Publish the current vehicle position + green/blue lines to the full-screen
+  /// map so its marker follows the driver live (it's a separate route that
+  /// doesn't rebuild on our setState).
+  void _pushLiveFrame() {
+    _liveFrame.value = TrackingLiveFrame(
+      driver: _animDriverPos ?? driverLoc,
+      bearing: _driverBearing,
+      completed: completedRoutePoints,
+      remaining: remainingRoutePoints,
+    );
+  }
+
+  /// Closest point on segment a→b to p (planar lat/lng approximation, fine for
+  /// the short segments between consecutive GPS points).
+  LatLng _projectOnSegment(LatLng p, LatLng a, LatLng b) {
+    final ax = a.longitude, ay = a.latitude;
+    final dx = b.longitude - ax, dy = b.latitude - ay;
+    final lenSq = dx * dx + dy * dy;
+    if (lenSq == 0) return a;
+    double t = ((p.longitude - ax) * dx + (p.latitude - ay) * dy) / lenSq;
+    t = t.clamp(0.0, 1.0);
+    return LatLng(ay + dy * t, ax + dx * t);
+  }
+
+  double _easeInOutCubic(double t) {
+    if (t < 0.5) return 4 * t * t * t;
+    return (1 - math.pow(-2 * t + 2, 3) / 2).toDouble();
+  }
+
+  /// Glide the truck from [from] to [to] over ~1s with easing — turning the
+  /// heading and re-splitting the green/blue lines each frame — so it moves the
+  /// same smooth way the vendor map does instead of jumping on every poll.
+  void _animateDriverTo(LatLng from, LatLng to) {
+    _markerAnimTimer?.cancel();
+
+    final dist = _distMeters(
+        from.latitude, from.longitude, to.latitude, to.longitude);
+    if (dist < 2) {
+      _animDriverPos = to;
+      _splitRouteAtDriver(at: to);
+      if (mounted) setState(() {});
+      return;
+    }
+
+    final startBearing = _driverBearing;
+    final endBearing = _calculateBearing(from, to);
+    int step = 0;
+
+    _markerAnimTimer = Timer.periodic(_markerAnimStepDuration, (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      step++;
+      final t = _easeInOutCubic((step / _markerAnimSteps).clamp(0.0, 1.0));
+
+      _animDriverPos = LatLng(
+        from.latitude + (to.latitude - from.latitude) * t,
+        from.longitude + (to.longitude - from.longitude) * t,
+      );
+
+      // Ease the heading along the shortest rotation.
+      double diff = endBearing - startBearing;
+      if (diff > 180) diff -= 360;
+      if (diff < -180) diff += 360;
+      _driverBearing = (startBearing + diff * t) % 360;
+
+      _splitRouteAtDriver(at: _animDriverPos);
+      setState(() {});
+
+      if (step >= _markerAnimSteps) {
+        timer.cancel();
+        _animDriverPos = to;
+        _driverBearing = endBearing;
+        _splitRouteAtDriver(at: to);
+        if (mounted) setState(() {});
+      }
+    });
   }
 
   /// Build timeline: merge backend timeline + auto_timeline_points + saved passed stops.
@@ -560,11 +696,27 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
 
       // Priority 2: Backend timeline with completed status (already in DB)
       if (stop['backend_status'] == 'completed' || stop['backend_status'] == 'current') {
+        String timeStr = stop['backend_time'] ?? '-';
+        String dateStr = stop['backend_date'] ?? '-';
+        // For the CURRENT location row, show the driver's LAST ACTUAL location-
+        // update time (driver_location_updated_at), NOT a now()-synced time. So
+        // if the driver stops sending GPS, the time freezes at the last fix
+        // instead of always reading the current clock.
+        if (stop['backend_status'] == 'current') {
+          final upd = d.driverLocation.updatedAt;
+          if (upd != null && upd.isNotEmpty) {
+            try {
+              final dt = DateTime.parse(upd);
+              timeStr = PassedStopsService.formatTime(dt);
+              dateStr = PassedStopsService.formatDate(dt);
+            } catch (_) {}
+          }
+        }
         return TimelineItem(
           title: stopName,
           subtitle: stop['backend_status'] == 'current' ? '' : 'Passed',
-          time: stop['backend_time'] ?? '-',
-          date: stop['backend_date'] ?? '-',
+          time: timeStr,
+          date: dateStr,
           status: 'completed',
           lat: stopLat,
           lng: stopLng,
@@ -683,6 +835,11 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
             : "-";
         final lastUpdateAddress = d.driverLocation.name;
 
+        // While gliding, the marker follows the interpolated position so the
+        // truck moves smoothly (vendor feel); otherwise the latest fix.
+        final driverLatForMap = _animDriverPos?.latitude ?? d.driverLocation.lat;
+        final driverLngForMap = _animDriverPos?.longitude ?? d.driverLocation.lng;
+
         return RefreshIndicator(
           onRefresh: () => _fetchAndProcess(isInitial: false),
           child: SingleChildScrollView(
@@ -700,8 +857,8 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
                           pickupLng: d.pickup.lng,
                           dropLat: d.drop.lat,
                           dropLng: d.drop.lng,
-                          driverLat: d.driverLocation.lat,
-                          driverLng: d.driverLocation.lng,
+                          driverLat: driverLatForMap,
+                          driverLng: driverLngForMap,
                           driverName: d.driverLocation.name,
                           routePoints: remainingRoutePoints.isNotEmpty ? remainingRoutePoints : routePoints,
                           completedRoutePoints: completedRoutePoints,
@@ -711,6 +868,7 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
                           driverBearing: _driverBearing,
                           lastUpdateTime: lastUpdateTime,
                           lastUpdateAddress: lastUpdateAddress,
+                          live: _liveFrame,
                         ),
                       ),
                     );
@@ -927,6 +1085,8 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _markerAnimTimer?.cancel();
+    _liveFrame.dispose();
     _pulseController.dispose();
     super.dispose();
   }

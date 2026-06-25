@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class MapSectionWidget extends StatelessWidget {
@@ -61,13 +60,20 @@ class MapSectionWidget extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
             child: GoogleMap(
-              // Lite mode renders a static bitmap of the map instead of going
-              // through the AndroidView/hybrid-composition pipeline. This screen
-              // is just a tappable preview (the user taps to open FullScreenMapPage),
-              // so we don't need pan/zoom here. Lite mode loads instantly and
-              // avoids the multi-minute blank-tile issue caused by GoogleMap
-              // being embedded in a SingleChildScrollView.
-              liteModeEnabled: true,
+              // IMPORTANT: do NOT use lite mode here.
+              // Lite mode renders a static snapshot and does not support live
+              // updates or programmatic camera moves. This preview is rebuilt on
+              // every 10s tracking poll (the driver marker moves) and we call
+              // animateCamera via fitMapBounds — both crash the native lite
+              // renderer ("app crashes while just sitting on the tracking
+              // screen"). It also crashed when tapping through to the full-screen
+              // (normal) map, because mixing a lite map and a normal map in the
+              // same app is unstable on many Android devices.
+              //
+              // So this is a NORMAL map with all gestures disabled — it behaves
+              // as a non-interactive preview (tap opens FullScreenMapPage) but
+              // safely handles the live driver-marker updates and camera fit.
+              liteModeEnabled: false,
               initialCameraPosition: CameraPosition(target: pickup, zoom: 11),
               // Disable interactions — this is a preview, not an interactive map.
               zoomControlsEnabled: false,

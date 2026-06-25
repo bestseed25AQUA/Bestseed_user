@@ -6,6 +6,7 @@ import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/booking_hatchery_widget.dart';
 import 'package:seedsuser/app/common/media_carousel_widget.dart';
 import 'package:seedsuser/app/model/vehicle_available_model.dart';
+import 'package:seedsuser/app/home/view/vehicle_route_map_widget.dart';
 import 'package:seedsuser/app/utils/video_thumbnail_cache.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -151,6 +152,13 @@ class _VehicleAvailabilityDetailScreenState
                     ),
 
                   const SizedBox(height: 12),
+
+                  // Live moving-vehicle map (truck animates along the route).
+                  if (vehicle.locations.any(
+                      (l) => l.latitude != null && l.longitude != null)) ...[
+                    VehicleRouteMapWidget(locations: vehicle.locations),
+                    const SizedBox(height: 12),
+                  ],
 
                   // Location routing
                   if (vehicle.locations.isNotEmpty)

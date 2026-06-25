@@ -20,11 +20,11 @@ class MyHttpOverrides extends HttpOverrides {
       ..badCertificateCallback =
       (X509Certificate cert, String host, int port) => true;
   }
-}
+} 
 
 @override
 void main() async {
-  HttpOverrides.global = MyHttpOverrides();
+  HttpOverrides.  global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
 
   // Note: previously forced useAndroidViewSurface = true for Adreno GPU

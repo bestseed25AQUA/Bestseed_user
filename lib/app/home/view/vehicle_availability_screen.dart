@@ -194,6 +194,10 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
         desiredAccuracy: LocationAccuracy.high,
       );
 
+      debugPrint('📍 [VEHICLE-FILTER] Current Location tapped → '
+          'lat=${position.latitude}, lng=${position.longitude} '
+          '(radius=${_radiusKm}km)');
+
       setState(() {
         _currentLat = position.latitude;
         _currentLng = position.longitude;
@@ -318,7 +322,7 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
   List<VehicleAvailability> _getFilteredList() {
     final query = _searchController.text.trim().toLowerCase();
 
-    return controller.vehicleList.where((item) {
+    final result = controller.vehicleList.where((item) {
       final matchesSearch =
           query.isEmpty || item.hatcheryName.toLowerCase().contains(query);
 
@@ -337,6 +341,13 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
 
       return matchesSearch && matchesLocation;
     }).toList();
+
+    if (_selectedLocation == "current") {
+      debugPrint('📍 [VEHICLE-FILTER] within ${_radiusKm}km of '
+          '($_currentLat,$_currentLng): '
+          '${result.length}/${controller.vehicleList.length} vehicles shown');
+    }
+    return result;
   }
 
   void startRecording() {
@@ -584,6 +595,9 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
                     padding: const EdgeInsets.only(bottom: 10),
                     child: VehicleHatcheryCardWidget(
                       vehicleAvailability: filteredList[index],
+                      currentLat: _currentLat,
+                      currentLng: _currentLng,
+                      highlightNearby: _selectedLocation == "current",
                     ),
                   );
                 },

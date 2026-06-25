@@ -344,6 +344,68 @@ class MyBookingController extends GetxController {
       isCreateLoading.value = false;
     }
   }
+
+  /// Edit an existing booking while it is still Pending. Only the fields the
+  /// farmer can change are sent; the backend rejects the request (422) once the
+  /// booking is confirmed. On success the detail + list are refreshed.
+  Future<bool> updateBooking({
+    required String bookingId,
+    String? noOfPieces,
+    String? salinity,
+    String? packingDate,
+    String? deliveryDate,
+    String? droppingLocation,
+    double? dropLat,
+    double? dropLng,
+  }) async {
+    try {
+      isCreateLoading.value = true;
+
+      final Map<String, String> body = {"booking_id": bookingId};
+      if (noOfPieces != null && noOfPieces.trim().isNotEmpty) {
+        body["no_of_pieces"] = noOfPieces.trim();
+      }
+      if (salinity != null && salinity.trim().isNotEmpty) {
+        body["salinity"] = salinity.trim();
+      }
+      final np = normalizeDate(packingDate ?? '');
+      if (np != null) body["packing_date"] = np;
+      final nd = normalizeDate(deliveryDate ?? '');
+      if (nd != null) body["delivery_date"] = nd;
+      if (droppingLocation != null && droppingLocation.trim().isNotEmpty) {
+        body["dropping_location"] = droppingLocation.trim();
+      }
+      // Coords are only sent when the user actually re-picks the location on the
+      // map, so an unchanged address keeps its existing coordinates server-side.
+      if (dropLat != null) body["drop_lat"] = dropLat.toString();
+      if (dropLng != null) body["drop_lng"] = dropLng.toString();
+
+      final response = await postRequest(
+        endPoint: "${NetworkConfig.baseURL}/farmer/update-booking",
+        headers: await buildHeader(),
+        body: body,
+      );
+
+      final data = json.decode(response.body);
+
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          data['status'] == true) {
+        CustomToast.success(data['message'] ?? "Booking updated successfully");
+        // Refresh the bookings list; the detail screen reloads itself after the
+        // edit sheet closes (see BookingDetailScreen edit action).
+        await fetchBookings();
+        return true;
+      } else {
+        CustomToast.error(data['message'] ?? "Could not update booking");
+        return false;
+      }
+    } catch (e) {
+      CustomToast.error("Something went wrong");
+      return false;
+    } finally {
+      isCreateLoading.value = false;
+    }
+  }
 }
 
 String? normalizeDate(String input) {

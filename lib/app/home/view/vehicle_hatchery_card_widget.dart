@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:get/get.dart';
@@ -13,9 +15,19 @@ class VehicleHatcheryCardWidget extends StatefulWidget {
   const VehicleHatcheryCardWidget({
     super.key,
     required this.vehicleAvailability,
+    this.currentLat,
+    this.currentLng,
+    this.highlightNearby = false,
   });
 
   final VehicleAvailability vehicleAvailability;
+
+  /// When [highlightNearby] is true (the "Current Location" filter is active),
+  /// route stops within 100 km of [currentLat]/[currentLng] are highlighted in
+  /// a distinct style so the user can see which part of the route is near them.
+  final double? currentLat;
+  final double? currentLng;
+  final bool highlightNearby;
 
   @override
   State<VehicleHatcheryCardWidget> createState() =>
@@ -439,6 +451,30 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
     );
   }
 
+  /// True when [location] is within 100 km of the user's current position —
+  /// only considered while the Current Location filter is active.
+  bool _isNearCurrent(VehicleLocation location) {
+    if (!widget.highlightNearby) return false;
+    final ulat = widget.currentLat, ulng = widget.currentLng;
+    if (ulat == null || ulng == null) return false;
+    if (location.latitude == null || location.longitude == null) return false;
+    return _distanceKm(ulat, ulng, location.latitude!, location.longitude!) <=
+        100;
+  }
+
+  double _distanceKm(double lat1, double lng1, double lat2, double lng2) {
+    const earthRadiusKm = 6371.0;
+    double toRad(double deg) => deg * (3.141592653589793 / 180.0);
+    final dLat = toRad(lat2 - lat1);
+    final dLng = toRad(lng2 - lng1);
+    final a = (math.sin(dLat / 2) * math.sin(dLat / 2)) +
+        math.cos(toRad(lat1)) *
+            math.cos(toRad(lat2)) *
+            (math.sin(dLng / 2) * math.sin(dLng / 2));
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return earthRadiusKm * c;
+  }
+
   Widget _buildLocationRouting(List<VehicleLocation> locations) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -464,6 +500,27 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
             ...List.generate(locations.length, (index) {
               final location = locations[index];
               final isLast = index == locations.length - 1;
+              // "Near you" = within 100km of the user, but only while the
+              // Current Location filter is on. The end location keeps its own
+              // (blue) style; nearby non-end stops get the green style.
+              final isNearby = !isLast && _isNearCurrent(location);
+
+              // Resolve the chip style (end = blue, nearby = green, else grey).
+              final Color chipColor = isLast
+                  ? AppColors.primary
+                  : isNearby
+                      ? const Color(0xFF2E7D32)
+                      : Colors.grey[600]!;
+              final Color chipBg = isLast
+                  ? AppColors.primary.withOpacity(0.1)
+                  : isNearby
+                      ? const Color(0xFF2E7D32).withOpacity(0.12)
+                      : Colors.grey[100]!;
+              final Color chipBorder = isLast
+                  ? AppColors.primary.withOpacity(0.3)
+                  : isNearby
+                      ? const Color(0xFF2E7D32).withOpacity(0.45)
+                      : Colors.grey[300]!;
 
               return Row(
                 mainAxisSize: MainAxisSize.min,
@@ -483,39 +540,40 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: isLast
-                          ? AppColors.primary.withOpacity(0.1)
-                          : Colors.grey[100],
+                      color: chipBg,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: isLast
-                            ? AppColors.primary.withOpacity(0.3)
-                            : Colors.grey[300]!,
-                      ),
+                      border: Border.all(color: chipBorder),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.location_on,
+                          isNearby ? Icons.my_location : Icons.location_on,
                           size: 14,
-                          color: isLast
-                              ? AppColors.primary
-                              : Colors.grey[600],
+                          color: chipColor,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           location.name,
                           style: GoogleFonts.roboto(
                             fontSize: 11,
-                            fontWeight: isLast
+                            fontWeight: (isLast || isNearby)
                                 ? FontWeight.w600
                                 : FontWeight.w500,
-                            color: isLast
-                                ? AppColors.primary
-                                : Colors.grey[700],
+                            color: chipColor,
                           ),
                         ),
+                        if (isNearby) ...[
+                          const SizedBox(width: 3),
+                          const Text(
+                            '• Near you',
+                            style: TextStyle(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF2E7D32),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

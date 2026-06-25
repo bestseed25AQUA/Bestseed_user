@@ -18,6 +18,10 @@ class HatcherySuppliersWidget extends StatelessWidget {
     final dashboardCtrl = Get.find<DashboardController>();
     final broodStockController = Get.put(BroodStockController());
     return Obx(() {
+      final filteredBroodStocks = broodStockController.homeBroodStocks
+          .where((data) => data.status != BroodstockStatus.comingSoon)
+          .toList();
+
       return Padding(
         padding: const EdgeInsets.only(top: 8,bottom: 8,right: 10,left: 10),
         child: Column(
@@ -39,7 +43,7 @@ class HatcherySuppliersWidget extends StatelessWidget {
                 ),
               ],
             ),
-            (broodStockController.homeBroodStocks.isEmpty)
+            (filteredBroodStocks.isEmpty)
                 // While the home preview is still loading (or before the first
                 // fetch finishes) show a shimmer — NOT the empty message — so a
                 // slow/retrying startup request never flashes "No hatchery found"
@@ -47,10 +51,10 @@ class HatcherySuppliersWidget extends StatelessWidget {
                 ? (broodStockController.isHomeLoading.value ||
                         !broodStockController.homeFetchCompleted.value)
                     ? _loadingPlaceholder()
-                    : Align(
+                    : const Align(
                         alignment: Alignment.centerLeft,
                         child: Padding(
-                          padding: const EdgeInsets.only(left: 4, right: 8),
+                          padding: EdgeInsets.only(left: 4, right: 8),
                           child: Text(
                             'Available hatchery / broodstock found',
                             style: TextStyle(fontSize: 14),
@@ -59,10 +63,10 @@ class HatcherySuppliersWidget extends StatelessWidget {
                       )
                 : Column(
                     children: List.generate(
-                     ( broodStockController.homeBroodStocks.length <= 5 ) ? broodStockController.homeBroodStocks.length:5,
+                     ( filteredBroodStocks.length <= 5 ) ? filteredBroodStocks.length:5,
                       (index) {
                         final data =
-                            broodStockController.homeBroodStocks[index];
+                            filteredBroodStocks[index];
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: InkWell(
