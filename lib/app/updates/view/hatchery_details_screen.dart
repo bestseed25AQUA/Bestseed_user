@@ -104,12 +104,12 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
                   children: [
                     // ---------- LOGO (tap to fullscreen) ----------
                     GestureDetector(
-                      onTap: hasData && (data[0].thumbnail ?? '').isNotEmpty
+                      onTap: hasData && (data[0].profileImage ?? '').isNotEmpty
                           ? () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => FullImageScreen(
-                                    imageUrl: data[0].thumbnail!,
+                                    imageUrl: data[0].profileImage!,
                                     title: data[0].hatcheryName ?? '',
                                   ),
                                 ),
@@ -117,7 +117,7 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
                           : null,
                       child: ClipOval(
                         child: Image.network(
-                          hasData ? (data[0].thumbnail ?? '') : '',
+                          hasData ? (data[0].profileImage ?? '') : '',
                           width: 50,
                           height: 50,
                           fit: BoxFit.cover,
@@ -125,6 +125,12 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
                             return CircleAvatar(
                               radius: 25,
                               backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                              child: Text(
+                                hasData && (data[0].hatcheryName ?? '').isNotEmpty
+                                    ? data[0].hatcheryName![0].toUpperCase()
+                                    : 'B',
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black54),
+                              ),
                             );
                           },
                         ),

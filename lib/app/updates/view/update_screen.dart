@@ -232,12 +232,18 @@ class _PostWidgetState extends State<PostWidget> {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(20),
                             child: Image.network(
-                              widget.postData?.thumbnail ?? "",
+                              widget.postData?.profileImage ?? "",
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
-                                  color: Colors.grey.shade300,
-                                  child: const Icon(Icons.person),
+                                  color: Colors.grey.shade200,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    (widget.postData?.hatcheryName ?? '').isNotEmpty
+                                        ? widget.postData!.hatcheryName![0].toUpperCase()
+                                        : 'B',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black54),
+                                  ),
                                 );
                               },
                             ),
