@@ -371,7 +371,10 @@ class MyBookingController extends GetxController {
       final np = normalizeDate(packingDate ?? '');
       if (np != null) body["packing_date"] = np;
       final nd = normalizeDate(deliveryDate ?? '');
-      if (nd != null) body["delivery_date"] = nd;
+      if (nd != null) {
+        body["delivery_date"] = nd;
+        body["delivery_datetime"] = nd;
+      }
       if (droppingLocation != null && droppingLocation.trim().isNotEmpty) {
         body["dropping_location"] = droppingLocation.trim();
       }

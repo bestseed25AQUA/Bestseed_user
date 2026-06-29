@@ -57,6 +57,7 @@ class BookingData {
   final String packingDate;
   final String droppingLocation;
   final String deliveryDatetime;
+  final String deliveryDate;
   final dynamic status;
 
   final SpotInfo? isSpot;
@@ -72,6 +73,7 @@ class BookingData {
     required this.packingDate,
     required this.droppingLocation,
     required this.deliveryDatetime,
+    required this.deliveryDate,
      this.status,
     this.isSpot,
   });
@@ -89,7 +91,12 @@ class BookingData {
       packingDate: json["packing_date"] ?? "",
       droppingLocation: json["dropping_location"] ?? "",
 
-      deliveryDatetime: json["delivery_datetime"] ?? "",
+      deliveryDatetime: (json["delivery_datetime"] != null && json["delivery_datetime"].toString().isNotEmpty)
+          ? json["delivery_datetime"].toString()
+          : (json["delivery_date"]?.toString() ?? ""),
+      deliveryDate: (json["delivery_date"] != null && json["delivery_date"].toString().isNotEmpty)
+          ? json["delivery_date"].toString()
+          : (json["delivery_datetime"]?.toString() ?? ""),
       status: json["status"],
 
       isSpot: json["is_spot"] != null
@@ -109,6 +116,7 @@ class BookingData {
         "packing_date": packingDate,
         "dropping_location": droppingLocation,
         "delivery_datetime": deliveryDatetime,
+        "delivery_date": deliveryDate,
         "status": status,
         "is_spot": isSpot?.toJson(),
       };

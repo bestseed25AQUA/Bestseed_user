@@ -80,7 +80,9 @@ class BookingDetailModel {
       status: booking["status"]?["label"] ?? "",
       statusDescription: booking["status"]?["message"] ?? "",
 
-      bookingDateTime: booking["delivery_datetime"]?.toString() ?? "",
+      bookingDateTime: (booking["delivery_datetime"] != null && booking["delivery_datetime"].toString().isNotEmpty)
+          ? booking["delivery_datetime"].toString()
+          : (booking["delivery_date"]?.toString() ?? ""),
       unitLocation: booking["unit"]?.toString() ?? "",
       pickupLocation: booking["pickup_location"]?.toString() ?? "",
       salinity: booking["salinity"] ?? 0,
@@ -88,7 +90,9 @@ class BookingDetailModel {
       estimatedPrice: booking["estimated_price"]?.toString() ?? "",
       droppingLocation: booking["dropping_location"]?.toString() ?? "",
       preferredDate: booking["packing_date"]?.toString() ?? "",
-      deliveryDate: booking["delivery_date"]?.toString() ?? "",
+      deliveryDate: (booking["delivery_date"] != null && booking["delivery_date"].toString().isNotEmpty)
+          ? booking["delivery_date"].toString()
+          : (booking["delivery_datetime"]?.toString() ?? ""),
 
       bookingStatus: statusList
           .map((e) => BookingStatusStep.fromJson(e))

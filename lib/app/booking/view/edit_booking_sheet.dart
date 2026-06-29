@@ -63,7 +63,7 @@ class _EditBookingSheetState extends State<_EditBookingSheet> {
         ? d.salinity.toString()
         : '0';
     _packingDate = _parseDate(d.preferredDate);
-    _deliveryDate = _parseDate(d.deliveryDate);
+    _deliveryDate = _parseDate(d.deliveryDate.isNotEmpty ? d.deliveryDate : d.bookingDateTime);
     _dropAddress = d.droppingLocation;
   }
 

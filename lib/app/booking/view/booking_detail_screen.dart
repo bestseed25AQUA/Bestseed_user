@@ -737,12 +737,9 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             _infoRow(
               Icons.calendar_today_rounded,
               "Delivery Date",
-              // Show the VENDOR/admin-set expected delivery (delivery_datetime)
-              // first, so the customer sees it as soon as the vendor updates it.
-              // Fall back to the farmer's preferred delivery date if not set yet.
-              data.bookingDateTime.isNotEmpty
-                  ? data.bookingDateTime.split(' ').first
-                  : (data.deliveryDate.isNotEmpty ? data.deliveryDate : '-'),
+              data.deliveryDate.isNotEmpty
+                  ? data.deliveryDate.split(' ').first
+                  : (data.bookingDateTime.isNotEmpty ? data.bookingDateTime.split(' ').first : '-'),
             ),
             _infoDivider(),
             _infoRow(
