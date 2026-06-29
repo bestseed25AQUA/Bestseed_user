@@ -1060,7 +1060,7 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                           ],
                         ),
                       ),
-                      if (data.deliveryDatetime.isNotEmpty)
+                      if (data.deliveryDatetime.isNotEmpty || data.deliveryDate.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
@@ -1075,7 +1075,9 @@ class _MyBookingScreenState extends State<MyBookingScreen> {
                                   size: 12, color: Colors.grey.shade600),
                               const SizedBox(width: 4),
                               Text(
-                                data.deliveryDatetime,
+                                data.deliveryDatetime.isNotEmpty
+                                    ? data.deliveryDatetime
+                                    : data.deliveryDate,
                                 style: GoogleFonts.roboto(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,

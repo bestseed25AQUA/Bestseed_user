@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -6,6 +8,7 @@ import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
+import 'package:seedsuser/app/utils/video_thumbnail_cache.dart';
 
 class HatcheryWidget extends StatelessWidget {
   final VoidCallback onViewAllTap;
@@ -213,49 +216,9 @@ class HatcheryCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                       child: Hero(
                         tag: 'HatcheryCard$id$index',
-                        child: CachedNetworkImage(
-                          imageUrl: resolvedImagePath,
-                          httpHeaders: const {'Accept': 'image/*,*/*'},
-                          width: double.infinity,
+                        child: _HatcheryCardMedia(
+                          url: resolvedImagePath,
                           height: imageHeight,
-                          fit: BoxFit.cover,
-                          fadeInDuration: const Duration(milliseconds: 200),
-                          placeholder: (_, __) => SizedBox(
-                            height: imageHeight,
-                            child: CustomShimmer(),
-                          ),
-                          errorWidget: (_, __, ___) {
-                            final fallbackPath =
-                                resolvedImagePath.contains('category_media')
-                                ? resolvedImagePath.replaceFirst(
-                                    'category_media',
-                                    'hatcheries',
-                                  )
-                                : resolvedImagePath;
-
-                            if (fallbackPath == resolvedImagePath) {
-                              return SizedBox(
-                                height: imageHeight,
-                                child: CustomShimmer(),
-                              );
-                            }
-
-                            return CachedNetworkImage(
-                              imageUrl: fallbackPath,
-                              width: double.infinity,
-                              height: imageHeight,
-                              fit: BoxFit.cover,
-                              fadeInDuration: const Duration(milliseconds: 200),
-                              placeholder: (_, __) => SizedBox(
-                                height: imageHeight,
-                                child: CustomShimmer(),
-                              ),
-                              errorWidget: (_, __, ___) => SizedBox(
-                                height: imageHeight,
-                                child: CustomShimmer(),
-                              ),
-                            );
-                          },
                         ),
                       ),
                     ),
@@ -448,6 +411,129 @@ class _AnimatedViewAllState extends State<_AnimatedViewAll>
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Card thumbnail that handles BOTH images and videos. Hatchery media can be a
+/// video (.mp4) — CachedNetworkImage can't render those, so for videos we show
+/// a generated poster frame (via VideoThumbnailCache) with a small play badge.
+class _HatcheryCardMedia extends StatefulWidget {
+  final String url;
+  final double height;
+  const _HatcheryCardMedia({required this.url, required this.height});
+
+  @override
+  State<_HatcheryCardMedia> createState() => _HatcheryCardMediaState();
+}
+
+class _HatcheryCardMediaState extends State<_HatcheryCardMedia> {
+  File? _thumb;
+  bool _loadingThumb = false;
+
+  bool get _isVideo {
+    final u = widget.url.toLowerCase();
+    return u.endsWith('.mp4') ||
+        u.endsWith('.mov') ||
+        u.endsWith('.m3u8') ||
+        u.endsWith('.wmv') ||
+        u.endsWith('.flv') ||
+        u.endsWith('.mkv') ||
+        u.endsWith('.webm');
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isVideo) _loadThumb();
+  }
+
+  @override
+  void didUpdateWidget(covariant _HatcheryCardMedia oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      _thumb = null;
+      if (_isVideo) _loadThumb();
+    }
+  }
+
+  Future<void> _loadThumb() async {
+    if (widget.url.isEmpty) return;
+    setState(() => _loadingThumb = true);
+    final f = await VideoThumbnailCache.instance.get(
+      widget.url,
+      onUpdated: (fresh) {
+        if (mounted) setState(() => _thumb = fresh);
+      },
+    );
+    if (mounted) {
+      setState(() {
+        _thumb = f;
+        _loadingThumb = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isVideo) {
+      if (_thumb != null) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.file(
+              _thumb!,
+              width: double.infinity,
+              height: widget.height,
+              fit: BoxFit.cover,
+            ),
+            const Center(
+              child: Icon(Icons.play_circle_fill,
+                  color: Colors.white70, size: 34),
+            ),
+          ],
+        );
+      }
+      // Generating poster (or it failed) — keep a tappable video look.
+      return SizedBox(
+        height: widget.height,
+        child: _loadingThumb
+            ? CustomShimmer()
+            : Container(
+                color: Colors.black12,
+                child: const Center(
+                  child: Icon(Icons.play_circle_fill,
+                      color: Colors.white70, size: 34),
+                ),
+              ),
+      );
+    }
+
+    // Plain image.
+    return CachedNetworkImage(
+      imageUrl: widget.url,
+      httpHeaders: const {'Accept': 'image/*,*/*'},
+      width: double.infinity,
+      height: widget.height,
+      fit: BoxFit.cover,
+      fadeInDuration: const Duration(milliseconds: 200),
+      placeholder: (_, __) => SizedBox(height: widget.height, child: CustomShimmer()),
+      errorWidget: (_, __, ___) {
+        final fallback = widget.url.contains('category_media')
+            ? widget.url.replaceFirst('category_media', 'hatcheries')
+            : widget.url;
+        if (fallback == widget.url) {
+          return SizedBox(height: widget.height, child: CustomShimmer());
+        }
+        return CachedNetworkImage(
+          imageUrl: fallback,
+          width: double.infinity,
+          height: widget.height,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => SizedBox(height: widget.height, child: CustomShimmer()),
+          errorWidget: (_, __, ___) => SizedBox(height: widget.height, child: CustomShimmer()),
+        );
+      },
     );
   }
 }

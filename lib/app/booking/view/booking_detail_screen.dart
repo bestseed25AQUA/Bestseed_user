@@ -4,6 +4,7 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/model/booking_detail_model.dart';
+import 'package:seedsuser/app/booking/view/edit_booking_sheet.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_best_seed_background.dart';
 import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
@@ -96,6 +97,30 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         ),
         iconTheme: const IconThemeData(color: Colors.black),
         actions: [
+          // Edit is only offered while the booking is still Pending — once the
+          // vendor confirms it, the details are locked (backend enforces this too).
+          Obx(() {
+            final d = controller.bookingDetail.value;
+            if (d != null && isPending(d.statusValue)) {
+              return IconButton(
+                icon: const Icon(Icons.edit, color: AppColors.primary),
+                tooltip: 'Edit booking',
+                onPressed: () async {
+                  final updated = await showEditBookingSheet(
+                    context,
+                    data: d,
+                    controller: controller,
+                  );
+                  // Reload this booking after a successful edit so the screen
+                  // shows the new values right away.
+                  if (updated == true) {
+                    controller.fetchBookingDetail(widget.bookingId);
+                  }
+                },
+              );
+            }
+            return const SizedBox.shrink();
+          }),
           RefreshButton(
             onTap: () => controller.fetchBookingDetail(widget.bookingId),
           ),
@@ -712,13 +737,9 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             _infoRow(
               Icons.calendar_today_rounded,
               "Delivery Date",
-              // Farmer's preferred delivery date from the booking form. Fall back
-              // to the vendor-set delivery datetime if the farmer didn't set one.
               data.deliveryDate.isNotEmpty
-                  ? data.deliveryDate
-                  : (data.bookingDateTime.isNotEmpty
-                      ? data.bookingDateTime.split(' ').first
-                      : '-'),
+                  ? data.deliveryDate.split(' ').first
+                  : (data.bookingDateTime.isNotEmpty ? data.bookingDateTime.split(' ').first : '-'),
             ),
             _infoDivider(),
             _infoRow(
