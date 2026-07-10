@@ -377,7 +377,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Hatchery image
+                  /*
                   Container(
                     width: 52,
                     height: 52,
@@ -410,6 +410,7 @@ class _BroodStockScreenState extends State<BroodStockScreen> {
                           ),
                   ),
                   const SizedBox(width: 12),
+                  */
                   // Name + Location + Supplier
                   Expanded(
                     child: Column(

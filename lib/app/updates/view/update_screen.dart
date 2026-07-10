@@ -388,10 +388,24 @@ class _PostWidgetState extends State<PostWidget> {
                         ?.map((e) => e.toString())
                         .toList() ??
                     [];
+                // Use the backend-uploaded poster (post image) for video items
+                // so we don't extract a frame on-device.
+                final postThumb = widget.postData?.thumbnail ?? '';
+                final thumbnailUrls = <String>[
+                  for (int i = 0; i < urls.length; i++)
+                    (((i < types.length
+                                    ? types[i]
+                                    : (widget.postData?.mediaType ?? ''))
+                                .toLowerCase()) ==
+                            'video')
+                        ? postThumb
+                        : '',
+                ];
                 return MediaCarouselWidget(
                   title: widget.postData?.hatcheryName ?? '',
                   mediaUrls: urls,
                   mediaTypes: types,
+                  thumbnailUrls: thumbnailUrls,
                   mediaType: widget.postData?.mediaType ?? "",
                   height: 350,
                   borderRadius: 0,
