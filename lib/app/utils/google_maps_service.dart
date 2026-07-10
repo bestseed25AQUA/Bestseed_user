@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 
@@ -200,60 +201,55 @@ class GoogleMapsService {
   ///   > 200 km  → city / district (Nellore, Vijayawada, Rajahmundry…)
   ///
   /// Pass [routeDistanceKm] when you know the total route length.
+  // Cache resolved names by ~50 m grid so we don't re-hit the API (and re-risk
+  // a rate-limit failure) for points we've already named this session.
+  static final Map<String, String> _geocodeCache = {};
+
   static Future<String?> reverseGeocode(LatLng location,
       {double routeDistanceKm = 0}) async {
-    final String resultTypes;
-    final List<String> priority;
-
-    if (routeDistanceKm > 200) {
-      // Long / inter-city route — show well-known city names
-      resultTypes = 'locality|administrative_area_level_2';
-      priority = ['locality', 'administrative_area_level_2'];
-    } else if (routeDistanceKm > 30) {
-      // Medium route — prefer colony/sublocality but fall back to city
-      resultTypes = 'sublocality_level_1|sublocality|neighborhood|locality';
-      priority = ['sublocality_level_1', 'sublocality', 'neighborhood', 'locality'];
-    } else {
-      // Short / city route — neighborhood / colony names
-      resultTypes = 'sublocality_level_1|sublocality|neighborhood';
-      priority = ['sublocality_level_1', 'sublocality', 'neighborhood'];
-    }
+    final cacheKey =
+        '${location.latitude.toStringAsFixed(3)},${location.longitude.toStringAsFixed(3)}';
+    final cached = _geocodeCache[cacheKey];
+    if (cached != null) return cached;
 
     try {
-      final url =
-          'https://maps.googleapis.com/maps/api/geocode/json'
-          '?latlng=${location.latitude},${location.longitude}'
-          '&result_type=$resultTypes'
-          '&language=en'
-          '&key=$_apiKey';
+      // FREE native device geocoder (Android/iOS) — no Google Geocoding API
+      // key/cost.
+      final placemarks = await placemarkFromCoordinates(
+        location.latitude,
+        location.longitude,
+      );
+      if (placemarks.isEmpty) return null;
+      final p = placemarks.first;
 
-      final response = await _dio.get(url);
-      if (response.statusCode != 200) return null;
+      // Preferred granularity for this route length, then coarse fallbacks so a
+      // highway / rural point is never nameless (the "Stop 1 / Stop 2" symptom).
+      final List<String?> candidates;
+      if (routeDistanceKm > 200) {
+        candidates = [p.locality, p.subAdministrativeArea, p.administrativeArea];
+      } else if (routeDistanceKm > 30) {
+        candidates = [p.subLocality, p.locality, p.subAdministrativeArea];
+      } else {
+        candidates = [p.subLocality, p.locality, p.name];
+      }
+      candidates.addAll([
+        p.locality,
+        p.subAdministrativeArea,
+        p.administrativeArea,
+        p.name,
+        p.street,
+      ]);
 
-      final data = response.data;
-      if (data['status'] != 'OK') return null;
-
-      final results = data['results'] as List;
-      if (results.isEmpty) return null;
-
-      String? resolved;
-      outer:
-      for (final type in priority) {
-        for (final result in results) {
-          final components = result['address_components'] as List;
-          for (final component in components) {
-            final types = component['types'] as List;
-            if (types.contains(type)) {
-              resolved = component['long_name'] as String?;
-              break outer;
-            }
-          }
+      for (final c in candidates) {
+        final name = c?.trim() ?? '';
+        if (name.isNotEmpty) {
+          _geocodeCache[cacheKey] = name;
+          return name;
         }
       }
-
-      return resolved;
+      return null;
     } catch (e) {
-      debugPrint('Error reverse geocoding: $e');
+      debugPrint('Error reverse geocoding (native): $e');
       return null;
     }
   }

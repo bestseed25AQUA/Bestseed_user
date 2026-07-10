@@ -75,7 +75,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   // firing back-to-back reroutes (which would burn API quota and make
   // the blue line flash), while still letting a real deviation produce
   // a fresh blue route within about 1 poll interval.
-  static const Duration _rerouteCooldown = Duration(seconds: 15);
+  static const Duration _rerouteCooldown = Duration(seconds: 30);
   static const Duration _markerAnimationStepDuration = Duration(
     milliseconds: 40,
   );
@@ -85,11 +85,11 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   // of any parallel road, so legitimate lane drift / turn preparation
   // won't trigger it, but a genuine wrong-turn onto a different road
   // will. Mode-specific bumps happen in `_rerouteThreshold` below.
-  static const double _polylineRerouteThresholdMeters = 100;
+  static const double _polylineRerouteThresholdMeters = 180;
   // Two consecutive polls (≈14 s at 7 s interval) of sustained deviation
   // are enough to confirm it's a real wrong turn, not a GPS jitter.
   // Previously was 3 polls which added an extra 7 s of delay.
-  static const int _deviationsBeforeReroute = 2;
+  static const int _deviationsBeforeReroute = 1;
 
   late CameraPosition _initialPosition;
   late LatLng _currentVehiclePosition;
@@ -826,7 +826,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
               // GPS is far from _fullPolyline) and the green line keeps
               // growing alone until the cooldown expires or the user
               // back-navigates and re-enters the screen.
-              final bool structuralDeviation = deviation > 120;
+              final bool structuralDeviation = deviation > 300;
 
               if ((deviation > _rerouteThreshold && !tooSlowToReroute) || structuralDeviation) {
                 _consecutiveDeviations++;
@@ -854,7 +854,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
                 // the timeline flicker. Only reroute once the driver has
                 // actually moved (>50 m) from the last reroute point.
                 final alreadyReroutedHere = _lastRerouteLatLng != null &&
-                    _haversineMeters(_currentLatLng!, _lastRerouteLatLng!) < 50;
+                    _haversineMeters(_currentLatLng!, _lastRerouteLatLng!) < 120;
                 if (shouldReroute && !alreadyReroutedHere) {
                   _consecutiveDeviations = 0;
                   _lastRerouteLatLng = _currentLatLng;
@@ -2050,10 +2050,13 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   /// as the driver physically leaves the planned road, regardless of
   /// whether it's a narrow city lane or a highway exit.
   double get _rerouteThreshold {
+    // Raised to reduce how often the route recalculates — only a real
+    // wrong-road detour should reroute, not the apparent offset from the
+    // simplified route line cutting curves/interchanges.
     switch (_currentMode) {
-      case 2: return 150;  // highway (was 250)
-      case 1: return 120;  // suburban (was 150)
-      default: return _polylineRerouteThresholdMeters; // 100 m city (was the same)
+      case 2: return 300;  // highway (was 150)
+      case 1: return 220;  // suburban (was 120)
+      default: return _polylineRerouteThresholdMeters; // 180 m city (was 100)
     }
   }
 
