@@ -3,6 +3,7 @@ import 'package:seedsuser/app/booking/view/booking_detail_screen.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/controller/my_booking_controller.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
@@ -206,7 +207,7 @@ class BookingReviewContent extends StatelessWidget {
                             locationId: '3', // locationId,
                           );
                       if (isBookingId != null) {
-                        Get.back();
+                        safeBack();
                         showSuccess(context, isBookingId);
                       }
                     },
@@ -317,7 +318,7 @@ void showSuccess(BuildContext context, String bookingId) {
                   fontWeight: FontWeight.bold,
                 ),
                 onPressed: () async {
-                  Get.back();
+                  safeBack();
                   await Future.delayed(Duration(seconds: 1));
                   Get.to(BookingDetailScreen(bookingId: bookingId));
                 },
@@ -325,7 +326,7 @@ void showSuccess(BuildContext context, String bookingId) {
             ),
             TextButton(
               onPressed: () {
-                Get.back();
+                safeBack();
               },
               child: Text(
                 'Skip',

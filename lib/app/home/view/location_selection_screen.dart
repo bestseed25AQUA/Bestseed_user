@@ -3,6 +3,7 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
@@ -87,7 +88,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
       fullAddress: fullAddress,
     );
 
-    Get.back(result: city);
+    safeBack(result: city);
     setState(() => isLoading = false);
   }
 
@@ -226,7 +227,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                   );
 
                   setState(() => isCurrentLocationLoading = false);
-                  Get.back();
+                  safeBack();
                 },
                 child: Container(
                   decoration: BoxDecoration(
@@ -411,7 +412,7 @@ class _LocationSelectionScreenState extends State<LocationSelectionScreen> {
                           setState(() {
                             addLocationLoading = false;
                           });
-                          Get.back();
+                          safeBack();
                         },
                       ),
                     );

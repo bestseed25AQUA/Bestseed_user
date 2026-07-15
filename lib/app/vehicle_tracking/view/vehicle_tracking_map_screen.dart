@@ -34,6 +34,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -57,7 +58,7 @@ class VehicleTrackingMapScreen extends StatefulWidget {
 }
 
 class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   final VehicleTrackingController controller = Get.put(
     VehicleTrackingController(),
   );
@@ -75,11 +76,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   // firing back-to-back reroutes (which would burn API quota and make
   // the blue line flash), while still letting a real deviation produce
   // a fresh blue route within about 1 poll interval.
-  static const Duration _rerouteCooldown = Duration(seconds: 30);
-  static const Duration _markerAnimationStepDuration = Duration(
-    milliseconds: 40,
-  );
-  static const int _markerAnimationSteps = 25; // 25 × 40ms = 1 second
+  static const Duration _rerouteCooldown = Duration(seconds: 15);
   // Driver is considered "off route" the moment their perpendicular
   // distance to the blue polyline exceeds this. 100 m is below the width
   // of any parallel road, so legitimate lane drift / turn preparation
@@ -105,15 +102,30 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   /// ALWAYS injected here from the persistent `_homeToVehiclePoints` (which is
   /// only ever updated, never wiped), so no `_polylines` rebuild/refresh can
   /// make the green blink out — it stays visible as long as we have a path.
+  ///
+  /// Green tip is dynamically extended to `_currentLatLng` (the truck marker's
+  /// live rendered position) on every build. Without this, the polyline points
+  /// are only refreshed on data-poll (~2-3s) or road-path refetch, so the truck
+  /// marker visibly runs BEYOND the green tip between polls as DR advances.
+  /// Since setState from `_updateVehicleMarkerFrame` triggers rebuild ~20Hz,
+  /// the getter recomputes at that cadence and green stays glued to the truck.
   Set<Polyline> get _mapPolylines {
     final base = _polylines
         .where((p) => p.polylineId.value != 'home_to_vehicle')
         .toSet();
     if (_homeToVehiclePoints.length >= 2) {
+      List<LatLng> pts = _homeToVehiclePoints;
+      final live = _currentLatLng;
+      if (live != null) {
+        final gap = _haversineMeters(pts.last, live);
+        if (gap > 2 && gap < 500) {
+          pts = List<LatLng>.from(pts)..add(live);
+        }
+      }
       base.add(
         Polyline(
           polylineId: const PolylineId('home_to_vehicle'),
-          points: _homeToVehiclePoints,
+          points: pts,
           color: const Color(0xFF34A853),
           width: 5,
         ),
@@ -131,6 +143,14 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   // Follow mode: camera tracks vehicle with bearing rotation
   bool _isFollowingVehicle = true;
   bool _isProgrammaticCameraMove = false; // distinguishes user drag vs our animateCamera
+  // Fires from `moveCamera` in `_followCameraFrame`. `onCameraMoveStarted`
+  // is dispatched by the native map ASYNCHRONOUSLY after `moveCamera`
+  // returns, so the boolean flag flips back to false before the callback
+  // sees it and — wrongly — decides the driver panned. This timestamp
+  // survives the async gap: any `onCameraMoveStarted` firing within the
+  // window below is treated as our own move, not a user drag.
+  DateTime? _lastProgrammaticCamAt;
+  static const Duration _programmaticCamWindow = Duration(milliseconds: 250);
   static const double _followZoom = 16.5;
   static const double _followTilt = 45.0; // 3D perspective tilt
 
@@ -302,11 +322,129 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   // Refresh state
   DateTime _lastRefreshedAt = DateTime.now();
   bool _isRefreshing = false;
+  // Watchdog: if _refreshData hasn't successfully completed in this long, the
+  // periodic timer force-resets `_isRefreshing` and re-fires with
+  // `forceRouteRefresh: true`. Catches hung Dio calls / stuck flags so the
+  // tracking screen never silently freezes.
+  static const Duration _refreshWatchdog = Duration(minutes: 2);
+  // Count of polls since last full rebuild — used to force a rebuild every N
+  // polls even when the driver appears stationary (so blue/green never go stale
+  // between manual refreshes during slow city traffic).
+  int _pollsSinceFullRebuild = 0;
+  static const int _forceFullRebuildEveryNPolls = 8; // ~56s at 7s interval
   Timer? _timeAgoTimer;
   Timer? _autoRefreshTimer;
   Timer? _liveTrackingTimer;
-  Timer? _markerAnimationTimer;
   DateTime? _lastRouteRefreshAt;
+
+  // ─────────── Nav loop (Pool-Pal-Driver style continuous animation) ──────
+  //
+  // Replaces the old fixed-step Timer.periodic marker animation. Runs a
+  // vsync-driven frame callback (~60Hz) that:
+  //   1. Low-pass smooths heading + speed toward the latest GPS values.
+  //   2. Dead-reckons the visible position forward at (speed*dt) so the
+  //      marker keeps gliding between GPS polls instead of freezing.
+  //   3. Linearly blends toward each new GPS fix over an adaptive window.
+  //   4. Rewrites ONLY the vehicle Marker (via a fresh Set built from the
+  //      existing set minus the old vehicle + the new one). The cached
+  //      truck BitmapDescriptor is reused so the icon never re-uploads.
+  //
+  // Marker Set rebuilds are throttled to ~20Hz (50ms) to keep the platform
+  // channel from oversaturating, while the math runs every vsync so the
+  // motion always feels current on the next UI tick.
+  bool _navLoopActive = false;
+  int? _navFrameCallbackId;
+  Duration? _navLastFrameTime;
+  static const Duration _navMaxFrameDt = Duration(milliseconds: 100);
+  static const Duration _navMarkerRebuildInterval = Duration(milliseconds: 50);
+  DateTime? _navLastMarkerRebuildAt;
+
+  // ── Kalman filter state (matches Google Nav SDK's internal filter) ──
+  // Two independent 1-D filters (lat, lon) that fuse the GPS measurement
+  // noise (R = accuracy²) with process noise Q. Cleans jitter BEFORE it
+  // reaches DR/blend, so we don't need downstream snap/reject hacks.
+  //   Noisy fix (acc=50m → R=2500): K≈0.17 → barely moves.
+  //   Clean fix (acc= 5m → R=  25): K≈0.95 → fully trusted.
+  static const double _kfQ = 9.0;
+  double? _kfLat;
+  double? _kfLon;
+  double _kfP = 0.0;
+  DateTime? _kfLastAt;
+
+  // Latest (Kalman-filtered) raw GPS fix (fed by [_ingestGpsFix] from _refreshData).
+  double _fixSpeed = 0;      // m/s
+  double _fixHeading = 0;    // degrees, 0..360
+  DateTime? _lastFixAt;
+  // The actual last accepted fix position (distinct from `_currentLatLng`,
+  // which the nav loop updates to the DR/interpolated position every frame).
+  // Used by the green polyline so its tip anchors to where the driver
+  // ACTUALLY was reported to be — not to the DR-predicted position.
+  LatLng? _lastRawFixPos;
+
+  // Standstill hysteresis (Pool-Pal-Driver pattern). Prevents GPS jitter
+  // from making the marker creep while the driver is parked.
+  static const double _standstillEnterM = 8.0;
+  static const double _standstillExitM = 15.0;
+  bool _isStandstill = false;
+  LatLng? _frozenPos;
+
+  // Marker-bearing has its own tighter tau (visibly leads the road) —
+  // Pool-Pal's `_markerBearingTau = 0.25` vs the `_navHeadingTauSeconds`
+  // 0.35 that smooths the DR-motion heading.
+  static const double _markerBearingTauSeconds = 0.25;
+  double _markerRenderBearing = 0.0;
+
+
+  // Dead-reckoning state: the marker's rendered position advances forward
+  // at (_animSpeed * dt) along _animHeading between GPS fixes.
+  LatLng? _drPos;
+  bool _drInitialized = false;
+
+  // Linear blend from _drPos → new fix over _blendDuration when a fix lands.
+  LatLng? _blendToPos;
+  DateTime? _blendStartAt;
+  Duration _blendDuration = const Duration(milliseconds: 400);
+
+  // Smoothed values actually used for rendering.
+  double _animHeading = 0;   // low-pass filtered heading (degrees)
+  double _animSpeed = 0;     // low-pass filtered speed (m/s)
+  static const double _navHeadingTauSeconds = 0.35;
+  // 0.5 s tau (matches Pool-Pal-Driver). Longer tau made DR lag reality
+  // — at 8 m/s fix speed, animSpeed hovered at 5 m/s → marker glided too
+  // slowly → visible "slow animation". Speed cap upstream already
+  // prevents wild overshoot spikes without needing extra smoothing.
+  static const double _navSpeedTauSeconds = 0.5;
+
+  // Blend duration bounds. Reduced so the marker races to any fix that
+  // lands more than a few meters ahead — user wants fast catch-up on
+  // "GPS far in front", not a slow glide.
+  static const Duration _minBlendDur = Duration(milliseconds: 60);
+  static const Duration _maxBlendDur = Duration(milliseconds: 300);
+  static const Duration _largeErrorBlend = Duration(milliseconds: 100);
+  // Any fix >20 m ahead of DR is treated as "far in front" → 100ms snap.
+  static const double _largeErrorMeters = 20.0;
+  static const double _maxLagMeters = 8.0;
+
+  // ── Camera follow (Pool-Pal-Driver style continuous glide) ────────────
+  //
+  // The camera used to jump once per poll via `_animateCameraToVehicle`.
+  // With the vsync nav loop, the marker slides smoothly between polls —
+  // if the camera keeps jumping the effect is the marker sliding across
+  // a static viewport instead of the world scrolling under a fixed truck.
+  // Now the camera also runs every vsync: zoom/tilt exp-smooth toward
+  // mode-dependent targets, bearing exp-smooth toward the marker heading,
+  // moveCamera throttled to ~30 Hz so we don't oversaturate the platform
+  // channel.
+  double _navCamZoom = 16.5;
+  double _navCamTilt = 45.0;
+  double _navCamHeading = 0.0;
+  double _navCamZoomTarget = 16.5;
+  double _navCamTiltTarget = 45.0;
+  int? _lastCamFrameMicros;
+  int _camApplyCount = 0;
+  static const double _camZoomTau = 3.0;     // slow zoom transitions
+  static const double _camTiltTau = 2.5;     // slightly faster than zoom
+  static const double _camBearingTau = 0.35; // fast — follows turns immediately
 
   // Pulse animation for vehicle icon
   late AnimationController _pulseController;
@@ -315,6 +453,12 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   @override
   void initState() {
     super.initState();
+
+    // Observe app lifecycle so we can recover the live-tracking pipeline when
+    // iOS resumes the app after a long suspend. Without this, `Timer.periodic`
+    // can drift / stop firing after hours backgrounded, leaving the tracking
+    // screen visually frozen until the user kills and relaunches the app.
+    WidgetsBinding.instance.addObserver(this);
 
     // Setup pulse animation for vehicle icon
     _pulseController = AnimationController(
@@ -341,21 +485,49 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     // the timer guarantees init runs to completion before the first poll.
     _initializeMap().whenComplete(() {
       if (!mounted) return;
-      _liveTrackingTimer = Timer.periodic(_liveTrackingPollInterval, (_) {
-        if (!mounted || _isRefreshing) return;
-        // Stop polling if destination reached
-        final isDelivered = _trackingData?.isDelivered ?? false;
-        final atDest = _currentLatLng != null &&
-            _destinationLatLng != null &&
-            _haversineDistance(_currentLatLng!, _destinationLatLng!) < 50;
-        if (isDelivered || atDest) {
-          debugPrint('🔄 [REFRESH] Destination reached — stopping polling');
-          _liveTrackingTimer?.cancel();
-          return;
-        }
-        _refreshData().catchError((e) {
-          debugPrint('🔄 [REFRESH] Timer error: $e');
-        });
+      _startLivePolling();
+    });
+  }
+
+  /// Start (or restart) the live-tracking polling timer.
+  ///
+  /// Each tick: stop if delivered, run the watchdog over `_isRefreshing`, and
+  /// force a full rebuild every Nth tick so the blue/green polylines stay
+  /// fresh even when the driver appears stationary on a poll-by-poll basis.
+  /// Safe to call multiple times — cancels any existing timer first.
+  void _startLivePolling() {
+    _liveTrackingTimer?.cancel();
+    _liveTrackingTimer = Timer.periodic(_liveTrackingPollInterval, (_) {
+      if (!mounted) return;
+      final isDelivered = _trackingData?.isDelivered ?? false;
+      final atDest = _currentLatLng != null &&
+          _destinationLatLng != null &&
+          _haversineDistance(_currentLatLng!, _destinationLatLng!) < 50;
+      if (isDelivered || atDest) {
+        debugPrint('🔄 [REFRESH] Destination reached — stopping polling');
+        _liveTrackingTimer?.cancel();
+        return;
+      }
+      // Watchdog: if the previous refresh has been "in flight" longer than
+      // the watchdog window, the underlying Dio call almost certainly hung
+      // (network drop, server stall, etc.) — force-reset the flag so this
+      // tick can proceed instead of returning forever.
+      if (_isRefreshing &&
+          DateTime.now().difference(_lastRefreshedAt) > _refreshWatchdog) {
+        debugPrint('🔄 [REFRESH] Watchdog: previous refresh stuck for '
+            '${DateTime.now().difference(_lastRefreshedAt).inSeconds}s — '
+            'force-resetting and retrying');
+        _isRefreshing = false;
+      }
+      if (_isRefreshing) return;
+      // Force a full rebuild every N polls, even if driver looks stationary
+      // — keeps blue/green polylines fresh during slow city traffic where
+      // each individual poll's movement is below the 2 m gate.
+      _pollsSinceFullRebuild++;
+      final forceRebuild = _pollsSinceFullRebuild >= _forceFullRebuildEveryNPolls;
+      if (forceRebuild) _pollsSinceFullRebuild = 0;
+      _refreshData(forceRouteRefresh: forceRebuild).catchError((e) {
+        debugPrint('🔄 [REFRESH] Timer error: $e');
       });
     });
   }
@@ -450,6 +622,26 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           // Always update position so marker and ETA reflect latest
           _currentVehiclePosition = newPos;
           _currentLatLng = newPos;
+
+          // Feed the fix into the vsync-driven nav loop. The loop handles
+          // dead-reckoning between polls + a linear blend to this new
+          // position, so the marker glides smoothly regardless of how far
+          // apart the polls are. Replaces the old step-timer animation +
+          // safety-snap that ran per poll.
+          _ingestGpsFix(
+            newPos,
+            speedMps: (newData.driverLocation.speedKmh) / 3.6,
+            heading: null,
+          );
+
+          // Camera:
+          //   - Follow mode ON  → nothing here; the vsync nav loop's
+          //     `_followCameraFrame` glides the camera every frame.
+          //   - Follow mode OFF → viewport-edge safety net so the marker
+          //     never silently drifts off-screen.
+          if (driverMoved && !_isFollowingVehicle) {
+            _ensureVehicleVisible();
+          }
 
           // Update speed estimate for dynamic thresholds (city vs highway)
           _updateSpeedEstimate(newPos);
@@ -754,34 +946,13 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           //   - Backend is rejecting spike updates so the old anchor stays
           //   - Driver is crawling in traffic (<30 m/min)
           //
-          // Previously `!is_moving` short-circuited the position update and
-          // snapped the marker back to `animateFrom`, which froze the marker
-          // at its last-rendered position even while new GPS was arriving.
-          // Now we let `moveDist >= _breadcrumbMinDistance` be the primary
-          // gate — if the GPS actually moved farther than the noise floor,
-          // animate to the new position regardless of what the flag says.
-          final animateFrom = _lastVehicleMarkerLatLng ?? previousVehiclePosition;
-          if (animateFrom != null && _currentLatLng != null) {
-            final moveDist = _haversineMeters(animateFrom, _currentLatLng!);
-            // Marker has its own (much smaller) threshold than the breadcrumb-
-            // commit gate. During a reroute / slow turn the driver may move
-            // only ~10–25 m per poll — that's below `_breadcrumbMinDistance`
-            // so we shouldn't ADD a breadcrumb point, but the truck is still
-            // physically moving and the marker has to follow it. Anything
-            // ≥5 m is well above GPS noise and worth animating.
-            if (moveDist >= 5) {
-              _animateVehicleMarker(animateFrom, _currentLatLng!);
-            } else {
-              // Sub-noise-floor move — likely a parked truck drifting.
-              // Keep `_currentLatLng` at the new (reported) position so
-              // any downstream consumer sees fresh data, but skip the
-              // animation so the marker doesn't jitter in place.
-              // (_refreshCompletedPolylineFromTimeline rebuilds green + blue.)
-              _refreshCompletedPolylineFromTimeline();
-            }
-          } else {
+          // Marker motion is now driven by the vsync nav loop
+          // (see `_advanceNav`). All we need per poll is to keep the
+          // polylines in sync — the loop already advanced the visible
+          // vehicle position to the fresh GPS via `_ingestGpsFix` above.
+          _refreshCompletedPolylineFromTimeline();
+          if (_lastVehicleMarkerLatLng == null) {
             _buildMarkers();
-            _refreshCompletedPolylineFromTimeline();
           }
 
           // Update driver location timestamp for route start recalculation
@@ -909,7 +1080,6 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
 
   Future<void> _setupMarkersAndPolylines() async {
     if (_trackingData == null) return;
-    _markerAnimationTimer?.cancel();
 
     final pickup = _trackingData!.pickup;
     final driverLoc = _trackingData!.driverLocation;
@@ -1137,7 +1307,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
                     points: bluePoints,
                     color: const Color(0xFF1A73E8),
                     width: 5,
-                    patterns: [PatternItem.dot, PatternItem.gap(10)],
+                    patterns: [PatternItem.dash(20), PatternItem.gap(10)],
                   ),
                 );
               }
@@ -1150,7 +1320,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
                 points: remainingPointsRoute,
                 color: const Color(0xFF1A73E8),
                 width: 5,
-                patterns: [PatternItem.dot, PatternItem.gap(10)],
+                patterns: [PatternItem.dash(20), PatternItem.gap(10)],
               ),
             );
           }
@@ -1165,7 +1335,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
               points: _fullPolyline,
               color: const Color(0xFF1A73E8),
               width: 5,
-              patterns: [PatternItem.dot, PatternItem.gap(10)],
+              patterns: [PatternItem.dash(20), PatternItem.gap(10)],
             ),
           );
         }
@@ -1204,7 +1374,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
               points: pts,
               color: const Color(0xFF1A73E8),
               width: 5,
-              patterns: [PatternItem.dot, PatternItem.gap(10)],
+              patterns: [PatternItem.dash(20), PatternItem.gap(10)],
             ),
           );
         }
@@ -1757,7 +1927,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           points: reroutedBlue,
           color: const Color(0xFF1A73E8),
           width: 5,
-          patterns: [PatternItem.dot, PatternItem.gap(10)],
+          patterns: [PatternItem.dash(20), PatternItem.gap(10)],
         ),
       );
     }
@@ -1830,75 +2000,593 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     // geometries that swapped on each poll. Removed.
   }
 
-  // Cubic ease-in-out for smooth acceleration/deceleration
-  double _easeInOutCubic(double t) {
-    return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) * (-2 * t + 2) * (-2 * t + 2)) / 2;
+  // ─────────────────────── Nav loop math + lifecycle ──────────────────────
+
+  /// Signed shortest angular difference in [-180, 180]. Used for
+  /// wrap-safe heading blending (0° and 359° are 1° apart, not 359°).
+  static double _shortestAngleDiff(double fromDeg, double toDeg) {
+    double d = (toDeg - fromDeg) % 360.0;
+    if (d > 180) d -= 360;
+    if (d < -180) d += 360;
+    return d;
   }
 
-  void _animateVehicleMarker(LatLng from, LatLng to) {
-    _markerAnimationTimer?.cancel();
-    _lastVehicleMarkerLatLng = from;
+  /// 1-D Kalman filter (independent lat + lon) that fuses reported GPS
+  /// accuracy with process noise Q. Prevents noisy fixes from propagating
+  /// into the DR/blend pipeline as jitter → all our downstream logic can
+  /// trust the filtered `_fixPos` as a clean signal.
+  LatLng _kalmanFilter(double rawLat, double rawLon, double accuracy) {
+    final now = DateTime.now();
+    final dtSeconds = _kfLastAt != null
+        ? now.difference(_kfLastAt!).inMilliseconds / 1000.0
+        : 0.0;
+    _kfLastAt = now;
 
-    if (_haversineMeters(from, to) < 2) {
-      _buildMarkers();
-      if (mounted) setState(() {});
+    if (_kfLat == null) {
+      _kfLat = rawLat;
+      _kfLon = rawLon;
+      _kfP = accuracy * accuracy;
+      return LatLng(rawLat, rawLon);
+    }
+
+    final clamped = accuracy.clamp(3.0, 200.0);
+    final R = clamped * clamped;
+
+    _kfP = _kfP + _kfQ * dtSeconds.clamp(0.0, 5.0);
+    final K = _kfP / (_kfP + R);
+    _kfLat = _kfLat! + K * (rawLat - _kfLat!);
+    _kfLon = _kfLon! + K * (rawLon - _kfLon!);
+    _kfP = (1.0 - K) * _kfP;
+
+    return LatLng(_kfLat!, _kfLon!);
+  }
+
+  /// Offset a LatLng by [distanceM] meters along [bearingDeg] using the
+  /// spherical law of cosines. Accurate enough for the tiny per-frame
+  /// increments the nav loop produces.
+  static LatLng _offsetLatLng(LatLng from, double distanceM, double bearingDeg) {
+    const double earthR = 6371000.0;
+    final br = bearingDeg * pi / 180.0;
+    final dOverR = distanceM / earthR;
+    final lat1 = from.latitude * pi / 180.0;
+    final lon1 = from.longitude * pi / 180.0;
+    final lat2 = asin(sin(lat1) * cos(dOverR) +
+        cos(lat1) * sin(dOverR) * cos(br));
+    final lon2 = lon1 +
+        atan2(sin(br) * sin(dOverR) * cos(lat1),
+            cos(dOverR) - sin(lat1) * sin(lat2));
+    return LatLng(lat2 * 180.0 / pi, lon2 * 180.0 / pi);
+  }
+
+  /// Adaptive blend duration from a new GPS fix.
+  ///   - Large-error fixes correct fast (150 ms) so the marker never lies.
+  ///   - Otherwise scale with fix cadence (frequent fixes → short blend).
+  ///   - Cap by [_maxLagMeters] so the marker never lags by more than a
+  ///     few meters at highway speed.
+  static Duration _computeBlendDuration({
+    required double errorMeters,
+    required Duration? fixInterval,
+    required double speedMps,
+  }) {
+    if (errorMeters > _largeErrorMeters) return _largeErrorBlend;
+    double targetMs;
+    if (fixInterval == null) {
+      targetMs = 200.0;
+    } else {
+      final intervalMs = fixInterval.inMilliseconds.toDouble();
+      if (intervalMs <= 1000) {
+        targetMs = 100.0;
+      } else if (intervalMs >= 3000) {
+        targetMs = 200.0;
+      } else {
+        final t = (intervalMs - 1000.0) / 2000.0;
+        targetMs = 100.0 + t * (200.0 - 100.0);
+      }
+      final ceilingMs = intervalMs * 0.9;
+      if (targetMs > ceilingMs) targetMs = ceilingMs;
+    }
+    if (speedMps > 0.5) {
+      final lagCeilingMs = (_maxLagMeters / speedMps) * 1000.0;
+      if (targetMs > lagCeilingMs) targetMs = lagCeilingMs;
+    }
+    final floorMs = _minBlendDur.inMilliseconds.toDouble();
+    final capMs = _maxBlendDur.inMilliseconds.toDouble();
+    if (targetMs < floorMs) targetMs = floorMs;
+    if (targetMs > capMs) targetMs = capMs;
+    return Duration(milliseconds: targetMs.round());
+  }
+
+  /// Start the vsync-driven nav loop. Idempotent.
+  void _startNavLoop() {
+    if (_navLoopActive) return;
+    _navLoopActive = true;
+    _navLastFrameTime = null;
+    _scheduleNavFrame();
+  }
+
+  /// Stop the nav loop and cancel any pending frame callback.
+  void _stopNavLoop() {
+    _navLoopActive = false;
+    if (_navFrameCallbackId != null) {
+      SchedulerBinding.instance
+          .cancelFrameCallbackWithId(_navFrameCallbackId!);
+      _navFrameCallbackId = null;
+    }
+    _navLastFrameTime = null;
+  }
+
+  /// Request the next vsync tick. `scheduleFrameCallback` is one-shot AND
+  /// only fires when the framework decides to draw a frame — so we also
+  /// call `scheduleFrame()` to guarantee a frame gets drawn even when
+  /// nothing else dirtied the tree.
+  void _scheduleNavFrame() {
+    if (!_navLoopActive) return;
+    _navFrameCallbackId =
+        SchedulerBinding.instance.scheduleFrameCallback(_onNavFrame);
+    SchedulerBinding.instance.scheduleFrame();
+  }
+
+  /// Fires every vsync while [_navLoopActive]. Advances DR + blend and
+  /// reschedules itself.
+  void _onNavFrame(Duration frameTime) {
+    _navFrameCallbackId = null;
+    if (!_navLoopActive) return;
+
+    double dt;
+    if (_navLastFrameTime == null) {
+      dt = 0;
+    } else {
+      final raw = frameTime - _navLastFrameTime!;
+      final clamped = raw > _navMaxFrameDt ? _navMaxFrameDt : raw;
+      dt = clamped.inMicroseconds / Duration.microsecondsPerSecond.toDouble();
+    }
+    _navLastFrameTime = frameTime;
+
+    if (_drInitialized) {
+      try {
+        _advanceNav(dt);
+      } catch (e, st) {
+        debugPrint('⚠️ nav loop _advanceNav error: $e\n$st');
+      }
+    }
+    _scheduleNavFrame();
+  }
+
+  int _advanceNavFrameCount = 0;
+
+  /// Per-frame math: blend heading/speed toward the raw fix, dead-reckon
+  /// forward, linearly interpolate toward the blend target, and push the
+  /// resulting position into the vehicle marker via [_updateVehicleMarkerFrame].
+  void _advanceNav(double dt) {
+    _advanceNavFrameCount++;
+    // Print roughly once/sec (60 frames) so we can see the loop is alive
+    // and what values it's producing without spamming.
+    if (_advanceNavFrameCount % 60 == 1) {
+      final drStr = _drPos == null
+          ? "null"
+          : "(${_drPos!.latitude.toStringAsFixed(5)},${_drPos!.longitude.toStringAsFixed(5)})";
+      debugPrint('🚛 [NAV] frame #$_advanceNavFrameCount dr=$drStr animSpeed=${_animSpeed.toStringAsFixed(1)}m/s animHdg=${_animHeading.toStringAsFixed(0)}° blend=${_blendToPos != null}');
+    }
+    // 1) Heading + speed low-pass filters (exponential smoothing).
+    if (dt > 0) {
+      final headingAlpha = 1.0 - exp(-dt / _navHeadingTauSeconds);
+      final headingDiff = _shortestAngleDiff(_animHeading, _fixHeading);
+      _animHeading = (_animHeading + headingDiff * headingAlpha) % 360.0;
+      if (_animHeading < 0) _animHeading += 360.0;
+      final speedAlpha = 1.0 - exp(-dt / _navSpeedTauSeconds);
+      _animSpeed = _animSpeed + (_fixSpeed - _animSpeed) * speedAlpha;
+    }
+
+    // 2) Dead reckoning: advance _drPos forward at speed*dt along heading.
+    //    Below 0.3 m/s (~1 km/h) we treat the vehicle as stopped so GPS
+    //    jitter can't make it creep while parked. Pool-Pal-Driver does NOT
+    //    cap DR — the Kalman filter upstream keeps the fix stream clean,
+    //    so DR only overshoots on legitimate driver-deceleration and the
+    //    linear blend catches up gracefully on the next fix.
+    if (_animSpeed > 0.3 && dt > 0 && _drPos != null) {
+      _drPos = _offsetLatLng(_drPos!, _animSpeed * dt, _animHeading);
+    }
+
+    // 3) Linear blend from _drPos toward the latest GPS fix. Pure linear
+    //    (no easing) — physical motion between fixes is already linear,
+    //    ease curves cause rubber-banding at steady cadence.
+    LatLng rendered = _drPos ?? _blendToPos ?? _fixPosFallback();
+    if (_blendToPos != null && _blendStartAt != null && _drPos != null) {
+      final elapsed = DateTime.now().difference(_blendStartAt!);
+      final t = (elapsed.inMicroseconds /
+              _blendDuration.inMicroseconds.toDouble())
+          .clamp(0.0, 1.0);
+      rendered = LatLng(
+        _drPos!.latitude +
+            (_blendToPos!.latitude - _drPos!.latitude) * t,
+        _drPos!.longitude +
+            (_blendToPos!.longitude - _drPos!.longitude) * t,
+      );
+      if (t >= 1.0) {
+        _drPos = _blendToPos;
+        _blendToPos = null;
+        _blendStartAt = null;
+      }
+    }
+
+    // 4) Marker position = SOFT-snap projection of DR onto the polyline.
+    //
+    //    Soft snap is pure geometric projection with NO gates — the full
+    //    `_snapToRoute` was rejecting when DR extrapolated off a road
+    //    curve (raw >25m from road → hold at `_lastAcceptedSnap`) and
+    //    that produced the stuck-marker + jumps pattern. Pure projection
+    //    is continuous per frame: as DR advances 0.1m at 60Hz, its
+    //    projection along the polyline also advances 0.1m → smooth.
+    //
+    //    We still call the full `_snapToRoute` for its side effects
+    //    (`_currentSegmentIndex` update, breadcrumb bookkeeping) so
+    //    downstream consumers keep working.
+    if (_fullPolyline.length >= 2) {
+      _snapToRoute(rendered); // side effect only
+    }
+    final snapped = _fullPolyline.length >= 2
+        ? _softSnapToRoute(rendered)
+        : rendered;
+
+    // 5) Icon bearing target = `_animHeading` (fix-to-fix bearing already
+    //    smoothed by `_navHeadingTauSeconds`). Both raw fixes are on the
+    //    road, so their delta bearing naturally aligns with the road at
+    //    the truck's location — no need to guess via `_currentSegmentIndex`
+    //    (which `_snapToRoute` gates with stability heuristics that leave
+    //    it stale, so `idx+2` lookahead points at a segment behind or
+    //    ahead of the truck's real position). Using `_animHeading` also
+    //    means the icon rotates immediately when the driver turns, rather
+    //    than after the snap index catches up.
+    final double bearingTarget = _animHeading;
+
+    // 6) Smooth _markerRenderBearing toward the target with its OWN
+    //    tighter tau (0.25 s vs 0.35 s for the DR heading). This makes
+    //    the marker icon visibly LEAD the map's bearing rotation through
+    //    curves — matches how Google Nav shows the car turning slightly
+    //    before the viewport catches up.
+    if (dt > 0) {
+      final alpha = 1.0 - exp(-dt / _markerBearingTauSeconds);
+      final diff = _shortestAngleDiff(_markerRenderBearing, bearingTarget);
+      _markerRenderBearing = (_markerRenderBearing + diff * alpha) % 360.0;
+      if (_markerRenderBearing < 0) _markerRenderBearing += 360.0;
+    } else {
+      _markerRenderBearing = bearingTarget;
+    }
+
+    // 7) Push into the vehicle marker (throttled) and keep the anchor +
+    //    live position fields in sync so downstream consumers see the
+    //    smoothed position/bearing.
+    _lastVehicleMarkerLatLng = snapped;
+    _currentLatLng = snapped;
+    _lastVehicleBearing = _markerRenderBearing;
+    _updateVehicleMarkerFrame(snapped, _markerRenderBearing);
+
+    // 8) Camera follow — glides with the truck every vsync so the world
+    //    scrolls under a stationary marker instead of the marker sliding
+    //    across a static viewport.
+    _followCameraFrame(snapped, _markerRenderBearing, dt);
+  }
+
+  int _followFrameDebugCount = 0;
+  int _followFrameSkipCount = 0;
+
+  /// Per-frame camera follow: exponential smoothing on zoom/tilt/bearing
+  /// toward mode-dependent targets, `moveCamera` throttled to ~30 Hz.
+  /// Skipped when the user has disabled follow (dragged the map) or
+  /// no controller is available for the currently visible map.
+  void _followCameraFrame(LatLng pos, double heading, double dt) {
+    if (!_isFollowingVehicle) {
+      _followFrameSkipCount++;
+      if (_followFrameSkipCount == 1 || _followFrameSkipCount % 300 == 0) {
+        debugPrint('📷 [CAM] skip: follow=false (skips=$_followFrameSkipCount)');
+      }
+      return;
+    }
+    final ctrl =
+        _isMapExpanded ? _expandedMapController : _smallMapController;
+    if (ctrl == null) {
+      _followFrameSkipCount++;
+      if (_followFrameSkipCount == 1 || _followFrameSkipCount % 300 == 0) {
+        debugPrint('📷 [CAM] skip: controller null (expanded=$_isMapExpanded, skips=$_followFrameSkipCount)');
+      }
+      return;
+    }
+    _followFrameDebugCount++;
+    if (_followFrameDebugCount == 1 || _followFrameDebugCount % 300 == 0) {
+      debugPrint('📷 [CAM] follow ok: frames=$_followFrameDebugCount pos=(${pos.latitude.toStringAsFixed(5)},${pos.longitude.toStringAsFixed(5)}) mode=$_currentMode');
+    }
+
+    // Mode-dependent camera targets — same tiers the one-shot
+    // `_animateCameraToVehicle` used to pick, now applied continuously.
+    switch (_currentMode) {
+      case 2: // highway — wide view
+        _navCamZoomTarget = 14.5;
+        _navCamTiltTarget = 45.0;
+        break;
+      case 1: // suburban
+        _navCamZoomTarget = 15.5;
+        _navCamTiltTarget = 45.0;
+        break;
+      default: // city — close
+        _navCamZoomTarget = _followZoom;
+        _navCamTiltTarget = _followTilt;
+    }
+
+    // Exponential smoothing.
+    if (dt > 0) {
+      final zoomAlpha = 1.0 - exp(-dt / _camZoomTau);
+      final tiltAlpha = 1.0 - exp(-dt / _camTiltTau);
+      final bearingAlpha = 1.0 - exp(-dt / _camBearingTau);
+      _navCamZoom += (_navCamZoomTarget - _navCamZoom) * zoomAlpha;
+      _navCamTilt += (_navCamTiltTarget - _navCamTilt) * tiltAlpha;
+      final hDiff = _shortestAngleDiff(_navCamHeading, heading);
+      _navCamHeading = (_navCamHeading + hDiff * bearingAlpha) % 360.0;
+      if (_navCamHeading < 0) _navCamHeading += 360.0;
+    } else {
+      _navCamHeading = heading;
+    }
+
+    // Throttle platform-channel calls to ~30 Hz. The math above still
+    // runs every vsync so parameters are always fresh.
+    _camApplyCount++;
+    if (_camApplyCount % 2 != 0) return;
+
+    // Stamp BEFORE moveCamera so onCameraMoveStarted (which fires async
+    // on the next platform tick) sees the fresh timestamp and skips its
+    // "user panned" branch.
+    _lastProgrammaticCamAt = DateTime.now();
+    try {
+      ctrl.moveCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: pos,
+            zoom: _navCamZoom,
+            bearing: _navCamHeading,
+            tilt: _navCamTilt,
+          ),
+        ),
+      );
+    } catch (_) {
+      // GoogleMap subtree torn down underneath us (e.g. expand toggle).
+      // The next onMapCreated will repopulate the controller.
+    }
+  }
+
+  LatLng _fixPosFallback() =>
+      _currentLatLng ?? _pickupLatLng ?? _defaultLocation;
+
+  /// Called from [_refreshData] whenever a new backend GPS fix arrives.
+  /// Kick-starts (or refreshes) the blend target so the nav loop glides
+  /// toward the new position instead of teleporting.
+  void _ingestGpsFix(LatLng newPos, {double? speedMps, double? heading, double accuracy = 30.0}) {
+    // 1) Kalman-smooth the raw fix. The clean output goes into DR/blend —
+    //    which means we DON'T need any downstream backward-jitter or snap
+    //    logic (Pool-Pal-Driver: Kalman upstream is the whole point).
+    final filteredPos = _kalmanFilter(newPos.latitude, newPos.longitude, accuracy);
+
+    // 2) Derive speed from fix-to-fix delta when the backend sends 0.
+    //    Cap at 30 m/s (108 km/h) so a stale/spurious first-fix speed
+    //    reading — e.g. the backend computing speed = huge_delta / tiny_dt
+    //    when the driver record has just been re-seated — can't set DR
+    //    running at 100+ km/h. City / delivery vehicles don't exceed this.
+    final now = DateTime.now();
+    double resolvedSpeed = (speedMps ?? 0).clamp(0.0, 30.0);
+    // Derive from RAW fix-to-fix delta, NOT _drPos → filteredPos. DR keeps
+    // advancing between polls; if the DR ends up near the new fix (because
+    // _animSpeed was tracking correctly last time), _drPos → filteredPos ≈ 0
+    // and the derived speed collapses to 0. That sets _fixSpeed = 0, which
+    // decays _animSpeed to 0 via exponential smoothing, so DR stops
+    // advancing — truck visibly crawls even though the sim/driver is at
+    // 30 km/h. Using the previous RAW fix keeps the derivation grounded in
+    // actual driver movement.
+    if (resolvedSpeed < 0.3 && _lastRawFixPos != null && _lastFixAt != null) {
+      final moved = _haversineMeters(_lastRawFixPos!, filteredPos);
+      final interval = now.difference(_lastFixAt!).inMilliseconds / 1000.0;
+      if (moved > 2 && interval > 0.1) {
+        resolvedSpeed = (moved / interval).clamp(0.0, 30.0);
+      }
+    }
+
+    // 3) Derive heading from FIX-to-FIX movement (previous raw fix → this
+    //    filtered fix). Pool-Pal-Driver deliberately uses the previous raw
+    //    fix here, NOT the DR position — DR moves every vsync and reports
+    //    a wildly different bearing every poll (which was making the truck
+    //    icon spin in place). The raw fix trail is the stable reference.
+    double resolvedHeading;
+    if (heading != null && heading > 0) {
+      resolvedHeading = heading;
+    } else if (_lastRawFixPos != null) {
+      final moved = _haversineMeters(_lastRawFixPos!, filteredPos);
+      if (moved > 2) {
+        resolvedHeading = _getBearing(_lastRawFixPos!, filteredPos);
+      } else {
+        resolvedHeading = _fixHeading;
+      }
+    } else {
+      resolvedHeading = _fixHeading;
+    }
+
+    // Heading micro-jitter suppression at low speed (Pool-Pal-Driver
+    // pattern): ignore sub-4° flicks when driving <5 m/s so the icon
+    // doesn't wobble on tiny GPS deltas. NOT capping large swings —
+    // Kalman already smooths noise upstream, and the driver's ACTUAL
+    // course change on first movement is usually >60° from the default
+    // 0° init (e.g. road exits pickup to the east). Capping those was
+    // pinning DR to the wrong direction and making the marker barely
+    // move.
+    const headingJitterCutoffSpeed = 5.0; // m/s
+    const headingJitterDegrees = 4.0;
+    if (resolvedSpeed < headingJitterCutoffSpeed) {
+      final delta = _shortestAngleDiff(_fixHeading, resolvedHeading).abs();
+      if (delta < headingJitterDegrees) {
+        resolvedHeading = _fixHeading;
+      }
+    }
+
+    debugPrint('🚛 [NAV] _ingestGpsFix pos=(${filteredPos.latitude.toStringAsFixed(5)},${filteredPos.longitude.toStringAsFixed(5)}) speed=${resolvedSpeed.toStringAsFixed(1)}m/s hdg=${resolvedHeading.toStringAsFixed(0)}° drInit=$_drInitialized loop=$_navLoopActive standstill=$_isStandstill');
+
+    _fixHeading = resolvedHeading;
+    _fixSpeed = resolvedSpeed;
+
+    // 4) Bootstrap DR on first fix.
+    if (!_drInitialized) {
+      _drPos = filteredPos;
+      _lastRawFixPos = filteredPos;
+      _animHeading = resolvedHeading;
+      _markerRenderBearing = resolvedHeading;
+      _animSpeed = _fixSpeed;
+      _drInitialized = true;
+      _lastFixAt = now;
+      _startNavLoop();
       return;
     }
 
-    // Calculate target bearing for smooth rotation
-    final startBearing = _lastVehicleBearing;
-    final endBearing = _getBearing(from, to);
+    // 5) Standstill hysteresis: freeze marker ONLY when the driver is
+    //    truly parked (reported speed <0.5 m/s AND fix-to-fix movement
+    //    small). Pool-Pal-Driver's 8m enter threshold was tuned for 1 Hz
+    //    GPS updates; at our 5-8 s poll cadence a car doing 2 m/s covers
+    //    10-15 m per poll — right at the 8m boundary — so a movement-only
+    //    check flip-flopped standstill on/off every poll and stopped the
+    //    marker from ever gliding. Speed gate fixes that.
+    final movedM = _haversineMeters(_drPos!, filteredPos);
+    if (resolvedSpeed < 0.5 && movedM < _standstillEnterM) {
+      _isStandstill = true;
+      _frozenPos = filteredPos;
+      _lastFixAt = now;
+      _lastRawFixPos = filteredPos;
+      return; // skip blend/DR update
+    }
+    if (_isStandstill) {
+      final frozenDist = _frozenPos == null
+          ? movedM
+          : _haversineMeters(_frozenPos!, filteredPos);
+      if (frozenDist < _standstillExitM && resolvedSpeed < 1.0) {
+        _lastFixAt = now;
+        _lastRawFixPos = filteredPos;
+        return; // still within hysteresis band
+      }
+      _isStandstill = false;
+      _frozenPos = null;
+    }
 
-    int step = 0;
-    _markerAnimationTimer = Timer.periodic(_markerAnimationStepDuration, (timer) {
-      step++;
-      final linearT = step / _markerAnimationSteps;
-      final easedT = _easeInOutCubic(linearT);
+    // 6) Backward-blend guard: if the new fix lands BEHIND `_drPos` along
+    //    the current heading, DR overshot. A blend to that fix would drag
+    //    the marker (and the green tip anchored to it) BACKWARD — the user's
+    //    reported "green going far and coming back". Instead we hold `_drPos`
+    //    where it is and dampen `_animSpeed` so DR stops predicting so far
+    //    ahead. No visible retreat; DR resumes forward once the real driver
+    //    passes it.
+    final headingRad = _animHeading * pi / 180.0;
+    final metersPerDegLat = 111320.0;
+    final metersPerDegLon =
+        111320.0 * cos(_drPos!.latitude * pi / 180.0);
+    final dx =
+        (filteredPos.longitude - _drPos!.longitude) * metersPerDegLon;
+    final dy =
+        (filteredPos.latitude - _drPos!.latitude) * metersPerDegLat;
+    final forwardMeters = dx * sin(headingRad) + dy * cos(headingRad);
+    if (forwardMeters < -2.0) {
+      _blendToPos = null;
+      _blendStartAt = null;
+      _animSpeed *= 0.5;
+      _lastFixAt = now;
+      _lastRawFixPos = filteredPos;
+      return;
+    }
 
-      // Smooth position interpolation with easing, snapped to route
-      final interpolated = LatLng(
-        from.latitude + (to.latitude - from.latitude) * easedT,
-        from.longitude + (to.longitude - from.longitude) * easedT,
-      );
-      _currentLatLng = _snapToRoute(interpolated);
+    // 7) Set up linear blend from current DR to the new (filtered) fix.
+    //    Pure linear — matches Google Nav SDK; ease curves cause rubber-banding.
+    _blendToPos = filteredPos;
+    _blendStartAt = now;
+    _blendDuration = _computeBlendDuration(
+      errorMeters: movedM,
+      fixInterval:
+          _lastFixAt != null ? now.difference(_lastFixAt!) : null,
+      speedMps: _fixSpeed,
+    );
+    _lastFixAt = now;
+    _lastRawFixPos = filteredPos;
+  }
 
-      // Smooth bearing interpolation (shortest rotation path)
-      double bearingDiff = endBearing - startBearing;
-      if (bearingDiff > 180) bearingDiff -= 360;
-      if (bearingDiff < -180) bearingDiff += 360;
-      _lastVehicleBearing = (startBearing + bearingDiff * easedT) % 360;
+  /// Surgically replace the vehicle Marker in the small + expanded map
+  /// sets without rebuilding pickups/destinations/waypoints. Throttled
+  /// to [_navMarkerRebuildInterval] so we don't oversaturate the
+  /// platform channel — math still runs every vsync so the position
+  /// we ship is always the freshest interpolation.
+  int _navMarkerFrameCount = 0;
+  void _updateVehicleMarkerFrame(LatLng pos, double rotation) {
+    if (!mounted) return;
+    if (_trackingData == null || !_isActiveDrop) {
+      if (_navMarkerFrameCount == 0) {
+        debugPrint('🚛 [NAV] marker skipped: trackingData=${_trackingData != null} active=$_isActiveDrop');
+      }
+      return;
+    }
 
-      _buildMarkers();
-      _lastVehicleMarkerLatLng = _currentLatLng;
-      // Keep the green (passed) and blue (upcoming) lines attached to the truck
-      // AS it animates so the upcoming line always starts FROM the vehicle.
-      // Throttled to a few times per second (not every frame) — re-sending a
-      // long polyline to the map 25×/sec janks on long routes.
-      if (step % 5 == 0) _buildGreenFromPolyline();
-      if (mounted) setState(() {});
+    final now = DateTime.now();
+    if (_navLastMarkerRebuildAt != null &&
+        now.difference(_navLastMarkerRebuildAt!) <
+            _navMarkerRebuildInterval) {
+      return;
+    }
+    _navLastMarkerRebuildAt = now;
 
-      if (step >= _markerAnimationSteps) {
-        timer.cancel();
-        _currentLatLng = _snapToRoute(to);
-        _lastVehicleBearing = endBearing;
-        _buildMarkers();
-        _lastVehicleMarkerLatLng = _currentLatLng;
-        // Rebuilds green + blue (both meet at the vehicle's final position).
-        _refreshCompletedPolylineFromTimeline();
+    final driverName = _trackingData!.driverLocation.name;
+    final smallIcon = _smallTruckMarker ??
+        BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+    final expandedIcon = _expandedTruckMarker ??
+        BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
 
-        // Follow mode: animate camera ONCE after marker animation completes.
-        // NOT on every step — that overwhelms tile loader and causes blank map.
-        if (_isFollowingVehicle) {
-          _animateCameraToVehicle();
-        } else {
-          // Edge-detection safety net: if the user disabled follow mode but
-          // the truck is about to leave the viewport, nudge the camera once
-          // so the marker can never silently drift off-screen.
-          _ensureVehicleVisible();
+    // Pool-Pal-Driver pattern: if a 'vehicle' marker already exists in
+    // the Set, REUSE it via `copyWith(positionParam:, rotationParam:)`.
+    // That reuses the underlying icon handle, so google_maps_flutter
+    // doesn't re-upload the bitmap to the native view each frame — which
+    // is the real cause of flicker. If none exists, construct fresh once.
+    Marker rebuild(Set<Marker> set, BitmapDescriptor icon) {
+      for (final m in set) {
+        if (m.markerId.value == 'vehicle') {
+          return m.copyWith(positionParam: pos, rotationParam: rotation);
         }
       }
+      return Marker(
+        markerId: const MarkerId('vehicle'),
+        position: pos,
+        icon: icon,
+        anchor: const Offset(0.5, 0.5),
+        rotation: rotation,
+        flat: true,
+        infoWindow: InfoWindow(title: 'Vehicle', snippet: driverName),
+      );
+    }
+
+    final smallVehicle = rebuild(_smallMapMarkers, smallIcon);
+    final expandedVehicle = rebuild(_expandedMapMarkers, expandedIcon);
+
+    _navMarkerFrameCount++;
+    if (_navMarkerFrameCount == 1 || _navMarkerFrameCount % 40 == 0) {
+      debugPrint('🚛 [NAV] marker setState #$_navMarkerFrameCount pos=(${pos.latitude.toStringAsFixed(5)},${pos.longitude.toStringAsFixed(5)}) smallSet=${_smallMapMarkers.length} expandedSet=${_expandedMapMarkers.length}');
+    }
+
+    setState(() {
+      _smallMapMarkers = {
+        for (final m in _smallMapMarkers)
+          if (m.markerId.value != 'vehicle') m,
+        smallVehicle,
+      };
+      _expandedMapMarkers = {
+        for (final m in _expandedMapMarkers)
+          if (m.markerId.value != 'vehicle') m,
+        expandedVehicle,
+      };
     });
   }
+
+  // [_animateVehicleMarker / _easeInOutCubic] removed — replaced by the
+  // vsync-driven continuous nav loop (see `_advanceNav`). The nav loop
+  // dead-reckons between polls and blends linearly toward each new fix,
+  // producing smooth motion regardless of poll cadence. Camera follow +
+  // ensureVisible are triggered directly from `_refreshData` after each
+  // successful ingest.
 
   /// Re-arm the auto-resume timer every time the user touches the map.
   /// After `_followAutoResumeDelay` of no further interaction, follow mode
@@ -2278,6 +2966,44 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   /// Only searches nearby segments (forward from current position) instead of
   /// the entire polyline. This prevents jumping backward or cutting across turns.
   /// Updates [_currentSegmentIndex] as the vehicle progresses.
+  /// Pure geometric projection of [pos] onto the planned polyline. No
+  /// quality/bearing/parallel-road gates — this is used for the MARKER's
+  /// continuous on-road glide, where the full `_snapToRoute` would hold
+  /// at `_lastAcceptedSnap` when DR extrapolates off a road curve and
+  /// cause the "stuck then jump" pattern.
+  ///
+  /// Uses a wide forward window (200 segments) starting a few behind
+  /// `_currentSegmentIndex` so if `_snapToRoute` rejects and stops
+  /// advancing that index, the marker can still catch up to a far-
+  /// forward projection. Also advances `_currentSegmentIndex` itself
+  /// when it finds a projection further ahead — this way the pipeline
+  /// self-heals when the gated snap gets stuck. Returns [pos] unchanged
+  /// if the polyline is too short.
+  LatLng _softSnapToRoute(LatLng pos) {
+    if (_fullPolyline.length < 2) return pos;
+    final searchStart =
+        (_currentSegmentIndex - 5).clamp(0, _fullPolyline.length - 2);
+    final searchEnd =
+        (_currentSegmentIndex + 200).clamp(1, _fullPolyline.length - 1);
+    double minDist = double.infinity;
+    LatLng best = pos;
+    int bestIndex = _currentSegmentIndex;
+    for (int i = searchStart; i < searchEnd; i++) {
+      final projected =
+          _projectOntoSegment(pos, _fullPolyline[i], _fullPolyline[i + 1]);
+      final d = _haversineMeters(pos, projected);
+      if (d < minDist) {
+        minDist = d;
+        best = projected;
+        bestIndex = i;
+      }
+    }
+    if (bestIndex > _currentSegmentIndex) {
+      _currentSegmentIndex = bestIndex;
+    }
+    return best;
+  }
+
   LatLng _snapToRoute(LatLng raw) {
     if (_fullPolyline.length < 2) return raw;
 
@@ -2625,13 +3351,21 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   List<LatLng> _greenRoadPath = [];
   int _greenBuiltForCount = -1; // breadcrumb count the road path was built for
   bool _greenFetching = false;
+  DateTime? _greenFetchingSince;
 
   // BLUE (upcoming) road route built FROM the vehicle through the pending
   // priority drops to the final destination — always starts at the vehicle.
   List<LatLng> _blueRoadPath = [];
-  LatLng? _blueBuiltForVehicle;
   int _blueBuiltForPending = -1;
   bool _blueFetching = false;
+  DateTime? _blueFetchingSince;
+
+  // Hard timeout on Directions API calls + watchdog window: if a fetch is
+  // "in flight" longer than this, the next call force-resets the flag and
+  // retries. Without this, a hung Dio socket leaves the line stuck at the
+  // last-built position forever (BLUE doesn't follow the truck, GREEN never
+  // grows). 15 s is well above normal Directions latency (~1-2 s).
+  static const Duration _directionsTimeout = Duration(seconds: 15);
 
   LatLng? _h2vFetchedHome;
   LatLng? _h2vFetchedVehicle;
@@ -2752,15 +3486,23 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     // it covers the driver's real points but follows the road (no straight
     // chords / zigzags, never the planned route).
     //
-    // We no longer slice the PLANNED `_fullPolyline` for the green.
+    // Anchor the green tip to the RENDERED marker position (`_currentLatLng`)
+    // so green always ENDS AT the truck. Previously we anchored to
+    // `_lastRawFixPos` (the freshest raw GPS ping) which caused green to
+    // visually run PAST the marker between polls — the raw fix advances
+    // ~25m per poll while the DR/blended marker glides toward it, so the
+    // green line extended to the fix location while the truck sat behind.
+    // Anchoring to the marker's rendered position keeps green attached to
+    // the truck at all times.
+    final LatLng? greenTipAnchor = _currentLatLng ?? _lastRawFixPos;
     final List<LatLng> greenPoints;
     if (_greenRoadPath.length >= 2) {
       greenPoints = List<LatLng>.from(_greenRoadPath);
-      // Keep the tip attached to the live vehicle between road-path refreshes
+      // Keep the tip attached to the last real fix between road-path refreshes
       // (small, sane bridge only).
-      if (_currentLatLng != null) {
-        final gap = _haversineMeters(greenPoints.last, _currentLatLng!);
-        if (gap > 5 && gap < 300) greenPoints.add(_currentLatLng!);
+      if (greenTipAnchor != null) {
+        final gap = _haversineMeters(greenPoints.last, greenTipAnchor);
+        if (gap > 5 && gap < 300) greenPoints.add(greenTipAnchor);
       }
     } else {
       // Fallback until the road path is ready: home connector + raw actual path.
@@ -2768,10 +3510,12 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       greenPoints = <LatLng>[...prepend];
       if (actualPath.isNotEmpty) {
         greenPoints.addAll(actualPath);
-        final gap = _haversineMeters(greenPoints.last, _currentLatLng!);
-        if (gap > 5 && gap < 300) greenPoints.add(_currentLatLng!);
-      } else if (greenPoints.isNotEmpty) {
-        greenPoints.add(_currentLatLng!);
+        if (greenTipAnchor != null) {
+          final gap = _haversineMeters(greenPoints.last, greenTipAnchor);
+          if (gap > 5 && gap < 300) greenPoints.add(greenTipAnchor);
+        }
+      } else if (greenPoints.isNotEmpty && greenTipAnchor != null) {
+        greenPoints.add(greenTipAnchor);
       }
     }
     final bluePoints = _buildBluePoints();
@@ -2814,7 +3558,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           points: bluePoints,
           color: const Color(0xFF1A73E8),
           width: 5,
-          patterns: [PatternItem.dot, PatternItem.gap(10)],
+          patterns: [PatternItem.dash(20), PatternItem.gap(10)],
         ),
       );
     }
@@ -2878,7 +3622,20 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   }
 
   Future<void> _refreshGreenRoadPath() async {
-    if (_greenFetching) return;
+    if (_greenFetching) {
+      // Watchdog: a previous fetch may have hung on a dead socket. Force-
+      // reset so this call can proceed.
+      if (_greenFetchingSince != null &&
+          DateTime.now().difference(_greenFetchingSince!) > _directionsTimeout) {
+        debugPrint('🟢 [GREEN] watchdog: previous fetch stuck '
+            '${DateTime.now().difference(_greenFetchingSince!).inSeconds}s — '
+            'force-resetting');
+        _greenFetching = false;
+        _greenFetchingSince = null;
+      } else {
+        return;
+      }
+    }
 
     // Source 1: backend already road-snapped the path → use directly.
     final snapped = _trackingPathPoints();
@@ -2925,12 +3682,13 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     final waypoints = _downsampleEvenly(middle, 10);
 
     _greenFetching = true;
+    _greenFetchingSince = DateTime.now();
     try {
       final road = await GoogleMapsService.getDirectionsHighRes(
         origin: origin,
         destination: destination,
         waypoints: waypoints.isEmpty ? null : waypoints,
-      );
+      ).timeout(_directionsTimeout);
       if (road.length >= 2) {
         _greenRoadPath = road;
         _greenBuiltForCount = crumbs.length;
@@ -2944,6 +3702,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       debugPrint('🟢 [GREEN] road path fetch error: $e');
     } finally {
       _greenFetching = false;
+      _greenFetchingSince = null;
     }
   }
 
@@ -2956,7 +3715,21 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   /// it threads the pending drops in priority order. Throttled: refetches only
   /// when the vehicle moves > 20 m or the pending-drop set changes.
   Future<void> _refreshBlueRoadPath() async {
-    if (_blueFetching) return;
+    if (_blueFetching) {
+      // Watchdog: a previous fetch may have hung on a dead socket. Force-
+      // reset so this call can proceed (otherwise BLUE stays anchored at the
+      // last vehicle position and the line lags behind the truck).
+      if (_blueFetchingSince != null &&
+          DateTime.now().difference(_blueFetchingSince!) > _directionsTimeout) {
+        debugPrint('🔵 [BLUE] watchdog: previous fetch stuck '
+            '${DateTime.now().difference(_blueFetchingSince!).inSeconds}s — '
+            'force-resetting');
+        _blueFetching = false;
+        _blueFetchingSince = null;
+      } else {
+        return;
+      }
+    }
     final vehicle = _currentLatLng;
     final dest = _destinationLatLng;
     if (vehicle == null || dest == null) return;
@@ -2973,24 +3746,36 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       wpLatLngs.add(p);
     }
 
-    // Throttle: skip if the vehicle barely moved and pending set is unchanged.
+    // Deviation-driven trigger — Directions API is only called when we
+    // ACTUALLY need a fresh route:
+    //   1. Blue polyline is empty (first-time fetch, or reset after resume).
+    //   2. Pending drops set changed (a stop was completed).
+    //   3. The driver deviated more than 100 m from the existing blue
+    //      polyline (i.e. genuinely off-route, needs a reroute).
+    //
+    // The old 20 m vehicle-moved throttle refetched every ~3 s at city
+    // speeds — that hit Directions API ~1200 times per hour per user.
+    // With this trigger, a driver following the route trips the API
+    // only on true deviations, not on normal progress along the route.
     if (_blueRoadPath.isNotEmpty &&
-        _blueBuiltForPending == wpLatLngs.length &&
-        _blueBuiltForVehicle != null &&
-        _haversineMeters(_blueBuiltForVehicle!, vehicle) < 20) {
-      return;
+        _blueBuiltForPending == wpLatLngs.length) {
+      final deviation = _minDistanceToPolyline(vehicle, _blueRoadPath);
+      if (deviation < 100.0) {
+        return; // still on route — no refetch needed
+      }
+      debugPrint('🔵 [BLUE] refetch (deviation ${deviation.toStringAsFixed(0)}m > 100m)');
     }
 
     _blueFetching = true;
+    _blueFetchingSince = DateTime.now();
     try {
       final road = await GoogleMapsService.getDirectionsHighRes(
         origin: vehicle,
         destination: dest,
         waypoints: wpLatLngs.isEmpty ? null : _downsampleEvenly(wpLatLngs, 10),
-      );
+      ).timeout(_directionsTimeout);
       if (road.length >= 2) {
         _blueRoadPath = road;
-        _blueBuiltForVehicle = vehicle;
         _blueBuiltForPending = wpLatLngs.length;
         if (mounted) {
           _rebuildMarkersForLineRefresh();
@@ -3004,6 +3789,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       debugPrint('🔵 [BLUE] road path fetch error: $e');
     } finally {
       _blueFetching = false;
+      _blueFetchingSince = null;
     }
   }
 
@@ -3642,8 +4428,18 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   Widget _buildExpandedMapView(double width, double height) {
     return Stack(
       children: [
-        // Full screen Google Map
-        GoogleMap(
+        // Full screen Google Map — wrapped in Listener so we can distinguish
+        // real user touches (onPointerDown) from our own moveCamera calls.
+        // See _followCameraFrame + the onCameraMoveStarted comment for the
+        // reason we can't rely on onCameraMoveStarted for this.
+        Listener(
+          onPointerDown: (_) {
+            if (_isFollowingVehicle) {
+              setState(() => _isFollowingVehicle = false);
+              _scheduleFollowAutoResume();
+            }
+          },
+          child: GoogleMap(
           mapType: MapType.normal,
           initialCameraPosition: _initialPosition,
           markers: _expandedMapMarkers,
@@ -3664,9 +4460,12 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           onCameraMoveStarted: () {
             // Only disable follow mode for USER gestures (drag/zoom/rotate),
             // not for our programmatic animateCamera calls.
-            if (_isFollowingVehicle && !_isProgrammaticCameraMove) {
-              setState(() => _isFollowingVehicle = false);
-            }
+            // Pool-Pal-Driver pattern: NEVER disable follow from
+            // onCameraMoveStarted. moveCamera fires every ~33 ms in the
+            // nav loop, so any timestamp guard here is unreliable — user
+            // pans and our own moves are indistinguishable. Follow-disable
+            // now happens exclusively via the Listener/onPointerDown on
+            // the map widget below.
             _scheduleFollowAutoResume();
           },
           onMapCreated: (GoogleMapController controller) {
@@ -3675,6 +4474,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
               _fitExpandedMapToAllMarkers();
             });
           },
+        ),
         ),
 
         // Loading indicator for route
@@ -3904,7 +4704,14 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   Widget _buildSmallMapSection(double width, double height) {
     return Stack(
       children: [
-        GoogleMap(
+        Listener(
+          onPointerDown: (_) {
+            if (_isFollowingVehicle) {
+              setState(() => _isFollowingVehicle = false);
+              _scheduleFollowAutoResume();
+            }
+          },
+          child: GoogleMap(
           mapType: MapType.normal,
           initialCameraPosition: _initialPosition,
           markers: _smallMapMarkers,
@@ -3919,11 +4726,11 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           tiltGesturesEnabled: true,
           padding: EdgeInsets.only(bottom: height * 0.15),
           onCameraMoveStarted: () {
-            // Only disable follow mode for USER gestures (drag/zoom/rotate),
-            // not for our programmatic animateCamera calls.
-            if (_isFollowingVehicle && !_isProgrammaticCameraMove) {
-              setState(() => _isFollowingVehicle = false);
-            }
+            // Pool-Pal-Driver pattern: NEVER disable follow from
+            // onCameraMoveStarted. moveCamera fires every ~33 ms in the
+            // nav loop, so any timestamp guard here is unreliable. Follow-
+            // disable happens exclusively via the Listener/onPointerDown
+            // wrapper above.
             _scheduleFollowAutoResume();
           },
           onMapCreated: (GoogleMapController controller) {
@@ -3932,6 +4739,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
               _fitSmallMapToAllMarkers();
             });
           },
+        ),
         ),
         if (_isLoadingRoute)
           Container(
@@ -4413,7 +5221,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         points: routePoints,
         color: const Color(0xFF1A73E8), // blue
         width: 5,
-        patterns: [PatternItem.dot, PatternItem.gap(10)],
+        patterns: [PatternItem.dash(20), PatternItem.gap(10)],
       ),
     );
   }
@@ -6423,12 +7231,30 @@ for (var stop in stops) {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state != AppLifecycleState.resumed) return;
+    if (!mounted) return;
+    // Coming back from background. On iOS, the polling Timer may have stalled
+    // during a long suspend — restart it so subsequent ticks fire reliably,
+    // and immediately force one refresh to catch up on whatever changed while
+    // we were away.
+    debugPrint('🔄 [LIFECYCLE] App resumed — restarting tracking pipeline');
+    _isRefreshing = false; // Drop any stuck "in-flight" flag from before suspend
+    _startLivePolling();
+    _refreshData(forceRouteRefresh: true).catchError((e) {
+      debugPrint('🔄 [LIFECYCLE] Resume refresh error: $e');
+    });
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopNavLoop();
     _pulseController.dispose();
     _timeAgoTimer?.cancel();
     _autoRefreshTimer?.cancel();
     _liveTrackingTimer?.cancel();
-    _markerAnimationTimer?.cancel();
     _followResumeTimer?.cancel();
     _smallMapController?.dispose();
     _expandedMapController?.dispose();

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:intl/intl.dart';
 import 'package:seedsuser/app/booking/model/booking_detail_model.dart';
 import 'package:seedsuser/app/common/app_color.dart';
@@ -240,7 +241,7 @@ class MyBookingController extends GetxController {
       CustomToast.error('Failed to Cancel');
     } finally {
       if (isDetailLoading.value) isDetailLoading(false);
-      Get.back();
+      safeBack();
     }
   }
 

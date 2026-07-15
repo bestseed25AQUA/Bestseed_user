@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import 'package:seedsuser/app/common/custom_toast.dart';
@@ -94,7 +95,7 @@ class VehicleController extends GetxController {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         // final result = json.decode(response.body);
-        Get.back();
+        safeBack();
 
         Get.defaultDialog(
           barrierDismissible: true,

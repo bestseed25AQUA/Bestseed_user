@@ -32,8 +32,12 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
 
   void _closeDropdown() {
     if (isOpen) {
-      _overlayEntry?.remove();
-      setState(() => isOpen = false);
+      if (_overlayEntry?.mounted ?? false) {
+        _overlayEntry!.remove();
+      }
+      _overlayEntry?.dispose();
+      _overlayEntry = null;
+      if (mounted) setState(() => isOpen = false);
     }
   }
 
@@ -141,8 +145,11 @@ class _CustomDropdownState<T> extends State<CustomDropdown<T>> {
   @override
   void dispose() {
     _scrollController.dispose();
-    _overlayEntry?.remove();
+    if (_overlayEntry?.mounted ?? false) {
+      _overlayEntry!.remove();
+    }
     _overlayEntry?.dispose();
+    _overlayEntry = null;
     super.dispose();
   }
 

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:http/http.dart' as http;
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/model/profile_model.dart';
@@ -82,7 +83,7 @@ class ProfileController extends GetxController {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         CustomToast.success("Profile updated successfully");
-        Get.back();
+        safeBack();
         await getProfile(); // refresh profile
       } else {
         CustomToast.error("Update failed  $respStr");

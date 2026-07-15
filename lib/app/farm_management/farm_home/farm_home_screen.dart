@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/farm_management/farm_home/notify_us_screen.dart';
@@ -116,7 +117,7 @@ class FarmHomeScreen extends StatelessWidget {
                       children: [
                         OutlinedButton(
                           onPressed: () {
-                            Get.back();
+                            safeBack();
                           },
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(
