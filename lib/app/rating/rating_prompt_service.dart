@@ -28,6 +28,13 @@ class RatingPromptService {
   static final RatingPromptService instance = RatingPromptService._();
 
   bool _isShowing = false;
+  // Show at most ONE rating prompt per app session. Without this, a user with a
+  // backlog of delivered-but-unrated bookings gets prompted again for the NEXT
+  // booking the moment they finish rating one (pending-rating just returns the
+  // next in the queue) — which reads as "the rating keeps popping up". Rating
+  // one per launch clears the backlog gradually without nagging. Reset on
+  // restart; the server + _handled set keep already-handled ones suppressed.
+  bool _promptedThisSession = false;
   final GetStorage _box = GetStorage();
   // Persisted across restarts so a booking the user already rated/dismissed is
   // never shown again on THIS device, even if the server call failed. The
@@ -68,6 +75,11 @@ class RatingPromptService {
   Future<void> checkPending() async {
     debugPrint('⭐[RATING] checkPending() called | _isShowing=$_isShowing');
     if (_isShowing) return;
+    // One rating prompt per app session — don't nag through a backlog.
+    if (_promptedThisSession) {
+      debugPrint('⭐[RATING] already prompted this session — skip');
+      return;
+    }
 
     final token = await AuthLocalStorage.getToken();
     if (token == null) {
@@ -120,6 +132,10 @@ class RatingPromptService {
     }
 
     _isShowing = true;
+    // Consume this session's single rating prompt the moment we commit to
+    // presenting, so no resume / repeated FCM re-triggers another one (for this
+    // or the next backlog booking) until the app is relaunched.
+    _promptedThisSession = true;
     debugPrint('⭐[RATING] _present: showing dialog for booking ${pending.id}');
 
     try {

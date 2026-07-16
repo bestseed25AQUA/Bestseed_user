@@ -20,7 +20,7 @@ class MyHttpOverrides extends HttpOverrides {
       ..badCertificateCallback =
       (X509Certificate cert, String host, int port) => true;
   }
-} 
+}
 
 @override
 void main() async {
@@ -126,6 +126,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   Locale('or', 'IN'),
                   Locale('ur', 'IN'),
                 ],
+                ///
                 theme: ThemeData(
                   colorScheme: ColorScheme.fromSeed(
                     seedColor: Colors.deepPurple,

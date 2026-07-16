@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
-import 'package:get/get.dart';
+import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // --- Chat Bot Screen ---
@@ -16,7 +16,7 @@ class ChatBotScreen extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
-            Get.back();
+            safeBack();
           },
         ),
         titleWidget: Row(

@@ -7,6 +7,7 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/http.dart';
 import 'package:seedsuser/app/auth/view/login_screen.dart';
+import 'package:seedsuser/app/common/app_globals.dart';
 import 'package:seedsuser/app/common/force_logout_notice.dart';
 import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/utils/app_names_constants.dart';
@@ -25,7 +26,19 @@ Future<void> _handle401() async {
     // out because the account was used on another device (single-device login).
     await ForceLogoutNotice.raise();
     await AuthLocalStorage.clear();
-    Get.offAll(() => LoginWithMobileScreen());
+    // Navigate via the real global navigator key (the one GetMaterialApp uses).
+    // Get.offAll can silently no-op when invoked from a background/resume ping
+    // — the cause of the iOS "old device stays on an empty profile" bug. Using
+    // navigatorKey.currentState works regardless of GetX context state.
+    final nav = navigatorKey.currentState;
+    if (nav != null) {
+      nav.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => LoginWithMobileScreen()),
+        (route) => false,
+      );
+    } else {
+      Get.offAll(() => LoginWithMobileScreen());
+    }
   } finally {
     // Reset after a short delay to allow navigation to complete
     Future.delayed(const Duration(seconds: 2), () {
@@ -36,7 +49,17 @@ Future<void> _handle401() async {
 
 /// Check response for 401 and handle it. Returns true if 401 was detected.
 bool _checkUnauthorized(http.Response response) {
-  if (response.statusCode == 401) {
+  final code = response.statusCode;
+  // A revoked/expired token normally returns 401 (Accept: application/json).
+  // But on iOS the web redirect can get followed, so instead of a 401 we see
+  // the login PAGE — a 200 with an HTML body — which silently broke the
+  // single-device logout there. Treat 401/419, any 3xx, or an HTML page served
+  // where we expected JSON, all as "logged out".
+  final contentType = response.headers['content-type'] ?? '';
+  final body = response.body;
+  final looksLikeHtml = contentType.contains('text/html') ||
+      body.trimLeft().startsWith('<');
+  if (code == 401 || code == 419 || (code >= 300 && code < 400) || looksLikeHtml) {
     _handle401();
     return true;
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
@@ -23,7 +24,7 @@ class SeedWantedScreen extends StatelessWidget {
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
-            onPressed: () => Get.back(),
+            onPressed: () => safeBack(),
           ),
           title: Text(
             'Wanted Stock',

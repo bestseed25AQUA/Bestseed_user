@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:seedsuser/app/booking/view/widgets/booking_detail_shimmer.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/booking/model/booking_detail_model.dart';
 import 'package:seedsuser/app/booking/view/edit_booking_sheet.dart';
@@ -1146,7 +1147,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                     GestureDetector(
                       onTap: () {
                         otherReasonController.dispose();
-                        Get.back();
+                        safeBack();
                       },
                       child: Container(
                         padding: const EdgeInsets.all(4),

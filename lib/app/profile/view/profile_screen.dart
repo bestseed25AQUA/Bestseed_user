@@ -13,6 +13,7 @@ import 'package:seedsuser/app/vehicle_tracking/view/booking_vehicle_list_screen.
 import 'package:seedsuser/app/common/terms_and_conditions_screen.dart';
 import 'package:seedsuser/app/common/privacy_policy_screen.dart';
 import 'package:seedsuser/app/help/view/help_contacts_screen.dart';
+import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:seedsuser/l10n/app_localizations.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -55,7 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   left: 8,
                   child: IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Get.back(),
+                    onPressed: () => safeBack(),
                   ),
                 ),
                 // Title
@@ -410,7 +411,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Get.back(),
+                    onPressed: () => safeBack(),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -431,7 +432,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-                      Get.back();
+                      safeBack();
                       logoutController.logout();
                     },
                     style: ElevatedButton.styleFrom(

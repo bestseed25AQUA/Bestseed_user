@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
@@ -47,7 +48,7 @@ class _HatcheryDetailsScreenState extends State<HatcheryDetailsScreen> {
         automaticallyImplyLeading: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Get.back(),
+          onPressed: () => safeBack(),
         ),
         title: Text(
           'Updates',

@@ -7,6 +7,9 @@ import 'package:seedsuser/app/utils/video_thumbnail_cache.dart';
 class MediaCarouselWidget extends StatefulWidget {
   final List<String> mediaUrls;
   final List<String>? mediaTypes;
+  // Backend-provided posters, index-aligned with [mediaUrls]. A non-empty entry
+  // for a video makes the carousel show it instead of generating one on-device.
+  final List<String>? thumbnailUrls;
   final String? title;
   final String? mediaType;
   final double? height;
@@ -16,6 +19,7 @@ class MediaCarouselWidget extends StatefulWidget {
     super.key,
     required this.mediaUrls,
     this.mediaTypes,
+    this.thumbnailUrls,
     this.mediaType,
     this.height,
     this.borderRadius,
@@ -147,6 +151,10 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
             VideoPlayerPreview(
               url: url,
               height: widget.height,
+              thumbnailUrl: (widget.thumbnailUrls != null &&
+                      index < widget.thumbnailUrls!.length)
+                  ? widget.thumbnailUrls![index]
+                  : null,
             ),
             const Icon(Icons.play_circle_fill, size: 65, color: Colors.white),
           ],
@@ -294,12 +302,16 @@ class VideoPlayerPreview extends StatefulWidget {
   final String url;
   final double? height;
   final double? width;
+  // Backend-provided poster for this video. When present we render it directly
+  // and skip the expensive on-device thumbnail generation entirely.
+  final String? thumbnailUrl;
 
   const VideoPlayerPreview({
     super.key,
     required this.url,
     this.height,
     this.width,
+    this.thumbnailUrl,
   });
 
   @override
@@ -327,6 +339,11 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
   }
 
   Future<void> _loadThumbnail() async {
+    // Backend already has a poster for this video — use it, skip generation.
+    if (widget.thumbnailUrl != null && widget.thumbnailUrl!.isNotEmpty) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
     // Generated once and cached to disk — instant on every subsequent view.
     // onUpdated fires later if the backend's video changed, swapping in the
     // latest frame without the user re-opening the screen.
@@ -346,50 +363,60 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
 
   @override
   Widget build(BuildContext context) {
+    final backendThumb = widget.thumbnailUrl;
+    final hasBackendThumb = backendThumb != null && backendThumb.isNotEmpty;
+
+    Widget child;
+    if (hasBackendThumb) {
+      // Backend poster — render directly, no on-device frame extraction.
+      child = _posterStack(Image.network(
+        backendThumb,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => _placeholder(loading: false),
+      ));
+    } else if (_thumbnail != null) {
+      child = _posterStack(
+          Image.file(_thumbnail!, fit: BoxFit.cover, gaplessPlayback: true));
+    } else {
+      // Spinner only while generating the first time; otherwise a play
+      // affordance so the (failed-thumbnail) video stays tappable.
+      child = _placeholder(loading: _loading);
+    }
+
     return SizedBox(
       width: widget.width ?? MediaQuery.of(context).size.width,
       height: widget.height ?? 350,
-      child: _thumbnail == null
-          ? Container(
-              color: Colors.black12,
-              child: Center(
-                // Spinner only while generating the first time; otherwise a
-                // play affordance so the (failed-thumbnail) video stays tappable.
-                child: _loading
-                    ? const CircularProgressIndicator()
-                    : Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.play_arrow,
-                            color: Colors.white, size: 40),
-                      ),
-              ),
-            )
-          : Stack(
-              fit: StackFit.expand,
-              children: [
-                Image.file(_thumbnail!, fit: BoxFit.cover, gaplessPlayback: true),
+      child: child,
+    );
+  }
 
-                // ▶ Play icon overlay (optional)
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.play_arrow,
-                      color: Colors.white,
-                      size: 40,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+  // Grey box with a spinner (still generating) or a play affordance.
+  Widget _placeholder({required bool loading}) {
+    return Container(
+      color: Colors.black12,
+      child: Center(
+        child: loading ? const CircularProgressIndicator() : _playBadge(),
+      ),
+    );
+  }
+
+  // Poster image with a centered ▶ play badge on top.
+  Widget _posterStack(Widget image) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [image, Center(child: _playBadge())],
+    );
+  }
+
+  Widget _playBadge() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.5),
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(Icons.play_arrow, color: Colors.white, size: 40),
     );
   }
 }

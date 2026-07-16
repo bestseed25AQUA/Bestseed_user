@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/app_globals.dart';
@@ -367,7 +368,7 @@ class TankStatusCard extends StatelessWidget {
                 //               tankId: tank.id.toString(),
                 //               farmId: farmId,
                 //             );
-                //             Get.back();
+                //             safeBack();
                 //           },
                 //         ),
                 //       );
@@ -442,7 +443,7 @@ class TankStatusCard extends StatelessWidget {
                                   tankId: tank.id.toString(),
                                   farmId: farmId,
                                 );
-                                Get.back();
+                                safeBack();
                               },
                             ),
                           ),
@@ -743,7 +744,7 @@ void showEditFeedBottomSheet(String farmId) {
           Align(
             alignment: Alignment.topRight,
             child: GestureDetector(
-              onTap: () => Get.back(),
+              onTap: () => safeBack(),
               child: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
@@ -791,7 +792,7 @@ void showEditFeedBottomSheet(String farmId) {
                 );
 
                 if (ok) {
-                  Get.back();
+                  safeBack();
                   print('++++++++++++++loading the data+++++++++++++=');
                   controller.getFeedStore(farmId);
                   storeController.text = storeController.text.trim();
