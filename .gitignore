@@ -43,9 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-<<<<<<< HEAD
 
 # FVM Version Cache
 .fvm/
-=======
->>>>>>> 7bdbd47104e86fe5ce894edfe7e7826fad7bed33
+
+# Android signing (contains secrets — never commit)
+/android/key.properties
+*.jks
+*.keystore

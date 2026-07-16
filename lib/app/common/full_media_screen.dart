@@ -80,6 +80,7 @@ class _FullMediaScreenState extends State<FullMediaScreen>
     });
 
     final videoUrl = widget.mediaUrls[index].trim();
+    debugPrint('$_tag: video[$index] URL = $videoUrl');
     if (videoUrl.isEmpty) {
       debugPrint('$_tag: ERROR — video URL empty at index $index');
       setState(() {
