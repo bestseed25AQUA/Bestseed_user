@@ -76,7 +76,7 @@ class _ContactUsPageState extends State<ContactUsPage> {
                 Expanded(
                   child: buildContactCard(
                     title: "Call",
-                    subtitle: " +91${phoneNumber}",
+                    subtitle: " $phoneNumber",
                     imagePath: 'assets/images/phone.png',
                     background: Colors.blue,
                     onTap: () async {
@@ -101,7 +101,7 @@ class _ContactUsPageState extends State<ContactUsPage> {
                 Expanded(
                   child: buildContactCard(
                     title: "WhatsApp",
-                    subtitle: " +91${whatsappNumber}",
+                    subtitle: " $whatsappNumber",
                     imagePath: 'assets/images/whatsApp.png',
                     background: Colors.green,
                     onTap: () async {

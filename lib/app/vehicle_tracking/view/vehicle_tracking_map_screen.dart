@@ -4968,7 +4968,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         ? driver.driverName
         : 'Not assigned';
     final driverMobile = driver.driverPhone.isNotEmpty
-        ? '+91${driver.driverPhone}'
+        ? driver.driverPhone
         : 'N/A';
     final vehicleNumber = driver.vehicleNumber.isNotEmpty
         ? driver.vehicleNumber

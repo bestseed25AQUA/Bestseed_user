@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:video_player/video_player.dart';
 import 'package:seedsuser/app/common/full_media_screen.dart';
 import 'package:seedsuser/app/utils/video_thumbnail_cache.dart';
 
@@ -141,24 +142,20 @@ class _MediaCarouselWidgetState extends State<MediaCarouselWidget> {
     String? title, {
     int index = 0,
   }) {
-    return GestureDetector(
-      onTap: () => _openFullScreen(index),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            VideoPlayerPreview(
-              url: url,
-              height: widget.height,
-              thumbnailUrl: (widget.thumbnailUrls != null &&
-                      index < widget.thumbnailUrls!.length)
-                  ? widget.thumbnailUrls![index]
-                  : null,
-            ),
-            const Icon(Icons.play_circle_fill, size: 65, color: Colors.white),
-          ],
-        ),
+    // Inline lazy playback: the poster is shown until the user taps play. Only
+    // then is the video fetched and, once it starts, the poster is removed.
+    // The fullscreen button still opens the immersive player.
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: VideoPlayerPreview(
+        url: url,
+        height: widget.height,
+        inlinePlay: true,
+        onFullscreen: () => _openFullScreen(index),
+        thumbnailUrl: (widget.thumbnailUrls != null &&
+                index < widget.thumbnailUrls!.length)
+            ? widget.thumbnailUrls![index]
+            : null,
       ),
     );
   }
@@ -305,6 +302,12 @@ class VideoPlayerPreview extends StatefulWidget {
   // Backend-provided poster for this video. When present we render it directly
   // and skip the expensive on-device thumbnail generation entirely.
   final String? thumbnailUrl;
+  // When true the poster is a tap-to-play affordance: the video is only fetched
+  // once the user taps, and the poster is removed the moment playback starts.
+  // When false (default) this is a static poster and the parent handles taps.
+  final bool inlinePlay;
+  // Opens the immersive fullscreen player (inlinePlay only).
+  final VoidCallback? onFullscreen;
 
   const VideoPlayerPreview({
     super.key,
@@ -312,6 +315,8 @@ class VideoPlayerPreview extends StatefulWidget {
     this.height,
     this.width,
     this.thumbnailUrl,
+    this.inlinePlay = false,
+    this.onFullscreen,
   });
 
   @override
@@ -321,6 +326,11 @@ class VideoPlayerPreview extends StatefulWidget {
 class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
   File? _thumbnail;
   bool _loading = true;
+
+  // Inline playback state — only used when widget.inlinePlay is true.
+  VideoPlayerController? _controller;
+  bool _starting = false; // fetching/initialising after the user tapped play
+  bool _playing = false;
 
   @override
   void initState() {
@@ -334,8 +344,81 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     if (oldWidget.url != widget.url) {
       _thumbnail = null;
       _loading = true;
+      _disposeController();
       _loadThumbnail();
     }
+  }
+
+  @override
+  void dispose() {
+    _disposeController();
+    super.dispose();
+  }
+
+  void _disposeController() {
+    _controller?.removeListener(_onTick);
+    _controller?.dispose();
+    _controller = null;
+    _playing = false;
+    _starting = false;
+  }
+
+  // Tap handler: fetch + start the video inline. This is the first moment any
+  // video data is requested, so nothing downloads until the user asks to play.
+  Future<void> _startInlinePlayback() async {
+    if (_controller != null || _starting) return;
+    final videoUrl = widget.url.trim();
+    if (videoUrl.isEmpty) return;
+
+    Uri uri;
+    try {
+      uri = Uri.parse(videoUrl);
+    } catch (_) {
+      return;
+    }
+
+    setState(() => _starting = true);
+    try {
+      final c = VideoPlayerController.networkUrl(
+        uri,
+        httpHeaders: const {
+          'User-Agent':
+              'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+          'Accept': '*/*',
+          'Accept-Encoding': 'identity',
+          'Connection': 'keep-alive',
+        },
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
+      await c.initialize();
+      if (!mounted) {
+        c.dispose();
+        return;
+      }
+      await c.setLooping(true);
+      c.addListener(_onTick);
+      await c.play();
+      setState(() {
+        _controller = c;
+        _starting = false;
+        _playing = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _starting = false);
+    }
+  }
+
+  void _onTick() {
+    final c = _controller;
+    if (c == null || !mounted) return;
+    final playing = c.value.isPlaying;
+    if (playing != _playing) setState(() => _playing = playing);
+  }
+
+  void _toggleInline() {
+    final c = _controller;
+    if (c == null) return;
+    c.value.isPlaying ? c.pause() : c.play();
   }
 
   Future<void> _loadThumbnail() async {
@@ -363,6 +446,59 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
 
   @override
   Widget build(BuildContext context) {
+    final w = widget.width ?? MediaQuery.of(context).size.width;
+    final h = widget.height ?? 350;
+
+    // Playback has started — show the video itself; the poster is gone.
+    final c = _controller;
+    if (widget.inlinePlay && c != null && c.value.isInitialized) {
+      return SizedBox(
+        width: w,
+        height: h,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            FittedBox(
+              fit: BoxFit.cover,
+              clipBehavior: Clip.hardEdge,
+              child: SizedBox(
+                width: c.value.size.width,
+                height: c.value.size.height,
+                child: VideoPlayer(c),
+              ),
+            ),
+            // Tap toggles play/pause; the badge fades out while playing.
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _toggleInline,
+              child: AnimatedOpacity(
+                opacity: _playing ? 0.0 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                child: Center(child: _playBadge()),
+              ),
+            ),
+            if (widget.onFullscreen != null)
+              Positioned(
+                bottom: 6,
+                right: 6,
+                child: GestureDetector(
+                  onTap: widget.onFullscreen,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.fullscreen,
+                        color: Colors.white, size: 22),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
     final backendThumb = widget.thumbnailUrl;
     final hasBackendThumb = backendThumb != null && backendThumb.isNotEmpty;
 
@@ -384,11 +520,27 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
       child = _placeholder(loading: _loading);
     }
 
-    return SizedBox(
-      width: widget.width ?? MediaQuery.of(context).size.width,
-      height: widget.height ?? 350,
-      child: child,
-    );
+    final poster = SizedBox(width: w, height: h, child: child);
+
+    // In inline mode the poster is a tap-to-load-and-play affordance.
+    if (widget.inlinePlay) {
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _starting ? null : _startInlinePlayback,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            poster,
+            if (_starting)
+              const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+          ],
+        ),
+      );
+    }
+
+    return poster;
   }
 
   // Grey box with a spinner (still generating) or a play affordance.

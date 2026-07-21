@@ -50,16 +50,18 @@ Future<void> _handle401() async {
 /// Check response for 401 and handle it. Returns true if 401 was detected.
 bool _checkUnauthorized(http.Response response) {
   final code = response.statusCode;
-  // A revoked/expired token normally returns 401 (Accept: application/json).
-  // But on iOS the web redirect can get followed, so instead of a 401 we see
-  // the login PAGE — a 200 with an HTML body — which silently broke the
-  // single-device logout there. Treat 401/419, any 3xx, or an HTML page served
-  // where we expected JSON, all as "logged out".
-  final contentType = response.headers['content-type'] ?? '';
-  final body = response.body;
-  final looksLikeHtml = contentType.contains('text/html') ||
-      body.trimLeft().startsWith('<');
-  if (code == 401 || code == 419 || (code >= 300 && code < 400) || looksLikeHtml) {
+  // Only a genuine auth failure (401/419) logs the user out. Every request
+  // sends `Accept: application/json` (see buildHeader), so a revoked/expired
+  // token comes back as a real 401 rather than an HTML login page — we no
+  // longer need to infer logout from HTML bodies or 3xx redirects.
+  //
+  // The old heuristic ALSO treated any 3xx redirect or any HTML-looking body
+  // as "logged out". On captive-portal / interstitial WiFi (cafés, offices,
+  // hotels) the next request returns the portal's HTML page (or a 302) with a
+  // still-valid token — that was falsely wiping the session and kicking users
+  // to login the moment they connected to such a network. Those bodies are NOT
+  // auth failures, so they must not force logout.
+  if (code == 401 || code == 419) {
     _handle401();
     return true;
   }
