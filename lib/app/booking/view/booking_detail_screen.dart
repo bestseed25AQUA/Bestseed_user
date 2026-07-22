@@ -186,7 +186,11 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                           data.statusValue >= 3 &&
                           data.statusValue != 5 &&
                           data.statusValue != 6)
-                        _driverCard(data.driver!, w),
+                        _driverCard(
+                          data.driver!,
+                          w,
+                          isInJourney(data.statusValue),
+                        ),
 
                       // Booking Info Card
                       _bookingInfoCard(data, w),
@@ -527,7 +531,11 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   }
 
   // ─── Driver Card ─────────────────────────────────────────────────
-  Widget _driverCard(DriverDetailModel driver, double w) {
+  // [showStartTime] gates the vehicle start-time chip: it only renders when the
+  // vehicle is actually In Journey (status 4). For Driver-Assigned (status 3)
+  // there is no real start time yet, so we hide it instead of showing a
+  // placeholder/midnight "12:00 AM" value.
+  Widget _driverCard(DriverDetailModel driver, double w, bool showStartTime) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
@@ -641,7 +649,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                   ),
               ],
             ),
-            if (driver.vehicleStartedDate != null &&
+            if (showStartTime &&
+                driver.vehicleStartedDate != null &&
                 driver.vehicleStartedDate!.isNotEmpty) ...[
               const SizedBox(height: 12),
               Divider(color: Colors.grey.shade200, height: 1),
