@@ -4,6 +4,7 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
+import 'package:seedsuser/app/common/full_media_screen.dart';
 import 'package:seedsuser/app/common/media_carousel_widget.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/single_new_detail_controller.dart';
 import 'package:shimmer/shimmer.dart';
@@ -31,6 +32,11 @@ class MedicineDetailScreen extends StatefulWidget {
 class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
   final singleNewDetailController = Get.put(SingleNewDetailController());
 
+  // Guards against re-opening the fullscreen route on every Obx rebuild
+  // (isLoading→false transitions, controller refreshes, etc.). Same pattern
+  // as TrendingUpdatesDetailsScreen.
+  bool _didAutoOpenFullscreen = false;
+
   // Check if URL is a video
   bool _isVideoUrl(String url) {
     final lowerUrl = url.toLowerCase();
@@ -39,6 +45,34 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
         lowerUrl.endsWith('.m3u8') ||
         lowerUrl.endsWith('.webm') ||
         lowerUrl.endsWith('.avi');
+  }
+
+  /// If the post's first media is a video, auto-push the full-screen player
+  /// once so the user lands in fullscreen immediately after tapping a card
+  /// on the medicine-news View All list. Back button returns them to this
+  /// detail screen (small preview + description).
+  void _maybeAutoOpenFullscreen(List<String> mediaUrls, List<String> mediaTypes) {
+    if (_didAutoOpenFullscreen) return;
+    if (mediaUrls.isEmpty) return;
+    final firstType = (mediaTypes.isNotEmpty ? mediaTypes.first : '').toLowerCase();
+    final firstUrl = mediaUrls.first;
+    final isVideo = firstType.contains('video') || _isVideoUrl(firstUrl);
+    if (!isVideo) return;
+    _didAutoOpenFullscreen = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FullMediaScreen(
+            mediaUrls: mediaUrls,
+            mediaTypes: mediaTypes,
+            initialIndex: 0,
+            title: widget.title,
+          ),
+        ),
+      );
+    });
   }
 
   @override
@@ -93,6 +127,9 @@ class _MedicineDetailScreenState extends State<MedicineDetailScreen> {
                     data!.data!.mediaTypes!.isNotEmpty)
                 ? data.data!.mediaTypes!
                 : [_isVideoUrl(widget.imageUrl) ? 'video' : 'image'];
+
+            // Auto-open full-screen player once, if the first media is a video.
+            _maybeAutoOpenFullscreen(mediaUrls, mediaTypes);
 
             return Expanded(
               child: SingleChildScrollView(

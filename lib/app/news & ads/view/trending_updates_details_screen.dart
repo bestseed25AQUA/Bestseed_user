@@ -3,6 +3,7 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/full_media_screen.dart';
 import 'package:seedsuser/app/common/media_carousel_widget.dart';
 import 'package:seedsuser/app/news & ads/controller/single_new_detail_controller.dart';
 import 'package:shimmer/shimmer.dart';
@@ -26,11 +27,50 @@ class _TrendingUpdatesDetailsScreenState
     extends State<TrendingUpdatesDetailsScreen> {
   final controller = Get.put(SingleNewDetailController());
 
+  // Guards against repeatedly auto-pushing the fullscreen route every time
+  // the Obx rebuilds (e.g. when the user closes fullscreen and lands back
+  // on this screen — the isLoading→false transition would fire again).
+  bool _didAutoOpenFullscreen = false;
+
   @override
   void initState() {
     super.initState();
 
     controller.fetch(type: "trending update", id: widget.id);
+  }
+
+  /// If the post's first media is a video, immediately push the full-screen
+  /// player once. The user then sees the video in fullscreen right away; on
+  /// back they land on THIS detail screen (small preview + text). This
+  /// matches the requested UX of "tap video in view-all → fullscreen →
+  /// back → small screen with text below".
+  void _maybeAutoOpenFullscreen(List<String> mediaUrls, List<String> mediaTypes) {
+    if (_didAutoOpenFullscreen) return;
+    if (mediaUrls.isEmpty) return;
+    final firstType = (mediaTypes.isNotEmpty ? mediaTypes.first : '').toLowerCase();
+    final firstUrl = mediaUrls.first.toLowerCase();
+    final isVideo = firstType.contains('video') ||
+        firstUrl.endsWith('.mp4') ||
+        firstUrl.endsWith('.mov') ||
+        firstUrl.endsWith('.m3u8') ||
+        firstUrl.endsWith('.webm') ||
+        firstUrl.endsWith('.avi');
+    if (!isVideo) return;
+    _didAutoOpenFullscreen = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FullMediaScreen(
+            mediaUrls: mediaUrls,
+            mediaTypes: mediaTypes,
+            initialIndex: 0,
+            title: widget.title,
+          ),
+        ),
+      );
+    });
   }
 
   @override
@@ -52,6 +92,11 @@ class _TrendingUpdatesDetailsScreenState
       final mediaTypes = (data.mediaTypes != null && data.mediaTypes!.isNotEmpty)
           ? data.mediaTypes!
           : [data.mediaType ?? "image"];
+
+      // Auto-open full-screen player once, if the first media is a video.
+      // Scheduled via postFrameCallback inside the method so it fires after
+      // the initial build settles.
+      _maybeAutoOpenFullscreen(mediaUrls, mediaTypes);
 
       return Scaffold(
         appBar: CustomAppBar(

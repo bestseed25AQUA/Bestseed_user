@@ -29,13 +29,27 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-    <uses-permission android:name="android.permission.CALL_PHONE"/>
-    <uses-permission android:name="android.permission.SEND_SMS"/>
+    <!-- READ_EXTERNAL_STORAGE was only needed by legacy image_picker paths on
+         Android 12 and below (capped via maxSdkVersion). On Android 13+ we
+         rely on the Android Photo Picker (ActivityResultContracts.PickVisualMedia)
+         that image_picker 1.x uses by default — the picker runs in a separate
+         process and returns a URI, so the app itself never needs
+         READ_MEDIA_IMAGES / READ_MEDIA_VIDEO. Play Store rejected an earlier
+         build for declaring READ_MEDIA_IMAGES unnecessarily. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"/>
+    <!-- CALL_PHONE and SEND_SMS removed. The app never uses SmsManager or
+         directly places a call — every "call vendor" / "message vendor"
+         action goes through url_launcher with a tel: or WhatsApp URI,
+         which opens the OS dialer / WhatsApp app for the user to confirm
+         and requires no permission. Play Store rejected an earlier build
+         for declaring these sensitive permissions without a matching core
+         functionality (Anti-SMS Phishing / Default SMS handler etc.). -->
     <uses-permission android:name="android.permission.CAMERA"/>
-    <!-- <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" /> -->
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <!-- MANAGE_EXTERNAL_STORAGE removed to comply with Play Store policy.
+         The PDF report download in FarmTankListScreen now writes to the
+         app-owned external files directory (no permission required) and
+         opens the source URL in the browser instead of the local file. -->
 
     <application
         android:enableOnBackInvokedCallback="true"

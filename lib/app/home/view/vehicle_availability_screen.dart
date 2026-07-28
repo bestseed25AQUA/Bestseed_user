@@ -120,10 +120,6 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
   double? _currentLng;
   bool _isLoadingLocation = false;
 
-  /// Vehicles whose nearest visited location is within this many km of the
-  /// user are shown when "Current Location" is selected.
-  static const double _radiusKm = 100;
-
   @override
   void initState() {
     super.initState();
@@ -195,8 +191,7 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
       );
 
       debugPrint('📍 [VEHICLE-FILTER] Current Location tapped → '
-          'lat=${position.latitude}, lng=${position.longitude} '
-          '(radius=${_radiusKm}km)');
+          'lat=${position.latitude}, lng=${position.longitude}');
 
       setState(() {
         _currentLat = position.latitude;
@@ -259,32 +254,29 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
     return math.sqrt(dx * dx + dy * dy);
   }
 
-  /// True if the vehicle's route passes within `_radiusKm` of the user.
+  /// Shortest distance (km) from the user to ANY point on the vehicle's
+  /// route — stops + travel segments + fallback primary location.
   ///
-  /// Route-aware: we check both the stops AND the travel segments between
-  /// consecutive stops, so a post is shown when the user is near the vehicle's
-  /// PATH (e.g. on the road between two cities) — not only when they're near
-  /// one of the listed stops. Falls back to the primary location point.
-  bool _isWithinRadius(VehicleAvailability v) {
-    if (_currentLat == null || _currentLng == null) return false;
+  /// Returns `double.infinity` when the user has no GPS or the vehicle has
+  /// no usable coordinates, so callers can push those items to the end of
+  /// a nearest-first sort without special casing.
+  double _shortestDistanceKm(VehicleAvailability v) {
+    if (_currentLat == null || _currentLng == null) return double.infinity;
     final ulat = _currentLat!;
     final ulng = _currentLng!;
 
-    // Ordered route points that actually have coordinates.
+    var best = double.infinity;
+
     final route = <VehicleLocation>[
       for (final loc in v.locations)
         if (loc.latitude != null && loc.longitude != null) loc,
     ];
 
-    // 1) Any individual stop within the radius (also covers single-stop posts).
     for (final loc in route) {
-      if (_distanceKm(ulat, ulng, loc.latitude!, loc.longitude!) <= _radiusKm) {
-        return true;
-      }
+      final d = _distanceKm(ulat, ulng, loc.latitude!, loc.longitude!);
+      if (d < best) best = d;
     }
 
-    // 2) Travel path: distance to each segment between consecutive stops, so a
-    //    route that passes within the radius is matched even if no stop is.
     for (var i = 0; i < route.length - 1; i++) {
       final a = route[i];
       final b = route[i + 1];
@@ -293,17 +285,17 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
         a.latitude!, a.longitude!,
         b.latitude!, b.longitude!,
       );
-      if (d <= _radiusKm) return true;
+      if (d < best) best = d;
     }
 
-    // 3) Fall back to the primary location point.
     if (v.latitude != null && v.longitude != null) {
-      if (_distanceKm(ulat, ulng, v.latitude!, v.longitude!) <= _radiusKm) {
-        return true;
-      }
+      final d = _distanceKm(ulat, ulng, v.latitude!, v.longitude!);
+      if (d < best) best = d;
     }
-    return false;
+
+    return best;
   }
+
 
   // 📍 Get unique locations from data
   List<String> _getUniqueLocations() {
@@ -328,24 +320,30 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
 
       bool matchesLocation = true;
 
-      if (_selectedLocation == "current") {
-        // 100 km radius from user's current GPS position. Replaces the old
-        // string-equality check against `administrativeArea` which never
-        // matched (vehicle locations are villages/towns, not state names).
-        matchesLocation = _isWithinRadius(item);
-      } else if (_selectedLocation != null && _selectedLocation != "current") {
+      if (_selectedLocation != null && _selectedLocation != "current") {
+        // Explicit named-location chip (state/town) — still an exact match.
         matchesLocation =
             item.locationName?.toLowerCase() ==
             _selectedLocation?.toLowerCase();
       }
+      // "current" chip intentionally does NOT filter — we show ALL vehicles
+      // and let the sort below push the nearest ones to the top. This way
+      // farther vehicles are still visible (just lower down) instead of
+      // being hidden entirely by a radius cut-off.
 
       return matchesSearch && matchesLocation;
     }).toList();
 
     if (_selectedLocation == "current") {
-      debugPrint('📍 [VEHICLE-FILTER] within ${_radiusKm}km of '
-          '($_currentLat,$_currentLng): '
-          '${result.length}/${controller.vehicleList.length} vehicles shown');
+      // Sort nearest-first so vehicles close to the user's GPS bubble up to
+      // the top of the list. The backend still returns newest-first; we
+      // override that here only when the user explicitly asked for nearby.
+      // Vehicles with no usable coordinates get `double.infinity` from
+      // _shortestDistanceKm and fall to the end. Ties fall back to the
+      // backend's newest-first order because Dart's sort is stable.
+      result.sort((a, b) => _shortestDistanceKm(a).compareTo(_shortestDistanceKm(b)));
+      debugPrint('📍 [VEHICLE-FILTER] sorted nearest-first from '
+          '($_currentLat,$_currentLng): ${result.length} vehicles');
     }
     return result;
   }

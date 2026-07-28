@@ -15,7 +15,6 @@ import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 class FarmTankListScreen extends StatefulWidget {
   final String farmId;
@@ -665,45 +664,37 @@ void showReportPopup(
 
 Future<String?> downloadReport(String url) async {
   try {
-    await Permission.manageExternalStorage.request();
-
-    if (!await Permission.manageExternalStorage.isGranted) {
-      await openAppSettings();
-    }
-
     // FIX URL ISSUE
     if (url.startsWith("https:/") && !url.startsWith("https://")) {
       url = url.replaceFirst("https:/", "https://");
     }
 
-    // Get downloads directory
+    // Save into the app-owned external storage (Android: /Android/data/<pkg>/files)
+    // or the app documents directory (iOS). Neither location requires a
+    // runtime permission or MANAGE_EXTERNAL_STORAGE — Play Store rejected
+    // the previous /storage/emulated/0/Download path because it needed
+    // broad "All files access", which we're not entitled to use.
     Directory? directory;
-
     if (Platform.isAndroid) {
-      directory = Directory('/storage/emulated/0/Download');
-      if (!directory.existsSync()) {
-        directory = await getExternalStorageDirectory();
-      }
+      directory = await getExternalStorageDirectory();
     } else {
       directory = await getApplicationDocumentsDirectory();
     }
+    if (directory == null) {
+      CustomToast.error('Feed Report Document Failed To Download');
+      return null;
+    }
 
-    String filePath = "${directory!.path}/feed_report.pdf";
-
-    // Download File
+    final filePath = "${directory.path}/feed_report.pdf";
     await Dio().download(url, filePath);
 
-    // Check if file exists
     final file = File(filePath);
-    bool exists = file.existsSync();
-
-    if (!exists) {
+    if (!file.existsSync()) {
       CustomToast.error('Feed Report Document Failed To Download');
       return null;
     }
 
     CustomToast.success('Feed Report Document Downloaded Successfully');
-
     return filePath;
   } catch (e) {
     return null;

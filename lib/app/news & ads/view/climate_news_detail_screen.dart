@@ -4,6 +4,7 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_network_image.dart';
+import 'package:seedsuser/app/common/full_media_screen.dart';
 import 'package:seedsuser/app/common/media_carousel_widget.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/single_new_detail_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
@@ -37,6 +38,10 @@ class _ClimateDetailScreenState extends State<ClimateDetailScreen> {
       'Hello, I am interested in the Probiotic Powder.';
   final singleNewDetailController = Get.put(SingleNewDetailController());
 
+  // Guards against re-opening the fullscreen route on every Obx rebuild.
+  // Same pattern as TrendingUpdatesDetailsScreen / MedicineDetailScreen.
+  bool _didAutoOpenFullscreen = false;
+
   // Check if URL is a video
   bool _isVideoUrl(String url) {
     final lowerUrl = url.toLowerCase();
@@ -45,6 +50,34 @@ class _ClimateDetailScreenState extends State<ClimateDetailScreen> {
         lowerUrl.endsWith('.m3u8') ||
         lowerUrl.endsWith('.webm') ||
         lowerUrl.endsWith('.avi');
+  }
+
+  /// If the post's first media is a video, auto-push the full-screen player
+  /// once so the user lands in fullscreen immediately after tapping a card
+  /// on the climate-news View All list. Back returns them here (small
+  /// preview + description).
+  void _maybeAutoOpenFullscreen(List<String> mediaUrls, List<String> mediaTypes) {
+    if (_didAutoOpenFullscreen) return;
+    if (mediaUrls.isEmpty) return;
+    final firstType = (mediaTypes.isNotEmpty ? mediaTypes.first : '').toLowerCase();
+    final firstUrl = mediaUrls.first;
+    final isVideo = firstType.contains('video') || _isVideoUrl(firstUrl);
+    if (!isVideo) return;
+    _didAutoOpenFullscreen = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FullMediaScreen(
+            mediaUrls: mediaUrls,
+            mediaTypes: mediaTypes,
+            initialIndex: 0,
+            title: widget.title,
+          ),
+        ),
+      );
+    });
   }
 
   @override
@@ -104,6 +137,9 @@ class _ClimateDetailScreenState extends State<ClimateDetailScreen> {
             final mediaTypes = (data?.data?.mediaTypes != null && data!.data!.mediaTypes!.isNotEmpty)
                 ? data.data!.mediaTypes!
                 : [_isVideoUrl(widget.imageUrl) ? 'video' : 'image'];
+
+            // Auto-open full-screen player once, if the first media is a video.
+            _maybeAutoOpenFullscreen(mediaUrls, mediaTypes);
 
             return Expanded(
               child: SingleChildScrollView(

@@ -43,6 +43,146 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     await _clearUserSessionInBackground();
     return; // suppress the notification banner — silent logout
   }
+
+  // Backend now sends Android as data-only (no `notification` block) so the
+  // FCM SDK does NOT auto-display anything. This handler owns the display
+  // for background/killed on Android — without it, the user gets nothing.
+  // iOS never reaches this path for alert pushes (APNs displays natively).
+  await _showLocalNotificationFromMessage(message);
+}
+
+/// Pulls a printable string out of the FCM payload, preferring the `data`
+/// block (new backend contract) and falling back to the legacy `notification`
+/// block for messages still in-flight during the rollout.
+String? _pickField(dynamic dataValue, String? notificationValue) {
+  final s = dataValue?.toString();
+  if (s != null && s.isNotEmpty && s != 'null') return s;
+  return notificationValue;
+}
+
+/// Assemble + display a local notification from an FCM message. Called from
+/// both the foreground `onMessage` handler and the background isolate's
+/// `_firebaseMessagingBackgroundHandler`, so it must be a top-level function
+/// (background isolates can't reach class methods) and it must initialize
+/// its own FlutterLocalNotificationsPlugin — the main-isolate instance is
+/// unreachable from a background isolate.
+@pragma('vm:entry-point')
+Future<void> _showLocalNotificationFromMessage(RemoteMessage message) async {
+  final localNotifications = FlutterLocalNotificationsPlugin();
+
+  // Init is idempotent — calling it once per isolate per message is cheap.
+  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const iosSettings = DarwinInitializationSettings(
+    requestAlertPermission: false,
+    requestBadgePermission: false,
+    requestSoundPermission: false,
+  );
+  await localNotifications.initialize(
+    settings:
+        const InitializationSettings(android: androidSettings, iOS: iosSettings),
+  );
+
+  // Ensure the high-importance channel exists on this isolate too.
+  const androidChannel = AndroidNotificationChannel(
+    'high_importance_channel',
+    'High Importance Notifications',
+    description: 'This channel is used for important notifications.',
+    importance: Importance.max,
+  );
+  await localNotifications
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(androidChannel);
+
+  final title = _pickField(message.data['title'], message.notification?.title);
+  final body = _pickField(message.data['body'], message.notification?.body);
+  final imageUrl = _pickField(
+    message.data['image'],
+    message.notification?.android?.imageUrl ??
+        message.notification?.apple?.imageUrl,
+  );
+
+  // Nothing to display — skip silently. Guards against silent control
+  // messages that don't carry a title/body but aren't `force_logout`.
+  if ((title == null || title.isEmpty) && (body == null || body.isEmpty)) {
+    return;
+  }
+
+  BigPictureStyleInformation? bigPictureStyle;
+  List<DarwinNotificationAttachment>? iosAttachments;
+
+  if (imageUrl != null && imageUrl.isNotEmpty) {
+    try {
+      final http.Response response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode == 200) {
+        bigPictureStyle = BigPictureStyleInformation(
+          ByteArrayAndroidBitmap(response.bodyBytes),
+          contentTitle: title,
+          summaryText: body,
+        );
+        if (Platform.isIOS) {
+          try {
+            final tempDir = await getTemporaryDirectory();
+            final filePath =
+                '${tempDir.path}/notif_${DateTime.now().millisecondsSinceEpoch}.jpg';
+            final file = File(filePath);
+            await file.writeAsBytes(response.bodyBytes);
+            iosAttachments = [DarwinNotificationAttachment(filePath)];
+          } catch (e) {
+            print('Error creating iOS notification attachment: $e');
+          }
+        }
+      }
+    } catch (e) {
+      print('Error loading notification image: $e');
+    }
+  }
+
+  final String? module = message.data['module']?.toString();
+  final String? subText =
+      (module != null && module.isNotEmpty) ? module : null;
+
+  final androidDetails = AndroidNotificationDetails(
+    'high_importance_channel',
+    'High Importance Notifications',
+    channelDescription: 'This channel is used for important notifications.',
+    importance: Importance.max,
+    priority: Priority.high,
+    showWhen: true,
+    subText: subText,
+    styleInformation: bigPictureStyle,
+  );
+  final iosDetails = DarwinNotificationDetails(
+    presentAlert: true,
+    presentBadge: true,
+    presentSound: true,
+    attachments: iosAttachments,
+  );
+  final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+  // Prefer a stable ID from the payload so subsequent updates for the same
+  // booking/notification replace instead of stack. hashCode fallback keeps
+  // unique messages distinct.
+  int notifId;
+  final dataId = message.data['id'] ??
+      message.data['booking_id'] ??
+      message.data['notification_id'];
+  if (dataId != null) {
+    notifId = int.tryParse(dataId.toString()) ??
+        DateTime.now().millisecondsSinceEpoch % 100000;
+  } else if (message.messageId != null) {
+    notifId = message.messageId.hashCode;
+  } else {
+    notifId = DateTime.now().millisecondsSinceEpoch % 100000;
+  }
+
+  await localNotifications.show(
+    id: notifId,
+    title: title,
+    body: body,
+    notificationDetails: details,
+    payload: jsonEncode(message.data),
+  );
 }
 
 class NotificationService {
@@ -213,111 +353,50 @@ class NotificationService {
       _handleNotificationTap(message.data);
     });
 
-    // Check if app was opened from a terminated state via notification.
-    // Store the data so splash screen can handle it after its own navigation.
+    // Cold-start tap handling. There are two possible paths:
+    //   1. Legacy — FCM auto-displayed the notification (old backend that
+    //      sent a `notification` block). getInitialMessage() returns it.
+    //   2. New — Android is data-only; the notification was shown by the
+    //      background isolate via flutter_local_notifications. FCM's
+    //      getInitialMessage() returns null; the tap payload comes from
+    //      the local-notifications plugin's launch details instead.
+    // Both paths feed the same `pendingNotificationData` slot so the splash
+    // screen's consumer doesn't need to know which mechanism delivered it.
     _fcm.getInitialMessage().then((RemoteMessage? message) {
-      if (message != null) {
-        print('App opened from terminated state via notification: ${message.data}');
+      if (message != null && pendingNotificationData == null) {
+        print('App opened from terminated state via FCM notification: ${message.data}');
         pendingNotificationData = Map<String, dynamic>.from(message.data);
+      }
+    });
+    _localNotifications.getNotificationAppLaunchDetails().then((details) {
+      if (details?.didNotificationLaunchApp ?? false) {
+        final payload = details?.notificationResponse?.payload;
+        if (payload != null && pendingNotificationData == null) {
+          try {
+            final data = jsonDecode(payload);
+            if (data is Map) {
+              print('App opened from terminated state via local notification: $data');
+              pendingNotificationData = Map<String, dynamic>.from(data);
+            }
+          } catch (e) {
+            print('Failed to decode local notification launch payload: $e');
+          }
+        }
       }
     });
   }
 
   // -- Show Local Notification --
+  //
+  // Delegates to the top-level `_showLocalNotificationFromMessage` so the
+  // foreground path and the background-isolate path share exactly one
+  // implementation.  The class instance still owns tap handling via
+  // `_onNotificationTapped` — flutter_local_notifications routes taps to
+  // whichever plugin instance was initialised in the process that receives
+  // them, so a notification shown by the background isolate still fires
+  // this class's tap handler once the app is brought to the foreground.
   Future<void> _showLocalNotification(RemoteMessage message) async {
-    RemoteNotification? notification = message.notification;
-    if (notification == null) return;
-
-    // Handle Image Notifications
-    // Check data payload first, then fallback to notification payload image
-    String? imageUrl = message.data['image']?.toString();
-    if (imageUrl == null || imageUrl.isEmpty) {
-      imageUrl = notification.android?.imageUrl ?? notification.apple?.imageUrl;
-    }
-
-    BigPictureStyleInformation? bigPictureStyle;
-    List<DarwinNotificationAttachment>? iosAttachments;
-
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      try {
-        print('Loading notification image from: $imageUrl');
-        final http.Response response = await http.get(Uri.parse(imageUrl));
-        if (response.statusCode == 200) {
-          // Android: BigPictureStyleInformation
-          bigPictureStyle = BigPictureStyleInformation(
-            ByteArrayAndroidBitmap(response.bodyBytes),
-            contentTitle: notification.title,
-            summaryText: notification.body,
-          );
-
-          // iOS: Save image to temp file for attachment
-          if (Platform.isIOS) {
-            try {
-              final tempDir = await getTemporaryDirectory();
-              final filePath = '${tempDir.path}/notif_${DateTime.now().millisecondsSinceEpoch}.jpg';
-              final file = File(filePath);
-              await file.writeAsBytes(response.bodyBytes);
-              iosAttachments = [DarwinNotificationAttachment(filePath)];
-            } catch (e) {
-              print('Error creating iOS notification attachment: $e');
-            }
-          }
-        } else {
-          print('Failed to load notification image: HTTP ${response.statusCode}');
-        }
-      } catch (e) {
-        print('Error loading notification image: $e');
-      }
-    }
-
-    // Show module name as subText in notification
-    final String? module = message.data['module']?.toString();
-    final String? subText = (module != null && module.isNotEmpty) ? module : null;
-
-    AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'high_importance_channel',
-      'High Importance Notifications',
-      channelDescription: 'This channel is used for important notifications.',
-      importance: Importance.max,
-      priority: Priority.high,
-      showWhen: true,
-      subText: subText,
-      styleInformation: bigPictureStyle,
-    );
-
-    DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-      attachments: iosAttachments,
-    );
-
-    NotificationDetails details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    // Use a unique notification ID to prevent Android from replacing notifications.
-    // Priority: message data ID > booking ID > message ID > timestamp-based fallback.
-    // notification.hashCode was causing collisions — two notifications with similar
-    // content got the same hash, so tapping the 2nd one opened the 1st one's payload.
-    int notifId;
-    final dataId = message.data['id'] ?? message.data['booking_id'] ?? message.data['notification_id'];
-    if (dataId != null) {
-      notifId = int.tryParse(dataId.toString()) ?? DateTime.now().millisecondsSinceEpoch % 100000;
-    } else if (message.messageId != null) {
-      notifId = message.messageId.hashCode;
-    } else {
-      notifId = DateTime.now().millisecondsSinceEpoch % 100000;
-    }
-
-    await _localNotifications.show(
-      id: notifId,
-      title: notification.title,
-      body: notification.body,
-      notificationDetails: details,
-      payload: jsonEncode(message.data),
-    );
+    await _showLocalNotificationFromMessage(message);
   }
 
   // -- Notification Tap Handlers --

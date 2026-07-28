@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:video_player/video_player.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 import 'package:seedsuser/app/common/full_media_screen.dart';
+import 'package:seedsuser/app/utils/active_video_coordinator.dart';
 import 'package:seedsuser/app/utils/video_thumbnail_cache.dart';
 
 class MediaCarouselWidget extends StatefulWidget {
@@ -329,13 +333,35 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
 
   // Inline playback state — only used when widget.inlinePlay is true.
   VideoPlayerController? _controller;
-  bool _starting = false; // fetching/initialising after the user tapped play
+  bool _starting = false; // fetching/initialising after autoplay/tap triggered
   bool _playing = false;
+  bool _muted = true; // autoplay starts silent; user taps speaker to unmute
+  bool _slowNetwork = false; // last init timed out → stay on poster until net recovers
+  bool _isVisible = false; // driven by VisibilityDetector
+  double _visibleFraction = 0.0;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  // Bumped every time we tear down the player, so late-returning async work
+  // (e.g. initialize()) from a previous attempt can detect it is stale and bail.
+  int _sessionId = 0;
+  // Watches for mid-play stalls (buffer drained, no data coming in) — the
+  // reliable signal when connectivity_plus doesn't emit on airplane-mode toggle.
+  Timer? _stallTimer;
+  int _stallSeconds = 0;
+
+  static const Duration _initTimeout = Duration(seconds: 5);
+  static const int _stallTimeoutSeconds = 4;
+  static const double _autoplayThreshold = 0.6;
+  static const double _pauseThreshold = 0.35;
 
   @override
   void initState() {
     super.initState();
     _loadThumbnail();
+    if (widget.inlinePlay) {
+      _connectivitySub = Connectivity()
+          .onConnectivityChanged
+          .listen(_onConnectivityChanged);
+    }
   }
 
   @override
@@ -344,18 +370,24 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     if (oldWidget.url != widget.url) {
       _thumbnail = null;
       _loading = true;
-      _disposeController();
+      _slowNetwork = false;
+      _stopAndReleaseController();
       _loadThumbnail();
     }
   }
 
   @override
   void dispose() {
+    _connectivitySub?.cancel();
+    ActiveVideoCoordinator.instance.withdraw(this);
     _disposeController();
     super.dispose();
   }
 
   void _disposeController() {
+    _stallTimer?.cancel();
+    _stallTimer = null;
+    _stallSeconds = 0;
     _controller?.removeListener(_onTick);
     _controller?.dispose();
     _controller = null;
@@ -363,8 +395,85 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     _starting = false;
   }
 
-  // Tap handler: fetch + start the video inline. This is the first moment any
-  // video data is requested, so nothing downloads until the user asks to play.
+  // Ticks once per second while a controller is alive. If the player has been
+  // trying to buffer for [_stallTimeoutSeconds] without progress, the network
+  // is effectively dead — tear down and reveal the poster. This is the fallback
+  // for devices where connectivity_plus never emits an offline event.
+  void _checkStall() {
+    final c = _controller;
+    if (c == null || !mounted) {
+      _stallTimer?.cancel();
+      _stallTimer = null;
+      return;
+    }
+    final v = c.value;
+    if (v.isBuffering && v.isPlaying) {
+      _stallSeconds++;
+      if (_stallSeconds >= _stallTimeoutSeconds) {
+        _slowNetwork = true;
+        ActiveVideoCoordinator.instance.withdraw(this);
+        _stopAndReleaseController();
+      }
+    } else {
+      _stallSeconds = 0;
+    }
+  }
+
+  // Called when this tile scrolls out of view OR another tile claims the slot.
+  // Frees the network stream and reveals the poster again.
+  void _stopAndReleaseController() {
+    if (_controller == null && !_starting) return;
+    _sessionId++;
+    _disposeController();
+    if (mounted) setState(() {});
+  }
+
+  void _onConnectivityChanged(List<ConnectivityResult> results) {
+    final online = results.any((r) => r != ConnectivityResult.none);
+    if (!online) {
+      // Network dropped — tear down any playing/starting video so the poster
+      // returns instead of a frozen last-frame. Mark slow so a retry only
+      // happens once connectivity is back AND the tile is still visible.
+      if (_controller != null || _starting) {
+        _slowNetwork = true;
+        ActiveVideoCoordinator.instance.withdraw(this);
+        _stopAndReleaseController();
+      }
+      return;
+    }
+    if (!_slowNetwork || !_isVisible) return;
+    _slowNetwork = false;
+    _requestSlot();
+  }
+
+  void _onVisibilityChanged(VisibilityInfo info) {
+    if (!widget.inlinePlay) return;
+    _visibleFraction = info.visibleFraction;
+    if (_visibleFraction >= _autoplayThreshold) {
+      _isVisible = true;
+      if (_slowNetwork) return; // wait for connectivity to recover
+      _requestSlot();
+    } else if (_visibleFraction <= _pauseThreshold) {
+      _isVisible = false;
+      ActiveVideoCoordinator.instance.withdraw(this);
+    }
+  }
+
+  // Ask the coordinator to consider us for the "active video" slot. The
+  // coordinator compares fractions across all requesting tiles and only calls
+  // our [play] callback if we're the most-visible candidate — this prevents a
+  // race on page open where the last-fired VisibilityDetector callback wins.
+  void _requestSlot() {
+    ActiveVideoCoordinator.instance.request(
+      token: this,
+      fraction: _visibleFraction,
+      play: _startInlinePlayback,
+      stop: _stopAndReleaseController,
+    );
+  }
+
+  // Fetch + start the video. Triggered by visibility (autoplay) or by an
+  // explicit user tap on the poster after a slow-network fallback.
   Future<void> _startInlinePlayback() async {
     if (_controller != null || _starting) return;
     final videoUrl = widget.url.trim();
@@ -377,34 +486,55 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
       return;
     }
 
+    final session = ++_sessionId;
     setState(() => _starting = true);
+    final c = VideoPlayerController.networkUrl(
+      uri,
+      httpHeaders: const {
+        'User-Agent':
+            'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+        'Accept': '*/*',
+        'Accept-Encoding': 'identity',
+        'Connection': 'keep-alive',
+      },
+      // mixWithOthers: false so this inline preview loses audio focus the
+      // moment FullMediaScreen opens above it — prevents dual audio when
+      // the user taps the fullscreen icon while the inline is playing.
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
+    );
     try {
-      final c = VideoPlayerController.networkUrl(
-        uri,
-        httpHeaders: const {
-          'User-Agent':
-              'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
-          'Accept': '*/*',
-          'Accept-Encoding': 'identity',
-          'Connection': 'keep-alive',
-        },
-        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-      );
-      await c.initialize();
-      if (!mounted) {
+      await c.initialize().timeout(_initTimeout);
+      if (!mounted || session != _sessionId) {
         c.dispose();
         return;
       }
       await c.setLooping(true);
+      await c.setVolume(_muted ? 0.0 : 1.0);
       c.addListener(_onTick);
       await c.play();
+      _stallSeconds = 0;
+      _stallTimer?.cancel();
+      _stallTimer = Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => _checkStall(),
+      );
       setState(() {
         _controller = c;
         _starting = false;
         _playing = true;
       });
+    } on TimeoutException {
+      c.dispose();
+      // Slow network — bail to the poster and wait for connectivity to recover.
+      if (mounted && session == _sessionId) {
+        setState(() {
+          _starting = false;
+          _slowNetwork = true;
+        });
+      }
     } catch (_) {
-      if (mounted) setState(() => _starting = false);
+      c.dispose();
+      if (mounted && session == _sessionId) setState(() => _starting = false);
     }
   }
 
@@ -419,6 +549,29 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     final c = _controller;
     if (c == null) return;
     c.value.isPlaying ? c.pause() : c.play();
+  }
+
+  void _toggleMute() {
+    final c = _controller;
+    if (c == null) return;
+    final next = !_muted;
+    c.setVolume(next ? 0.0 : 1.0);
+    setState(() => _muted = next);
+  }
+
+  // Tap on the poster after a slow-network fallback: clear the flag and retry
+  // immediately. Preserves the tap-to-play affordance the user had before.
+  // Force-elects this tile with fraction 1.0 so any currently-playing tile is
+  // torn down first.
+  void _onPosterTapped() {
+    if (_starting) return;
+    _slowNetwork = false;
+    if (widget.inlinePlay) {
+      _visibleFraction = 1.0;
+      _requestSlot();
+    } else {
+      _startInlinePlayback();
+    }
   }
 
   Future<void> _loadThumbnail() async {
@@ -448,7 +601,16 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
   Widget build(BuildContext context) {
     final w = widget.width ?? MediaQuery.of(context).size.width;
     final h = widget.height ?? 350;
+    final content = _buildContent(w, h);
+    if (!widget.inlinePlay) return content;
+    return VisibilityDetector(
+      key: ValueKey('video_vis_${widget.url}'),
+      onVisibilityChanged: _onVisibilityChanged,
+      child: content,
+    );
+  }
 
+  Widget _buildContent(double w, double h) {
     // Playback has started — show the video itself; the poster is gone.
     final c = _controller;
     if (widget.inlinePlay && c != null && c.value.isInitialized) {
@@ -477,12 +639,39 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
                 child: Center(child: _playBadge()),
               ),
             ),
+            Positioned(
+              bottom: 6,
+              left: 6,
+              child: GestureDetector(
+                onTap: _toggleMute,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _muted ? Icons.volume_off : Icons.volume_up,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+              ),
+            ),
             if (widget.onFullscreen != null)
               Positioned(
                 bottom: 6,
                 right: 6,
                 child: GestureDetector(
-                  onTap: widget.onFullscreen,
+                  onTap: () {
+                    // Pause the inline decoder BEFORE the fullscreen route
+                    // is pushed so it stops emitting audio the moment the
+                    // fullscreen player starts. Combined with mixWithOthers
+                    // being off on both players, this guarantees the user
+                    // never hears the same track twice.
+                    _controller?.pause();
+                    widget.onFullscreen?.call();
+                  },
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
@@ -526,7 +715,7 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     if (widget.inlinePlay) {
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: _starting ? null : _startInlinePlayback,
+        onTap: _starting ? null : _onPosterTapped,
         child: Stack(
           fit: StackFit.expand,
           children: [

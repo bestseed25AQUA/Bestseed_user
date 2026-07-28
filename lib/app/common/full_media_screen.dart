@@ -99,7 +99,12 @@ class _FullMediaScreenState extends State<FullMediaScreen>
           'Accept-Encoding': 'identity',
           'Connection': 'keep-alive',
         },
-        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        // mixWithOthers: false takes exclusive audio focus on Android — if
+        // an inline VideoPlayerPreview from MediaCarouselWidget is still
+        // running under this route, Android's audio focus system will
+        // silence it. Without this the inline decoder kept playing audio
+        // in parallel and users heard the OTP/notification sound twice.
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
       );
 
       await controller.initialize();

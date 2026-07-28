@@ -177,8 +177,14 @@ class VehicleAvaibalityCard extends StatelessWidget {
                           Icon(Icons.schedule_rounded,
                               size: 12, color: Colors.grey.shade600),
                           const SizedBox(width: 4),
+                          // Time removed on purpose — booking datetimes are
+                          // always stored at midnight (no real time captured),
+                          // so rendering it as "12:00 AM" alongside the date
+                          // was misleading. The `time` parameter is still
+                          // accepted for backwards compatibility with call
+                          // sites but no longer displayed.
                           Text(
-                            '$time, $date',
+                            date,
                             style: GoogleFonts.roboto(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,

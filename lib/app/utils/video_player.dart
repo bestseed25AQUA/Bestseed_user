@@ -387,24 +387,30 @@ class _InlineVideoPlayerState extends State<InlineVideoPlayer>
 
   void _openFullscreen() {
     final wasPlaying = _controller?.value.isPlaying ?? false;
-    debugPrint('$_tag: FULLSCREEN open (wasPlaying=$wasPlaying)');
-    if (wasPlaying) {
-      _controller?.pause();
-      _stopStallDetection();
-      _logPlayState('opening-fullscreen');
-    }
+    debugPrint('$_tag: FULLSCREEN open (wasPlaying=$wasPlaying) — releasing inline controller');
+    // FULLY DISPOSE the inline controller before pushing the full-screen
+    // player. Previously we only paused it, and because both controllers
+    // used `mixWithOthers: true`, Android ExoPlayer kept both decoders
+    // alive → the fullscreen player would auto-play while the inline
+    // controller stayed loaded in the background, giving a dual-playback
+    // effect (audible on some OEMs). Disposing here guarantees exactly
+    // one active decoder for this video URL at any time.
+    _releaseController();
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => FullScreenVideoPlayer(url: widget.url, title: widget.title),
       ),
     ).then((_) {
-      debugPrint('$_tag: FULLSCREEN closed (shouldResume=$wasPlaying, userPaused=$_userPaused)');
-      if (wasPlaying && !_userPaused && mounted) {
-        _controller?.play();
-        _startStallDetection();
-        _logPlayState('returned-from-fullscreen');
-      }
+      debugPrint('$_tag: FULLSCREEN closed (shouldResume=$wasPlaying, userPaused=$_userPaused, mounted=$mounted)');
+      if (!mounted) return;
+      // Re-initialize the inline player so the poster/thumbnail restores
+      // if the tab is still visible. Autoplay behaviour on return matches
+      // the tab's original active state — same as first open.
+      _initializeVideo();
+      // If it was actively playing before fullscreen (and the user hadn't
+      // manually paused), resume once init completes. _initializeVideo
+      // handles the auto-start once ready, so we don't force play here.
     });
   }
 

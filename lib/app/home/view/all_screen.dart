@@ -24,6 +24,7 @@ import 'package:seedsuser/app/home/hatchery_updates_widget.dart';
 import 'package:seedsuser/app/home/view/hatchery_filter_screen.dart';
 import 'package:seedsuser/app/home/view/vehicle_availability_screen.dart';
 import 'package:seedsuser/app/home/widget/hatchery_widgets.dart';
+import 'package:seedsuser/app/home/widget/home_my_bookings_widget.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
 import 'package:seedsuser/app/news%20&%20ads/view/medicine_detail_screen.dart';
 import 'package:seedsuser/app/seed_request/view/seed_request_screen.dart';
@@ -137,6 +138,11 @@ class _HomePageState extends State<HomePage>
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: ContactUsPage(),
               ),
+
+              const SizedBox(height: 16),
+
+              // ── My Bookings (self-hides when the user has none) ──────
+              const HomeMyBookingsWidget(),
 
               const SizedBox(height: 16),
 

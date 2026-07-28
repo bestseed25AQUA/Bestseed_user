@@ -81,7 +81,12 @@ class _FullScreenVideoPlayerState extends State<FullScreenVideoPlayer>
           'Accept-Encoding': 'identity',
           'Connection': 'keep-alive',
         },
-        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        // mixWithOthers: false takes exclusive audio focus on Android — if
+        // any other video_player instance (an inline carousel that didn't
+        // dispose cleanly, for instance) is still running, Android's audio
+        // focus system will silence it. Belt-and-suspenders alongside the
+        // inline-controller dispose in _openFullscreen().
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
       );
 
       await _videoPlayerController!.initialize();

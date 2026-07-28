@@ -60,6 +60,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
       _otpController.text = otpCode;
       otpController.otp.value = otpCode;
       setState(() {});
+      // Auto-verify once SMS Retriever hands us a full 6-digit code — no
+      // "Confirm" tap needed. Guarded so we don't double-submit while a
+      // manual verify is already in flight.
+      if (!otpController.isLoading.value) {
+        otpController.verifyOtp();
+      }
     }
   }
 
@@ -179,7 +185,16 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen>
                     GestureDetector(
                       onTap: (isResending || !canResend)
                           ? null
-                          : () => otpController.resendOtp(),
+                          : () async {
+                              await otpController.resendOtp();
+                              // Google's SMS Retriever subscription is
+                              // single-shot and times out after ~5 min. The
+                              // original listener already fired (or has
+                              // expired) by the time the user hits Resend —
+                              // re-arm it for the freshly-sent code.
+                              if (!mounted) return;
+                              listenForCode(smsCodeRegexPattern: '\\d{6}');
+                            },
                       child: Text(
                         isResending
                             ? "Resending..."
