@@ -72,6 +72,17 @@ class ProfileController extends GetxController {
 
       // 🖼️ Optional profile image
       if (profileImage != null) {
+        // Server rejects anything over 2048 KB, so fail early with a message
+        // the user can act on instead of a raw 422 body.
+        final sizeInKb = await profileImage.length() / 1024;
+        if (sizeInKb > 2048) {
+          CustomToast.error(
+            "Image is too large (${sizeInKb.toStringAsFixed(0)} KB). "
+            "Please pick an image under 2 MB.",
+          );
+          return;
+        }
+
         request.files.add(
           await http.MultipartFile.fromPath('profile_image', profileImage.path),
         );
@@ -86,12 +97,38 @@ class ProfileController extends GetxController {
         safeBack();
         await getProfile(); // refresh profile
       } else {
-        CustomToast.error("Update failed  $respStr");
+        CustomToast.error(_readableError(response.statusCode, respStr));
       }
     } catch (e) {
-      CustomToast.error("Something went wrong  ");
+      CustomToast.error("Something went wrong: $e");
     } finally {
       isUpdating.value = false;
     }
+  }
+
+  /// Turns a Laravel error response into something worth showing a user.
+  /// A 422 carries {"message": ..., "errors": {"field": ["reason", ...]}};
+  /// anything else falls back to the status code so the failure is still
+  /// identifiable from a screenshot.
+  String _readableError(int statusCode, String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final errors = decoded['errors'];
+        if (errors is Map<String, dynamic> && errors.isNotEmpty) {
+          final messages = errors.values
+              .expand((value) => value is List ? value : [value])
+              .map((value) => value.toString())
+              .toList();
+          if (messages.isNotEmpty) return messages.join('\n');
+        }
+
+        final message = decoded['message'] ?? decoded['error'];
+        if (message is String && message.isNotEmpty) return message;
+      }
+    } catch (_) {
+      // Body was not JSON (an HTML error page, say) — fall through.
+    }
+    return "Update failed (error $statusCode)";
   }
 }

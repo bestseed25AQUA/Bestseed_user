@@ -36,8 +36,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _pickImageFromGallery() async {
+    // The API caps profile_image at 2048 KB and only accepts jpeg/png/jpg/gif.
+    // Resizing + re-encoding here keeps full-resolution camera photos (often
+    // 3-8 MB) under that limit, and converts iOS HEIC shots to JPEG, both of
+    // which the server would otherwise reject with a 422.
     final pickedFile = await ImagePicker().pickImage(
       source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 70,
     );
     if (pickedFile != null) {
       setState(() {
