@@ -925,9 +925,18 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           if (forceRouteRefresh) {
             _buildGreenFromPolyline();
             unawaited(_refreshHomeToVehicleRoute());
-    unawaited(_refreshGreenRoadPath());
-    unawaited(_refreshBlueRoadPath());
+            unawaited(_refreshGreenRoadPath());
           }
+          // Blue polyline reroute: always attempt on every poll. The
+          // function has its own guard (line ~3829) that only actually
+          // hits Google Directions when the deviation from the current
+          // blue path exceeds 100 m, so this is cheap in the happy case
+          // (driver on route → returns immediately) and self-healing when
+          // the driver has drifted (fetches a fresh route from current
+          // position → destination). Previously this was gated behind
+          // forceRouteRefresh, so when the polyline went stale mid-trip
+          // it stayed stale until the user manually pulled to refresh.
+          unawaited(_refreshBlueRoadPath());
           // Only call setState if no rebuild happened (rebuild does its own setState)
           if (apiPassedCount == _lastBuiltApiPassedCount && mounted) {
             setState(() {});
@@ -2441,6 +2450,41 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       return;
     }
 
+    // 4b) DR-drift HARD RESET.
+    //
+    //    Root cause of the "vehicle icon appears 20+ km off route while the
+    //    LIVE chip shows the correct city" bug. The nav loop advances
+    //    _drPos every vsync by (animSpeed * dt) along animHeading and only
+    //    accepts a new GPS fix when it lies FORWARD along that heading
+    //    (see backward-blend guard below). Once _drPos drifts (wrong
+    //    heading, wrong speed, or the driver actually diverged onto a
+    //    perpendicular road), every subsequent real GPS fix looks
+    //    "backward" from DR's viewpoint and gets rejected. _drPos then
+    //    keeps advancing along the stale heading indefinitely, and the
+    //    marker is locked at a completely wrong position with no way to
+    //    recover — the backward guard traps its own escape hatch.
+    //
+    //    Sanity net: if DR has drifted more than 200 m from the actual
+    //    filtered GPS, DR is fundamentally wrong. Hard-reset it to the
+    //    real fix and re-seed speed + heading from the fresh values.
+    //    Threshold is generous enough that legitimate DR extrapolation
+    //    (up to ~200 m at 30 m/s over a 7 s poll gap) never trips it,
+    //    but tight enough that the marker can never drift kilometers off.
+    final drDrift = _haversineMeters(_drPos!, filteredPos);
+    if (drDrift > 200) {
+      debugPrint('🚛 [NAV] DR drift ${drDrift.toStringAsFixed(0)}m > 200m — HARD RESET to raw GPS');
+      _drPos = filteredPos;
+      _blendToPos = null;
+      _blendStartAt = null;
+      _animSpeed = resolvedSpeed;
+      _animHeading = resolvedHeading;
+      _isStandstill = false;
+      _frozenPos = null;
+      _lastFixAt = now;
+      _lastRawFixPos = filteredPos;
+      return;
+    }
+
     // 5) Standstill hysteresis: freeze marker ONLY when the driver is
     //    truly parked (reported speed <0.5 m/s AND fix-to-fix movement
     //    small). Pool-Pal-Driver's 8m enter threshold was tuned for 1 Hz
@@ -2448,7 +2492,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     //    10-15 m per poll — right at the 8m boundary — so a movement-only
     //    check flip-flopped standstill on/off every poll and stopped the
     //    marker from ever gliding. Speed gate fixes that.
-    final movedM = _haversineMeters(_drPos!, filteredPos);
+    final movedM = drDrift;
     if (resolvedSpeed < 0.5 && movedM < _standstillEnterM) {
       _isStandstill = true;
       _frozenPos = filteredPos;
@@ -2486,9 +2530,27 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         (filteredPos.latitude - _drPos!.latitude) * metersPerDegLat;
     final forwardMeters = dx * sin(headingRad) + dy * cos(headingRad);
     if (forwardMeters < -2.0) {
+      // Small backward "overshoot" — DR predicted slightly ahead of the
+      // actual GPS. Hold DR steady and dampen speed so it stops
+      // over-predicting. This is the original intent of this guard.
+      if (forwardMeters > -80.0) {
+        _blendToPos = null;
+        _blendStartAt = null;
+        _animSpeed *= 0.5;
+        _lastFixAt = now;
+        _lastRawFixPos = filteredPos;
+        return;
+      }
+      // Large backward distance means DR is going in the wrong direction
+      // entirely (stale heading, or driver took a completely different
+      // route). Rejecting the fix here would let DR drift indefinitely.
+      // Hard-reset instead — same recovery as the DR-drift sanity net.
+      debugPrint('🚛 [NAV] Large backward fix ${forwardMeters.toStringAsFixed(0)}m — HARD RESET DR to raw GPS');
+      _drPos = filteredPos;
       _blendToPos = null;
       _blendStartAt = null;
-      _animSpeed *= 0.5;
+      _animSpeed = resolvedSpeed;
+      _animHeading = resolvedHeading;
       _lastFixAt = now;
       _lastRawFixPos = filteredPos;
       return;
@@ -2998,6 +3060,21 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         bestIndex = i;
       }
     }
+    // Distance sanity: if the nearest polyline point is more than 200 m
+    // from the driver's actual position, `_fullPolyline` is stale (route
+    // computed for a different set of waypoints, Directions API missed a
+    // road, or the driver has deviated far from the planned path).
+    // Projecting onto it yanks the marker km's away from the real GPS
+    // (this was the "vehicle icon off the polyline" bug — the projection
+    // happily landed on a stale route 9.7 km from where the driver
+    // actually is). Fall back to the raw position so the marker always
+    // tracks reality. Note: the same guard exists in `_snapToRoute` at
+    // Gate 1; both call sites are needed because the nav loop uses
+    // `_softSnapToRoute` and ignores `_snapToRoute`'s result.
+    if (minDist > 200) {
+      debugPrint('🚫 Soft-snap distance ${minDist.toStringAsFixed(0)}m > 200m — returning raw');
+      return pos;
+    }
     if (bestIndex > _currentSegmentIndex) {
       _currentSegmentIndex = bestIndex;
     }
@@ -3087,14 +3164,30 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       return hold;
     }
 
-    // ── GATE 1: Snap quality (hard threshold, no raw fallback) ──
+    // ── GATE 1: Snap quality (hard threshold) ──
+    //
+    // When the nearest polyline vertex is further than the mode's threshold
+    // (25/40/60 m), the polyline this snap targets does NOT represent the
+    // road the driver is on. Possible causes: the planned Directions route
+    // is stale after a re-route, Directions API didn't include the minor
+    // road the driver actually took, the driver is on a genuine detour, or
+    // the route was calculated for different waypoints than the ones now
+    // active. Whatever the cause, snapping onto a wrong polyline yanks the
+    // marker away from reality — the user then sees the vehicle icon 20+
+    // km off the drawn route even though the "LIVE" chip below the map
+    // shows the correct location.
+    //
+    // Previously we fell back to `_lastAcceptedSnap` here, which is itself
+    // a stale-polyline snapped position — leaving the marker frozen far
+    // from where the vehicle actually is. Return RAW GPS instead so the
+    // marker always tracks reality. It may sit off the drawn polyline
+    // (which is acceptable — polyline is guidance, marker is truth), but
+    // it will match the driver's real position and the LIVE chip.
     if (minDist > threshold) {
-      debugPrint('🚫 Snap quality fail: ${minDist.toStringAsFixed(0)}m > ${threshold.toStringAsFixed(0)}m (mode=$_currentMode)');
-      final hold = _lastAcceptedSnap
-          ?? (_driverBreadcrumbs.isNotEmpty ? _driverBreadcrumbs.last : raw);
+      debugPrint('🚫 Snap quality fail: ${minDist.toStringAsFixed(0)}m > ${threshold.toStringAsFixed(0)}m (mode=$_currentMode) — returning raw GPS');
       _snapCacheInput = raw;
-      _snapCacheOutput = hold;
-      return hold;
+      _snapCacheOutput = raw;
+      return raw;
     }
 
     // ── GATE 2: Bearing/direction agreement ──
@@ -5730,6 +5823,11 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         : _getTimeForFraction(1.0);
 
     final destAddress = destination.name.isNotEmpty ? destination.name : null;
+    // Blink the destination row while the vehicle has arrived but the
+    // driver / admin hasn't yet marked the booking as delivered (status
+    // 5). Once fully delivered, the pulse stops and the row stays a
+    // steady green check — matching the terminal state.
+    final bool destinationBlinking = isReached && !_trackingData!.isDelivered;
     timelineItems.add(
       _buildTimelineItem(
         width,
@@ -5745,6 +5843,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         destinationTime,
         isLast: true,
         isPassed: isReached,
+        isPulsing: destinationBlinking,
       ),
     );
 
