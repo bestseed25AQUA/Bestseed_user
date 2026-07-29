@@ -5823,6 +5823,11 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         : _getTimeForFraction(1.0);
 
     final destAddress = destination.name.isNotEmpty ? destination.name : null;
+    // Blink the destination row while the vehicle has arrived but the
+    // driver / admin hasn't yet marked the booking as delivered (status
+    // 5). Once fully delivered, the pulse stops and the row stays a
+    // steady green check — matching the terminal state.
+    final bool destinationBlinking = isReached && !_trackingData!.isDelivered;
     timelineItems.add(
       _buildTimelineItem(
         width,
@@ -5838,6 +5843,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         destinationTime,
         isLast: true,
         isPassed: isReached,
+        isPulsing: destinationBlinking,
       ),
     );
 
