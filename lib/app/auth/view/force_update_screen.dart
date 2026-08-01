@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:in_app_update/in_app_update.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -13,20 +15,89 @@ class ForceUpdateScreen extends StatelessWidget {
   final String storeUrlAndroid;
   final String storeUrlIos;
 
+  /// When true, the "Update Now" button invokes Google Play Core's
+  /// `InAppUpdate.performImmediateUpdate()` — Google's install UI takes
+  /// over inside this screen and the app auto-restarts on the new
+  /// version. Only set when the caller has ALREADY confirmed via
+  /// `InAppUpdate.checkForUpdate()` that an immediate update is
+  /// available on this device. Defaults to false so iOS / RC-only /
+  /// sideloaded paths still deep-link to the store the classic way.
+  final bool useInAppUpdate;
+
   const ForceUpdateScreen({
     super.key,
     required this.currentVersion,
     required this.minRequiredVersion,
     required this.storeUrlAndroid,
     required this.storeUrlIos,
+    this.useInAppUpdate = false,
   });
 
-  Future<void> _openStore() async {
-    final url = Platform.isIOS ? storeUrlIos : storeUrlAndroid;
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+  Future<void> _onUpdatePressed() async {
+    if (useInAppUpdate) {
+      try {
+        final result = await InAppUpdate.performImmediateUpdate();
+        if (result == AppUpdateResult.success) {
+          // App will be replaced and restarted by Play — nothing to do.
+          return;
+        }
+        // userDeniedUpdate / inAppUpdateFailed — tell the user, keep
+        // the screen up. They can tap again.
+        Get.snackbar(
+          'Update Cancelled',
+          'Please tap Update Now again to install the latest version.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.black87,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 5),
+        );
+        return;
+      } catch (e) {
+        // Plugin threw — fall through to store-URL deep link as a last
+        // resort so the user isn't stuck.
+      }
     }
+    await _openStore();
+  }
+
+  Future<void> _openStore() async {
+    // Prefer the platform-specific URL; if it's a well-known placeholder
+    // (leftover `idYOUR_APP_ID` from an earlier build), fall back to the
+    // App Store search URL so the user always lands on a working page
+    // instead of "App Not Available".
+    String url = Platform.isIOS ? storeUrlIos : storeUrlAndroid;
+    if (Platform.isIOS && (url.isEmpty || url.contains('YOUR_APP_ID'))) {
+      url = 'https://apps.apple.com/search?term=bestseed';
+    }
+    if (!Platform.isIOS && url.isEmpty) {
+      url = 'https://play.google.com/store/apps/details?id=com.app.bestseed';
+    }
+
+    final uri = Uri.parse(url);
+    try {
+      if (await canLaunchUrl(uri)) {
+        final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (ok) return;
+      }
+    } catch (e) {
+      // fall through to snackbar
+    }
+    // canLaunchUrl returned false or launchUrl threw / returned false.
+    // Surface a snackbar so the user knows something went wrong — silent
+    // no-op combined with `PopScope canPop:false` was leaving users
+    // stranded on a dead button.
+    Get.snackbar(
+      'Update Failed',
+      Platform.isIOS
+          ? 'Could not open App Store. Please open it manually and search for "Bestseed" to update.'
+          : 'Could not open Play Store. Please open it manually and update Bestseed.',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.black87,
+      colorText: Colors.white,
+      margin: const EdgeInsets.all(16),
+      duration: const Duration(seconds: 6),
+    );
   }
 
   @override
@@ -133,7 +204,7 @@ class ForceUpdateScreen extends StatelessWidget {
                       ],
                     ),
                     child: CustomButton(
-                      onPressed: _openStore,
+                      onPressed: _onUpdatePressed,
                       borderRadius: 14,
                       backgroundColor: AppColors.primary,
                       verticalPadding: 14,

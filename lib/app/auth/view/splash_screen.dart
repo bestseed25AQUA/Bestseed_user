@@ -108,31 +108,37 @@ class _SplashScreenState extends State<SplashScreen>
       }
 
       // ── Force-update gate ──
-      // Runs BEFORE any auth/token navigation. Two checks in order:
-      //   1. Firebase Remote Config `min_app_version` — admin-set floor.
-      //   2. Play Store / App Store version — auto-detects any newer release
-      //      indexed by the store.
-      // On force-update we replace the whole navigation stack with the
-      // custom ForceUpdateScreen (Bestseed logo, single "Update Now"
-      // button, no dismiss / no skip / back button blocked) and short-
-      // circuit — no dashboard or login navigation happens behind it.
-      // Any error inside the check is caught inside AppVersionManager so
-      // an outage cannot brick the app.
+      // Runs BEFORE any auth/token navigation.
+      //   1. Android — Google Play In-App Updates auto-detects newer
+      //      Play Store versions. When one is available we show the
+      //      branded Bestseed ForceUpdateScreen; its Update Now button
+      //      then triggers Google's native immediate-update installer
+      //      inline (see ForceUpdateScreen._onUpdatePressed).
+      //   2. iOS + Android fallback — Firebase Remote Config
+      //      `min_app_version` floor for emergencies / sideloads / iOS.
+      //      The Update Now button deep-links to the store.
+      //
+      // Any thrown error is caught inside AppVersionManager so an
+      // outage cannot brick the app; we fall through to the auth path
+      // and let the user in on any unexpected exception here.
       try {
-        final v = await AppVersionManager.checkForceUpdate()
-            .timeout(const Duration(seconds: 8));
-        if (v.forceUpdateRequired) {
-          if (!mounted) return;
-          Get.offAll(() => ForceUpdateScreen(
-                currentVersion: v.currentVersion,
-                minRequiredVersion: v.minRequiredVersion,
-                storeUrlAndroid: v.storeUrlAndroid,
-                storeUrlIos: v.storeUrlIos,
-              ));
-          return;
+        final v = await AppVersionManager.checkForceUpdate();
+        switch (v.decision) {
+          case ForceUpdateDecision.showBlockScreen:
+            if (!mounted) return;
+            Get.offAll(() => ForceUpdateScreen(
+                  currentVersion: v.currentVersion,
+                  minRequiredVersion: v.minRequiredVersion,
+                  storeUrlAndroid: v.storeUrlAndroid,
+                  storeUrlIos: v.storeUrlIos,
+                  useInAppUpdate: v.useInAppUpdate,
+                ));
+            return;
+          case ForceUpdateDecision.proceed:
+            break;
         }
       } catch (e) {
-        debugPrint('Splash force-update check error/timeout (non-fatal): $e');
+        debugPrint('Splash force-update check error (non-fatal): $e');
       }
 
       final token = await AuthLocalStorage.getToken();
@@ -161,6 +167,7 @@ class _SplashScreenState extends State<SplashScreen>
           NotificationService.handlePendingNotification();
         });
       } else {
+        if (!mounted) return;
         Get.off(() => const LoginWithMobileScreen());
       }
     } catch (e) {
