@@ -12,7 +12,6 @@ import 'package:seedsuser/app/rating/rating_prompt_service.dart';
 import 'package:seedsuser/app/utils/app_size.dart';
 import 'package:seedsuser/l10n/app_localizations.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:upgrader/upgrader.dart';
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -134,33 +133,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   ),
                   useMaterial3: true,
                 ),
-                // Force-update gate. UpgradeAlert queries the Play Store
-                // for the highest listed versionCode on cold start; if
-                // the installed build is older, it puts up a modal dialog
-                // over the splash. `showIgnore` + `showLater` are false
-                // and `canDismissDialog` is false so the user has no way
-                // to bypass — the only actionable button is "Update Now",
-                // which deep-links to our Play Store listing. On phones
-                // without Play Services (installed via APK share, review
-                // builds, dev debug), Upgrader silently no-ops so it
-                // never blocks internal QA.
-                home: UpgradeAlert(
-                  upgrader: Upgrader(
-                    countryCode: 'IN',
-                    languageCode: languageController
-                        .currentLocale.value.languageCode,
-                    debugLogging: false,
-                  ),
-                  // Ignore + Later buttons hidden so the only actionable
-                  // control is "Update Now" (deep-links to Play Store).
-                  // Upgrader's dialog defaults to non-barrier-dismissible
-                  // in 11.x, so tapping outside does nothing either.
-                  showIgnore: false,
-                  showLater: false,
-                  showReleaseNotes: false,
-                  dialogStyle: UpgradeDialogStyle.material,
-                  child: const SplashScreen(),
-                ),
+                // Force-update is handled by [AppVersionManager.checkForceUpdate]
+                // + [ForceUpdateScreen] driven from the splash screen — that
+                // route has the Bestseed logo, single "Update Now" button, and
+                // no dismiss/skip. The `upgrader` package's `UpgradeAlert`
+                // was previously wrapped here but it fell back to a plain-text
+                // "Deprecated Version" screen on Play Store installs when its
+                // scraper couldn't fetch the listing — the custom screen is
+                // strictly better on every path.
+                home: const SplashScreen(),
               ),
             );
           },

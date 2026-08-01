@@ -270,16 +270,33 @@ class LocationController extends GetxController {
         return null;
       }
 
-      // Check location permission. Do NOT trigger the native permission dialog
-      // here — this runs automatically on home load, and the home screen
-      // already shows its own in-app "Enable location" sheet. Two prompts at
-      // once is confusing. Only auto-detect when permission is already granted;
-      // otherwise no-op and let the in-app sheet handle the ask.
+      // Check location permission. Previously this method returned silently
+      // when permission wasn't granted, based on a comment that "the home
+      // screen already shows its own in-app 'Enable location' sheet" — but
+      // that sheet was never actually wired up on the home screen, so
+      // first-time users (especially on iOS) landed on the home page with
+      // "Select Location" placeholder and no permission prompt ever
+      // appearing. Fix: actually request permission when denied.
+      //
+      // We do NOT re-prompt if the user explicitly denied forever — that
+      // would need the OS settings screen anyway, and re-asking would be
+      // pointless. `Geolocator.requestPermission()` is safe to call
+      // repeatedly: on iOS it shows the native prompt only once per install
+      // (subsequent calls return the current status without a dialog), and
+      // on Android the same is true after Android 11+.
       LocationPermission permission = await Geolocator.checkPermission();
-      if (permission != LocationPermission.always &&
-          permission != LocationPermission.whileInUse) {
-        print('Location not granted — skipping silent auto-detect');
+      if (permission == LocationPermission.deniedForever) {
+        print('Location deniedForever — user must enable in Settings');
         return null;
+      }
+      if (permission == LocationPermission.denied) {
+        print('Location denied — requesting permission');
+        permission = await Geolocator.requestPermission();
+        if (permission != LocationPermission.always &&
+            permission != LocationPermission.whileInUse) {
+          print('Location permission not granted after request — giving up');
+          return null;
+        }
       }
 
       // iOS-specific: detect if user disabled "Precise Location" toggle and

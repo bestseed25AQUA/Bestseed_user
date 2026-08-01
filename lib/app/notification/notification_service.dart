@@ -7,6 +7,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:seedsuser/app/announcement/announcement_prompt_service.dart';
+import 'package:seedsuser/app/announcement/announcement_screen.dart';
 import 'package:seedsuser/app/auth/view/login_screen.dart';
 import 'package:seedsuser/app/booking/view/booking_detail_screen.dart';
 import 'package:seedsuser/app/common/force_logout_notice.dart';
@@ -67,20 +69,39 @@ String? _pickField(dynamic dataValue, String? notificationValue) {
 /// its own FlutterLocalNotificationsPlugin — the main-isolate instance is
 /// unreachable from a background isolate.
 @pragma('vm:entry-point')
-Future<void> _showLocalNotificationFromMessage(RemoteMessage message) async {
+Future<void> _showLocalNotificationFromMessage(
+  RemoteMessage message, {
+  bool initializePlugin = true,
+}) async {
   final localNotifications = FlutterLocalNotificationsPlugin();
 
-  // Init is idempotent — calling it once per isolate per message is cheap.
-  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-  const iosSettings = DarwinInitializationSettings(
-    requestAlertPermission: false,
-    requestBadgePermission: false,
-    requestSoundPermission: false,
-  );
-  await localNotifications.initialize(
-    settings:
-        const InitializationSettings(android: androidSettings, iOS: iosSettings),
-  );
+  // ONLY the background isolate may initialize here.
+  //
+  // initialize() is NOT idempotent with respect to callbacks: it assigns
+  // `_onDidReceiveNotificationResponse = onDidReceiveNotificationResponse`
+  // unconditionally, and FlutterLocalNotificationsPlugin is a singleton. So
+  // calling it again on the MAIN isolate without passing the tap callback
+  // silently sets that callback to null — after which tapping any
+  // notification does nothing at all (the plugin dispatches via
+  // `_onDidReceiveNotificationResponse?.call(...)`).
+  //
+  // That is exactly what happened on the foreground path: showing a
+  // notification wiped the handler registered in NotificationService
+  // .initialize(), so booking_status / journey-started taps stopped
+  // navigating. The background isolate is a separate isolate with its own
+  // plugin state, so initializing there is both required and harmless.
+  if (initializePlugin) {
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
+    await localNotifications.initialize(
+      settings: const InitializationSettings(
+          android: androidSettings, iOS: iosSettings),
+    );
+  }
 
   // Ensure the high-importance channel exists on this isolate too.
   const androidChannel = AndroidNotificationChannel(
@@ -344,6 +365,9 @@ class NotificationService {
       // in real time (in addition to the local notification banner).
       RatingPromptService.instance
           .onDeliveredPush(Map<String, dynamic>.from(message.data));
+      // Admin announcement → pop the dialog straight away.
+      AnnouncementPromptService.instance
+          .onAnnouncementPush(Map<String, dynamic>.from(message.data));
       _showLocalNotification(message);
     });
 
@@ -395,8 +419,13 @@ class NotificationService {
   // whichever plugin instance was initialised in the process that receives
   // them, so a notification shown by the background isolate still fires
   // this class's tap handler once the app is brought to the foreground.
+  //
+  // `initializePlugin: false` is essential: this runs on the MAIN isolate,
+  // which already called initialize() with `_onNotificationTapped` in
+  // [initialize]. Re-initializing here would overwrite that callback with
+  // null and break every notification tap for the rest of the session.
   Future<void> _showLocalNotification(RemoteMessage message) async {
-    await _showLocalNotificationFromMessage(message);
+    await _showLocalNotificationFromMessage(message, initializePlugin: false);
   }
 
   // -- Notification Tap Handlers --
@@ -425,6 +454,12 @@ class NotificationService {
               hatcheryId: data['hatchery_id']?.toString(),
               hatcheryName: data['hatchery_name']?.toString(),
             ));
+        break;
+
+      case 'announcement':
+        // Opening from the tray takes the user to the full list; the dialog
+        // itself is driven by AnnouncementPromptService on resume.
+        Get.to(() => const AnnouncementsScreen());
         break;
 
       case 'booking_status':

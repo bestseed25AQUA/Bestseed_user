@@ -4,11 +4,13 @@ import 'dart:io';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/auth/view/force_update_screen.dart';
 import 'package:seedsuser/app/auth/view/login_screen.dart';
 import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/dashboard/dashboard.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/notification/notification_service.dart';
+import 'package:seedsuser/app/utils/app_version_manager.dart';
 import 'package:seedsuser/main.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -104,6 +106,35 @@ class _SplashScreenState extends State<SplashScreen>
       } catch (e) {
         debugPrint('Splash initializeApp error/timeout (non-fatal): $e');
       }
+
+      // ── Force-update gate ──
+      // Runs BEFORE any auth/token navigation. Two checks in order:
+      //   1. Firebase Remote Config `min_app_version` — admin-set floor.
+      //   2. Play Store / App Store version — auto-detects any newer release
+      //      indexed by the store.
+      // On force-update we replace the whole navigation stack with the
+      // custom ForceUpdateScreen (Bestseed logo, single "Update Now"
+      // button, no dismiss / no skip / back button blocked) and short-
+      // circuit — no dashboard or login navigation happens behind it.
+      // Any error inside the check is caught inside AppVersionManager so
+      // an outage cannot brick the app.
+      try {
+        final v = await AppVersionManager.checkForceUpdate()
+            .timeout(const Duration(seconds: 8));
+        if (v.forceUpdateRequired) {
+          if (!mounted) return;
+          Get.offAll(() => ForceUpdateScreen(
+                currentVersion: v.currentVersion,
+                minRequiredVersion: v.minRequiredVersion,
+                storeUrlAndroid: v.storeUrlAndroid,
+                storeUrlIos: v.storeUrlIos,
+              ));
+          return;
+        }
+      } catch (e) {
+        debugPrint('Splash force-update check error/timeout (non-fatal): $e');
+      }
+
       final token = await AuthLocalStorage.getToken();
 
       debugPrint("Splash token check: ${token != null && token.isNotEmpty ? 'Token found (${token.substring(0, token.length > 10 ? 10 : token.length)}...)' : 'No token'}");

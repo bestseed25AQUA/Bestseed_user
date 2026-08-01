@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/announcement/announcement_screen.dart';
+import 'package:seedsuser/app/announcement/controller/announcement_controller.dart';
 import 'package:seedsuser/app/booking/view/booking_screen.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
@@ -26,10 +28,14 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final LogoutController logoutController = Get.put(LogoutController());
   final ProfileController profileController = Get.put(ProfileController());
+  // Shared permanent instance — the badge stays in step with the popup service.
+  final AnnouncementController announcementController = AnnouncementController.to;
 
   @override
   void initState() {
     super.initState();
+    // Refresh the badge every time the profile is opened.
+    announcementController.fetchAnnouncements();
     // Always refresh on open. Get.put returns the existing controller instance
     // without re-running onInit, so if its first fetch (at app start) came back
     // empty/failed, the screen would otherwise show "No name available"/"N/A"
@@ -220,6 +226,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onTap: () => Get.to(() => NotificationsScreen()),
           ),
           _divider(),
+          Obx(() => _menuTile(
+                icon: Icons.campaign_outlined,
+                title: 'Announcements',
+                badgeCount: announcementController.unreadCount.value,
+                onTap: () => Get.to(() => const AnnouncementsScreen()),
+              )),
+          _divider(),
           _menuTile(
             icon: Icons.description_outlined,
             title: AppLocalizations.of(context).terms_conditions,
@@ -260,6 +273,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required VoidCallback onTap,
     Color? iconColor,
     Color? textColor,
+    int badgeCount = 0,
   }) {
     return InkWell(
       onTap: onTap,
@@ -288,6 +302,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
+            if (badgeCount > 0)
+              Container(
+                margin: const EdgeInsets.only(right: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                constraints: const BoxConstraints(minWidth: 20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  badgeCount > 99 ? '99+' : '$badgeCount',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.roboto(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
             Icon(Icons.chevron_right_rounded,
                 size: 22, color: Colors.grey.shade400),
           ],
