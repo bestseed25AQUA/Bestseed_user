@@ -4,11 +4,13 @@ import 'dart:io';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:seedsuser/app/auth/view/force_update_screen.dart';
 import 'package:seedsuser/app/auth/view/login_screen.dart';
 import 'package:seedsuser/app/common/local_storage.dart';
 import 'package:seedsuser/app/dashboard/dashboard.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/notification/notification_service.dart';
+import 'package:seedsuser/app/utils/app_version_manager.dart';
 import 'package:seedsuser/main.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -104,6 +106,41 @@ class _SplashScreenState extends State<SplashScreen>
       } catch (e) {
         debugPrint('Splash initializeApp error/timeout (non-fatal): $e');
       }
+
+      // ── Force-update gate ──
+      // Runs BEFORE any auth/token navigation.
+      //   1. Android — Google Play In-App Updates auto-detects newer
+      //      Play Store versions. When one is available we show the
+      //      branded Bestseed ForceUpdateScreen; its Update Now button
+      //      then triggers Google's native immediate-update installer
+      //      inline (see ForceUpdateScreen._onUpdatePressed).
+      //   2. iOS + Android fallback — Firebase Remote Config
+      //      `min_app_version` floor for emergencies / sideloads / iOS.
+      //      The Update Now button deep-links to the store.
+      //
+      // Any thrown error is caught inside AppVersionManager so an
+      // outage cannot brick the app; we fall through to the auth path
+      // and let the user in on any unexpected exception here.
+      try {
+        final v = await AppVersionManager.checkForceUpdate();
+        switch (v.decision) {
+          case ForceUpdateDecision.showBlockScreen:
+            if (!mounted) return;
+            Get.offAll(() => ForceUpdateScreen(
+                  currentVersion: v.currentVersion,
+                  minRequiredVersion: v.minRequiredVersion,
+                  storeUrlAndroid: v.storeUrlAndroid,
+                  storeUrlIos: v.storeUrlIos,
+                  useInAppUpdate: v.useInAppUpdate,
+                ));
+            return;
+          case ForceUpdateDecision.proceed:
+            break;
+        }
+      } catch (e) {
+        debugPrint('Splash force-update check error (non-fatal): $e');
+      }
+
       final token = await AuthLocalStorage.getToken();
 
       debugPrint("Splash token check: ${token != null && token.isNotEmpty ? 'Token found (${token.substring(0, token.length > 10 ? 10 : token.length)}...)' : 'No token'}");
@@ -130,6 +167,7 @@ class _SplashScreenState extends State<SplashScreen>
           NotificationService.handlePendingNotification();
         });
       } else {
+        if (!mounted) return;
         Get.off(() => const LoginWithMobileScreen());
       }
     } catch (e) {

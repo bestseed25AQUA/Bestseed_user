@@ -1,24 +1,53 @@
+import 'dart:io';
+
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
+import 'package:in_app_update/in_app_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:seedsuser/app/utils/itunes_lookup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:upgrader/upgrader.dart';
 
 import 'package:seedsuser/app/common/local_storage.dart';
 
+// Dev-only override used for on-device UI verification. Must be false
+// for production builds — leaving it true would force every launch onto
+// ForceUpdateScreen regardless of Play state.
+const bool _kForceScreenForTest = false;
+
+/// What the splash should do after `AppVersionManager.checkForceUpdate`.
+enum ForceUpdateDecision {
+  /// No update required — carry on with the normal auth / dashboard flow.
+  proceed,
+
+  /// Show the branded Bestseed ForceUpdateScreen. The screen's Update Now
+  /// button then either (a) triggers Google's native immediate-update
+  /// installer via `InAppUpdate.performImmediateUpdate` when the result's
+  /// `useInAppUpdate` flag is true, or (b) deep-links to the Play Store
+  /// / App Store when it's false (iOS, sideloaded, or RC-only floor).
+  showBlockScreen,
+}
+
 class VersionCheckResult {
-  final bool forceUpdateRequired;
+  final ForceUpdateDecision decision;
   final String currentVersion;
   final String minRequiredVersion;
   final String storeUrlAndroid;
   final String storeUrlIos;
 
+  /// True when the Play In-App Updates API confirmed a newer version is
+  /// available AND the device can do an immediate install. Tells the
+  /// ForceUpdateScreen to call `InAppUpdate.performImmediateUpdate()` on
+  /// tap instead of launching a `market://` URL — Google's install flow
+  /// takes over inside our app and auto-restarts with the new version.
+  final bool useInAppUpdate;
+
   const VersionCheckResult({
-    required this.forceUpdateRequired,
+    required this.decision,
     required this.currentVersion,
     required this.minRequiredVersion,
     required this.storeUrlAndroid,
     required this.storeUrlIos,
+    this.useInAppUpdate = false,
   });
 }
 
@@ -30,29 +59,22 @@ class AppVersionManager {
   static const _rcStoreAndroid = 'store_url_android';
   static const _rcStoreIos = 'store_url_ios';
 
-  // Fallbacks used when Remote Config has no value yet (first run, no network).
+  // Play Store URL — real deep link for the published app.
   static const _defaultStoreAndroid =
-      'https://play.google.com/store/apps/details?id=com.bestseed.user';
+      'https://play.google.com/store/apps/details?id=com.app.bestseed';
+  // App Store SEARCH URL — safe default until the app is published on
+  // iOS. Always resolves to a working page (unlike the old
+  // `idYOUR_APP_ID` placeholder that opened App Store to
+  // "App Not Available"). Replace with the real id-based URL once live.
   static const _defaultStoreIos =
-      'https://apps.apple.com/app/idYOUR_APP_ID';
+      'https://apps.apple.com/search?term=bestseed';
 
-  /// Compares the current build fingerprint against the one stored from the
-  /// previous launch. If anything changed, the auth token is cleared so the
-  /// next screen is the login screen. Two signals are combined:
-  ///   1. `version+buildNumber` — catches Play Store / App Store updates
-  ///      (assumes the developer bumps the version per release).
-  ///   2. `updateTime` — catches APK reinstalls during testing where the
-  ///      version is NOT bumped (sideloaded release builds replace the
-  ///      install but SharedPreferences and the token survive). Android
-  ///      returns the new install timestamp; iOS may return null, in which
-  ///      case only signal #1 applies.
+  /// Compares the current build fingerprint against the one stored from
+  /// the previous launch. If anything changed, the auth token is cleared
+  /// so the next screen is the login screen.
   static Future<void> clearTokenIfVersionChanged() async {
     try {
       final info = await PackageInfo.fromPlatform();
-      // Use updateTime — it changes every time an APK is installed over
-      // an existing install (the sideload-testing flow). installTime would
-      // only change on uninstall+reinstall and miss this case. iOS returns
-      // a value here too. Fall back to installTime if updateTime is null.
       final updateAt = info.updateTime ?? info.installTime;
       final updateStamp = updateAt?.millisecondsSinceEpoch.toString() ?? '';
       final current = '${info.version}+${info.buildNumber}|$updateStamp';
@@ -69,32 +91,161 @@ class AppVersionManager {
     }
   }
 
-  /// Decides whether the installed build must be force-updated. Two checks
-  /// run in order:
-  ///   1. Firebase Remote Config `min_app_version` — manual override for
-  ///      emergencies (e.g. block a specific bad build).
-  ///   2. Store auto-detect via `upgrader` — queries Play Store / App Store
-  ///      directly and returns true the moment a newer version is published,
-  ///      with no Firebase change needed.
-  /// Soft-fails on any error so an outage cannot brick the app.
+  /// Decides whether the splash should hand control to ForceUpdateScreen.
+  ///
+  /// 1. **Android — Google Play In-App Updates.** `checkForUpdate()`
+  ///    asks Play directly whether a newer version is published. If yes,
+  ///    we return `showBlockScreen` with `useInAppUpdate: true` so the
+  ///    branded Bestseed screen appears first — its Update Now button
+  ///    then triggers Google's immediate-update installer inline (no
+  ///    kick-out to the Play Store app). If Play says no update, we
+  ///    trust it and return `proceed` — Remote Config is NOT consulted
+  ///    on this path, so a misconfigured RC floor can't lock latest
+  ///    users.
+  /// 2. **iOS + Android when Play was unreachable** — Firebase Remote
+  ///    Config `min_app_version` floor. If installed < floor, return
+  ///    `showBlockScreen` with `useInAppUpdate: false` so the button
+  ///    deep-links to the store.
+  ///
+  /// Every step soft-fails so a client-side outage cannot brick users.
   static Future<VersionCheckResult> checkForceUpdate() async {
-    final info = await PackageInfo.fromPlatform();
-    final currentVersion = info.version;
+    // Fail-safe: if PackageInfo itself throws (rare corrupt install /
+    // OEM ROM), default currentVersion to '0.0.0'. The pipeline still
+    // runs, and on Android Play Store is authoritative regardless.
+    String currentVersion = '0.0.0';
+    try {
+      final info = await PackageInfo.fromPlatform();
+      currentVersion = info.version;
+    } catch (e) {
+      debugPrint('AppVersionManager: PackageInfo.fromPlatform failed: $e');
+    }
 
-    String minRequired = '';
+    // TEMP dev override — see _kForceScreenForTest above.
+    if (_kForceScreenForTest) {
+      debugPrint('AppVersionManager: _kForceScreenForTest=true — forcing block screen');
+      return VersionCheckResult(
+        decision: ForceUpdateDecision.showBlockScreen,
+        currentVersion: currentVersion,
+        // Empty so the version chip on ForceUpdateScreen doesn't render
+        // (matches production behaviour when Play In-App Update detects
+        // an update: `minRequiredVersion` is passed empty and the chip's
+        // `isNotEmpty` guard hides it). User sees logo + title + button
+        // only, which is the real UI they'll ship.
+        minRequiredVersion: '',
+        storeUrlAndroid: _defaultStoreAndroid,
+        storeUrlIos: _defaultStoreIos,
+        useInAppUpdate: false,
+      );
+    }
+
     String storeAndroid = _defaultStoreAndroid;
     String storeIos = _defaultStoreIos;
+    String minRequired = '';
 
+    // ── 1) Android: Google Play In-App Updates ──
+    // MUST guard with Platform.isAndroid — the plugin throws
+    // MissingPluginException on iOS.
+    if (Platform.isAndroid) {
+      try {
+        final upd = await InAppUpdate.checkForUpdate()
+            .timeout(const Duration(seconds: 6));
+
+        if (upd.updateAvailability == UpdateAvailability.updateAvailable) {
+          // Show branded screen first; the button will invoke
+          // performImmediateUpdate() on tap. If Play won't allow
+          // immediate on this device, `useInAppUpdate` is false and the
+          // button falls back to a Play Store deep-link.
+          return VersionCheckResult(
+            decision: ForceUpdateDecision.showBlockScreen,
+            currentVersion: currentVersion,
+            minRequiredVersion: '',
+            storeUrlAndroid: storeAndroid,
+            storeUrlIos: storeIos,
+            useInAppUpdate: upd.immediateUpdateAllowed,
+          );
+        }
+
+        // Play answered authoritatively: no update available. Trust
+        // Play and skip Remote Config — this prevents a misconfigured
+        // RC floor (staging leftover, premature emergency bump) from
+        // locking users on the latest Play build.
+        return VersionCheckResult(
+          decision: ForceUpdateDecision.proceed,
+          currentVersion: currentVersion,
+          minRequiredVersion: '',
+          storeUrlAndroid: storeAndroid,
+          storeUrlIos: storeIos,
+        );
+      } catch (e) {
+        // ERROR_API_NOT_AVAILABLE (sideloaded APK, no Play Services),
+        // network error, or plugin crash. Fall through to Remote
+        // Config as the emergency backup.
+        debugPrint('AppVersionManager: InAppUpdate check failed: $e');
+      }
+    }
+
+    // ── 2) iOS: Apple iTunes Lookup API ──
+    // Apple has no equivalent to Google's Play In-App Updates, so we
+    // query the public iTunes Lookup endpoint by bundle ID and compare
+    // its `version` field against the installed build. If iTunes answers
+    // authoritatively (either "update needed" or "no update"), trust it
+    // and skip Remote Config — same pattern as the Android branch above.
+    // Only fall through to RC when iTunes is unreachable / malformed.
+    //
+    // SAFETY: skip the comparison entirely when currentVersion is still
+    // the '0.0.0' placeholder from a PackageInfo failure — otherwise
+    // _isBelow('0.0.0', anyRealAppStoreVersion) is unconditionally true
+    // and we'd block every iOS user with a bogus "Your version: 0.0.0"
+    // chip. Better to fall through to RC (which has its own guard) and
+    // ultimately proceed than to hard-lock users we can't diagnose.
+    if (Platform.isIOS && currentVersion != '0.0.0') {
+      final lookup = await ITunesLookup.lookup(
+        bundleId: 'com.app.bestseed',
+      );
+      if (lookup != null) {
+        // Adopt the store URL Apple returned — canonical deep link.
+        if (lookup.trackViewUrl.isNotEmpty) storeIos = lookup.trackViewUrl;
+
+        if (_isBelow(currentVersion, lookup.version)) {
+          return VersionCheckResult(
+            decision: ForceUpdateDecision.showBlockScreen,
+            currentVersion: currentVersion,
+            minRequiredVersion: lookup.version,
+            storeUrlAndroid: storeAndroid,
+            storeUrlIos: storeIos,
+            useInAppUpdate: false, // iOS has no in-app update installer
+          );
+        }
+        // iTunes said no update available — trust it, skip RC.
+        return VersionCheckResult(
+          decision: ForceUpdateDecision.proceed,
+          currentVersion: currentVersion,
+          minRequiredVersion: '',
+          storeUrlAndroid: storeAndroid,
+          storeUrlIos: storeIos,
+        );
+      }
+      // iTunes lookup failed (network, storefront miss, malformed JSON).
+      // Fall through to Remote Config as the emergency backup.
+      debugPrint('AppVersionManager: iTunes Lookup returned null — falling back to RC');
+    }
+
+    // ── 3) Both platforms: Remote Config floor (emergency backup) ──
     try {
       final rc = FirebaseRemoteConfig.instance;
       await rc.setConfigSettings(RemoteConfigSettings(
         fetchTimeout: const Duration(seconds: 6),
-        minimumFetchInterval: const Duration(minutes: 30),
+        // Zero interval: emergency floor propagates on the very next
+        // cold start after admin bumps it.
+        minimumFetchInterval: Duration.zero,
       ));
-      await rc.setDefaults({
+      await rc.setDefaults(const {
         _rcMinVersion: '0.0.0',
-        _rcStoreAndroid: _defaultStoreAndroid,
-        _rcStoreIos: _defaultStoreIos,
+        // Empty defaults so `isNotEmpty` below is a real signal — the
+        // compile-time defaults above are used only when RC didn't
+        // set an override.
+        _rcStoreAndroid: '',
+        _rcStoreIos: '',
       });
       await rc.fetchAndActivate();
 
@@ -107,45 +258,25 @@ class AppVersionManager {
       debugPrint('AppVersionManager.checkForceUpdate RC error: $e');
     }
 
-    bool force = minRequired.isNotEmpty &&
+    final bool needsUpdate = minRequired.isNotEmpty &&
+        minRequired != '0.0.0' &&
         _isBelow(currentVersion, minRequired);
 
-    // Store-driven auto-detect — only consult the store if Remote Config
-    // didn't already force the update, since the RC check is faster and
-    // more authoritative (admin-controlled).
-    String storeLatest = '';
-    if (!force) {
-      try {
-        final upgrader = Upgrader(
-          durationUntilAlertAgain: const Duration(seconds: 0),
-          debugLogging: kDebugMode,
-        );
-        await upgrader.initialize();
-        if (upgrader.isUpdateAvailable()) {
-          force = true;
-          storeLatest = upgrader.currentAppStoreVersion ?? '';
-        }
-      } catch (e) {
-        debugPrint('AppVersionManager.checkForceUpdate store error: $e');
-      }
-    }
-
-    // Surface the store version on the screen if the gate was triggered by
-    // the store check, otherwise show the Remote Config minimum.
-    final displayedRequired =
-        storeLatest.isNotEmpty ? storeLatest : minRequired;
-
     return VersionCheckResult(
-      forceUpdateRequired: force,
+      decision: needsUpdate
+          ? ForceUpdateDecision.showBlockScreen
+          : ForceUpdateDecision.proceed,
       currentVersion: currentVersion,
-      minRequiredVersion: displayedRequired,
+      minRequiredVersion: minRequired,
       storeUrlAndroid: storeAndroid,
       storeUrlIos: storeIos,
+      // RC-only path: no Play in-app updater available (either iOS or
+      // Play was unreachable). Button will deep-link to the store URL.
+      useInAppUpdate: false,
     );
   }
 
-  // Returns true if `current` semver is strictly less than `minimum`. Compares
-  // numeric segments only ("1.2.3" vs "1.10.0" → 1.2.3 is lower).
+  // Returns true if `current` semver is strictly less than `minimum`.
   static bool _isBelow(String current, String minimum) {
     final c = _segments(current);
     final m = _segments(minimum);

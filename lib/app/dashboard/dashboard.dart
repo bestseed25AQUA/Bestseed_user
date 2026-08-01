@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:seedsuser/app/announcement/announcement_prompt_service.dart';
 import 'package:seedsuser/app/rating/rating_prompt_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -112,6 +113,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       debugPrint('⭐[RATING] trigger: dashboard landing → checkPending');
       RatingPromptService.instance.checkPending();
+      // Any announcement the admin sent while this user was away pops up here.
+      AnnouncementPromptService.instance.check();
     });
 
     // Refresh the live-tracking FAB whenever the user returns to the Home tab,
@@ -141,6 +144,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       // A booking may have moved to In-Journey while backgrounded — refresh the
       // live-tracking FAB.
       _bookingController.fetchInProgressBookings();
+      // An announcement may have been sent while backgrounded.
+      AnnouncementPromptService.instance.check();
       if (_waitingForSettingsReturn) {
         _waitingForSettingsReturn = false;
         debugPrint('📍 [LOC] App RESUMED from settings — checking GPS...');

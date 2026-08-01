@@ -143,10 +143,7 @@ class _BookingPreviewCard extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () => Get.to(
-        () => BookingDetailScreen(
-          bookingId: booking.bookingId.toString(),
-          hatcheryName: booking.hatcheryName,
-        ),
+        () => MyBookingScreen(),
       ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
