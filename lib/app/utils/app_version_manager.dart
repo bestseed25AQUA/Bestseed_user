@@ -131,7 +131,7 @@ class AppVersionManager {
     }
 
     // Surface the store version on the screen if the gate was triggered by
-    // the store check, otherwise show the Remote Config minimum.
+    // the store check, otherwise show the Remote Config minimum...........
     final displayedRequired =
         storeLatest.isNotEmpty ? storeLatest : minRequired;
 
