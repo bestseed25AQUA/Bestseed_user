@@ -4,6 +4,7 @@ import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_update/in_app_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:seedsuser/app/utils/itunes_lookup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:seedsuser/app/common/local_storage.dart';
@@ -183,7 +184,53 @@ class AppVersionManager {
       }
     }
 
-    // ── 2) iOS (always) + Android fallback: Remote Config floor ──
+    // ── 2) iOS: Apple iTunes Lookup API ──
+    // Apple has no equivalent to Google's Play In-App Updates, so we
+    // query the public iTunes Lookup endpoint by bundle ID and compare
+    // its `version` field against the installed build. If iTunes answers
+    // authoritatively (either "update needed" or "no update"), trust it
+    // and skip Remote Config — same pattern as the Android branch above.
+    // Only fall through to RC when iTunes is unreachable / malformed.
+    //
+    // SAFETY: skip the comparison entirely when currentVersion is still
+    // the '0.0.0' placeholder from a PackageInfo failure — otherwise
+    // _isBelow('0.0.0', anyRealAppStoreVersion) is unconditionally true
+    // and we'd block every iOS user with a bogus "Your version: 0.0.0"
+    // chip. Better to fall through to RC (which has its own guard) and
+    // ultimately proceed than to hard-lock users we can't diagnose.
+    if (Platform.isIOS && currentVersion != '0.0.0') {
+      final lookup = await ITunesLookup.lookup(
+        bundleId: 'com.app.bestseed',
+      );
+      if (lookup != null) {
+        // Adopt the store URL Apple returned — canonical deep link.
+        if (lookup.trackViewUrl.isNotEmpty) storeIos = lookup.trackViewUrl;
+
+        if (_isBelow(currentVersion, lookup.version)) {
+          return VersionCheckResult(
+            decision: ForceUpdateDecision.showBlockScreen,
+            currentVersion: currentVersion,
+            minRequiredVersion: lookup.version,
+            storeUrlAndroid: storeAndroid,
+            storeUrlIos: storeIos,
+            useInAppUpdate: false, // iOS has no in-app update installer
+          );
+        }
+        // iTunes said no update available — trust it, skip RC.
+        return VersionCheckResult(
+          decision: ForceUpdateDecision.proceed,
+          currentVersion: currentVersion,
+          minRequiredVersion: '',
+          storeUrlAndroid: storeAndroid,
+          storeUrlIos: storeIos,
+        );
+      }
+      // iTunes lookup failed (network, storefront miss, malformed JSON).
+      // Fall through to Remote Config as the emergency backup.
+      debugPrint('AppVersionManager: iTunes Lookup returned null — falling back to RC');
+    }
+
+    // ── 3) Both platforms: Remote Config floor (emergency backup) ──
     try {
       final rc = FirebaseRemoteConfig.instance;
       await rc.setConfigSettings(RemoteConfigSettings(
