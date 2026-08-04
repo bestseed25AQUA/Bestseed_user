@@ -67,7 +67,15 @@
 		<key>LSApplicationQueriesSchemes</key>
 		<array>
 			<string>tel</string>
+			<!-- App Store, for "Rate us" / "Share app" -->
+			<string>itms-apps</string>
+			<string>itms-appss</string>
+			<string>https</string>
 		</array>
+		<!-- Filled in from ios/Flutter/Secrets.xcconfig at build time and read
+		     by AppDelegate.swift — never hard-code the key in source. -->
+		<key>GoogleMapsApiKey</key>
+		<string>$(GOOGLE_MAPS_API_KEY)</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>

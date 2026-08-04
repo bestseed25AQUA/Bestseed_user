@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
+import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/common/filter_bottom_sheet.dart';
+import 'package:seedsuser/app/spot_hatchery/view/spot_hatchery_filter_sheet.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/common/voice_mic_button.dart';
@@ -22,6 +26,139 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+
+  /// Filters chosen in the bottom sheet — empty means "show everything".
+  FilterSelection _filters = const FilterSelection();
+
+  /// User's coordinates, needed by the "Nearby" chip. Resolved lazily the
+  /// first time it's tapped so the screen never asks for location permission
+  /// unless the user actually wants it.
+  double? _currentLat;
+  double? _currentLng;
+
+  /// True while the "Nearby" chip is active — the list is then limited to
+  /// hatcheries within [kNearbyRadiusKm], nearest first.
+  bool _nearbyOnly = false;
+  bool _isLoadingLocation = false;
+
+  /// "Nearby" needs a fix on the user first. If that fails the chip stays off
+  /// rather than silently showing an unfiltered list under a "Nearby" label.
+  Future<void> _onNearbyTapped() async {
+    if (_nearbyOnly) return;
+
+    if (_currentLat == null) {
+      setState(() => _isLoadingLocation = true);
+      final located = await _resolveCurrentLocation();
+      if (!mounted) return;
+      setState(() => _isLoadingLocation = false);
+      if (!located) {
+        CustomToast.error(
+          'Location is needed to show nearby hatcheries. '
+          'Please enable it and try again.',
+        );
+        return;
+      }
+    }
+    setState(() => _nearbyOnly = true);
+  }
+
+  Future<void> _openFilterSheet() async {
+    final result = await showSpotHatcheryFilterSheet(
+      context,
+      hatcheries: controller.spotHatchery.toList(),
+      initial: _filters,
+      // Reset clears the list immediately rather than waiting for Apply.
+      onReset: (cleared) => setState(() => _filters = cleared),
+    );
+    // null = dismissed without applying, so keep the current filters.
+    if (result == null) return;
+    if (mounted) setState(() => _filters = result);
+  }
+
+  /// Chip above the list. Mirrors the Vehicle Availability screen's chips so
+  /// the two listings look and behave the same.
+  Widget _buildLocationChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    IconData? icon,
+    bool isLoading = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: isLoading ? null : onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.blue : Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected ? Colors.blue : Colors.grey.shade300,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 16,
+                  color: isSelected ? Colors.white : Colors.grey.shade700,
+                ),
+                const SizedBox(width: 4),
+              ],
+              if (isLoading)
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: isSelected ? Colors.white : Colors.blue,
+                  ),
+                )
+              else
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.grey.shade700,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontSize: 13,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Returns true once [_currentLat]/[_currentLng] hold a usable position.
+  Future<bool> _resolveCurrentLocation() async {
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return false;
+      }
+      if (!await Geolocator.isLocationServiceEnabled()) return false;
+
+      final position = await Geolocator.getCurrentPosition();
+      if (!mounted) return false;
+      _currentLat = position.latitude;
+      _currentLng = position.longitude;
+      debugPrint('📍 [SPOT-SORT] located at $_currentLat,$_currentLng');
+      return true;
+    } catch (e) {
+      debugPrint('📍 [SPOT-SORT] location failed: $e');
+      return false;
+    }
+  }
 
   // 🎤 Speech
   late stt.SpeechToText _speech;
@@ -217,7 +354,10 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
-              child: _buildSearchBar(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildSearchBar(
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -253,7 +393,40 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
                 setState(() {});
               },
             ),
-          ),
+                  ),
+                  const SizedBox(width: 10),
+                  FilterIconButton(
+                    activeCount: _filters.activeCount,
+                    onTap: _openFilterSheet,
+                  ),
+                ],
+              ),
+            ),
+
+            // 📍 All / Nearby chips — same pattern as Vehicle Availability.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: Row(
+                  children: [
+                    _buildLocationChip(
+                      label: "All",
+                      isSelected: !_nearbyOnly,
+                      onTap: () => setState(() => _nearbyOnly = false),
+                    ),
+                    _buildLocationChip(
+                      label: "Nearby $kNearbyRadiusKm km",
+                      icon: Icons.my_location,
+                      isSelected: _nearbyOnly,
+                      isLoading: _isLoadingLocation,
+                      onTap: _onNearbyTapped,
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           /// 📃 LIST
           Expanded(
@@ -267,16 +440,66 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
 
               final query = _searchController.text.trim().toLowerCase();
 
-              final filteredList = controller.spotHatchery.where((item) {
-                return query.isEmpty ||
+              var filteredList = controller.spotHatchery.where((item) {
+                final matchesSearch = query.isEmpty ||
                     item.hatcheryName.toString().toLowerCase().contains(query);
+                // A default FilterSelection matches everything, so this is a
+                // no-op until the user picks something in the sheet.
+                return matchesSearch &&
+                    spotHatcheryMatchesFilters(item, _filters);
               }).toList();
 
+              // "Nearby" chip — keep only hatcheries within 150 km, nearest
+              // first. "All" leaves the list exactly as the filters left it.
+              if (_nearbyOnly) {
+                filteredList = applyNearbyFilter(
+                  filteredList,
+                  userLat: _currentLat,
+                  userLng: _currentLng,
+                );
+              }
+
               if (filteredList.isEmpty) {
-                return const Center(
-                  child: Text(
-                    "No hatcheries found",
-                    style: TextStyle(color: Colors.grey),
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _nearbyOnly
+                            ? "No hatcheries within $kNearbyRadiusKm km"
+                            : "No hatcheries found",
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                      // "Nearby" can legitimately match nothing, which would
+                      // otherwise be a dead end — offer the way back to All.
+                      if (_nearbyOnly) ...[
+                        const SizedBox(height: 10),
+                        TextButton.icon(
+                          onPressed: () =>
+                              setState(() => _nearbyOnly = false),
+                          icon: const Icon(Icons.public_rounded, size: 18),
+                          label: const Text('Show all hatcheries'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                      // Without this an over-narrow filter looks like "there
+                      // are no hatcheries at all" with no way back.
+                      if (!_filters.isEmpty) ...[
+                        const SizedBox(height: 10),
+                        TextButton.icon(
+                          onPressed: () =>
+                              setState(() => _filters = const FilterSelection()),
+                          icon: const Icon(Icons.filter_alt_off_rounded,
+                              size: 18),
+                          label: const Text('Clear filters'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 );
               }

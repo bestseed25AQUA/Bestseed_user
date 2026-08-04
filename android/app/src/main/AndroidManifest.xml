@@ -20,6 +20,30 @@
             <action android:name="android.intent.action.DIAL" />
             <data android:scheme="tel" />
         </intent>
+
+        <!-- Play Store, for "Rate us" / "Share app". The explicit package is
+             what lets MainActivity target Play Store directly instead of the
+             system showing a "pick a store" chooser on devices with more than
+             one app store installed. -->
+        <package android:name="com.android.vending" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="market" />
+        </intent>
+
+        <!-- Any browser / https link handler — needed on Android 11+ for the
+             https fallbacks (store listing, privacy policy, report links) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+
+        <!-- Share sheet targets (ACTION_SEND) for "Share app" -->
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="text/plain" />
+        </intent>
     </queries>
 
     <!-- Permissions -->
@@ -61,10 +85,12 @@
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false">
 
-        <!-- Google Maps API Key -->
+        <!-- Google Maps API Key — injected by build.gradle.kts from the
+             gitignored secrets.json (or the GOOGLE_MAPS_API_KEY env var on CI).
+             Never hard-code the key here. -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyA111b89Exrm83RRWF-2hP1EPeUxvos87I"/>
+            android:value="${GOOGLE_MAPS_API_KEY}"/>
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="high_importance_channel" />    

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:seedsuser/app/common/nearby.dart';
 import 'package:intl/intl.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -22,8 +23,8 @@ class VehicleHatcheryCardWidget extends StatefulWidget {
 
   final VehicleAvailability vehicleAvailability;
 
-  /// When [highlightNearby] is true (the "Current Location" filter is active),
-  /// route stops within 100 km of [currentLat]/[currentLng] are highlighted in
+  /// When [highlightNearby] is true (the "Nearby" chip is active), route stops
+  /// within [kNearbyRadiusKm] of [currentLat]/[currentLng] are highlighted in
   /// a distinct style so the user can see which part of the route is near them.
   final double? currentLat;
   final double? currentLng;
@@ -451,15 +452,16 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
     );
   }
 
-  /// True when [location] is within 100 km of the user's current position —
-  /// only considered while the Current Location filter is active.
+  /// True when [location] is within [kNearbyRadiusKm] of the user's current
+  /// position — only considered while the Nearby chip is active. Shares the
+  /// chip's radius so this badge can never contradict the filter.
   bool _isNearCurrent(VehicleLocation location) {
     if (!widget.highlightNearby) return false;
     final ulat = widget.currentLat, ulng = widget.currentLng;
     if (ulat == null || ulng == null) return false;
     if (location.latitude == null || location.longitude == null) return false;
     return _distanceKm(ulat, ulng, location.latitude!, location.longitude!) <=
-        100;
+        kNearbyRadiusKm;
   }
 
   double _distanceKm(double lat1, double lng1, double lat2, double lng2) {
@@ -500,26 +502,31 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
             ...List.generate(locations.length, (index) {
               final location = locations[index];
               final isLast = index == locations.length - 1;
-              // "Near you" = within 100km of the user, but only while the
-              // Current Location filter is on. The end location keeps its own
-              // (blue) style; nearby non-end stops get the green style.
-              final isNearby = !isLast && _isNearCurrent(location);
+              // "Near you" = within the Nearby radius, but only while that
+              // chip is on. EVERY stop qualifies, including the final one:
+              // excluding it meant that when the destination was the closest
+              // stop it stayed blue while a farther mid-route stop was marked
+              // near you — e.g. from Cheyyuru, Ravulapalem (~50 km) lit up
+              // while Amalapuram (~25 km), being last, did not.
+              final isNearby = _isNearCurrent(location);
 
-              // Resolve the chip style (end = blue, nearby = green, else grey).
-              final Color chipColor = isLast
-                  ? AppColors.primary
-                  : isNearby
-                      ? const Color(0xFF2E7D32)
+              // Nearby wins over the end-of-route style, so the closest stop is
+              // always the one that reads as near you. The end of the route is
+              // still identifiable by position (it is the last chip).
+              final Color chipColor = isNearby
+                  ? const Color(0xFF2E7D32)
+                  : isLast
+                      ? AppColors.primary
                       : Colors.grey[600]!;
-              final Color chipBg = isLast
-                  ? AppColors.primary.withOpacity(0.1)
-                  : isNearby
-                      ? const Color(0xFF2E7D32).withOpacity(0.12)
+              final Color chipBg = isNearby
+                  ? const Color(0xFF2E7D32).withOpacity(0.12)
+                  : isLast
+                      ? AppColors.primary.withOpacity(0.1)
                       : Colors.grey[100]!;
-              final Color chipBorder = isLast
-                  ? AppColors.primary.withOpacity(0.3)
-                  : isNearby
-                      ? const Color(0xFF2E7D32).withOpacity(0.45)
+              final Color chipBorder = isNearby
+                  ? const Color(0xFF2E7D32).withOpacity(0.45)
+                  : isLast
+                      ? AppColors.primary.withOpacity(0.3)
                       : Colors.grey[300]!;
 
               return Row(

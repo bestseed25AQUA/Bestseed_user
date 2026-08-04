@@ -4,6 +4,29 @@ val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 keystoreProperties.load(keystorePropertiesFile.inputStream())
 
+/// Google Maps key for the Android manifest, read straight out of the
+/// gitignored lib/app/utils/secrets.dart — the same file the Dart code uses, so
+/// the key is defined in exactly one place and no build flag is needed.
+/// CI may set a GOOGLE_MAPS_API_KEY environment variable instead.
+val googleMapsApiKey: String = run {
+    System.getenv("GOOGLE_MAPS_API_KEY")?.takeIf { it.isNotBlank() }?.let { return@run it }
+
+    val secretsFile = rootProject.file("../lib/app/utils/secrets.dart")
+    if (!secretsFile.exists()) {
+        logger.warn(
+            "⚠️  lib/app/utils/secrets.dart not found — the Google Maps key will be " +
+                "empty and maps will render blank. Copy secrets.example.dart to secrets.dart."
+        )
+        return@run ""
+    }
+    val match = Regex("""googleMaps\s*=\s*'([^']*)'""").find(secretsFile.readText())
+    match?.groupValues?.get(1).orEmpty().also {
+        if (it.isBlank()) {
+            logger.warn("⚠️  googleMaps key missing/empty in secrets.dart — maps will render blank.")
+        }
+    }
+}
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -33,6 +56,10 @@ android {
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Substituted into ${GOOGLE_MAPS_API_KEY} in AndroidManifest.xml so the
+        // key never appears in a tracked file.
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = googleMapsApiKey
     }
 
     signingConfigs {

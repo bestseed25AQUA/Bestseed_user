@@ -11,6 +11,8 @@ import 'package:seedsuser/app/home/booking_review_widget.dart';
 import 'package:seedsuser/app/home/controller/home_controller.dart';
 import 'package:seedsuser/app/model/category_model.dart' as cat_model;
 import 'package:seedsuser/app/home/controller/location_controller.dart';
+import 'package:seedsuser/app/help/contact_labels.dart';
+import 'package:seedsuser/app/help/help_contact_service.dart';
 import 'package:seedsuser/app/home/map_search_screen.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 
@@ -23,6 +25,7 @@ class BookingBottomSheet extends StatefulWidget {
     this.isVehicleHatchery,
     required this.categoryId,
     required this.price,
+    this.availablePieces,
   });
   final String hatcheryId;
   final String hatcheryName;
@@ -30,6 +33,10 @@ class BookingBottomSheet extends StatefulWidget {
   final bool? isVehicleHatchery;
   final String categoryId;
   final String price;
+
+  /// Pieces the spot hatchery still has in stock. Null means "not tracked"
+  /// (regular hatchery / vehicle booking), in which case no limit is enforced.
+  final int? availablePieces;
 
   @override
   State<BookingBottomSheet> createState() => _BookingBottomSheetState();
@@ -41,6 +48,100 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
   final TextEditingController _unitController = TextEditingController();
   final TextEditingController _dropLocController = TextEditingController();
   final TextEditingController _piecesController = TextEditingController();
+
+  /// "Booking Help" number from the admin panel, loaded lazily so the notice
+  /// below the pieces field can offer a way to request more than is in stock.
+  HelpContact? _bookingHelpContact;
+
+  /// True when the typed quantity is more than the hatchery has left.
+  /// Null [BookingBottomSheet.availablePieces] means stock isn't tracked.
+  bool get _piecesExceedStock {
+    final available = widget.availablePieces;
+    if (available == null) return false;
+    final typed = int.tryParse(_piecesController.text.trim());
+    if (typed == null) return false;
+    return typed > available;
+  }
+
+  /// Shown under the No. of Pieces field when the request exceeds stock. The
+  /// entered value is deliberately left in place — the customer either lowers
+  /// it or calls the admin to arrange the extra.
+  Widget _stockLimitNotice() {
+    final available = widget.availablePieces ?? 0;
+    final phone = _bookingHelpContact?.phone?.trim();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, left: 4, right: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 16,
+                color: Color(0xFFEF4444),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Only $available pieces are available right now.',
+                  style: GoogleFonts.roboto(
+                    fontSize: 12.5,
+                    color: const Color(0xFFEF4444),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (phone != null && phone.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, left: 22),
+              child: InkWell(
+                onTap: () => launchHelpCall(phone),
+                child: Row(
+                  children: [
+                    Text(
+                      'Need more? Call admin ',
+                      style: GoogleFonts.roboto(
+                        fontSize: 12.5,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    Text(
+                      phone,
+                      style: GoogleFonts.roboto(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                        decoration: TextDecoration.underline,
+                        decorationColor: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Loads the "Booking Help" contact so [_stockLimitNotice] can offer a call.
+  /// Silent on failure — the notice simply omits the number.
+  Future<void> _loadBookingHelpContact() async {
+    if (widget.availablePieces == null) return; // Not a stock-tracked booking.
+    final contacts = await fetchActiveHelpContacts();
+    if (!mounted || contacts.isEmpty) return;
+    setState(() {
+      _bookingHelpContact = contacts.firstWhere(
+        (c) => contactLabelMatches(c.label, ContactLabels.bookingHelp),
+        orElse: () => contacts.first,
+      );
+    });
+  }
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _deliveryDateController = TextEditingController();
 
@@ -295,6 +396,7 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     // its own in-app "Enable location" sheet for that.
     getCurrentLocation(requestPermissionIfNeeded: false);
     _autoFillUserData();
+    _loadBookingHelpContact();
   }
 
   /// Auto-fill name and phone from user profile
@@ -471,9 +573,12 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
               icon: Icons.format_list_numbered,
               keyboardType: TextInputType.number,
               onChanged: (value) {
-                setState(() {}); // Rebuild to update estimated price
+                setState(() {}); // Rebuild to update estimated price + limit
               },
             ),
+            // Over-booking message. The field keeps whatever was typed — this
+            // just explains the limit and offers a way to ask for more.
+            if (_piecesExceedStock) _stockLimitNotice(),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -576,6 +681,16 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
 
                   if (_phoneController.text.trim().isEmpty) {
                     _showError("Please enter phone number");
+                    return;
+                  }
+
+                  // Can't book more than the spot hatchery has left. The
+                  // notice under the field explains the limit and offers the
+                  // admin's number for anyone who needs extra.
+                  if (_piecesExceedStock) {
+                    _showError(
+                      "Only ${widget.availablePieces} pieces are available",
+                    );
                     return;
                   }
 

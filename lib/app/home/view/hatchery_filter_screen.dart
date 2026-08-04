@@ -6,7 +6,9 @@ import 'package:seedsuser/app/common/animated_view_custom.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_shimmer_widget.dart';
 import 'package:seedsuser/app/common/voice_mic_button.dart';
+import 'package:seedsuser/app/common/filter_bottom_sheet.dart';
 import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
+import 'package:seedsuser/app/home/view/hatchery_filter_sheet.dart';
 import 'package:seedsuser/app/home/harchery_details_screen.dart';
 import 'package:seedsuser/app/home/model/hatchery_filter_model.dart';
 import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
@@ -237,10 +239,14 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
         builder: (contxt) {
           return Column(
             children: [
-              Container(
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width * .9 - 52,
+                    child: Container(
                 margin: const EdgeInsets.only(top: 6), // ⭐ space for top shadow
                 height: 37,
-                width: MediaQuery.of(context).size.width * .9,
                 decoration: BoxDecoration(
                   color: Colors.white, // ⭐ MUST
                   borderRadius: BorderRadius.circular(12),
@@ -295,6 +301,37 @@ class _HatcheryFilterScreenState extends State<HatcheryFilterScreen> {
                     ),
                   ),
                 ),
+              ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Drives the existing server-side category/brand/location
+                  // filter, which previously had no UI on this screen.
+                  Obx(() {
+                    final active =
+                        (filterHatcheryController
+                                    .selectedCategoryIds
+                                    .isNotEmpty
+                                ? 1
+                                : 0) +
+                            (filterHatcheryController.selectedBrandIds.isNotEmpty
+                                ? 1
+                                : 0) +
+                            (filterHatcheryController
+                                    .selectedLocationIds
+                                    .isNotEmpty
+                                ? 1
+                                : 0);
+                    return FilterIconButton(
+                      activeCount: active,
+                      height: 37,
+                      width: 44,
+                      onTap: () => showHatcheryFilterSheet(
+                        context,
+                        filterHatcheryController,
+                      ),
+                    );
+                  }),
+                ],
               ),
 
               const SizedBox(height: 10),
