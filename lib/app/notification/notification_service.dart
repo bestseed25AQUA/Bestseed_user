@@ -463,22 +463,46 @@ class NotificationService {
         break;
 
       case 'booking_status':
-        final bookingId = data['booking_id'];
-        if (bookingId != null) {
-          Get.to(() => BookingDetailScreen(bookingId: bookingId));
-        }
-        break;
-
       case 'driver_approaching':
-        final bookingId = data['booking_id'];
-        if (bookingId != null) {
-          Get.to(() => BookingDetailScreen(bookingId: bookingId));
-        }
+      case 'driver_assigned':
+        _openBookingDetail(data);
         break;
 
       default:
-        print('Unknown notification type: $type');
+        // A booking id is enough to know where to go, even if the type string
+        // is one this build doesn't recognise — better than dropping the tap.
+        if (_bookingIdFrom(data) != null) {
+          _openBookingDetail(data);
+        } else {
+          print('Unknown notification type: $type');
+        }
     }
+  }
+
+  /// Booking id out of a notification payload, or null if there isn't a usable
+  /// one. FCM delivers every data value as a string, but the same handler also
+  /// receives payloads decoded from local-notification JSON (where an id can
+  /// still be an int), so this normalises both and tolerates the `id` spelling.
+  static String? _bookingIdFrom(Map<String, dynamic> data) {
+    final raw = data['booking_id'] ?? data['id'];
+    final id = raw?.toString().trim();
+    return (id == null || id.isEmpty) ? null : id;
+  }
+
+  void _openBookingDetail(Map<String, dynamic> data) {
+    final bookingId = _bookingIdFrom(data);
+    if (bookingId == null) {
+      print('Notification tap: no usable booking id in $data');
+      return;
+    }
+    print('Notification tap → BookingDetailScreen(bookingId=$bookingId)');
+    // preventDuplicates must be off: tapping a notification for booking B
+    // while already viewing booking A is the same route, and GetX would
+    // otherwise silently swallow the navigation.
+    Get.to(
+      () => BookingDetailScreen(bookingId: bookingId),
+      preventDuplicates: false,
+    );
   }
 
   /// Call this after splash screen navigation to handle any pending notification.

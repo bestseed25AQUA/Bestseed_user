@@ -157,33 +157,55 @@ class MyBookingController extends GetxController {
   RxBool isDetailLoading = false.obs;
   Rx<BookingDetailModel?> bookingDetail = Rx<BookingDetailModel?>(null);
 
+  /// Why the last detail fetch failed, or null when it succeeded. The screen
+  /// shows this instead of a bare "No data", which previously hid every
+  /// failure — a 404, an expired session and a parse error all looked the
+  /// same, so a booking that wouldn't open was undiagnosable.
+  final RxnString detailError = RxnString();
+
   Future<void> fetchBookingDetail(String id) async {
+    final bookingId = id.trim();
     try {
       isDetailLoading(true);
+      detailError.value = null;
+      // Drop the previous booking's data up front. Without this a failed fetch
+      // left the PREVIOUS booking on screen, so opening booking B from a
+      // notification could silently keep showing booking A.
+      bookingDetail.value = null;
+
+      if (bookingId.isEmpty) {
+        detailError.value = 'This booking could not be identified.';
+        debugPrint('📄 [BOOKING-DETAIL] empty booking id — nothing to fetch');
+        return;
+      }
+
+      final url = "${NetworkConfig.baseURL}/farmer/my-bookings-details/$bookingId";
+      debugPrint('📄 [BOOKING-DETAIL] GET $url');
 
       final headers = await buildHeader();
-      final response = await getRequest(
-        endPoint: "${NetworkConfig.baseURL}/farmer/my-bookings-details/$id",
-        headers: headers,
-      );
+      final response = await getRequest(endPoint: url, headers: headers);
+
+      debugPrint('📄 [BOOKING-DETAIL] ← ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
-        print('==========+++++++++++++===============');
-        print(body["booking"]);
-
         bookingDetail.value = BookingDetailModel.fromJson(body);
-        print('===========++++++++=============');
-        print(bookingDetail.value?.bookingUId);
+        debugPrint('📄 [BOOKING-DETAIL] ✅ parsed uid=${bookingDetail.value?.bookingUId}');
+      } else if (response.statusCode == 404) {
+        detailError.value = 'Booking #$bookingId was not found on your account.';
+        debugPrint('📄 [BOOKING-DETAIL] ❌ 404 — id not found for this farmer');
+      } else if (response.statusCode == 401 || response.statusCode == 419) {
+        detailError.value = 'Your session expired. Please log in again.';
+        debugPrint('📄 [BOOKING-DETAIL] ❌ auth failure');
       } else {
-        // bookingDetail.value = dummyBookingDetail();
+        detailError.value =
+            'Could not load this booking (error ${response.statusCode}).';
+        debugPrint('📄 [BOOKING-DETAIL] ❌ body=${response.body}');
       }
-      print('=====================');
-      print('-----------------');
     } catch (e, s) {
-      print(e.toString());
-      print(s.toString());
-      // bookingDetail.value = dummyBookingDetail();
+      detailError.value = 'Could not load this booking. Please try again.';
+      debugPrint('📄 [BOOKING-DETAIL] ❌ $e');
+      debugPrint(s.toString());
     } finally {
       isDetailLoading(false);
     }

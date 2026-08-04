@@ -9,6 +9,7 @@ import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/language/controller/language_controller.dart';
 import 'package:seedsuser/app/notification/notification_service.dart';
 import 'package:seedsuser/app/rating/rating_prompt_service.dart';
+import 'package:seedsuser/app/utils/app_keys.dart';
 import 'package:seedsuser/app/utils/app_size.dart';
 import 'package:seedsuser/l10n/app_localizations.dart';
 import 'package:get_storage/get_storage.dart';
@@ -35,6 +36,9 @@ void main() async {
   // is significantly faster and is now correct on Adreno devices.
   // Initialize GetStorage here so LanguageController.onInit() can read saved locale.
   await GetStorage.init();
+  // Loud log if the build was made without --dart-define-from-file=secrets.json
+  // (otherwise a missing key just shows as a blank map with no explanation).
+  AppKeys.warnIfMissing();
   Get.put(LanguageController());
   Get.put(HomeBannerController(), permanent: true);
   runApp(const MyApp());

@@ -6,8 +6,10 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_google_places_sdk/flutter_google_places_sdk.dart'
     as places;
+import 'package:seedsuser/app/utils/app_keys.dart';
 
-const String kGoogleApiKey = "AIzaSyA111b89Exrm83RRWF-2hP1EPeUxvos87I";
+/// Injected at build time from the gitignored secrets.json — see [AppKeys].
+const String kGoogleApiKey = AppKeys.googleMaps;
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});

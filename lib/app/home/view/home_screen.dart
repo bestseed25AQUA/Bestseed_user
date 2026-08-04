@@ -217,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen>
                     child: TabBar(
                       tabAlignment: TabAlignment.start,
                       isScrollable: true,
-
+                      
                       labelColor: Colors.black,
                       unselectedLabelColor: Colors.black,
                       indicatorColor: Colors.black,
@@ -228,7 +228,10 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       tabs: buildLoadingTabs(5),
                       overlayColor: WidgetStateProperty.all(Colors.white),
-                      dividerColor: Colors.black,
+                      // No full-width rule under the tabs — the header sits on
+                      // the gradient background and the line cut across it.
+                      dividerColor: Colors.transparent,
+                      dividerHeight: 0,
                     ),
                   );
                 }
@@ -240,6 +243,10 @@ class _HomeScreenState extends State<HomeScreen>
                   unselectedLabelColor: Colors.black,
                   indicatorColor: AppColors.primary,
                   padding: EdgeInsets.zero,
+                  // No full-width rule under the tabs — the header sits on the
+                  // gradient background and the line cut across it.
+                  dividerColor: Colors.transparent,
+                  dividerHeight: 0,
                   onTap: (index) {
                     _tabController?.index = 0;
                     String catName = categories[index - 1].categoryName

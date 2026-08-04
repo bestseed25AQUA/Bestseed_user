@@ -134,7 +134,51 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         }
 
         final data = controller.bookingDetail.value;
-        if (data == null) return const Center(child: Text("No data"));
+        if (data == null) {
+          // Show WHY it failed and offer a retry. This screen is reached from
+          // a push notification, where a bare "No data" gave the user (and us)
+          // nothing to act on.
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.receipt_long_rounded,
+                    size: 52,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    controller.detailError.value ??
+                        'This booking could not be loaded.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  ElevatedButton.icon(
+                    onPressed: () =>
+                        controller.fetchBookingDetail(widget.bookingId),
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Retry'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
 
         return CustomRefereshIndicator(
           onRefresh: () => controller.fetchBookingDetail(widget.bookingId),

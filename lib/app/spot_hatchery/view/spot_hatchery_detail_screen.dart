@@ -310,6 +310,10 @@ class _SpotHatcheryDetailScreenState extends State<SpotHatcheryDetailScreen> {
                         label: "Book Now",
                         icon: 'assets/images/Lightning.png',
                         color: AppColors.primary,
+                        // Nothing left to sell — the admin can restock by
+                        // raising "No. of Pieces", which re-enables this.
+                        enabled: (hatchery.noOfPieces ?? 0) > 0,
+                        disabledLabel: "Sold Out",
                         borderRadius: const BorderRadius.only(
                           topRight: Radius.circular(16),
                           bottomRight: Radius.circular(16),
@@ -334,6 +338,7 @@ class _SpotHatcheryDetailScreenState extends State<SpotHatcheryDetailScreen> {
                                     price: hatchery.price ?? '',
                                     categoryId: hatchery.categoryId.toString(),
                                     isSpotHatchery: true,
+                                    availablePieces: hatchery.noOfPieces,
                                     hatcheryId: hatchery.hatcheryId.toString(),
                                     hatcheryName: hatchery.hatcheryName,
                                   ),
@@ -660,28 +665,39 @@ class _SpotHatcheryDetailScreenState extends State<SpotHatcheryDetailScreen> {
     Color? borderColor,
     BorderRadius? borderRadius,
     required VoidCallback onTap,
+    bool enabled = true,
+    String? disabledLabel,
   }) {
     return Expanded(
       child: InkWell(
-        onTap: onTap,
+        onTap: enabled ? onTap : null,
         child: Container(
           height: 40,
           decoration: BoxDecoration(
-            color: color,
+            color: enabled ? color : Colors.grey.shade300,
             borderRadius: borderRadius,
             border: borderColor != null
-                ? Border.all(color: borderColor, width: 1.5)
+                ? Border.all(
+                    color: enabled ? borderColor : Colors.grey.shade400,
+                    width: 1.5,
+                  )
                 : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset(icon, height: 18),
+              Image.asset(
+                icon,
+                height: 18,
+                color: enabled ? null : Colors.grey.shade600,
+              ),
               const SizedBox(width: 6),
               Text(
-                label,
+                enabled ? label : (disabledLabel ?? label),
                 style: GoogleFonts.roboto(
-                  color: textColor ?? Colors.white,
+                  color: enabled
+                      ? (textColor ?? Colors.white)
+                      : Colors.grey.shade600,
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),

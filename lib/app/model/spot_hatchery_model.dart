@@ -38,6 +38,11 @@ class SpotHatchery {
   final String categoryName;
   final String? price;
   final String? locationName;
+
+  /// Coordinates of the hatchery's location, used by the Nearby / Farthest
+  /// sort. Null when the admin hasn't geocoded that location.
+  final double? latitude;
+  final double? longitude;
   final String? branchName;
   final int? broodstock;
   final int? noOfPieces;
@@ -58,6 +63,8 @@ class SpotHatchery {
     required this.categoryName,
     this.price,
     required this.locationName,
+    this.latitude,
+    this.longitude,
     this.branchName,
     this.broodstock,
     this.noOfPieces,
@@ -79,6 +86,8 @@ class SpotHatchery {
     categoryName: json["category_name"] ?? "",
     price: json['price']?.toString(),
     locationName: json["location_name"],
+    latitude: (json["latitude"] as num?)?.toDouble(),
+    longitude: (json["longitude"] as num?)?.toDouble(),
     branchName: json["branch_name"],
     isSpot: json["is_spot"] ?? false,
     availableOn: json["available_on"],

@@ -255,12 +255,12 @@ class _HomePageState extends State<HomePage>
       }
       return GestureDetector(
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => FullImageScreen(imageUrl: banner.url),
-            ),
-          );
+          // Navigator.push(
+          //   context,
+          //   MaterialPageRoute(
+          //     builder: (_) => FullImageScreen(imageUrl: banner.url),
+          //   ),
+          // );
         },
         child: SizedBox(
           width: double.infinity,
@@ -815,6 +815,14 @@ class _HomePageState extends State<HomePage>
   // ═══════════════════════════════════════════════════════════════════════
   // MEDICINE NEWS SECTION
   // ═══════════════════════════════════════════════════════════════════════
+
+  // Every news card is exactly this size so the scrolling row stays uniform.
+  // Height = square media (width - 8 horizontal padding) + gap + 2 title lines
+  // + 1 subtitle line, with a little slack.
+  static const double _newsCardWidth = 160;
+  static const double _newsCardMediaSize = _newsCardWidth - 8;
+  static const double _newsCardHeight = _newsCardMediaSize + 64;
+
   Widget _medicineNewsSection() {
     return Obx(() {
       final newsData = _newsSpecificController.newsSpecificHomeData.value?.data;
@@ -826,13 +834,20 @@ class _HomePageState extends State<HomePage>
             dashboardCtrl.changeIndex(3);
           }),
           const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: List.generate(
-              newsData.length <= 2 ? newsData.length : 2,
-              (index) {
+          // Horizontally scrolling list — every card gets the same fixed width
+          // and the row a fixed height, so all news items line up uniformly
+          // (same pattern as the Hatchery Updates row).
+          SizedBox(
+            height: _newsCardHeight,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              itemCount: newsData.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 4),
+              itemBuilder: (context, index) {
                 final data = newsData[index];
-                return Expanded(
+                return SizedBox(
+                  width: _newsCardWidth,
                   child: _newsCard(
                     data.medicineName ?? "",
                     data.subtitle ?? data.curesFor ?? "",
@@ -951,8 +966,9 @@ class _HomePageState extends State<HomePage>
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(14),
-            child: AspectRatio(
-              aspectRatio: 1,
+            child: SizedBox(
+              width: _newsCardMediaSize,
+              height: _newsCardMediaSize,
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
@@ -969,31 +985,38 @@ class _HomePageState extends State<HomePage>
             ),
           ),
           const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.only(left: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.roboto(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (subtitle != null && subtitle.isNotEmpty)
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.roboto(
-                      fontSize: 13,
-                      color: const Color(0xff7D7272),
+          // Expanded + clipped text so a long/2-line title can never overflow
+          // the fixed card height.
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      title,
+                      style: GoogleFonts.roboto(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-              ],
+                  if (subtitle != null && subtitle.isNotEmpty)
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.roboto(
+                        fontSize: 13,
+                        color: const Color(0xff7D7272),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
             ),
           ),
         ],

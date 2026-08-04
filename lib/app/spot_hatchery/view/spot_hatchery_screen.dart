@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:seedsuser/app/common/custom_appbar.dart';
+import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/common/filter_bottom_sheet.dart';
+import 'package:seedsuser/app/spot_hatchery/view/spot_hatchery_filter_sheet.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_referesh_indicator.dart';
 import 'package:seedsuser/app/common/voice_mic_button.dart';
@@ -22,6 +26,72 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+
+  /// Filters chosen in the bottom sheet — empty means "show everything".
+  FilterSelection _filters = const FilterSelection();
+
+  /// User's coordinates, needed by the Nearby / Farthest sort. Resolved lazily
+  /// the first time a distance sort is applied so the screen never asks for
+  /// location permission unless the user actually wants it.
+  double? _currentLat;
+  double? _currentLng;
+
+  Future<void> _openFilterSheet() async {
+    final result = await showSpotHatcheryFilterSheet(
+      context,
+      hatcheries: controller.spotHatchery.toList(),
+      initial: _filters,
+      // Reset clears the list immediately rather than waiting for Apply.
+      onReset: (cleared) => setState(() => _filters = cleared),
+    );
+    // null = dismissed without applying, so keep the current filters.
+    if (result == null) return;
+
+    var applied = result;
+    if (applied.one(kSpotSort) != null && _currentLat == null) {
+      final located = await _resolveCurrentLocation();
+      if (!located) {
+        // No location, no distance sort — drop it rather than silently
+        // applying a sort that can't reorder anything.
+        CustomToast.error(
+          'Location is needed to sort by distance. Please enable it and try again.',
+        );
+        final values = Map<String, Set<String>>.from(applied.values)
+          ..remove(kSpotSort);
+        applied = FilterSelection(
+          values: values,
+          dateRange: applied.dateRange,
+        );
+      }
+    }
+
+    if (mounted) setState(() => _filters = applied);
+  }
+
+  /// Returns true once [_currentLat]/[_currentLng] hold a usable position.
+  Future<bool> _resolveCurrentLocation() async {
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return false;
+      }
+      if (!await Geolocator.isLocationServiceEnabled()) return false;
+
+      final position = await Geolocator.getCurrentPosition();
+      if (!mounted) return false;
+      _currentLat = position.latitude;
+      _currentLng = position.longitude;
+      debugPrint('📍 [SPOT-SORT] located at $_currentLat,$_currentLng');
+      return true;
+    } catch (e) {
+      debugPrint('📍 [SPOT-SORT] location failed: $e');
+      return false;
+    }
+  }
 
   // 🎤 Speech
   late stt.SpeechToText _speech;
@@ -217,7 +287,10 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
-              child: _buildSearchBar(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildSearchBar(
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -253,7 +326,15 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
                 setState(() {});
               },
             ),
-          ),
+                  ),
+                  const SizedBox(width: 10),
+                  FilterIconButton(
+                    activeCount: _filters.activeCount,
+                    onTap: _openFilterSheet,
+                  ),
+                ],
+              ),
+            ),
 
           /// 📃 LIST
           Expanded(
@@ -267,16 +348,49 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
 
               final query = _searchController.text.trim().toLowerCase();
 
-              final filteredList = controller.spotHatchery.where((item) {
-                return query.isEmpty ||
+              var filteredList = controller.spotHatchery.where((item) {
+                final matchesSearch = query.isEmpty ||
                     item.hatcheryName.toString().toLowerCase().contains(query);
+                // A default FilterSelection matches everything, so this is a
+                // no-op until the user picks something in the sheet.
+                return matchesSearch &&
+                    spotHatcheryMatchesFilters(item, _filters);
               }).toList();
 
+              // Nearby / Farthest. Returns the list untouched when no sort is
+              // chosen or the user's location is unknown.
+              filteredList = applySpotSort(
+                filteredList,
+                _filters,
+                userLat: _currentLat,
+                userLng: _currentLng,
+              );
+
               if (filteredList.isEmpty) {
-                return const Center(
-                  child: Text(
-                    "No hatcheries found",
-                    style: TextStyle(color: Colors.grey),
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        "No hatcheries found",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      // Without this an over-narrow filter looks like "there
+                      // are no hatcheries at all" with no way back.
+                      if (!_filters.isEmpty) ...[
+                        const SizedBox(height: 10),
+                        TextButton.icon(
+                          onPressed: () =>
+                              setState(() => _filters = const FilterSelection()),
+                          icon: const Icon(Icons.filter_alt_off_rounded,
+                              size: 18),
+                          label: const Text('Clear filters'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 );
               }

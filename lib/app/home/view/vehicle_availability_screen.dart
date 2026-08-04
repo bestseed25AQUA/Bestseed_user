@@ -81,6 +81,8 @@ import 'package:seedsuser/app/common/voice_mic_button.dart';
 import 'package:seedsuser/app/home/controller/vehicle_availabilitys_controller.dart';
 import 'package:seedsuser/app/home/view/vehicle_hatchery_card_widget.dart';
 import 'package:seedsuser/app/model/spot_hatchery_model.dart';
+import 'package:seedsuser/app/common/filter_bottom_sheet.dart';
+import 'package:seedsuser/app/home/widget/vehicle_filter_sheet.dart';
 import 'package:seedsuser/app/model/vehicle_available_model.dart';
 import 'package:seedsuser/app/spot_hatchery/controller/spot_hatchery_controller.dart';
 import 'package:seedsuser/app/spot_hatchery/view/harchery_card_widget.dart';
@@ -103,6 +105,21 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+
+  /// Filters chosen in the bottom sheet — empty means "show everything".
+  FilterSelection _filters = const FilterSelection();
+
+  Future<void> _openFilterSheet() async {
+    final result = await showVehicleFilterSheet(
+      context,
+      vehicles: controller.vehicleList.toList(),
+      initial: _filters,
+      // Reset clears the list immediately rather than waiting for Apply.
+      onReset: (cleared) => setState(() => _filters = cleared),
+    );
+    // null = dismissed without applying, so keep the current filters.
+    if (result != null) setState(() => _filters = result);
+  }
 
   // 🎤 Speech
   late stt.SpeechToText _speech;
@@ -331,7 +348,10 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
       // farther vehicles are still visible (just lower down) instead of
       // being hidden entirely by a radius cut-off.
 
-      return matchesSearch && matchesLocation;
+      // Bottom-sheet filters (route / category / hatchery / date range).
+      // A default VehicleFilters matches everything, so this is a no-op
+      // until the user actually picks something.
+      return matchesSearch && matchesLocation && vehicleMatchesFilters(item, _filters);
     }).toList();
 
     if (_selectedLocation == "current") {
@@ -490,10 +510,13 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
         },
         child: Column(
           children: [
-            // 🔍 Search Bar
+            // 🔍 Search Bar + Filter button
             Padding(
               padding: const EdgeInsets.all(16),
-              child: _buildSearchBar(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildSearchBar(
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -528,7 +551,15 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
                 setState(() {});
               },
             ),
-          ),
+                  ),
+                  const SizedBox(width: 10),
+                  FilterIconButton(
+                    activeCount: _filters.activeCount,
+                    onTap: _openFilterSheet,
+                  ),
+                ],
+              ),
+            ),
 
           // 📍 Location Filter Chips (All + Current Location only)
           Obx(() {
@@ -578,10 +609,30 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
               final filteredList = _getFilteredList();
 
               if (filteredList.isEmpty) {
-                return const Center(
-                  child: Text(
-                    "No Vehicles found",
-                    style: TextStyle(color: Colors.grey),
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        "No Vehicles found",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      // Without this an over-narrow filter looks like "there
+                      // are no vehicles at all" with no way back.
+                      if (!_filters.isEmpty) ...[
+                        const SizedBox(height: 10),
+                        TextButton.icon(
+                          onPressed: () =>
+                              setState(() => _filters = const FilterSelection()),
+                          icon: const Icon(Icons.filter_alt_off_rounded,
+                              size: 18),
+                          label: const Text('Clear filters'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 );
               }

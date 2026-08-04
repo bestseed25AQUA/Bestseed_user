@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:seedsuser/app/announcement/announcement_screen.dart';
 import 'package:seedsuser/app/announcement/controller/announcement_controller.dart';
 import 'package:seedsuser/app/booking/view/booking_screen.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/app_store_links.dart';
 import 'package:seedsuser/app/language/language_screen.dart';
 import 'package:seedsuser/app/notification/notification_screen.dart';
 import 'package:seedsuser/app/profile/controller/logout_controller.dart';
@@ -254,16 +256,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _menuTile(
             icon: Icons.star_border_rounded,
             title: AppLocalizations.of(context).rate_us,
-            onTap: () {},
+            onTap: _rateUs,
           ),
           _divider(),
           _menuTile(
             icon: Icons.share_outlined,
             title: AppLocalizations.of(context).share_app,
-            onTap: () {},
+            onTap: () => _shareApp(context),
           ),
         ],
       ),
+    );
+  }
+
+  // ── Rate us / Share app ────────────────────────────────────────────
+
+  /// Opens the Play Store (Android) or App Store (iOS) review page. The store
+  /// app handles it when installed; otherwise it falls back to the browser.
+  Future<void> _rateUs() async {
+    final opened = await AppStoreLinks.openReviewPage();
+    if (!opened) _showSnack('Could not open the store. Please try again.');
+  }
+
+  /// Shows the system share sheet with a link to the app on the store the user
+  /// is actually on — Play Store link from Android, App Store link from iOS.
+  Future<void> _shareApp(BuildContext context) async {
+    // Required on iPad, where the share sheet is a popover that needs an anchor.
+    final box = context.findRenderObject() as RenderBox?;
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          text: AppStoreLinks.shareMessage,
+          subject: 'Download ${AppStoreLinks.appName}',
+          sharePositionOrigin: box != null && box.hasSize
+              ? box.localToGlobal(Offset.zero) & box.size
+              : null,
+        ),
+      );
+    } catch (e) {
+      debugPrint('🔗 [SHARE] failed: $e');
+      _showSnack('Could not open the share sheet. Please try again.');
+    }
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
 
