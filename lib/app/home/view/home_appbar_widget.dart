@@ -22,6 +22,48 @@ import 'package:seedsuser/app/profile/view/profile_screen.dart';
 import 'package:seedsuser/app/updates/controller/hatchery_updates_controller.dart';
 import 'package:seedsuser/app/utils/app_animations.dart';
 
+/// Height of the category tab strip pinned under the home header.
+const double kHomeTabBarHeight = 48.0;
+
+/// Intrinsic height of the header content: the weather/location row (60),
+/// the spacer under it (2), and the search field (42).
+///
+/// The header is sized from this rather than a fixed number so it comes out
+/// the same on every device. See [homeHeaderGeometry].
+const double kHomeHeaderContentHeight = 104.0;
+
+/// Where the home header's pieces land, for a device whose status-bar inset is
+/// [topInset].
+///
+/// SliverAppBar lays a header out over `topInset + expandedHeight` logical
+/// pixels, and the tab strip occupies the last [kHomeTabBarHeight] of that. The
+/// content used to be top-aligned at a fixed offset, so the leftover space fell
+/// between the search field and the tabs:
+///
+///   gap = (topInset + 160) - 141 - 48 = topInset - 29
+///
+/// which is <= 0 on a 20-24pt inset (older iPhones, most Android) but 15-30pt of
+/// blank band on notch / Dynamic Island iPhones. Bottom-aligning the content
+/// above the strip makes [gap] zero and [contentTop] equal to [topInset] on
+/// every device.
+({double gap, double contentTop, double totalHeight}) homeHeaderGeometry({
+  required double topInset,
+  double expandedHeight = kHomeHeaderContentHeight + kHomeTabBarHeight,
+  double contentHeight = kHomeHeaderContentHeight,
+  bool bottomAligned = true,
+}) {
+  final total = topInset + expandedHeight;
+  final stripTop = total - kHomeTabBarHeight;
+  // Old layout: the Column stretched to fill and laid out from the top.
+  // New layout: the Column hugs its content, pinned above the tab strip.
+  final contentTop = bottomAligned ? stripTop - contentHeight : 0.0;
+  return (
+    gap: stripTop - (contentTop + contentHeight),
+    contentTop: contentTop,
+    totalHeight: total,
+  );
+}
+
 // ignore: must_be_immutable
 class HomeAppBar extends StatefulWidget {
   const HomeAppBar({super.key, required this.bottom});
@@ -182,7 +224,13 @@ class _HomeAppBarState extends State<HomeAppBar>
     return SliverAppBar(
       pinned: true,
       toolbarHeight: 0,
-      expandedHeight: 160,
+      // Sized from the content, NOT a magic number. SliverAppBar lays the
+      // header out over `statusBarInset + expandedHeight`, so a fixed value
+      // left `inset - 29` logical pixels of blank space between the search
+      // field and the tab strip: harmless on a 20-24pt inset (older iPhones,
+      // most Android) but a visible 15-30pt band on every notch / Dynamic
+      // Island iPhone. See [kHomeHeaderContentHeight].
+      expandedHeight: kHomeHeaderContentHeight + kHomeTabBarHeight,
       automaticallyImplyLeading: false,
       backgroundColor: Colors.transparent,
       flexibleSpace: LayoutBuilder(
@@ -224,13 +272,26 @@ class _HomeAppBarState extends State<HomeAppBar>
               }),
               FlexibleSpaceBar(
                 background: Container(
-                  padding: EdgeInsets.only(top: 5, left: 16, right: 16),
+                  // Reserve the tab strip's height so the content sits directly
+                  // on top of it. Any surplus header space then lands ABOVE the
+                  // weather row (covered by the banner image) instead of
+                  // becoming a blank band below the search field.
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.paddingOf(context).top,
+                    left: 16,
+                    right: 16,
+                    bottom: kHomeTabBarHeight,
+                  ),
                   alignment: Alignment.bottomCenter,
                   child: Column(
+                    // Without this the Column stretches to the full header
+                    // height and top-aligns its children, pushing the surplus
+                    // down between the search field and the tabs.
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const SizedBox(height: 32),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [

@@ -38,6 +38,12 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
   void initState() {
     super.initState();
 
+    // The "Wanted" banner is only fetched once at startup, in the middle of the
+    // launch request burst. If that attempt failed, nothing else ever retried it
+    // and the banner stayed missing for the whole session. Asking for it here
+    // means every visit to Prices repairs it. No-ops once it's loaded.
+    bannerController.ensureSeedPriceBanner();
+
     // If needed, you can log or validate the selected value
     if (controller.locations.isNotEmpty) {
       try {
@@ -102,7 +108,12 @@ class _SeedPricesScreenState extends State<SeedPricesScreen> {
 
         return CustomRefereshIndicator(
           onRefresh: () async {
-            await controller.getPrices();
+            // Pull-to-refresh used to reload only the price table, so a missing
+            // banner could not be recovered by the user either.
+            await Future.wait([
+              controller.getPrices(),
+              bannerController.ensureSeedPriceBanner(),
+            ]);
           },
           child: SingleChildScrollView(
             physics: AlwaysScrollableScrollPhysics(),
