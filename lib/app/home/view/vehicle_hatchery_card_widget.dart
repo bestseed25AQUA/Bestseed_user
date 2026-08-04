@@ -503,25 +503,30 @@ class _VehicleHatcheryCardWidgetState extends State<VehicleHatcheryCardWidget> {
               final location = locations[index];
               final isLast = index == locations.length - 1;
               // "Near you" = within the Nearby radius, but only while that
-              // chip is on. The end location keeps its own
-              // (blue) style; nearby non-end stops get the green style.
-              final isNearby = !isLast && _isNearCurrent(location);
+              // chip is on. EVERY stop qualifies, including the final one:
+              // excluding it meant that when the destination was the closest
+              // stop it stayed blue while a farther mid-route stop was marked
+              // near you — e.g. from Cheyyuru, Ravulapalem (~50 km) lit up
+              // while Amalapuram (~25 km), being last, did not.
+              final isNearby = _isNearCurrent(location);
 
-              // Resolve the chip style (end = blue, nearby = green, else grey).
-              final Color chipColor = isLast
-                  ? AppColors.primary
-                  : isNearby
-                      ? const Color(0xFF2E7D32)
+              // Nearby wins over the end-of-route style, so the closest stop is
+              // always the one that reads as near you. The end of the route is
+              // still identifiable by position (it is the last chip).
+              final Color chipColor = isNearby
+                  ? const Color(0xFF2E7D32)
+                  : isLast
+                      ? AppColors.primary
                       : Colors.grey[600]!;
-              final Color chipBg = isLast
-                  ? AppColors.primary.withOpacity(0.1)
-                  : isNearby
-                      ? const Color(0xFF2E7D32).withOpacity(0.12)
+              final Color chipBg = isNearby
+                  ? const Color(0xFF2E7D32).withOpacity(0.12)
+                  : isLast
+                      ? AppColors.primary.withOpacity(0.1)
                       : Colors.grey[100]!;
-              final Color chipBorder = isLast
-                  ? AppColors.primary.withOpacity(0.3)
-                  : isNearby
-                      ? const Color(0xFF2E7D32).withOpacity(0.45)
+              final Color chipBorder = isNearby
+                  ? const Color(0xFF2E7D32).withOpacity(0.45)
+                  : isLast
+                      ? AppColors.primary.withOpacity(0.3)
                       : Colors.grey[300]!;
 
               return Row(
