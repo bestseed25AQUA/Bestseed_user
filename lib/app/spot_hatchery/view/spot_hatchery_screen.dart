@@ -30,11 +30,37 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
   /// Filters chosen in the bottom sheet — empty means "show everything".
   FilterSelection _filters = const FilterSelection();
 
-  /// User's coordinates, needed by the Nearby / Farthest sort. Resolved lazily
-  /// the first time a distance sort is applied so the screen never asks for
-  /// location permission unless the user actually wants it.
+  /// User's coordinates, needed by the "Nearby" chip. Resolved lazily the
+  /// first time it's tapped so the screen never asks for location permission
+  /// unless the user actually wants it.
   double? _currentLat;
   double? _currentLng;
+
+  /// True while the "Nearby" chip is active — the list is then limited to
+  /// hatcheries within [kNearbyRadiusKm], nearest first.
+  bool _nearbyOnly = false;
+  bool _isLoadingLocation = false;
+
+  /// "Nearby" needs a fix on the user first. If that fails the chip stays off
+  /// rather than silently showing an unfiltered list under a "Nearby" label.
+  Future<void> _onNearbyTapped() async {
+    if (_nearbyOnly) return;
+
+    if (_currentLat == null) {
+      setState(() => _isLoadingLocation = true);
+      final located = await _resolveCurrentLocation();
+      if (!mounted) return;
+      setState(() => _isLoadingLocation = false);
+      if (!located) {
+        CustomToast.error(
+          'Location is needed to show nearby hatcheries. '
+          'Please enable it and try again.',
+        );
+        return;
+      }
+    }
+    setState(() => _nearbyOnly = true);
+  }
 
   Future<void> _openFilterSheet() async {
     final result = await showSpotHatcheryFilterSheet(
@@ -46,26 +72,67 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
     );
     // null = dismissed without applying, so keep the current filters.
     if (result == null) return;
+    if (mounted) setState(() => _filters = result);
+  }
 
-    var applied = result;
-    if (applied.one(kSpotSort) != null && _currentLat == null) {
-      final located = await _resolveCurrentLocation();
-      if (!located) {
-        // No location, no distance sort — drop it rather than silently
-        // applying a sort that can't reorder anything.
-        CustomToast.error(
-          'Location is needed to sort by distance. Please enable it and try again.',
-        );
-        final values = Map<String, Set<String>>.from(applied.values)
-          ..remove(kSpotSort);
-        applied = FilterSelection(
-          values: values,
-          dateRange: applied.dateRange,
-        );
-      }
-    }
-
-    if (mounted) setState(() => _filters = applied);
+  /// Chip above the list. Mirrors the Vehicle Availability screen's chips so
+  /// the two listings look and behave the same.
+  Widget _buildLocationChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    IconData? icon,
+    bool isLoading = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: isLoading ? null : onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.blue : Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected ? Colors.blue : Colors.grey.shade300,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 16,
+                  color: isSelected ? Colors.white : Colors.grey.shade700,
+                ),
+                const SizedBox(width: 4),
+              ],
+              if (isLoading)
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: isSelected ? Colors.white : Colors.blue,
+                  ),
+                )
+              else
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.grey.shade700,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontSize: 13,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// Returns true once [_currentLat]/[_currentLng] hold a usable position.
@@ -336,6 +403,31 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
               ),
             ),
 
+            // 📍 All / Nearby chips — same pattern as Vehicle Availability.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: Row(
+                  children: [
+                    _buildLocationChip(
+                      label: "All",
+                      isSelected: !_nearbyOnly,
+                      onTap: () => setState(() => _nearbyOnly = false),
+                    ),
+                    _buildLocationChip(
+                      label: "Nearby $kNearbyRadiusKm km",
+                      icon: Icons.my_location,
+                      isSelected: _nearbyOnly,
+                      isLoading: _isLoadingLocation,
+                      onTap: _onNearbyTapped,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           /// 📃 LIST
           Expanded(
             child: Obx(() {
@@ -357,24 +449,41 @@ class _SpotHatcheryScreenState extends State<SpotHatcheryScreen> {
                     spotHatcheryMatchesFilters(item, _filters);
               }).toList();
 
-              // Nearby / Farthest. Returns the list untouched when no sort is
-              // chosen or the user's location is unknown.
-              filteredList = applySpotSort(
-                filteredList,
-                _filters,
-                userLat: _currentLat,
-                userLng: _currentLng,
-              );
+              // "Nearby" chip — keep only hatcheries within 150 km, nearest
+              // first. "All" leaves the list exactly as the filters left it.
+              if (_nearbyOnly) {
+                filteredList = applyNearbyFilter(
+                  filteredList,
+                  userLat: _currentLat,
+                  userLng: _currentLng,
+                );
+              }
 
               if (filteredList.isEmpty) {
                 return Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        "No hatcheries found",
-                        style: TextStyle(color: Colors.grey),
+                      Text(
+                        _nearbyOnly
+                            ? "No hatcheries within $kNearbyRadiusKm km"
+                            : "No hatcheries found",
+                        style: const TextStyle(color: Colors.grey),
                       ),
+                      // "Nearby" can legitimately match nothing, which would
+                      // otherwise be a dead end — offer the way back to All.
+                      if (_nearbyOnly) ...[
+                        const SizedBox(height: 10),
+                        TextButton.icon(
+                          onPressed: () =>
+                              setState(() => _nearbyOnly = false),
+                          icon: const Icon(Icons.public_rounded, size: 18),
+                          label: const Text('Show all hatcheries'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                          ),
+                        ),
+                      ],
                       // Without this an over-narrow filter looks like "there
                       // are no hatcheries at all" with no way back.
                       if (!_filters.isEmpty) ...[

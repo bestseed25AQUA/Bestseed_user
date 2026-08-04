@@ -82,6 +82,7 @@ import 'package:seedsuser/app/home/controller/vehicle_availabilitys_controller.d
 import 'package:seedsuser/app/home/view/vehicle_hatchery_card_widget.dart';
 import 'package:seedsuser/app/model/spot_hatchery_model.dart';
 import 'package:seedsuser/app/common/filter_bottom_sheet.dart';
+import 'package:seedsuser/app/common/nearby.dart';
 import 'package:seedsuser/app/home/widget/vehicle_filter_sheet.dart';
 import 'package:seedsuser/app/model/vehicle_available_model.dart';
 import 'package:seedsuser/app/spot_hatchery/controller/spot_hatchery_controller.dart';
@@ -241,7 +242,7 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
 
   /// Shortest distance in km from point P (the user) to the travel segment
   /// A→B (two consecutive route stops). Uses a local equirectangular
-  /// projection to km, which is accurate enough at the ~100 km filter scale.
+  /// projection to km, which is accurate enough at the Nearby-radius scale.
   /// This is what makes the filter route-aware: a post is relevant when the
   /// user is near the PATH between stops, not only near a stop itself.
   double _distanceToSegmentKm(
@@ -361,6 +362,10 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
       // Vehicles with no usable coordinates get `double.infinity` from
       // _shortestDistanceKm and fall to the end. Ties fall back to the
       // backend's newest-first order because Dart's sort is stable.
+      //
+      // Deliberately NOT a radius cut-off: farther vehicles stay visible (just
+      // lower down) instead of being hidden entirely. The radius only governs
+      // which route stops get the "Near you" highlight on each card.
       result.sort((a, b) => _shortestDistanceKm(a).compareTo(_shortestDistanceKm(b)));
       debugPrint('📍 [VEHICLE-FILTER] sorted nearest-first from '
           '($_currentLat,$_currentLng): ${result.length} vehicles');
@@ -583,7 +588,7 @@ class _VehicleAvailabilityScreenState extends State<VehicleAvailabilityScreen> {
                     },
                   ),
                   _buildLocationChip(
-                    label: "Current Location",
+                    label: "Nearby $kNearbyRadiusKm km",
                     icon: Icons.my_location,
                     isSelected: _selectedLocation == "current",
                     isLoading: _isLoadingLocation,

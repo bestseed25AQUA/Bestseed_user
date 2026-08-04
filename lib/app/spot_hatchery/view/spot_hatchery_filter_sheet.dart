@@ -3,21 +3,17 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'package:seedsuser/app/common/filter_bottom_sheet.dart';
+import 'package:seedsuser/app/common/nearby.dart';
 import 'package:seedsuser/app/model/spot_hatchery_model.dart';
+
+// Re-exported so screens using this sheet get the radius without a second
+// import — the chip label and the cut-off must always agree.
+export 'package:seedsuser/app/common/nearby.dart' show kNearbyRadiusKm;
 
 /// Filter group keys for the spot hatchery listing.
 const String kSpotLocation = 'location';
 const String kSpotCategory = 'category';
 const String kSpotHatchery = 'hatchery';
-const String kSpotSort = 'sort';
-
-/// Hatcheries closer than this count as "nearby". Sorting ascending by
-/// distance already puts them ahead of everything else, so this drives the
-/// label rather than a separate cut — nothing is ever hidden by the sort.
-const int kNearbyRadiusKm = 150;
-
-const String kSortNearby = 'Nearby (within $kNearbyRadiusKm km first)';
-const String kSortFarthest = 'Farthest first';
 
 /// Great-circle distance in km between two coordinates (haversine).
 double distanceKm(double lat1, double lng1, double lat2, double lng2) {
@@ -44,28 +40,27 @@ double? spotDistanceKm(SpotHatchery spot, double? userLat, double? userLng) {
   return distanceKm(userLat, userLng, lat, lng);
 }
 
-/// Applies the chosen sort. Hatcheries with no usable distance always sink to
-/// the bottom rather than being dropped, and the list is returned untouched
-/// when no sort is picked or the user's location is unknown.
-List<SpotHatchery> applySpotSort(
-  List<SpotHatchery> list,
-  FilterSelection filters, {
+/// Keeps only hatcheries within [kNearbyRadiusKm] of the user, nearest first.
+///
+/// Backs the "Nearby" chip above the list. A hatchery with no coordinates has
+/// no measurable distance, so it can't be claimed to be nearby and is left
+/// out — the "All" chip is how the user gets back to the full list. Returns
+/// the list untouched if the user's location isn't known, so the caller can
+/// keep showing everything rather than an empty screen.
+List<SpotHatchery> applyNearbyFilter(
+  List<SpotHatchery> list, {
   required double? userLat,
   required double? userLng,
 }) {
-  final sort = filters.one(kSpotSort);
-  if (sort == null || userLat == null || userLng == null) return list;
+  if (userLat == null || userLng == null) return list;
 
-  final sorted = [...list];
-  sorted.sort((a, b) {
-    final da = spotDistanceKm(a, userLat, userLng);
-    final db = spotDistanceKm(b, userLat, userLng);
-    if (da == null && db == null) return 0;
-    if (da == null) return 1; // unknown distance goes last in both modes
-    if (db == null) return -1;
-    return sort == kSortFarthest ? db.compareTo(da) : da.compareTo(db);
-  });
-  return sorted;
+  final withDistance = <(SpotHatchery, double)>[];
+  for (final spot in list) {
+    final km = spotDistanceKm(spot, userLat, userLng);
+    if (km != null && km <= kNearbyRadiusKm) withDistance.add((spot, km));
+  }
+  withDistance.sort((a, b) => a.$2.compareTo(b.$2));
+  return [for (final entry in withDistance) entry.$1];
 }
 
 /// Does [spot] pass every active filter?
@@ -101,7 +96,6 @@ Future<FilterSelection?> showSpotHatcheryFilterSheet(
   BuildContext context, {
   required List<SpotHatchery> hatcheries,
   required FilterSelection initial,
-  bool canSortByDistance = true,
   ValueChanged<FilterSelection>? onReset,
 }) {
   return showFilterSheet(
@@ -113,16 +107,8 @@ Future<FilterSelection?> showSpotHatcheryFilterSheet(
     matchCount: (selection) =>
         hatcheries.where((h) => spotHatcheryMatchesFilters(h, selection)).length,
     groups: [
-      // Offered only when at least one hatchery has coordinates — a sort that
-      // cannot reorder anything is worse than no sort at all.
-      if (canSortByDistance &&
-          hatcheries.any((h) => h.latitude != null && h.longitude != null))
-        const FilterGroup(
-          key: kSpotSort,
-          title: 'Sort by',
-          singleSelect: true,
-          options: [kSortNearby, kSortFarthest],
-        ),
+      // Distance isn't offered here — it lives in the All / Nearby chips above
+      // the list, where the client wanted it.
       FilterGroup(
         key: kSpotLocation,
         title: 'Location',
