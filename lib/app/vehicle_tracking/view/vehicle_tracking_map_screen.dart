@@ -1611,7 +1611,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         // Build ordered mandatory waypoints still ahead of the origin
         final List<LatLng> mandatoryWaypoints = [];
         final unvisitedWaypoints = (_trackingData?.routeWaypoints ?? [])
-            .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isCompleted)
+            .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isRouteSkippable)
             .toList()
           ..sort((a, b) => a.priority.compareTo(b.priority));
         for (final wp in unvisitedWaypoints) {
@@ -1866,7 +1866,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     debugPrint('🔄 Rerouting from driver position...');
 
     final remainingWaypoints = (_trackingData?.routeWaypoints ?? [])
-        .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isCompleted)
+        .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isRouteSkippable)
         .toList()
       ..sort((a, b) => a.priority.compareTo(b.priority));
     final wpLatLngs = remainingWaypoints
@@ -2948,7 +2948,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   int _blueSnapUpperBound() {
     if (_fullPolyline.length < 2) return 0;
     final pending = (_trackingData?.routeWaypoints ?? [])
-        .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isCompleted)
+        .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isRouteSkippable)
         .toList()
       ..sort((a, b) => a.priority.compareTo(b.priority));
     if (pending.isEmpty) return _fullPolyline.length - 1;
@@ -3618,7 +3618,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         'vehicle=(${_currentLatLng?.latitude.toStringAsFixed(5)},${_currentLatLng?.longitude.toStringAsFixed(5)}) '
         'blueStart=${bluePoints.isNotEmpty ? "(${bluePoints.first.latitude.toStringAsFixed(5)},${bluePoints.first.longitude.toStringAsFixed(5)})" : "-"} '
         'startGap=${(bluePoints.isNotEmpty && _currentLatLng != null) ? _haversineMeters(_currentLatLng!, bluePoints.first).toStringAsFixed(0) : "?"}m '
-        'pendingWps=${(_trackingData?.routeWaypoints ?? []).where((w) => !w.isCompleted).length}');
+        'pendingWps=${(_trackingData?.routeWaypoints ?? []).where((w) => !w.isRouteSkippable).length}');
 
     _homeToVehiclePoints = greenPoints;
 
@@ -3828,7 +3828,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     if (vehicle == null || dest == null) return;
 
     final pending = (_trackingData?.routeWaypoints ?? [])
-        .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isCompleted)
+        .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isRouteSkippable)
         .toList()
       ..sort((a, b) => a.priority.compareTo(b.priority));
     // Drops before the final destination become ordered waypoints.
@@ -6069,7 +6069,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
 
     // Include only remaining (uncompleted) route_waypoints
     final remainingWps = (_trackingData?.routeWaypoints ?? [])
-        .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isCompleted)
+        .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isRouteSkippable)
         .toList()
       ..sort((a, b) => a.priority.compareTo(b.priority));
 

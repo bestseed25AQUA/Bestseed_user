@@ -14,6 +14,7 @@ import 'package:seedsuser/app/home/view/all_screen.dart';
 import 'package:seedsuser/app/home/view/hatchery_filter_screen.dart';
 import 'package:seedsuser/app/home/view/home_appbar_widget.dart';
 import 'package:seedsuser/app/home/widget/home_loading.dart';
+import 'package:seedsuser/app/model/category_model.dart';
 import 'package:seedsuser/app/news%20&%20ads/controller/news_specific_controller.dart';
 import 'package:seedsuser/app/profile/controller/profile_controller.dart';
 
@@ -120,6 +121,28 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   int currentTabIndex = 0;
+
+  /// The exact category list [_tabController] was built for.
+  ///
+  /// The TabBar and the TabBarView below BOTH render from this snapshot and
+  /// never from `_homeController.categories` directly. Previously each read
+  /// the live RxList independently while the controller was rebuilt on a
+  /// GetX worker: `getCategories()` calls `assignAll()` twice (cache first,
+  /// then network), so a rebuild landing between the two produced a
+  /// TabBarView with more children than the controller had tabs. That throws
+  /// inside build(), and a build() that throws in a RELEASE build is painted
+  /// as a plain grey rectangle (RenderErrorBox uses Color(0xF0C0C0C0) when
+  /// asserts are off) — the "blank grey home screen".
+  List<Category> _tabCategories = const <Category>[];
+
+  static bool _sameCategories(List<Category> a, List<Category> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].id != b[i].id) return false;
+    }
+    return true;
+  }
+
   void _initTabController() {
     // Build the tabs as soon as categories are available — and again if the
     // network refresh changes them. getCategories() fills the list from cache
@@ -137,29 +160,45 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _buildTabs() {
     if (!mounted) return;
-    if (_homeController.categories.isEmpty) return;
-    final newLength = _homeController.categories.length + 1; // All + categories
+
+    // Take ONE snapshot and derive everything from it.
+    final snapshot = List<Category>.unmodifiable(_homeController.categories);
+    if (snapshot.isEmpty) return;
+
+    final newLength = snapshot.length + 1; // All + categories
+    final lengthUnchanged =
+        _tabController != null && _tabController!.length == newLength;
+
     // Already built for this exact set — don't recreate (avoids flicker).
-    if (_tabController != null && _tabController!.length == newLength) return;
+    if (lengthUnchanged && _sameCategories(snapshot, _tabCategories)) return;
 
-    _tabController?.dispose();
-    _tabController = TabController(length: newLength, vsync: this);
-    _tabController?.addListener(() {
-      currentTabIndex = (_tabController?.index ?? 0);
-      _homeController.selectedCategoryId.value = (currentTabIndex == 0)
-          ? ''
-          : _homeController.categories[currentTabIndex - 1].id.toString();
+    if (!lengthUnchanged) {
+      // Only dispose when the length actually forces a new controller. The old
+      // code disposed on every rebuild, which could tear down a controller the
+      // current frame's TabBar/TabBarView still referenced.
+      _tabController?.removeListener(_onTabChanged);
+      _tabController?.dispose();
+      _tabController = TabController(length: newLength, vsync: this);
+      _tabController!.addListener(_onTabChanged);
+    }
 
-      _homeController.selectedCateogryName.value = (currentTabIndex == 0)
-          ? ''
-          : _homeController.categories[currentTabIndex - 1].categoryName
-                .toString();
+    setState(() => _tabCategories = snapshot);
+  }
 
-      if ((_tabController?.index ?? 0) == 0) {
-        _homeController.selectedCateogryName.value = '';
-      }
-    });
-    setState(() {});
+  /// Index-safe: the snapshot can be replaced by a shorter list between the
+  /// controller emitting an index and this listener reading it. The old inline
+  /// listener indexed the live list with `index - 1` and threw RangeError.
+  void _onTabChanged() {
+    final index = _tabController?.index ?? 0;
+    currentTabIndex = index;
+
+    final category = (index > 0 && index - 1 < _tabCategories.length)
+        ? _tabCategories[index - 1]
+        : null;
+
+    _homeController.selectedCategoryId.value = category?.id.toString() ?? '';
+    _homeController.selectedCateogryName.value =
+        category?.categoryName.toString() ?? '';
   }
 
   @override
@@ -210,7 +249,8 @@ class _HomeScreenState extends State<HomeScreen>
           HomeAppBar(
             bottom: Builder(
               builder: (context) {
-                final categories = _homeController.categories;
+                // Snapshot, not the live RxList — see _tabCategories.
+                final categories = _tabCategories;
                 if (categories.isEmpty || _tabController == null) {
                   return DefaultTabController(
                     length: 5,
@@ -249,6 +289,10 @@ class _HomeScreenState extends State<HomeScreen>
                   dividerHeight: 0,
                   onTap: (index) {
                     _tabController?.index = 0;
+                    // index 0 is the "All" tab and has no backing category.
+                    // The old code ran categories[-1] here and threw RangeError
+                    // on every tap of "All".
+                    if (index == 0 || index - 1 >= categories.length) return;
                     String catName = categories[index - 1].categoryName
                         .toString();
                     filterHatcheryController.selectedCategoryIds.clear();
@@ -273,12 +317,23 @@ class _HomeScreenState extends State<HomeScreen>
 
         body: Builder(
           builder: (context) {
-            final categories = _homeController.categories;
+            // Same snapshot the TabBar above used, so children.length is
+            // always controller.length.
+            final categories = _tabCategories;
+            final controller = _tabController;
             // Don't wait for banners — let home page show immediately once
             // categories + tabController are ready. Each banner section has
             // its own shimmer/loading state so they appear as they arrive.
-            final showShimmer = _tabController == null || categories.isEmpty;
-            debugPrint('📱 [HOME] tabController=${_tabController != null}, categories=${categories.length} → ${showShimmer ? "SHIMMER" : "HOME PAGE"}');
+            //
+            // The length check is the belt-and-braces guard: if the controller
+            // and the snapshot ever disagree, fall back to the shimmer. A
+            // mismatch here throws inside TabBarView, and a throwing build in
+            // release renders as a solid grey block instead of anything
+            // diagnosable.
+            final showShimmer = controller == null ||
+                categories.isEmpty ||
+                controller.length != categories.length + 1;
+            debugPrint('📱 [HOME] tabController=${controller != null}, categories=${categories.length} → ${showShimmer ? "SHIMMER" : "HOME PAGE"}');
             return showShimmer
                 ? CustomRefereshIndicator(
                     onRefresh: () async {
@@ -290,7 +345,7 @@ class _HomeScreenState extends State<HomeScreen>
                   )
                 : TabBarView(
                     physics: NeverScrollableScrollPhysics(),
-                    controller: _tabController,
+                    controller: controller,
                     children: [
                       CustomRefereshIndicator(
                         onRefresh: () async {

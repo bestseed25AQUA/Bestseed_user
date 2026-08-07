@@ -198,8 +198,23 @@ class MyBookingController extends GetxController {
         detailError.value = 'Your session expired. Please log in again.';
         debugPrint('📄 [BOOKING-DETAIL] ❌ auth failure');
       } else {
-        detailError.value =
-            'Could not load this booking (error ${response.statusCode}).';
+        // The API puts the real reason in `error`. Showing a bare status code
+        // meant the one piece of information that identifies the fault was
+        // thrown away — the user could only report "error 500".
+        String? serverReason;
+        try {
+          final body = jsonDecode(response.body);
+          if (body is Map) {
+            final raw = (body['error'] ?? body['message'])?.toString().trim();
+            if (raw != null && raw.isNotEmpty) serverReason = raw;
+          }
+        } catch (_) {
+          // Not JSON (an HTML error page) — fall back to the status code.
+        }
+
+        detailError.value = serverReason == null
+            ? 'Could not load this booking (error ${response.statusCode}).'
+            : 'Could not load this booking (error ${response.statusCode}).\n\n$serverReason';
         debugPrint('📄 [BOOKING-DETAIL] ❌ body=${response.body}');
       }
     } catch (e, s) {

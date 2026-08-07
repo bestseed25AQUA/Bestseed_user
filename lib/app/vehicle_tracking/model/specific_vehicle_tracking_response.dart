@@ -403,6 +403,12 @@ class RouteWaypoint {
   final String name;
   final bool isBefore; // true = driver has already passed this waypoint
 
+  /// The truck physically visited this drop — it stopped there and drove on —
+  /// even though the booking was never marked Delivered. Set by the API from
+  /// the truck's own GPS trail. Defaults to false, so an older API response
+  /// simply keeps today's behaviour.
+  final bool isPassed;
+
   RouteWaypoint({
     required this.lat,
     required this.lng,
@@ -410,10 +416,20 @@ class RouteWaypoint {
     this.priority = 0,
     this.name = '',
     this.isBefore = false,
+    this.isPassed = false,
   });
 
   /// Whether this stop has already been delivered or cancelled
   bool get isCompleted => status == 5 || status == 6;
+
+  /// Skip this stop when working out the route the truck has STILL to drive:
+  /// either it is finished, or the truck already went there and the driver
+  /// just forgot to press Delivered.
+  ///
+  /// For routing decisions only. Never use it to build the full/planned route
+  /// — that must keep every stop, because the green covered line is sliced out
+  /// of it and the arrival time is computed as a fraction of it.
+  bool get isRouteSkippable => isCompleted || isPassed;
 
   factory RouteWaypoint.fromJson(Map<String, dynamic> json) {
     return RouteWaypoint(
@@ -423,6 +439,7 @@ class RouteWaypoint {
       priority: json['priority'] ?? 0,
       name: json['name'] ?? '',
       isBefore: json['is_before'] ?? false,
+      isPassed: json['is_passed'] ?? false,
     );
   }
 
@@ -433,5 +450,6 @@ class RouteWaypoint {
     "priority": priority,
     "name": name,
     "is_before": isBefore,
+    "is_passed": isPassed,
   };
 }

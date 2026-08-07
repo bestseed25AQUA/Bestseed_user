@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/auth/view/splash_screen.dart';
+import 'package:seedsuser/app/common/app_error_boundary.dart';
 import 'package:seedsuser/app/common/app_globals.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
 import 'package:seedsuser/app/language/controller/language_controller.dart';
@@ -27,6 +28,12 @@ class MyHttpOverrides extends HttpOverrides {
 void main() async {
   HttpOverrides.  global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Install FIRST, before any widget can build. Without this, a widget that
+  // throws during build is silently replaced by a plain grey rectangle in
+  // release builds (Flutter's RenderErrorBox paints Color(0xF0C0C0C0) when
+  // asserts are off) with nothing in the logs — the "blank grey screen".
+  AppErrorBoundary.install();
 
   // Note: previously forced useAndroidViewSurface = true for Adreno GPU
   // blank-tile workaround. Removed because it forces the OLD hybrid-composition

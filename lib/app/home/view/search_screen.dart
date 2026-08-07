@@ -165,9 +165,41 @@ class _SearchScreenState extends State<SearchScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    "Voice assistance",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  // Close button — the dialog is barrierDismissible: false, so
+                  // without this there is no way out but the back gesture.
+                  // The leading gap balances the icon so the title stays
+                  // optically centred.
+                  Row(
+                    children: [
+                      const SizedBox(width: 28),
+                      const Expanded(
+                        child: Text(
+                          "Voice assistance",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () {
+                          // Stop the mic before closing, or it keeps listening
+                          // with no UI to show for it.
+                          stopListening();
+                          Navigator.of(context).pop();
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 20,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
 
                   SizedBox(height: 25),
