@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:get/get.dart';
 import 'package:seedsuser/app/model/home_banner_model.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
@@ -219,7 +219,7 @@ class HomeBannerController extends GetxController {
   Future<void> fetchHomeBanner() async {
     try {
       if (bannersHome.isEmpty) isHomeLoading.value = true;
-      final result = await _fetchBannerList('farmer/home_banner');
+      final result = await fetchBannerList('farmer/home_banner');
       if (result != null) {
         bannersHome.assignAll(result);
         _warmMedia(result);
@@ -235,7 +235,7 @@ class HomeBannerController extends GetxController {
   Future<void> fetchBannersMedicine() async {
     try {
       if (bannersMedicine.isEmpty) isMedicineLoading.value = true;
-      final result = await _fetchBannerList('farmer/best_deals_banners');
+      final result = await fetchBannerList('farmer/best_deals_banners');
       if (result != null) {
         bannersMedicine.assignAll(result);
         _warmMedia(result);
@@ -251,7 +251,7 @@ class HomeBannerController extends GetxController {
   Future<void> fetchSpotHatcheriesIcon() async {
     try {
       if (bannersSpotHatcheries.isEmpty) isSpotLoading.value = true;
-      final result = await _fetchBannerList('farmer/spot_hatcheries_icon');
+      final result = await fetchBannerList('farmer/spot_hatcheries_icon');
       if (result != null) {
         bannersSpotHatcheries.assignAll(result);
         _warmMedia(result);
@@ -267,7 +267,7 @@ class HomeBannerController extends GetxController {
   Future<void> fetchFarmManagementIcon() async {
     try {
       if (bannersFarmManagement.isEmpty) isFarmLoading.value = true;
-      final result = await _fetchBannerList('farmer/farm_management_icon');
+      final result = await fetchBannerList('farmer/farm_management_icon');
       if (result != null) {
         bannersFarmManagement.assignAll(result);
         _warmMedia(result);
@@ -283,7 +283,7 @@ class HomeBannerController extends GetxController {
   Future<void> fetchBannersBackground() async {
     try {
       if (bannersBackGround.isEmpty) isBgLoading.value = true;
-      final result = await _fetchBannerList('farmer/banner_bg');
+      final result = await fetchBannerList('farmer/banner_bg');
       if (result != null) {
         bannersBackGround.assignAll(result);
         _warmMedia(result);
@@ -299,7 +299,7 @@ class HomeBannerController extends GetxController {
   Future<void> fetchBannersTop() async {
     try {
       if (bannersTop.isEmpty) isTopLoading.value = true;
-      final result = await _fetchBannerList('farmer/banner_top');
+      final result = await fetchBannerList('farmer/banner_top');
       if (result != null) bannersTop.assignAll(result);
     } catch (e) {
       debugPrint('📊 [BANNERS] fetchBannersTop error: $e');
@@ -311,7 +311,7 @@ class HomeBannerController extends GetxController {
 
   Future<void> fetchSeedPriceBanner() async {
     try {
-      final result = await _fetchBannerList('farmer/seed_price_banner');
+      final result = await fetchBannerList('farmer/seed_price_banner');
       if (result != null) bannersSeedPrice.assignAll(result);
     } catch (e) {
       debugPrint('📊 [BANNERS] fetchSeedPriceBanner error: $e');
@@ -319,9 +319,38 @@ class HomeBannerController extends GetxController {
     }
   }
 
+  /// Load the Prices-screen "Wanted" banner if it isn't loaded yet.
+  ///
+  /// Called every time the Prices screen opens (and on pull-to-refresh) so a
+  /// banner that failed during the startup burst recovers by itself.
+  ///
+  /// Previously this banner was only ever fetched once, inside
+  /// [_fetchBelowFold] at startup, and the only re-fetch — HomePage.initState —
+  /// is gated on `bannersMedicine.isEmpty || bannersHome.isEmpty`. So whenever
+  /// those two loaded but seed_price didn't, nothing ever tried again and the
+  /// banner stayed missing until the app was restarted. That is the
+  /// "sometimes the Wanted banner doesn't show" report.
+  ///
+  /// No-ops once loaded, so opening Prices repeatedly costs nothing.
+  Future<void> ensureSeedPriceBanner() async {
+    if (bannersSeedPrice.isNotEmpty) return;
+    if (_seedPriceInFlight) return;
+
+    _seedPriceInFlight = true;
+    try {
+      await _fetchWithRetry('seed_price', fetchSeedPriceBanner);
+    } finally {
+      _seedPriceInFlight = false;
+    }
+  }
+
+  /// Guards against a second fetch while one is already running (e.g. the user
+  /// pull-to-refreshes while the initState fetch is still in flight).
+  bool _seedPriceInFlight = false;
+
   Future<void> fetchSection1Background() async {
     try {
-      final result = await _fetchBannerList('farmer/home_section1_bg');
+      final result = await fetchBannerList('farmer/home_section1_bg');
       if (result != null) bannersSection1Bg.assignAll(result);
     } catch (e) {
       debugPrint('📊 [BANNERS] fetchSection1Background error: $e');
@@ -332,7 +361,7 @@ class HomeBannerController extends GetxController {
   Future<void> fetchBanners() async {
     try {
       isLoading.value = true;
-      final result = await _fetchBannerList('farmer/banner');
+      final result = await fetchBannerList('farmer/banner');
       if (result != null) banners.assignAll(result);
     } catch (e) {
       debugPrint('📊 [BANNERS] fetchBanners error: $e');
@@ -343,7 +372,16 @@ class HomeBannerController extends GetxController {
 
   // ── Common fetch helper — no toast, no crash, just returns data or null ──
 
-  Future<List<BannerItem>?> _fetchBannerList(String endpoint) async {
+  /// Returns the banners for [endpoint], or null when the backend genuinely has
+  /// none configured (status:false / empty list).
+  ///
+  /// Throws on an HTTP error so [_fetchWithRetry] actually retries. It used to
+  /// swallow non-200s and return null, which looked like "loaded, but empty" —
+  /// so a 401/500 was never retried and the banner stayed missing for the whole
+  /// session. Only a *successful* response with no banners returns null, since
+  /// retrying that would be pointless (e.g. home_section1_bg is often unset).
+  @visibleForTesting
+  Future<List<BannerItem>?> fetchBannerList(String endpoint) async {
     final response = await getRequest(
       endPoint: '${NetworkConfig.baseURL}/$endpoint',
       headers: await buildHeader(),
@@ -355,9 +393,10 @@ class HomeBannerController extends GetxController {
       if (model.status && model.banners.isNotEmpty) {
         return model.banners;
       }
-    } else {
-      debugPrint('📊 [BANNERS] $endpoint HTTP ${response.statusCode}');
+      return null;
     }
-    return null;
+
+    debugPrint('📊 [BANNERS] $endpoint HTTP ${response.statusCode}');
+    throw Exception('$endpoint failed with HTTP ${response.statusCode}');
   }
 }
