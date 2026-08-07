@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:seedsuser/app/utils/secrets.dart';
+import 'package:seedsuser/app/utils/secrets.example.dart';
 
 /// API keys, kept out of version control.
 ///
