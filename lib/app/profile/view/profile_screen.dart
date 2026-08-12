@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:seedsuser/app/announcement/announcement_screen.dart';
 import 'package:seedsuser/app/announcement/controller/announcement_controller.dart';
@@ -33,9 +34,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Shared permanent instance — the badge stays in step with the popup service.
   final AnnouncementController announcementController = AnnouncementController.to;
 
+  /// Filled in by [_loadAppVersion]. Empty until the platform answers, and
+  /// stays empty if it never does — see the catch there.
+  String _appVersion = '';
+
   @override
   void initState() {
     super.initState();
+    _loadAppVersion();
     // Refresh the badge every time the profile is opened.
     announcementController.fetchAnnouncements();
     // Always refresh on open. Get.put returns the existing controller instance
@@ -43,6 +49,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // empty/failed, the screen would otherwise show "No name available"/"N/A"
     // forever even though the API now returns valid data.
     profileController.getProfile();
+  }
+
+  /// Reads the version the app was actually built with, rather than a literal
+  /// that has to be remembered on every release — the old hardcoded "v1.0.0"
+  /// was nine versions stale by the time anyone noticed.
+  ///
+  /// One call covers both platforms: PackageInfo reads versionName/versionCode
+  /// on Android and CFBundleShortVersionString/CFBundleVersion on iOS, and
+  /// both of those are wired to pubspec's `version:` by the Flutter toolchain
+  /// (`flutter.versionName` in build.gradle.kts, `$(FLUTTER_BUILD_NAME)` in
+  /// Info.plist). So bumping pubspec is enough — nothing here needs touching.
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _appVersion = 'v${info.version} (${info.buildNumber})');
+    } catch (e) {
+      // Rare corrupt install / OEM ROM. Leave the line reading just
+      // "Bestseed" — better than showing a number we can't stand behind,
+      // which is exactly how the stale literal misled us before.
+      debugPrint('ProfileScreen: PackageInfo.fromPlatform failed: $e');
+    }
   }
 
   @override
@@ -102,9 +130,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 30),
 
-                // App version
+                // App version — see _loadAppVersion.
                 Text(
-                  'Bestseed v1.0.0',
+                  _appVersion.isEmpty ? 'Bestseed' : 'Bestseed $_appVersion',
                   style: GoogleFonts.roboto(
                     fontSize: 12,
                     color: Colors.grey.shade400,
