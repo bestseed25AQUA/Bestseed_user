@@ -125,7 +125,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       base.add(
         Polyline(
           polylineId: const PolylineId('home_to_vehicle'),
-          points: pts,
+          points: _simplifyForRender(pts),
           color: const Color(0xFF34A853),
           width: 5,
         ),
@@ -1313,10 +1313,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
                 polylines.add(
                   Polyline(
                     polylineId: const PolylineId('remaining'),
-                    points: bluePoints,
+                    points: _simplifyForRender(bluePoints),
                     color: const Color(0xFF1A73E8),
                     width: 5,
-                    patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+                    patterns: _routePattern(bluePoints),
                   ),
                 );
               }
@@ -1326,10 +1326,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
             polylines.add(
               Polyline(
                 polylineId: const PolylineId('remaining'),
-                points: remainingPointsRoute,
+                points: _simplifyForRender(remainingPointsRoute),
                 color: const Color(0xFF1A73E8),
                 width: 5,
-                patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+                patterns: _routePattern(remainingPointsRoute),
               ),
             );
           }
@@ -1341,10 +1341,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           polylines.add(
             Polyline(
               polylineId: const PolylineId('full_route'),
-              points: _fullPolyline,
+              points: _simplifyForRender(_fullPolyline),
               color: const Color(0xFF1A73E8),
               width: 5,
-              patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+              patterns: _routePattern(_fullPolyline),
             ),
           );
         }
@@ -1380,10 +1380,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           polylines.add(
             Polyline(
               polylineId: const PolylineId('remaining'),
-              points: pts,
+              points: _simplifyForRender(pts),
               color: const Color(0xFF1A73E8),
               width: 5,
-              patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+              patterns: _routePattern(pts),
             ),
           );
         }
@@ -1688,13 +1688,20 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
             }
             candidatePts.add(_fullRoutePolyline[idx]);
           }
-          // Reverse-geocode in parallel using distance-aware strategy
-          final names = await Future.wait(
-            candidatePts.map((pt) => GoogleMapsService.reverseGeocode(
-                pt, routeDistanceKm: fallbackRemainingKm)),
+          // Reverse-geocode SEQUENTIALLY — iOS CLGeocoder throttles concurrent
+          // requests, which left most stops unnamed and falling back to
+          // placeholder labels.
+          final names = await GoogleMapsService.reverseGeocodeBatch(
+            candidatePts,
+            routeDistanceKm: fallbackRemainingKm,
           );
           for (int s = 0; s < candidatePts.length; s++) {
-            final name = names[s] ?? 'Stop ${s + 1}';
+            // Leave the name NULL when geocoding could not resolve it. A
+            // placeholder baked in here would carry this pre-sort index with
+            // it, and the list is ordered by distance afterwards — that is how
+            // the timeline ended up reading "Stop 1,2,3,4,10,9,8,5". Naming
+            // now happens at render time, after ordering.
+            final name = names[s];
             upcomingStops.add({
               'name': name,
               'lat': candidatePts[s].latitude,
@@ -1711,7 +1718,13 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     final totalDist = _fullRouteCumulativeDistances.isNotEmpty
         ? _fullRouteCumulativeDistances.last
         : 0.0;
-    final upcomingMapped = upcomingStops.map((s) {
+    final upcomingMapped = upcomingStops
+        // A stop with no resolved place name is DROPPED, never rendered as a
+        // placeholder. Reverse geocoding now falls back to the Google Geocoding
+        // API, so this should be rare — but a nameless stop tells the customer
+        // nothing, and a fake "Stop N" label was the reported bug.
+        .where((s) => ((s['name'] as String?)?.trim().isNotEmpty ?? false))
+        .map((s) {
       final sLat = (s['lat'] as num?)?.toDouble() ?? 0.0;
       final sLng = (s['lng'] as num?)?.toDouble() ?? 0.0;
       double fraction = 0.0;
@@ -1725,7 +1738,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         fraction = _fullRouteCumulativeDistances[bestIdx] / totalDist;
       }
       return <String, dynamic>{
-        'name': s['name']?.toString() ?? 'Stop',
+        'name': (s['name'] as String).trim(),
         'lat': sLat,
         'lng': sLng,
         'dist_fraction': fraction,
@@ -1825,15 +1838,22 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       }
       if (!dup) upcomingMerged.add(s);
     }
-    if (driverForOrder != null) {
-      double distFromDriver(Map<String, dynamic> s) => _haversineDistance(
-          driverForOrder, LatLng(s['lat'] as double, s['lng'] as double));
-      upcomingMerged
-          .sort((a, b) => distFromDriver(a).compareTo(distFromDriver(b)));
-    } else {
-      upcomingMerged.sort((a, b) => (a['dist_fraction'] as double)
-          .compareTo(b['dist_fraction'] as double));
-    }
+    // ALWAYS order by position ALONG THE ROUTE, never by straight-line distance
+    // from the driver.
+    //
+    // Crow-flies ordering only agrees with travel order on a route that heads
+    // steadily away from the origin. A multi-drop run that doubles back breaks
+    // it: on Hyderabad → Suryapet → Vijayawada → Rajahmundry → Tirupati →
+    // Chennai, Rajahmundry sits far east (81.8°E) and Tirupati is back
+    // south-west (79.4°E), so stops the truck reaches AFTER Rajahmundry are
+    // physically CLOSER to Hyderabad than Rajahmundry itself and sorted ahead
+    // of it. That is why the timeline only went wrong from priority 3 onward —
+    // the first two drops happen to lie on a straight run out of Hyderabad.
+    //
+    // `dist_fraction` is each stop's distance along the actual polyline, so it
+    // is monotonic in travel order no matter how the route bends.
+    upcomingMerged.sort((a, b) => (a['dist_fraction'] as double)
+        .compareTo(b['dist_fraction'] as double));
     final allStops = [...passedFromApi, ...upcomingMerged];
 
     _enforceMonotonicPassedAt(allStops);
@@ -1933,10 +1953,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       updatedPolylines.add(
         Polyline(
           polylineId: const PolylineId('remaining'),
-          points: reroutedBlue,
+          points: _simplifyForRender(reroutedBlue),
           color: const Color(0xFF1A73E8),
           width: 5,
-          patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+          patterns: _routePattern(reroutedBlue),
         ),
       );
     }
@@ -2931,6 +2951,123 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     return LatLng(a.latitude + t * dx, a.longitude + t * dy);
   }
 
+  /// Dash pattern for a route line — or `null` (solid) when the route is long
+  /// enough that dashing breaks on iOS.
+  ///
+  /// ROOT CAUSE (verified on device, bookings #1060/#1061/#1062):
+  /// iOS renders `PatternItem.dash/gap` by generating `GMSStyleSpan`s along the
+  /// path. On a long route the spans run out before the line does, so the map
+  /// silently draws only the leading portion and simply stops — the polyline
+  /// handed to it is complete (logs confirmed the final point was the exact
+  /// destination), but the drawn line ended at the last waypoint. Android
+  /// implements patterns natively and was never affected, which is why this
+  /// only ever reproduced on iPhones.
+  ///
+  /// Evidence for the threshold: #1060 (183 km) drew correctly WITH dashes;
+  /// #1061 (324 km) and #1062 (506 km) truncated. 75 km sits well below the
+  /// known-good case, so short city deliveries keep the dashed styling and
+  /// anything long enough to be at risk renders solid — complete beats pretty
+  /// when the line is telling a customer where their delivery is.
+  static const double _maxDashedRouteMeters = 75000;
+
+  /// An empty list means SOLID — `Polyline.patterns` is non-nullable and
+  /// defaults to `const []`.
+  List<PatternItem> _routePattern(List<LatLng> pts) {
+    if (pts.length < 2) return const <PatternItem>[];
+    double metres = 0;
+    for (int i = 1; i < pts.length; i++) {
+      metres += _haversineMeters(pts[i - 1], pts[i]);
+      if (metres > _maxDashedRouteMeters) {
+        return const <PatternItem>[]; // solid — early out, no need to total it
+      }
+    }
+    return [PatternItem.dash(20), PatternItem.gap(10)];
+  }
+
+  /// Perpendicular distance from [p] to segment [a]→[b], in metres, using a
+  /// local equirectangular projection (accurate well under a kilometre, which
+  /// is all a simplification tolerance needs and far cheaper than haversine).
+  double _perpDistMeters(LatLng p, LatLng a, LatLng b) {
+    const mPerDegLat = 111320.0;
+    final mPerDegLng = 111320.0 * cos(a.latitude * pi / 180.0);
+    final px = (p.longitude - a.longitude) * mPerDegLng;
+    final py = (p.latitude - a.latitude) * mPerDegLat;
+    final bx = (b.longitude - a.longitude) * mPerDegLng;
+    final by = (b.latitude - a.latitude) * mPerDegLat;
+    final len2 = bx * bx + by * by;
+    if (len2 == 0) return sqrt(px * px + py * py);
+    final t = ((px * bx + py * by) / len2).clamp(0.0, 1.0);
+    final dx = px - t * bx;
+    final dy = py - t * by;
+    return sqrt(dx * dx + dy * dy);
+  }
+
+  /// Ramer–Douglas–Peucker simplification, for RENDERING ONLY.
+  ///
+  /// Directions returns every step at full resolution: a 183 km single-leg
+  /// route is ~4,000 points, but a 3-leg 506 km route is ~11,600 — and all of
+  /// them were handed straight to the native map. On iOS each becomes a vertex
+  /// in a single GMSPolyline; that cost scales with leg count, which is exactly
+  /// why a priority-3 booking hurt more than a priority-1 one.
+  ///
+  /// 8 m tolerance is far below what a road line can show at any usable zoom,
+  /// so the drawn route is visually identical.
+  ///
+  /// Deliberately NOT applied to the stored polylines: snapping, deviation and
+  /// progress maths all read the full-resolution lists, and thinning those
+  /// would blunt the vehicle-position snap.
+  ///
+  /// Iterative (explicit stack) rather than recursive — 11k points could nest
+  /// deeply enough to matter.
+  List<LatLng> _simplifyForRender(List<LatLng> pts,
+      {double toleranceMeters = 8.0}) {
+    final out = _simplifyForRenderImpl(pts, toleranceMeters);
+    if (pts.length > 1000) {
+      debugPrint('✂️ [RENDER] polyline ${pts.length} → ${out.length} pts '
+          '(${(100 * (1 - out.length / pts.length)).toStringAsFixed(1)}% removed) '
+          'first=(${out.first.latitude.toStringAsFixed(5)},${out.first.longitude.toStringAsFixed(5)}) '
+          'last=(${out.last.latitude.toStringAsFixed(5)},${out.last.longitude.toStringAsFixed(5)})');
+    }
+    return out;
+  }
+
+  List<LatLng> _simplifyForRenderImpl(
+      List<LatLng> pts, double toleranceMeters) {
+    if (pts.length <= 2) return pts;
+    final keep = List<bool>.filled(pts.length, false);
+    keep[0] = true;
+    keep[pts.length - 1] = true;
+
+    final stack = <List<int>>[
+      [0, pts.length - 1]
+    ];
+    while (stack.isNotEmpty) {
+      final seg = stack.removeLast();
+      final first = seg[0];
+      final last = seg[1];
+      double maxD = 0.0;
+      int idx = -1;
+      for (int i = first + 1; i < last; i++) {
+        final d = _perpDistMeters(pts[i], pts[first], pts[last]);
+        if (d > maxD) {
+          maxD = d;
+          idx = i;
+        }
+      }
+      if (idx != -1 && maxD > toleranceMeters) {
+        keep[idx] = true;
+        stack.add([first, idx]);
+        stack.add([idx, last]);
+      }
+    }
+
+    final out = <LatLng>[];
+    for (int i = 0; i < pts.length; i++) {
+      if (keep[i]) out.add(pts[i]);
+    }
+    return out;
+  }
+
   /// Upper bound (index into [_fullPolyline]) for where the vehicle may be
   /// snapped when slicing the BLUE (upcoming) line: the position of the FIRST
   /// still-pending priority drop on the route.
@@ -3449,7 +3586,22 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
   // BLUE (upcoming) road route built FROM the vehicle through the pending
   // priority drops to the final destination — always starts at the vehicle.
   List<LatLng> _blueRoadPath = [];
-  int _blueBuiltForPending = -1;
+
+  /// Identity of the route [_blueRoadPath] was built for: destination + the
+  /// ordered pending drops. Previously this was just the COUNT of pending
+  /// waypoints, which could not distinguish one booking from another — every
+  /// booking in a multi-drop run yields the same count (all drops minus the one
+  /// that IS that booking's destination), so switching bookings kept serving
+  /// the previous booking's blue line.
+  String? _blueBuiltSignature;
+
+  /// Stable key for a (destination, waypoints) pair. 5 dp ≈ 1 m, far below the
+  /// 50 m identity threshold used elsewhere, so jitter cannot churn the key.
+  String _blueRouteSignature(LatLng dest, List<LatLng> wps) {
+    String f(LatLng p) =>
+        '${p.latitude.toStringAsFixed(5)},${p.longitude.toStringAsFixed(5)}';
+    return '${f(dest)}|${wps.map(f).join(';')}';
+  }
   bool _blueFetching = false;
   DateTime? _blueFetchingSince;
 
@@ -3473,7 +3625,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     if (_homeToVehiclePoints.length < 2) return null;
     return Polyline(
       polylineId: const PolylineId('home_to_vehicle'),
-      points: _homeToVehiclePoints,
+      points: _simplifyForRender(_homeToVehiclePoints),
       color: const Color(0xFF34A853),
       width: 5,
     );
@@ -3648,10 +3800,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       updated.add(
         Polyline(
           polylineId: const PolylineId('remaining'),
-          points: bluePoints,
+          points: _simplifyForRender(bluePoints),
           color: const Color(0xFF1A73E8),
           width: 5,
-          patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+          patterns: _routePattern(bluePoints),
         ),
       );
     }
@@ -3827,10 +3979,31 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     final dest = _destinationLatLng;
     if (vehicle == null || dest == null) return;
 
-    final pending = (_trackingData?.routeWaypoints ?? [])
-        .where((wp) => wp.lat != 0 && wp.lng != 0 && !wp.isRouteSkippable)
+    final allWps = (_trackingData?.routeWaypoints ?? [])
+        .where((wp) => wp.lat != 0 && wp.lng != 0)
         .toList()
       ..sort((a, b) => a.priority.compareTo(b.priority));
+
+    // This booking's own priority = the waypoint that IS our destination.
+    // Needed because `routeWaypoints` carries EVERY drop on the vehicle's run,
+    // including ones served AFTER us. Routing through those would send blue
+    // past our own drop and double back (viewing priority 2 with 1 and 3 still
+    // pending produced vehicle → p1 → p3 → p2).
+    int? myPriority;
+    for (final wp in allWps) {
+      if (_haversineMeters(LatLng(wp.lat, wp.lng), dest) < 50) {
+        myPriority = wp.priority;
+        break;
+      }
+    }
+
+    // Only drops the truck must serve BEFORE us are waypoints. Later-priority
+    // drops are not on our leg of the route at all.
+    final pending = allWps
+        .where((wp) =>
+            !wp.isRouteSkippable &&
+            (myPriority == null || wp.priority < myPriority!))
+        .toList();
     // Drops before the final destination become ordered waypoints.
     final wpLatLngs = <LatLng>[];
     for (final wp in pending) {
@@ -3850,8 +4023,18 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     // speeds — that hit Directions API ~1200 times per hour per user.
     // With this trigger, a driver following the route trips the API
     // only on true deviations, not on normal progress along the route.
-    if (_blueRoadPath.isNotEmpty &&
-        _blueBuiltForPending == wpLatLngs.length) {
+    final signature = _blueRouteSignature(dest, wpLatLngs);
+    // The cached blue line belongs to a DIFFERENT route (destination and/or
+    // drop set changed — e.g. the user switched booking). Drop it immediately
+    // so `_buildBluePoints()` cannot keep rendering the previous booking's
+    // line while the new fetch is in flight.
+    if (_blueRoadPath.isNotEmpty && _blueBuiltSignature != signature) {
+      debugPrint('🔵 [BLUE] route identity changed — discarding stale path');
+      _blueRoadPath = [];
+      _blueBuiltSignature = null;
+    }
+
+    if (_blueRoadPath.isNotEmpty && _blueBuiltSignature == signature) {
       final deviation = _minDistanceToPolyline(vehicle, _blueRoadPath);
       if (deviation < 100.0) {
         return; // still on route — no refetch needed
@@ -3869,7 +4052,7 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
       ).timeout(_directionsTimeout);
       if (road.length >= 2) {
         _blueRoadPath = road;
-        _blueBuiltForPending = wpLatLngs.length;
+        _blueBuiltSignature = signature;
         if (mounted) {
           _rebuildMarkersForLineRefresh();
           setState(() {});
@@ -5311,10 +5494,10 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
     polylines.add(
       Polyline(
         polylineId: const PolylineId('remaining'),
-        points: routePoints,
+        points: _simplifyForRender(routePoints),
         color: const Color(0xFF1A73E8), // blue
         width: 5,
-        patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+        patterns: _routePattern(routePoints),
       ),
     );
   }
@@ -5665,7 +5848,13 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         }
 
         final stop = _fixedStops[i];
-        final name = stop['name'] as String? ?? 'Stop ${i + 1}';
+        // Always a real place name: reverse geocoding falls back to the Google
+        // Geocoding API when the on-device geocoder comes up empty, and stops
+        // that still cannot be named are dropped rather than rendered as a
+        // placeholder. An empty string here would mean a stop slipped through
+        // unnamed, so it is skipped instead of showing "Stop N".
+        final name = (stop['name'] as String?)?.trim() ?? '';
+        if (name.isEmpty) continue;
         final isKeyStop = stop['is_key_stop'] == true;
         final isDriverHere = false; // Driver always shows as separate vehicle widget
 

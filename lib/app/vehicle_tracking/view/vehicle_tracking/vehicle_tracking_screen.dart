@@ -341,11 +341,17 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
       targetWidth: width,
     );
     final frame = await codec.getNextFrame();
-    return BitmapDescriptor.fromBytes(
-      (await frame.image.toByteData(
-        format: ui.ImageByteFormat.png,
-      ))!.buffer.asUint8List(),
-    );
+    final bytes = (await frame.image.toByteData(
+      format: ui.ImageByteFormat.png,
+    ))!
+        .buffer
+        .asUint8List();
+    // The PNG bytes are a copy, so the decoded image and codec can go now.
+    // ui.Image holds NATIVE memory that Dart's GC only reclaims via a
+    // finalizer — on iOS that lag lets marker images accumulate.
+    frame.image.dispose();
+    codec.dispose();
+    return BitmapDescriptor.fromBytes(bytes);
   }
 
   /// Loads truck.png (top-down truck, front/cab at the top → already faces
@@ -362,6 +368,9 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
       final frame = await codec.getNextFrame();
       final byteData =
           await frame.image.toByteData(format: ui.ImageByteFormat.png);
+      // Native memory — release it as soon as the bytes are copied out.
+      frame.image.dispose();
+      codec.dispose();
       if (byteData != null) {
         return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
       }

@@ -205,6 +205,41 @@ class GoogleMapsService {
   // a rate-limit failure) for points we've already named this session.
   static final Map<String, String> _geocodeCache = {};
 
+  /// Reverse-geocode a batch of points, SEQUENTIALLY.
+  ///
+  /// The platform geocoder is `CLGeocoder` on iOS, and Apple is explicit that
+  /// it must be driven one request at a time — concurrent or rapid-fire calls
+  /// are throttled and fail with a network error. The previous code issued the
+  /// whole batch at once via `Future.wait`, so on a long route (10 sampled
+  /// stops) most calls came back empty and every one of those stops fell back
+  /// to the placeholder "Stop N" name. Android's `Geocoder` is far more
+  /// permissive, which is why this only ever showed up on iPhones, and why it
+  /// only started at priority 3 — shorter routes sample fewer stops and stayed
+  /// under the limit.
+  ///
+  /// Cached points resolve instantly and cost no request, so a re-render of an
+  /// already-named route does not re-hit the geocoder at all.
+  static Future<List<String?>> reverseGeocodeBatch(
+    List<LatLng> points, {
+    double routeDistanceKm = 0,
+    Duration spacing = const Duration(milliseconds: 120),
+  }) async {
+    final out = <String?>[];
+    for (var i = 0; i < points.length; i++) {
+      final name = await reverseGeocode(points[i],
+          routeDistanceKm: routeDistanceKm);
+      out.add(name);
+      // Space out only real requests — a cache hit needs no cool-down, and the
+      // last point never needs a trailing delay.
+      final wasCached = _geocodeCache.containsKey(
+          '${points[i].latitude.toStringAsFixed(3)},${points[i].longitude.toStringAsFixed(3)}');
+      if (i < points.length - 1 && !wasCached) {
+        await Future<void>.delayed(spacing);
+      }
+    }
+    return out;
+  }
+
   static Future<String?> reverseGeocode(LatLng location,
       {double routeDistanceKm = 0}) async {
     final cacheKey =
@@ -247,9 +282,86 @@ class GoogleMapsService {
           return name;
         }
       }
+      // Native geocoder answered but had no usable place name for this point.
+      return _reverseGeocodeViaApi(location, cacheKey, routeDistanceKm);
+    } catch (e) {
+      // The on-device geocoder failed outright. On iOS this is usually
+      // CLGeocoder throttling; on any platform it can be a transient network
+      // error. Either way, fall back to the Google Geocoding API so the stop
+      // still gets a REAL place name instead of a "Stop N" placeholder.
+      debugPrint('🌍 [GEO] native geocoder failed ($e) — falling back to API');
+      return _reverseGeocodeViaApi(location, cacheKey, routeDistanceKm);
+    }
+  }
+
+  /// Google Geocoding API fallback. Costs a request, but only ever runs when
+  /// the free on-device geocoder could not name the point — and the result is
+  /// cached, so a route is named at most once per session.
+  static Future<String?> _reverseGeocodeViaApi(
+      LatLng location, String cacheKey, double routeDistanceKm) async {
+    try {
+      // `result_type` narrows the response to the granularity that matches the
+      // route length, mirroring the native strategy above: city/district names
+      // for long hauls, neighbourhoods for short city runs.
+      final types = routeDistanceKm > 200
+          ? 'locality|administrative_area_level_2'
+          : (routeDistanceKm > 30
+              ? 'sublocality|locality|administrative_area_level_2'
+              : 'neighborhood|sublocality|locality');
+
+      final url = 'https://maps.googleapis.com/maps/api/geocode/json'
+          '?latlng=${location.latitude},${location.longitude}'
+          '&result_type=$types'
+          '&key=$_apiKey';
+
+      final response = await _dio.get(url);
+      if (response.statusCode != 200) return null;
+      final data = response.data;
+
+      // ZERO_RESULTS at this granularity is normal on a highway — retry once
+      // without the type filter rather than giving up on the name.
+      List<dynamic> results = (data['results'] as List?) ?? const [];
+      if (data['status'] != 'OK' || results.isEmpty) {
+        final loose = await _dio.get(
+          'https://maps.googleapis.com/maps/api/geocode/json'
+          '?latlng=${location.latitude},${location.longitude}'
+          '&key=$_apiKey',
+        );
+        if (loose.statusCode != 200) return null;
+        final ld = loose.data;
+        if (ld['status'] != 'OK') {
+          debugPrint('🌍 [GEO] API reverse geocode status=${ld['status']}');
+          return null;
+        }
+        results = (ld['results'] as List?) ?? const [];
+      }
+      if (results.isEmpty) return null;
+
+      // Prefer the shortest named administrative component — "Suryapet" reads
+      // better on a timeline than "Suryapet, Telangana 508213, India".
+      for (final type in const [
+        'locality',
+        'sublocality',
+        'neighborhood',
+        'administrative_area_level_2',
+        'administrative_area_level_1',
+      ]) {
+        for (final r in results) {
+          for (final comp in (r['address_components'] as List? ?? const [])) {
+            final compTypes = (comp['types'] as List? ?? const []).cast<String>();
+            if (compTypes.contains(type)) {
+              final name = (comp['long_name'] as String?)?.trim() ?? '';
+              if (name.isNotEmpty) {
+                _geocodeCache[cacheKey] = name;
+                return name;
+              }
+            }
+          }
+        }
+      }
       return null;
     } catch (e) {
-      debugPrint('Error reverse geocoding (native): $e');
+      debugPrint('🌍 [GEO] API reverse geocode failed: $e');
       return null;
     }
   }
@@ -548,7 +660,12 @@ class GoogleMapsService {
       // (e.g. two sample points in the same city collapse to one name).
       List<Map<String, dynamic>> stops = [];
       if (numStops > 0 && totalPolylineDist > 0) {
-        final candidateCount = numStops * 2;
+        // Over-sample so name-dedup still leaves enough unique stops, but cap
+        // the total: every candidate costs one reverse-geocode, and iOS
+        // CLGeocoder throttles around 50 requests/minute. Uncapped 2×
+        // over-sampling on a 40-stop route would be 80 lookups and walk
+        // straight back into the rate limit this batch was serialised to avoid.
+        final candidateCount = min(numStops * 2, 36);
         final List<Map<String, dynamic>> candidates = [];
         double interval = totalPolylineDist / (candidateCount + 1);
         for (int i = 1; i <= candidateCount; i++) {
@@ -565,25 +682,51 @@ class GoogleMapsService {
           });
         }
 
-        // Reverse geocode all candidates in parallel — distance-aware naming.
+        // Reverse geocode candidates SEQUENTIALLY — iOS CLGeocoder throttles
+        // concurrent requests, which used to leave most stops unnamed.
         final routeDistKm = totalDistanceMeters / 1000.0;
-        List<String?> names = await Future.wait(
-          candidates.map((s) => reverseGeocode(s['location'] as LatLng,
-              routeDistanceKm: routeDistKm)),
+        List<String?> names = await reverseGeocodeBatch(
+          candidates.map((s) => s['location'] as LatLng).toList(),
+          routeDistanceKm: routeDistKm,
         );
         for (int i = 0; i < candidates.length; i++) {
           candidates[i]['name'] = names[i] ?? 'Unknown';
         }
 
-        // Deduplicate: keep first occurrence of each name, skip Unknown.
-        // Stop once we have numStops unique named stops.
-        Set<String> seenNames = {};
-        for (var stop in candidates) {
-          if (stops.length >= numStops) break;
+        // Deduplicate across the WHOLE route first, keeping the first
+        // occurrence of each name.
+        final List<Map<String, dynamic>> unique = [];
+        final Set<String> seenNames = {};
+        for (final stop in candidates) {
           final name = stop['name'] as String;
-          if (name != 'Unknown' && !seenNames.contains(name)) {
-            stops.add(stop);
-            seenNames.add(name);
+          if (name == 'Unknown' || seenNames.contains(name)) continue;
+          seenNames.add(name);
+          unique.add(stop);
+        }
+
+        // Then thin EVENLY across the route to reach numStops.
+        //
+        // The previous code walked candidates in route order and `break`-ed the
+        // moment it had numStops names. Candidates are sampled start→end, so
+        // the quota filled up from the early part of the route and every later
+        // candidate was thrown away — leaving the final stretch with no stops
+        // at all (Tirupati→Chennai on #1067, Bapatla→Tirupati on #1066).
+        //
+        // Spacing the picks over the full deduplicated list keeps coverage from
+        // the driver all the way to the destination, and pinning the first and
+        // last index guarantees the leg into the destination is represented.
+        if (unique.length <= numStops) {
+          stops = unique;
+        } else if (numStops == 1) {
+          stops = [unique.last];
+        } else {
+          final lastIdx = unique.length - 1;
+          for (int i = 0; i < numStops; i++) {
+            final idx = (i * lastIdx / (numStops - 1)).round().clamp(0, lastIdx);
+            final picked = unique[idx];
+            if (stops.isEmpty || !identical(stops.last, picked)) {
+              stops.add(picked);
+            }
           }
         }
       }
@@ -658,9 +801,10 @@ class GoogleMapsService {
 
     // Reverse geocode many candidate points, then keep the best ordered localities.
     final routeKm = routeDistanceKm > 0 ? routeDistanceKm : totalDist / 1000;
-    final names = await Future.wait(
-      candidates.map((s) => reverseGeocode(s['location'] as LatLng,
-          routeDistanceKm: routeKm)),
+    // Sequential — see reverseGeocodeBatch: iOS throttles concurrent geocoding.
+    final names = await reverseGeocodeBatch(
+      candidates.map((s) => s['location'] as LatLng).toList(),
+      routeDistanceKm: routeKm,
     );
     for (int i = 0; i < candidates.length; i++) {
       candidates[i]['name'] = names[i] ?? 'Unknown';

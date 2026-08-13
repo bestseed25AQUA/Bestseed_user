@@ -55,6 +55,10 @@ class CustomMarkerHelper {
     final ui.Image image = await picture.toImage(size, size);
     final ByteData? byteData =
         await image.toByteData(format: ui.ImageByteFormat.png);
+    // The PNG bytes are a copy, so the rasterised image can go now. ui.Image
+    // holds NATIVE memory that Dart's GC only reclaims via a finalizer — on
+    // iOS that lag lets marker images accumulate across screen opens.
+    image.dispose();
 
     if (byteData != null) {
       return BitmapDescriptor.bytes(byteData.buffer.asUint8List());
@@ -84,6 +88,12 @@ class CustomMarkerHelper {
       final ui.FrameInfo frameInfo = await codec.getNextFrame();
       final ByteData? byteData =
           await frameInfo.image.toByteData(format: ui.ImageByteFormat.png);
+      // The PNG bytes are a copy, so the decoded image and the codec
+      // can go now. ui.Image holds NATIVE memory that Dart's GC only
+      // reclaims via a finalizer — on iOS that lag lets marker images
+      // accumulate across screen opens. Explicit disposal is required.
+      frameInfo.image.dispose();
+      codec.dispose();
 
       if (byteData != null) {
         return BitmapDescriptor.bytes(byteData.buffer.asUint8List());
@@ -109,6 +119,12 @@ class CustomMarkerHelper {
       final ui.FrameInfo frameInfo = await codec.getNextFrame();
       final ByteData? byteData =
           await frameInfo.image.toByteData(format: ui.ImageByteFormat.png);
+      // The PNG bytes are a copy, so the decoded image and the codec
+      // can go now. ui.Image holds NATIVE memory that Dart's GC only
+      // reclaims via a finalizer — on iOS that lag lets marker images
+      // accumulate across screen opens. Explicit disposal is required.
+      frameInfo.image.dispose();
+      codec.dispose();
 
       if (byteData != null) {
         return BitmapDescriptor.bytes(byteData.buffer.asUint8List());
@@ -134,6 +150,12 @@ class CustomMarkerHelper {
       final ui.FrameInfo frameInfo = await codec.getNextFrame();
       final ByteData? byteData =
           await frameInfo.image.toByteData(format: ui.ImageByteFormat.png);
+      // The PNG bytes are a copy, so the decoded image and the codec
+      // can go now. ui.Image holds NATIVE memory that Dart's GC only
+      // reclaims via a finalizer — on iOS that lag lets marker images
+      // accumulate across screen opens. Explicit disposal is required.
+      frameInfo.image.dispose();
+      codec.dispose();
 
       if (byteData != null) {
         return BitmapDescriptor.bytes(byteData.buffer.asUint8List());

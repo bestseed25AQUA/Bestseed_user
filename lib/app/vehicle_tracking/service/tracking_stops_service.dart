@@ -10,19 +10,34 @@ import 'package:seedsuser/app/utils/google_maps_service.dart';
 /// Passed stops come from API (saved in DB).
 /// Upcoming stops generated client-side from Google Directions.
 class TrackingStopsService {
+  /// Roughly one stop per this many km on long routes. Chosen so the leg
+  /// between two customer drops still shows 6-10 places: on the reported
+  /// Hyderabad→Chennai run (524 km) the final Tirupati→Chennai stretch is
+  /// ~130 km, which at this density earns ~6 stops instead of the ~4 the old
+  /// fixed buckets allowed.
+  static const double _kmPerStopLongRoute = 22.0;
+
+  /// Upper bound so a very long haul does not produce an unscannable timeline.
+  static const int _maxStops = 40;
+
   /// Calculate recommended stop count based on total distance.
+  ///
+  /// Short routes keep hand-tuned counts — a 5 km city delivery wants a couple
+  /// of landmarks, not a proportional count. Past 200 km the count becomes
+  /// proportional to distance so density stays constant however long the route
+  /// is; the old fixed buckets (12 for anything 200-500 km, 15 up to 1000 km)
+  /// meant a 500 km route had stops ~42 km apart and long gaps between drops
+  /// looked empty.
   static int recommendedStopCount(double totalDistanceKm) {
     if (totalDistanceKm <= 0.5) return 0;
     if (totalDistanceKm <= 2) return 1;
     if (totalDistanceKm <= 5) return 2;
     if (totalDistanceKm <= 10) return 3;
-    if (totalDistanceKm <= 20) return 4;
-    if (totalDistanceKm <= 50) return 5;
-    if (totalDistanceKm <= 100) return 7;
-    if (totalDistanceKm <= 200) return 9;
-    if (totalDistanceKm <= 500) return 12;
-    if (totalDistanceKm <= 1000) return 15;
-    return 18;
+    if (totalDistanceKm <= 20) return 5;
+    if (totalDistanceKm <= 50) return 7;
+    if (totalDistanceKm <= 100) return 10;
+    if (totalDistanceKm <= 200) return 14;
+    return (totalDistanceKm / _kmPerStopLongRoute).round().clamp(14, _maxStops);
   }
 
   /// Calculate sub-stop count based on gap between two main stops.
