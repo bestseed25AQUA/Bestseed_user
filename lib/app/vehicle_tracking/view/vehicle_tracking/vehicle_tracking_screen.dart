@@ -569,6 +569,44 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
 
   /// Build timeline: merge backend timeline + auto_timeline_points + saved passed stops.
   /// Passed stops use saved data (time fixed forever). Upcoming stops use estimated ETA.
+  /// The clock every predicted time on the timeline is measured from.
+  ///
+  /// Normally now(). But when the driver's GPS is off or has stopped
+  /// reporting, now() keeps marching while the driver's position does not —
+  /// so each rebuild pushed the predicted times further out without the truck
+  /// having moved. That is the "4pm still reads 4pm, then reads 5pm at 5pm"
+  /// report: the estimates were re-derived from the wall clock every refresh.
+  ///
+  /// Anchoring to the last fix freezes the whole timeline exactly where
+  /// tracking stopped, which is what the vendor app already does — it pins
+  /// its stop times to `_routeStartTime`, set from the same
+  /// `driver_location.updated_at`.
+  DateTime _etaAnchor(TrackingData d) {
+    final loc = d.driverLocation;
+    final upd = loc.updatedAt;
+    if (upd == null || upd.isEmpty) return DateTime.now();
+    try {
+      final lastFix = DateTime.parse(upd).toLocal();
+      // `location_stale` is the authoritative GPS-off signal and decides this
+      // on its own. The backend sets it purely from the gap since the last
+      // fix: false under 2 min, true beyond that (signal_lost → offline →
+      // stopped). The driver reports every 10-60 s, so it cannot trip while
+      // GPS is genuinely working — which is why nothing changes for a driver
+      // who is simply parked or in traffic. The field was already parsed off
+      // the API here but read by nothing until now.
+      //
+      // The elapsed check is only a backstop for a backend that predates the
+      // flag, where it defaults to false and would otherwise never freeze. It
+      // is deliberately looser than the server's 2 min so the server always
+      // wins in practice.
+      final isStale = loc.locationStale ||
+          DateTime.now().difference(lastFix) >= const Duration(minutes: 5);
+      return isStale ? lastFix : DateTime.now();
+    } catch (_) {
+      return DateTime.now();
+    }
+  }
+
   List<TimelineItem> _buildMergedTimeline(TrackingData d) {
     if (d.timeline.length < 2) return d.timeline;
 
@@ -757,7 +795,9 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
         final etaMinutes = PassedStopsService.estimateMinutes(
           driverLoc!, stopLat, stopLng, speedKmh,
         );
-        final eta = DateTime.now().add(Duration(minutes: etaMinutes));
+        // Anchored, not now() — see _etaAnchor. With GPS off this holds the
+        // estimate at the last fix instead of sliding it forward every poll.
+        final eta = _etaAnchor(d).add(Duration(minutes: etaMinutes));
         time = PassedStopsService.formatTime(eta);
         date = PassedStopsService.formatDate(eta);
       }
@@ -774,14 +814,17 @@ class _VehicleTrackingScreenState extends State<VehicleTrackingScreen>
     }).toList();
 
     // ── Destination with ETA ──
+    // Same anchor as the intermediate stops, so the arrival estimate and the
+    // stop estimates freeze together rather than one drifting past the other.
+    final destAnchor = _etaAnchor(d);
     final destItem = TimelineItem(
       title: destinationItem.title,
       subtitle: destinationItem.subtitle,
       time: _arrivingMinutes > 0 && driverLoc != null
-          ? PassedStopsService.formatTime(DateTime.now().add(Duration(minutes: _arrivingMinutes)))
+          ? PassedStopsService.formatTime(destAnchor.add(Duration(minutes: _arrivingMinutes)))
           : destinationItem.time,
       date: _arrivingMinutes > 0 && driverLoc != null
-          ? PassedStopsService.formatDate(DateTime.now().add(Duration(minutes: _arrivingMinutes)))
+          ? PassedStopsService.formatDate(destAnchor.add(Duration(minutes: _arrivingMinutes)))
           : destinationItem.date,
       status: destinationItem.status,
       lat: destinationItem.lat,

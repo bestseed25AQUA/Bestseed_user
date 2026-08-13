@@ -5755,8 +5755,12 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
         Icons.local_shipping,
         Colors.green,
         _resolveDriverLocationName(),
-        _formatDateObj(DateTime.now()),
-        _formatDateTimeObj(DateTime.now()),
+        // The driver's last fix, not the wall clock — see _displayClock. This
+        // row sits at the truck's position, so its time has to freeze with the
+        // position when GPS drops, exactly as the pickup row above already
+        // does by reading driverLoc.updatedAt.
+        _formatDateObj(_displayClock()),
+        _formatDateTimeObj(_displayClock()),
         isPulsing: true,
         isPassed: true,
         isNextPassed: false,
@@ -5890,7 +5894,11 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           if (driverPos != null) {
             final distKm = _haversineDistance(driverPos, LatLng(sLat, sLng)) / 1000;
             final etaMins = (distKm / 40 * 60).round().clamp(1, 99999);
-            time = _formatDateTimeObj(DateTime.now().add(Duration(minutes: etaMins)));
+            // Anchored — with GPS off the driver position this ETA is measured
+            // from is itself frozen, so measuring from now() would push the
+            // estimate further out every refresh while nothing had moved.
+            time = _formatDateTimeObj(
+                _displayClock().add(Duration(minutes: etaMins)));
           } else {
             time = '-';
           }
@@ -5936,7 +5944,9 @@ class _VehicleTrackingMapScreenState extends State<VehicleTrackingMapScreen>
           // If this is the last passed stop, substops should end at current
           // time (driver is between here and next upcoming stop)
           if (i == lastPassedIdx && !isReached) {
-            nextStopTime = _formatDateTimeObj(DateTime.now());
+            // Sub-stops run up to where the driver actually is, so this end
+            // time tracks the driver's last fix rather than the wall clock.
+            nextStopTime = _formatDateTimeObj(_displayClock());
             nextStopName = _resolveDriverLocationName();
           } else {
             // Find the NEXT VISIBLE stop
@@ -7019,6 +7029,38 @@ for (var stop in stops) {
         ),
       ],
     );
+  }
+
+  /// The clock the timeline reads "now" from.
+  ///
+  /// Returns the wall clock while the driver is reporting, and the driver's
+  /// LAST GPS FIX once they stop. With plain now(), turning location off left
+  /// the truck frozen on the map while its timeline row kept counting — a
+  /// driver who went offline at 4pm still read 4pm at 4pm, then 5pm at 5pm,
+  /// as if they were still moving. Pinning to the last fix makes the time
+  /// stop exactly where the tracking stopped.
+  ///
+  /// `location_stale` is the authoritative signal and decides this alone. The
+  /// backend derives it purely from the gap since the last fix — false under
+  /// 2 min, true beyond (signal_lost → offline → stopped) — and the driver
+  /// reports every 10-60 s, so it cannot trip while GPS is genuinely working.
+  /// A driver merely parked or stuck in traffic is unaffected: they are still
+  /// reporting, so this stays on the wall clock.
+  ///
+  /// The elapsed check is only a backstop for a backend predating the flag,
+  /// where it defaults to false and nothing would ever freeze.
+  DateTime _displayClock() {
+    final loc = _trackingData?.driverLocation;
+    final upd = loc?.updatedAt;
+    if (loc == null || upd == null || upd.isEmpty) return DateTime.now();
+    try {
+      final lastFix = DateTime.parse(upd).toLocal();
+      final isStale = loc.locationStale ||
+          DateTime.now().difference(lastFix) >= const Duration(minutes: 5);
+      return isStale ? lastFix : DateTime.now();
+    } catch (_) {
+      return DateTime.now();
+    }
   }
 
   String _formatDateTime(String? dateTimeStr) {
