@@ -3,6 +3,7 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
+import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/partner/controller/partener_controller.dart';
 import 'package:seedsuser/app/farm_management/partner/model/partner_list_model.dart';
 
@@ -10,7 +11,12 @@ class AddPartnerDetailsForm extends StatefulWidget {
   final Function(Partner partner)? onSave;
   final Partner? partner;
 
-  const AddPartnerDetailsForm({super.key, this.onSave, this.partner});
+  /// The farm this partner belongs to. Null when opened from the farm-less
+  /// entry point; saving is refused in that case because the API requires a
+  /// farm — only its owner may appoint a partner.
+  final int? farmId;
+
+  const AddPartnerDetailsForm({super.key, this.onSave, this.partner, this.farmId});
 
   @override
   State<AddPartnerDetailsForm> createState() => _AddPartnerDetailsFormState();
@@ -140,8 +146,15 @@ class _AddPartnerDetailsFormState extends State<AddPartnerDetailsForm> {
                 isLoading: controller.isCreateLoading.value,
                 onPressed: controller.isCreateLoading.value
                     ? () {}
-                    : () async { 
+                    : () async {
+                        if (widget.farmId == null) {
+                          CustomToast.error(
+                              'Open this partner from a farm to save changes.');
+                          return;
+                        }
+
                         bool success = await controller.createPartner(
+                          farmId: widget.farmId!,
                           name: _nameController.text.trim(),
                           phone: _phoneController.text.trim(),
                           viewAccess: _canView,

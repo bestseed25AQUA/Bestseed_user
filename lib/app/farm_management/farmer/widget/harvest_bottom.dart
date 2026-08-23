@@ -56,7 +56,7 @@ class HarvestBottomSheet extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-      
+
                 // Total Fields Label
                 Text(
                   'Total Fields',
@@ -68,9 +68,9 @@ class HarvestBottomSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 // Total Fields Display (Read-only/Fixed Value)
-                  ReadOnlyInput(text: '${tank.store??0} kgs'),
+                ReadOnlyInput(text: '${tank.store ?? 0} kgs'),
                 const SizedBox(height: 24),
-      
+
                 // Days Label
                 Text(
                   'Days',
@@ -83,29 +83,29 @@ class HarvestBottomSheet extends StatelessWidget {
                 const SizedBox(height: 8),
                 // Days Display (Read-only/Fixed Value)
                 ReadOnlyInput(text: '${tank.day ?? "0"} Days'),
-      
+
                 const SizedBox(height: 24),
-      
+
                 // Count Label and Input
                 // ReadOnlyInput(text: '${tank.meals ?? 0}'),
-      
+
                 // const SizedBox(height: 8),
                 // const EditableInput(hint: 'Enter count'),
                 // const SizedBox(height: 24),
-      
+
                 // // Harvest Quantity Label and Input
                 // const OptionalInputLabel(text: 'Harvest Quantity'),
                 // const SizedBox(height: 8),
                 // const EditableInput(hint: 'Enter Harvest Quantity'),
                 // const SizedBox(height: 40),
-      
+
                 // Inactive/Action Button
                 SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
                     onPressed: onSubmit,
-      
+
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFE53935), // Bright Red
                       shape: RoundedRectangleBorder(

@@ -7,9 +7,16 @@ import 'package:seedsuser/app/common/custom_button.dart';
 import 'package:seedsuser/app/farm_management/manager/controller/manager_controller.dart';
 import 'package:seedsuser/app/farm_management/manager/model/manager_list_model.dart';
 import 'package:seedsuser/app/farm_management/manager/view/add_manager_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_empty_state.dart';
 
 class ManagerScreen extends StatefulWidget {
-  const ManagerScreen({super.key});
+  /// Set when the screen is opened from a specific farm. Null from the
+  /// farm-less entry point, where the list falls back to every manager on the
+  /// farms this farmer owns.
+  final int? farmId;
+
+  const ManagerScreen({super.key, this.farmId});
 
   @override
   State<ManagerScreen> createState() => _ManagerScreenState();
@@ -21,7 +28,7 @@ class _ManagerScreenState extends State<ManagerScreen> {
   @override
   void initState() {
     super.initState();
-    controller.fetchManagers(); // Load data on screen open
+    controller.fetchManagers(farmId: widget.farmId); // Load data on screen open
   }
 
   void _showEditManager(BuildContext context, Manager manager) {
@@ -38,9 +45,10 @@ class _ManagerScreenState extends State<ManagerScreen> {
             top: 20,
           ),
           child: AddManagerDetailsForm(
+            farmId: widget.farmId,
             manager: manager, // 👈 PASSED FOR PREFILL
             onSave: (m) {
-              controller.fetchManagers();
+              controller.fetchManagers(farmId: widget.farmId);
             },
           ),
         ),
@@ -56,7 +64,10 @@ class _ManagerScreenState extends State<ManagerScreen> {
         backgroundColor: Colors.blue,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          // Black, not white: CustomAppBar ignores the `backgroundColor` we
+          // pass and always renders a WHITE bar, so a white arrow was
+          // invisible — the button was there, it just could not be seen.
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Manager', style: GoogleFonts.roboto(color: Colors.white)),
@@ -88,7 +99,7 @@ class _ManagerScreenState extends State<ManagerScreen> {
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
+          return const ListTileShimmer();
         }
         return Stack(
           children: [
@@ -97,14 +108,33 @@ class _ManagerScreenState extends State<ManagerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Manager Access with Phone Number',
-                    style: GoogleFonts.roboto(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  // The section label only makes sense above an actual
+                  // list; with nothing to label it just floats over a blank
+                  // page above the empty state.
+                  if (controller.managerList.isNotEmpty) ...[
+                    Text(
+                      'Manager Access with Phone Number',
+                      style: GoogleFonts.roboto(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                  ],
+                  // Nothing to list yet: say so, and offer the one
+                  // action that makes sense here.
+                  if (controller.managerList.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 60),
+                      child: FarmEmptyState(
+                        icon: Icons.manage_accounts_outlined,
+                        title: 'No managers yet',
+                        message:
+                            'Add a manager to let someone help run this farm — you choose exactly what they can see and change.',
+                        actionLabel: 'Add Manager',
+                        onAction: () => _showAddManagerDetails(context),
+                      ),
+                    ),
                   ...controller.managerList.map(
                     (manager) => ManagerCard(
                       manager: manager,
@@ -115,7 +145,7 @@ class _ManagerScreenState extends State<ManagerScreen> {
                           accessType: accessType,
                         );
                         if (isRemove) {
-                          controller.fetchManagers();
+                          controller.fetchManagers(farmId: widget.farmId);
                         }
                       },
                       onDelete: () async {
@@ -154,7 +184,7 @@ class _ManagerScreenState extends State<ManagerScreen> {
                           );
 
                           if (isDeleted) {
-                            controller.fetchManagers();
+                            controller.fetchManagers(farmId: widget.farmId);
                           }
                         }
                       },
@@ -194,7 +224,10 @@ class _ManagerScreenState extends State<ManagerScreen> {
             bottom: MediaQuery.of(context).viewInsets.bottom,
             top: 20,
           ),
-          child: AddManagerDetailsForm(onSave: (manager) {}),
+          child: AddManagerDetailsForm(
+            farmId: widget.farmId,
+            onSave: (manager) {},
+          ),
         ),
       ),
     );

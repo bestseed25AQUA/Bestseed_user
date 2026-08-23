@@ -10,12 +10,15 @@ class PartnerController extends GetxController {
 
   var partnerList = <Partner>[].obs;
 
-  Future<void> fetchPartners() async {
+  /// [farmId] narrows the list to one farm. Omitting it returns the partners
+  /// across every farm the logged-in farmer owns.
+  Future<void> fetchPartners({int? farmId}) async {
     try {
       isLoading.value = true;
 
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/partner/parteners",
+        params: farmId != null ? "?farm_id=$farmId" : null,
         headers: await buildHeader(),
       );
 
@@ -38,6 +41,7 @@ class PartnerController extends GetxController {
   RxBool isCreateLoading = false.obs;
 
   Future<bool> createPartner({
+    required int farmId,
     required String name,
     required String phone,
     required bool viewAccess,
@@ -48,6 +52,9 @@ class PartnerController extends GetxController {
 
     try {
       Map<String, dynamic> body = {
+        // The API requires the farm: a partner belongs to one farm, and only
+        // that farm's owner may appoint them.
+        "farm_id": farmId.toString(),
         "name": name,
         "phone": phone,
         "view_access": viewAccess ? "1" : "0",

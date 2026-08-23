@@ -8,9 +8,19 @@ import 'package:seedsuser/app/farm_management/manager/model/manager_list_model.d
 
 class AddManagerDetailsForm extends StatefulWidget {
   final Function(Manager manager) onSave;
-  final Manager? manager; 
+  final Manager? manager;
 
-  const AddManagerDetailsForm({super.key, required this.onSave, this.manager});
+  /// The farm this manager belongs to. Null when the form is opened from the
+  /// farm-less entry point, in which case saving is refused — the API requires
+  /// a farm, because only that farm's owner may appoint a manager.
+  final int? farmId;
+
+  const AddManagerDetailsForm({
+    super.key,
+    required this.onSave,
+    this.manager,
+    this.farmId,
+  });
   @override
   State<AddManagerDetailsForm> createState() => _AddManagerDetailsFormState();
 }
@@ -126,8 +136,15 @@ class _AddManagerDetailsFormState extends State<AddManagerDetailsForm> {
                       onPressed: controller.isCreateLoading.value
                           ? () {}
                           : () async {
+                              if (widget.farmId == null) {
+                                Get.snackbar('Farm required',
+                                    'Open this manager from a farm to save changes.');
+                                return;
+                              }
+
                               final controller = Get.find<ManagerController>();
                               bool isSuccess = await controller.createManager(
+                                farmId: widget.farmId!,
                                 personName: _nameController.text.trim(),
                                 phoneNumber: _phoneController.text.trim(),
                                 canEdit: _canEdit,

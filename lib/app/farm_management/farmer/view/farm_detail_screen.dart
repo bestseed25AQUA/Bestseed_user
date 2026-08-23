@@ -11,10 +11,14 @@ import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart'
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/harvest_bottom.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:seedsuser/app/farm_management/farmer/controller/farm_access_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/contact_us_dialog.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/feed_low_alert_dialog.dart';
 
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 
 class FarmTankListScreen extends StatefulWidget {
   final String farmId;
@@ -32,11 +36,59 @@ class FarmTankListScreen extends StatefulWidget {
 class _FarmTankListScreenState extends State<FarmTankListScreen> {
   final TankController tankController = Get.put(TankController());
 
+  /// True while the low-feed dialog is up, or after it has been shown for the
+  /// current low spell. Reset once the store recovers, so the farmer is warned
+  /// again the next time it drops rather than nagged every rebuild.
+  bool _lowFeedWarned = false;
+  Worker? _storeWatcher;
+
   @override
   void initState() {
     super.initState();
     tankController.getTankList(widget.farmId);
     tankController.getFeedStore(int.parse(widget.farmId));
+    _maybeWarnLowFeed();
+
+    // Re-check whenever the store figure changes — editing the store or
+    // recording feed both land here — so the alert appears the moment stock
+    // drops below the limit, not only on the next visit to this screen.
+    _storeWatcher = ever(tankController.feedStoreData, (_) {
+      _maybeWarnLowFeed();
+    });
+  }
+
+  @override
+  void dispose() {
+    _storeWatcher?.dispose();
+    super.dispose();
+  }
+
+  /// Surfaces the low-feed alert once the screen has settled, so the dialog
+  /// does not race the first frame.
+  Future<void> _maybeWarnLowFeed() async {
+    final limit = await Get.put(
+      FarmAccessController(),
+    ).checkFeedLimit(int.parse(widget.farmId));
+
+    if (!mounted) return;
+
+    // Not low (or the check failed): arm the alert for the next drop.
+    if (limit == null) {
+      _lowFeedWarned = false;
+      return;
+    }
+
+    if (_lowFeedWarned) return;
+    _lowFeedWarned = true;
+
+    await showFeedLowAlert(
+      context,
+      remainingKgs: limit,
+      onContactDealer: () {
+        Navigator.of(context).pop();
+        showDialog(context: context, builder: (_) => const ContactUsDialog());
+      },
+    );
   }
 
   @override
@@ -63,7 +115,7 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
       ),
       body: Obx(() {
         if (tankController.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
+          return const TankGridShimmer();
         }
 
         final tanks = tankController.farmList.value?.data ?? [];
@@ -150,7 +202,7 @@ class FeedStoreCard extends StatelessWidget {
 
     return Obx(() {
       if (controller.isFeedLoading.value) {
-        return const Center(child: CircularProgressIndicator());
+        return const TankGridShimmer();
       }
 
       final data = controller.feedStoreData.value;
@@ -287,14 +339,22 @@ class TankStatusCard extends StatelessWidget {
     final bool isActive = tank.status == 1;
 
     return InkWell(
-      onTap: () {
-        Get.to(
+      onTap: () async {
+        await Get.to(
           () => TankFeedScreen(
             tankId: tank.id.toString(),
             tankName: tank.tankName ?? '',
             farmName: farmName,
           ),
         );
+
+        // Feed recorded on the history screen changes this tank's total and the
+        // farm's store, so re-read on the way back. Without this the card still
+        // showed the figures from when the screen first opened.
+        //
+        // Silent: no shimmer, no scroll jump — the numbers just update.
+        await controller.getTankList(farmId, silent: true);
+        await controller.getFeedStore(int.parse(farmId), silent: true);
       },
       child: Container(
         padding: const EdgeInsets.all(12.0),
@@ -479,16 +539,22 @@ class TankStatusCard extends StatelessWidget {
             // feed + days
             Row(
               children: [
+                // total_feed_used, not the tank's feed_quantity column: that
+                // column is never written to, so every tank read "0 Kgs" even
+                // with weeks of feed recorded against it.
                 Text(
-                  "${tank.feedQuantity ?? "0"} Kgs",
+                  "${tank.totalFeedUsed ?? "0"} Kgs",
                   style: GoogleFonts.roboto(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const Spacer(),
+                // The API computes `day` as the number of distinct days fed.
+                // This showed `meals` — a different, unset column — so it was
+                // always "Day. 0".
                 Text(
-                  "Day. ${tank.meals ?? 0}",
+                  "Day. ${tank.day ?? 0}",
                   style: GoogleFonts.roboto(
                     fontSize: 14,
                     color: Colors.black54,
@@ -514,10 +580,12 @@ void showReportPopup(
     builder: (_) {
       return Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.zero,
+        // Breathing room at the edges — the sheet used to run almost the full
+        // width of the screen.
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
         child: Center(
           child: Container(
-            margin: EdgeInsets.only(left: 10, right: 10),
+            margin: EdgeInsets.zero,
             // width: 356,
             height: 371,
             padding: const EdgeInsets.only(left: 22, right: 17, bottom: 23),
@@ -728,92 +796,92 @@ void showEditFeedBottomSheet(String farmId) {
             topRight: Radius.circular(30),
           ),
         ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Close Button
-          Align(
-            alignment: Alignment.topRight,
-            child: GestureDetector(
-              onTap: () => safeBack(),
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.black26),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Close Button
+            Align(
+              alignment: Alignment.topRight,
+              child: GestureDetector(
+                onTap: () => safeBack(),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.black26),
+                  ),
+                  child: const Icon(Icons.close, size: 18),
                 ),
-                child: const Icon(Icons.close, size: 18),
               ),
             ),
-          ),
 
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-          // Total feed used
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              "Total feed used",
-              style: GoogleFonts.roboto(fontSize: 16),
+            // Total feed used
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                "Total feed used",
+                style: GoogleFonts.roboto(fontSize: 16),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          feedInputField(totalFeedController, true),
+            const SizedBox(height: 8),
+            feedInputField(totalFeedController, true),
 
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-          // Store
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text("Store", style: GoogleFonts.roboto(fontSize: 16)),
-          ),
-          const SizedBox(height: 8),
-          feedInputField(storeController, false),
+            // Store
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text("Store", style: GoogleFonts.roboto(fontSize: 16)),
+            ),
+            const SizedBox(height: 8),
+            feedInputField(storeController, false),
 
-          const SizedBox(height: 30),
+            const SizedBox(height: 30),
 
-          // Save Button
-          Obx(() {
-            return GestureDetector(
-              onTap: () async {
-                bool ok = await controller.updateFeedStore(
-                  farmId: farmId,
-                  totalFeedUsed: totalFeedController.text.trim(),
-                  feedStore: storeController.text.trim(),
-                );
+            // Save Button
+            Obx(() {
+              return GestureDetector(
+                onTap: () async {
+                  bool ok = await controller.updateFeedStore(
+                    farmId: farmId,
+                    totalFeedUsed: totalFeedController.text.trim(),
+                    feedStore: storeController.text.trim(),
+                  );
 
-                if (ok) {
-                  safeBack();
-                  print('++++++++++++++loading the data+++++++++++++=');
-                  controller.getFeedStore(farmId);
-                  storeController.text = storeController.text.trim();
-                }
-              },
-              child: Container(
-                height: 50,
-                width: double.infinity,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: controller.isOverlay.value
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        "Save",
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                  if (ok) {
+                    safeBack();
+                    print('++++++++++++++loading the data+++++++++++++=');
+                    controller.getFeedStore(farmId);
+                    storeController.text = storeController.text.trim();
+                  }
+                },
+                child: Container(
+                  height: 50,
+                  width: double.infinity,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: controller.isOverlay.value
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          "Save",
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-              ),
-            );
-          }),
+                ),
+              );
+            }),
 
-          const SizedBox(height: 20),
-        ],
-      ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     ),
     isScrollControlled: true,

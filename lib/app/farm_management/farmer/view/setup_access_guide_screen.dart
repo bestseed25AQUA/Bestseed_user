@@ -4,7 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/access_management_screen.dart';
 
 class SetupAccessGuideScreen extends StatelessWidget {
-  const SetupAccessGuideScreen({Key? key}) : super(key: key);
+  /// Farm the access is being granted for — access grants are per-farm.
+  final int farmId;
+
+  const SetupAccessGuideScreen({Key? key, required this.farmId})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -146,7 +150,8 @@ class SetupAccessGuideScreen extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const AccessManagementScreen(),
+                              builder: (_) =>
+                                  AccessManagementScreen(farmId: farmId),
                             ),
                           );
                         },

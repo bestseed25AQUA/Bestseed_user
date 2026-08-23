@@ -28,6 +28,14 @@ class FarmData {
   String? store;
   String? lowFeedLimit;
   FarmImages? images;
+
+  /// Feed recorded against this farm so far. Used to decide whether the
+  /// "feed already used" backfill field is still applicable.
+  num? totalFeedUsed;
+
+  /// The "feed already used" figure the farmer entered, if any. Distinct from
+  /// [totalFeedUsed], which also includes feed recorded day by day since.
+  num? feedUsedBefore;
   dynamic activeCount;
   dynamic inactiveCount;
 
@@ -40,6 +48,8 @@ class FarmData {
     this.store,
     this.lowFeedLimit,
     this.images,
+    this.totalFeedUsed,
+    this.feedUsedBefore,
   });
 
   FarmData.fromJson(Map<String, dynamic> json) {
@@ -48,6 +58,10 @@ class FarmData {
     farmerId = json['farmer_id'];
     stockingDate = json['stocking_date'];
     noOfTanks = json['no_of_tanks'];
+    totalFeedUsed = num.tryParse('${json['total_feed_used'] ?? 0}') ?? 0;
+    feedUsedBefore = json['feed_used_before'] == null
+        ? null
+        : num.tryParse('${json['feed_used_before']}');
     store = json['store'];
     lowFeedLimit = json['low_feed_limit'];
     activeCount = json['active_tanks'];

@@ -6,8 +6,6 @@ import 'package:seedsuser/app/common/app_color.dart';
 
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
 
 class NotifyUsScreen extends StatefulWidget {
   const NotifyUsScreen({super.key});
@@ -17,7 +15,7 @@ class NotifyUsScreen extends StatefulWidget {
 }
 
 class _NotifyUsScreenState extends State<NotifyUsScreen> {
-  final FarmListController _farmController = Get.put(FarmListController());
+  final FarmListController _farmController = farmListController;
   bool _isLoading = false;
 
   @override
@@ -95,19 +93,16 @@ class _NotifyUsScreenState extends State<NotifyUsScreen> {
               title: 'Fill Form',
               subtitle: 'Just share details — we’ll do it for you',
               imagePath: 'assets/images/farm_fill.png',
-              onTap: () async { 
-
-                if (_farmController.farmList.value?.data?.isNotEmpty == true) {
-                  Get.off(
-                    () => AddFarmerDetailsFormScreen(),
-                  ); // Replace current screen
-                } else {
-                  Get.to(
-                    () => const InitialFarmScreen(),
-                    transition: Transition.rightToLeft,
-                    duration: const Duration(milliseconds: 400),
-                  );
-                }
+              onTap: () async {
+                // "Fill Form" opens the form. It used to branch on whether the
+                // farmer already had farms and, when they had none, route to
+                // the intro screen instead — whose only action was a button to
+                // this very form. One tap, not two.
+                Get.off(
+                  () => AddFarmerDetailsFormScreen(),
+                  transition: Transition.rightToLeft,
+                  duration: const Duration(milliseconds: 400),
+                );
               },
             ),
           ],

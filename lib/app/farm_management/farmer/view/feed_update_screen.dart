@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 
 // ignore: must_be_immutable
 class FeedUpdateScreen extends StatelessWidget {
@@ -29,7 +30,7 @@ class FeedUpdateScreen extends StatelessWidget {
       ),
       body: Obx(() {
         if (tankController.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
+          return const TankGridShimmer();
         }
 
         final tanks = tankController.farmList.value?.data ?? [];
@@ -44,7 +45,7 @@ class FeedUpdateScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(height: 20,),
+                  SizedBox(height: 20),
                   Center(
                     child: Text(
                       "Today's feed Update",
@@ -52,34 +53,37 @@ class FeedUpdateScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4.0),
-                    Center(
+                  Center(
                     child: Text(
                       "${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}",
                       style: GoogleFonts.roboto(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey,
                       ),
                     ),
-                    ),
+                  ),
                   const SizedBox(height: 24.0),
 
                   ListView.builder(
                     itemCount: tanks.length,
                     shrinkWrap: true,
-                    padding: EdgeInsets.only(left: 10,right: 10),
+                    padding: EdgeInsets.only(left: 10, right: 10),
                     physics: const NeverScrollableScrollPhysics(),
                     itemBuilder: (context, index) {
                       final tank = tanks[index];
-                      final bool isShowEditButton = tank.feed !=null;
+                      final bool isShowEditButton = tank.feed != null;
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 16),
                         child: FeedUpdateCard(
                           mealsDropDownList: mealsDropDownList,
                           tankName: tank.tankName ?? "",
-                          dayInfo: "${tank.day??0} Day",
-                          initialMeals: tank.feed?.meals?.toString() ?? "0",
-                          initialFeedQuantity: tank.feed?.feedQuantity ?? "0.00",
+                          dayInfo: "${tank.day ?? 0} Day",
+                          // Empty, not "0"/"0.00": those are shown as hints
+                          // instead, so tapping the field gives a blank box to
+                          // type into rather than a value to delete first.
+                          initialMeals: tank.feed?.meals?.toString() ?? "",
+                          initialFeedQuantity: tank.feed?.feedQuantity ?? "",
                           showEditButton: isShowEditButton,
                           showAddButton: !isShowEditButton,
                           onTapEdit:
@@ -90,13 +94,17 @@ class FeedUpdateScreen extends StatelessWidget {
                                 if (!tankController
                                     .isAddingTodayTankQuntity
                                     .value) {
+                                  // Identify the row being edited, and keep it
+                                  // on its own date — without these the server
+                                  // has no way to tell an edit from a new entry.
                                   tankController.addTodayTankQuntity(
                                     farmId: farmId,
                                     feedQty: feedQty,
                                     mealQty: meals,
                                     tankId: tank.id.toString(),
                                     mealId: '',
-                                    feedId: ''
+                                    feedId: tank.feed?.id?.toString() ?? '',
+                                    date: tank.feed?.feedDate,
                                   );
                                 }
                               },
@@ -165,6 +173,12 @@ class FeedUpdateCard extends StatelessWidget {
   });
   String feedQtyText = '';
   String mealText = '';
+
+  /// A blank field means zero — the hint says as much.
+  String get _mealsToSubmit => mealText.trim().isEmpty ? '0' : mealText.trim();
+  String get _feedQtyToSubmit =>
+      feedQtyText.trim().isEmpty ? '0.00' : feedQtyText.trim();
+
   @override
   Widget build(BuildContext context) {
     if (feedQtyText.isEmpty) {
@@ -214,6 +228,8 @@ class FeedUpdateCard extends StatelessWidget {
                 mealText = value;
               },
               decoration: InputDecoration(
+                hintText: '0',
+                hintStyle: GoogleFonts.roboto(color: Colors.grey.shade500),
                 border: const OutlineInputBorder(),
                 contentPadding: const EdgeInsets.symmetric(
                   vertical: 10.0,
@@ -249,6 +265,10 @@ class FeedUpdateCard extends StatelessWidget {
                     initialValue: initialFeedQuantity,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
+                      hintText: '0.00',
+                      hintStyle: GoogleFonts.roboto(
+                        color: Colors.grey.shade500,
+                      ),
                       border: const OutlineInputBorder(),
                       contentPadding: const EdgeInsets.symmetric(
                         vertical: 10.0,
@@ -307,7 +327,10 @@ class FeedUpdateCard extends StatelessWidget {
                 if (showEditButton)
                   OutlinedButton(
                     onPressed: () {
-                      onTapEdit(feedQty: feedQtyText, meals: mealText);
+                      onTapEdit(
+                        feedQty: _feedQtyToSubmit,
+                        meals: _mealsToSubmit,
+                      );
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
@@ -325,7 +348,10 @@ class FeedUpdateCard extends StatelessWidget {
                 if (showAddButton)
                   ElevatedButton(
                     onPressed: () {
-                      onTapAdd(feedQty: feedQtyText, meals: mealText);
+                      onTapAdd(
+                        feedQty: _feedQtyToSubmit,
+                        meals: _mealsToSubmit,
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,

@@ -74,6 +74,46 @@ bool _checkUnauthorized(http.Response response) {
 bool checkUnauthorizedResponse(http.Response response) =>
     _checkUnauthorized(response);
 
+
+/// Paths this app's own backend serves media from.
+///
+/// Media rows store ABSOLUTE urls, so they carry whatever host was configured
+/// when the file was uploaded — an old deployment, or a dev machine whose LAN
+/// IP has since changed. The file is still there; only the host in the string
+/// is stale. Any url on one of these paths therefore gets re-pointed at the
+/// server this build actually talks to.
+const List<String> _appMediaPaths = [
+  '/uploads/',
+  '/reports/',
+  '/storage/',
+  '/farmer_profiles/',
+];
+
+/// Point a stored media url at the server this build talks to.
+///
+/// Third-party urls (Firebase, Google, anything not on one of our own media
+/// paths) are returned untouched. Relative paths are joined onto
+/// [NetworkConfig.imageURL].
+String resolveMediaUrl(String? url) {
+  if (url == null || url.trim().isEmpty) return '';
+
+  final value = url.trim();
+
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    final uri = Uri.tryParse(value);
+    if (uri == null) return value;
+
+    final isOurMedia = _appMediaPaths.any((p) => uri.path.startsWith(p));
+    if (!isOurMedia) return value;
+
+    // Keep the path and query, swap the host for the current one.
+    final tail = uri.hasQuery ? '${uri.path}?${uri.query}' : uri.path;
+    return NetworkConfig.imageURL + tail;
+  }
+
+  return '${NetworkConfig.imageURL}/${value.replaceFirst(RegExp(r'^/+'), '')}';
+}
+
 Future<Map<String, String>> buildHeader() async {
   String token = await AuthLocalStorage.getToken() ?? "";
   print("User Token : $token");

@@ -13,12 +13,18 @@ import 'package:seedsuser/app/farm_management/farmer/view/farm_detail_screen.dar
 import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/feed_update_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/setup_access_guide_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/scanner_guide_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/qr_code_list_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/scanned_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/chat_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_options.dart';
 import 'package:seedsuser/app/farm_management/manager/view/manager_screen.dart';
 import 'package:seedsuser/app/farm_management/farm_home/notify_us_screen.dart';
 import 'package:seedsuser/app/farm_management/partner/view/partner_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
+import 'package:seedsuser/app/utils/network_utils.dart';
 
 class FarmManagementScreen extends StatefulWidget {
   const FarmManagementScreen({super.key});
@@ -28,7 +34,10 @@ class FarmManagementScreen extends StatefulWidget {
 }
 
 class _FarmManagementScreenState extends State<FarmManagementScreen> {
-  final FarmListController controller = Get.put(FarmListController());
+  final FarmListController controller = farmListController;
+
+  /// Guards the one-way handover to the empty-state screen.
+  bool _handedOver = false;
   final tankController = Get.put(TankController());
   bool _isChatbotOpen = false;
 
@@ -40,7 +49,13 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
 
   List<FarmSection> get farmSections {
     final data = controller.farmList.value?.data ?? [] as List<FarmData>?;
-    return data!.map((e) {
+
+    // The API returns farms oldest-first. Sort newest-first here so the most
+    // recently added farm is at the TOP of the list.
+    final ordered = [...data!]
+      ..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+
+    return ordered.map((e) {
       return FarmSection(
         lowFeedLimit: e.lowFeedLimit ?? '',
         noOfTanks: e.noOfTanks ?? 0,
@@ -52,6 +67,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
         imageUrls: e.images?.imagesList ?? [],
         id: e.id.toString(),
         stockingDate: e.stockingDate.toString(),
+        totalFeedUsed: e.totalFeedUsed ?? 0,
+        feedUsedBefore: e.feedUsedBefore,
       );
     }).toList();
   }
@@ -59,6 +76,32 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
   @override
   Widget build(BuildContext context) {
     const Color primaryBlue = Color(0xFF007BFF);
+
+    // Deleting the last farm leaves this screen with nothing to show, so hand
+    // back to the empty-state screen.
+    //
+    // This REPLACES the route in a post-frame callback. Returning
+    // InitialFarmScreen from here instead made the two screens render each
+    // other: its initState refetched, that flipped isLoading, this Obx rebuilt,
+    // and round it went — an endless stream of /farm-lists calls and a
+    // "!_dirty is not true" crash every frame. Navigating leaves exactly one
+    // screen mounted, and the guard makes it fire once.
+    return Obx(() {
+      if (!controller.isLoading.value && farmSections.isEmpty && !_handedOver) {
+        _handedOver = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const InitialFarmScreen()),
+          );
+        });
+      }
+
+      return _buildFarmList(context, primaryBlue);
+    });
+  }
+
+  Widget _buildFarmList(BuildContext context, Color primaryBlue) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
@@ -76,34 +119,50 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
         ),
         // leading: const Icon(Icons.menu),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16.0),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+          InkWell(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ScannerGuideScreen()),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Scan',
-                  style: GoogleFonts.roboto(
-                    color: Colors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              margin: const EdgeInsets.only(right: 16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Scan',
+                    style: GoogleFonts.roboto(
+                      color: Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 4),
-                Icon(Icons.qr_code_scanner, color: AppColors.primary, size: 18),
-              ],
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.qr_code_scanner,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
       body: Obx(() {
-        if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
+        final farms = farmSections;
+
+        // Full-screen spinner only on the FIRST load. During a pull-to-refresh
+        // the list stays put and RefreshIndicator draws its own spinner —
+        // swapping the body out would tear the gesture away mid-pull.
+        if (controller.isLoading.value && farms.isEmpty) {
+          return const FarmListShimmer();
         }
 
         return Column(
@@ -111,34 +170,46 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
             Expanded(
               child: Stack(
                 children: [
-                  ListView.builder(
-                    reverse: true,
-                    padding: const EdgeInsets.only(
-                      top: 12,
-                      right: 12,
-                      bottom: 12,
-                      left: 12,
-                    ),
-                    itemCount: farmSections.length,
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: InkWell(
-                          onTap: () {
-                            Get.to(
-                              FarmTankListScreen(
-                                farmId: farmSections[index].id,
-                                farmName: farmSections[index].name,
-                              ),
-                            );
-                          },
-                          child: FarmCard(
-                            farm: farmSections[index],
-                            tankController: tankController,
+                  RefreshIndicator(
+                    color: AppColors.primary,
+                    onRefresh: () => controller.fetchFarmList(),
+                    child: ListView.builder(
+                      // Not reversed: a reversed list anchors its items to the
+                      // BOTTOM of the viewport, which left a single farm
+                      // floating at the bottom of an empty screen. Newest-first
+                      // ordering is done in `farmSections` instead, so the list
+                      // fills from the top like every other list in the app.
+                      //
+                      // AlwaysScrollable so the pull gesture still works when
+                      // there are too few farms to fill the screen.
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.only(
+                        top: 12,
+                        right: 12,
+                        bottom: 12,
+                        left: 12,
+                      ),
+                      itemCount: farms.length,
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: InkWell(
+                            onTap: () {
+                              Get.to(
+                                FarmTankListScreen(
+                                  farmId: farms[index].id,
+                                  farmName: farms[index].name,
+                                ),
+                              );
+                            },
+                            child: FarmCard(
+                              farm: farms[index],
+                              tankController: tankController,
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
 
                   if (_isChatbotOpen)
@@ -231,12 +302,12 @@ class FarmCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade300),
         boxShadow: [
-            BoxShadow(
-              offset: const Offset(1, 3),
-              color: Colors.grey.withOpacity(.3),
-              blurRadius: 5,
-            ),
-          ],
+          BoxShadow(
+            offset: const Offset(1, 3),
+            color: Colors.grey.withOpacity(.3),
+            blurRadius: 5,
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -246,17 +317,7 @@ class FarmCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               child: Stack(
                 children: [
-                  Image.network(
-                    farm.imageUrls.isNotEmpty ? farm.imageUrls[0] : '',
-                    height: 150,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (c, e, s) => Image.asset(
-                      "assets/images/farmer_fish.png",
-                      height: 150,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+                  _FarmImageCarousel(imageUrls: farm.imageUrls),
                   Positioned(
                     top: 20,
                     right: 20,
@@ -272,24 +333,46 @@ class FarmCard extends StatelessWidget {
                           },
 
                           onTapAccessSetup: () {
-                            final rootNav = Navigator.of(context, rootNavigator: true);
+                            final rootNav = Navigator.of(
+                              context,
+                              rootNavigator: true,
+                            );
                             Navigator.pop(context);
                             rootNav.push(
                               MaterialPageRoute(
-                                builder: (_) => const SetupAccessGuideScreen(),
+                                builder: (_) => SetupAccessGuideScreen(
+                                  farmId: int.parse(farm.id),
+                                ),
                               ),
                             );
                           },
 
                           onPartners: () {
                             Navigator.pop(context);
-                            Get.to(PartnerScreen());
+                            Get.to(PartnerScreen(farmId: int.parse(farm.id)));
                             print("Partners clicked");
                           },
 
                           onManager: () {
                             Navigator.pop(context);
-                            Get.to(ManagerScreen());
+                            Get.to(ManagerScreen(farmId: int.parse(farm.id)));
+                          },
+
+                          onQrCodes: () {
+                            Navigator.pop(context);
+                            Get.to(
+                              () =>
+                                  QrCodeListScreen(farmId: int.parse(farm.id)),
+                            );
+                          },
+
+                          onScannedDetails: () {
+                            Navigator.pop(context);
+                            Get.to(
+                              () => ScannedDetailsScreen(
+                                farmId: int.parse(farm.id),
+                              ),
+                            );
                           },
 
                           onEditFarm: () {
@@ -307,6 +390,11 @@ class FarmCard extends StatelessWidget {
                                   store: farm.store,
                                   noOfTanks: farm.noOfTanks,
                                   lowFeedLimit: farm.feedUsed,
+                                  // Without this the edit form showed an empty
+                                  // "Feed Already Used" box on a farm that has
+                                  // weeks of history.
+                                  totalFeedUsed: farm.totalFeedUsed,
+                                  feedUsedBefore: farm.feedUsedBefore,
                                 ),
                               ),
                             );
@@ -314,16 +402,13 @@ class FarmCard extends StatelessWidget {
 
                           onDeleteFarm: () async {
                             Navigator.pop(context);
-                            final farmerDetailController = Get.put(
-                              FarmListController(),
-                            );
-                            final farmListController =
-                                Get.find<FarmListController>();
 
-                            if (await farmerDetailController.deleteFarm(
+                            // The shared instance — the same object the list
+                            // above is watching, so the refresh is visible.
+                            if (await farmListController.deleteFarm(
                               farmId: farm.id,
                             )) {
-                              farmListController.fetchFarmList();
+                              await farmListController.fetchFarmList();
                             }
                           },
                         );
@@ -640,6 +725,8 @@ void showFarmBottomSheet({
   required VoidCallback onTapAccessSetup,
   required VoidCallback onPartners,
   required VoidCallback onManager,
+  required VoidCallback onScannedDetails,
+  required VoidCallback onQrCodes,
   required VoidCallback onEditFarm,
   required VoidCallback onDeleteFarm,
 }) {
@@ -695,9 +782,29 @@ void showFarmBottomSheet({
                 onTap: onTapAccessSetup,
               ),
 
-              _sheetItem(icon: Icons.group, title: "Partners", onTap: onPartners),
+              _sheetItem(
+                icon: Icons.group,
+                title: "Partners",
+                onTap: onPartners,
+              ),
 
-              _sheetItem(icon: Icons.person, title: "Manager", onTap: onManager),
+              _sheetItem(
+                icon: Icons.person,
+                title: "Manager",
+                onTap: onManager,
+              ),
+
+              _sheetItem(
+                icon: Icons.qr_code_2,
+                title: "QR Codes",
+                onTap: onQrCodes,
+              ),
+
+              _sheetItem(
+                icon: Icons.qr_code_scanner,
+                title: "Scanned Details",
+                onTap: onScannedDetails,
+              ),
 
               _sheetItem(
                 icon: Icons.edit,
@@ -713,7 +820,8 @@ void showFarmBottomSheet({
                 onTap: () {
                   showDialog(
                     context: context,
-                    barrierDismissible: false, // User must tap a button to close
+                    barrierDismissible:
+                        false, // User must tap a button to close
                     builder: (BuildContext context) {
                       return CustomConfirmationDialog(ontapYes: onDeleteFarm);
                     },
@@ -889,9 +997,18 @@ class FarmSection {
   final String stockingDate;
   final String lowFeedLimit;
 
+  /// Feed recorded against the farm so far — needed by the edit form to show
+  /// (and lock) the "feed already used" figure.
+  final num totalFeedUsed;
+
+  /// The figure entered as "feed already used", if any.
+  final num? feedUsedBefore;
+
   FarmSection({
     required this.lowFeedLimit,
     required this.noOfTanks,
+    this.totalFeedUsed = 0,
+    this.feedUsedBefore,
     required this.name,
     required this.feedUsed,
     required this.store,
@@ -901,4 +1018,119 @@ class FarmSection {
     required this.stockingDate,
     required this.id,
   });
+}
+
+/// The farm photo on a farm card.
+///
+/// A farm can have several images; the card used to render only `imageUrls[0]`
+/// with no way to reach the rest. This pages through them and shows a counter
+/// when there is more than one, matching the edit form's carousel.
+class _FarmImageCarousel extends StatefulWidget {
+  final List<String> imageUrls;
+
+  const _FarmImageCarousel({required this.imageUrls});
+
+  @override
+  State<_FarmImageCarousel> createState() => _FarmImageCarouselState();
+}
+
+class _FarmImageCarouselState extends State<_FarmImageCarousel> {
+  final PageController _controller = PageController();
+  int _index = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Shown while an image loads and when it fails.
+  ///
+  /// Deliberately NOT a stock photo: falling back to farmer_fish.png made a
+  /// farm look like it had an image that was not the one the farmer uploaded.
+  /// A shimmer says "nothing to show here" without lying about the content.
+  Widget _fallback() => const AppShimmer(
+        child: ShimmerBlock(height: 150, width: double.infinity, radius: 0),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final urls = widget.imageUrls;
+
+    if (urls.isEmpty) {
+      return SizedBox(height: 150, width: double.infinity, child: _fallback());
+    }
+
+    return SizedBox(
+      height: 150,
+      width: double.infinity,
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: _controller,
+            itemCount: urls.length,
+            onPageChanged: (i) => setState(() => _index = i),
+            itemBuilder: (context, i) => Image.network(
+              // Stored urls may name an old host — re-pointed at this server.
+              resolveMediaUrl(urls[i]),
+              height: 150,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (c, e, st) => _fallback(),
+              loadingBuilder: (context, child, progress) =>
+                  progress == null ? child : _fallback(),
+            ),
+          ),
+
+          // Only worth showing when there is somewhere to swipe to.
+          if (urls.length > 1)
+            Positioned(
+              bottom: 8,
+              right: 8,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  "${_index + 1}/${urls.length}",
+                  style: GoogleFonts.roboto(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+
+          if (urls.length > 1)
+            Positioned(
+              bottom: 10,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  urls.length,
+                  (i) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    height: 6,
+                    width: i == _index ? 16 : 6,
+                    decoration: BoxDecoration(
+                      color: i == _index
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

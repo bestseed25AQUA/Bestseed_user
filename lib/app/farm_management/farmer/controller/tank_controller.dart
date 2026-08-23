@@ -12,9 +12,17 @@ class TankController extends GetxController {
   var isLoading = true.obs;
   Rx<TankListModel?> farmList = Rx<TankListModel?>(null);
 
-  Future<void> getTankList(String farmId) async {
+  /// Fetch the tanks of a farm.
+  ///
+  /// [silent] refreshes the data WITHOUT raising `isLoading`. Screens swap
+  /// their whole body for a shimmer while that flag is up, so a refresh after
+  /// saving one tank used to blank and rebuild the entire list — losing the
+  /// scroll position and anything typed into the other cards. The save already
+  /// shows its own overlay, so the follow-up refresh should be invisible.
+  Future<void> getTankList(String farmId, {bool silent = false}) async {
     try {
-      isLoading.value = true;
+      if (!silent) isLoading.value = true;
+
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/farms/$farmId/tanks",
         headers: await buildHeader(),
@@ -23,12 +31,16 @@ class TankController extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         farmList.value = TankListModel.fromJson(data);
-        CustomToast.success('Tank Feched Successfully');
+        if (!silent) CustomToast.success('Tank Feched Successfully');
+      } else if (response.statusCode == 404) {
+        // The API answers 404 when a farm has no tanks; without this the
+        // previous list would linger after the last tank was removed.
+        farmList.value = TankListModel(data: []);
       }
     } catch (e) {
       CustomToast.error('Failed to fetch tank list');
     } finally {
-      isLoading.value = false;
+      if (!silent) isLoading.value = false;
     }
   }
 
@@ -49,6 +61,9 @@ class TankController extends GetxController {
       "feed_quantity": feedQty,
       'tank_id': tankId.toString(),
       if (date != null) "feed_date": date,
+      // With this the server updates that row; without it every "edit" was
+      // saved as a brand-new entry and the old one stayed behind.
+      if (feedId != null && feedId.isNotEmpty) "feed_id": feedId,
     };
     String endPoint =
         "${NetworkConfig.baseURL}/farmer/tanks/add-todays-tanks-quantity";
@@ -66,7 +81,7 @@ class TankController extends GetxController {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (farmId != null) {
-          getTankList(farmId);
+          getTankList(farmId, silent: true);
         }
 
         CustomToast.success('Tank Save Successfully');
@@ -98,7 +113,9 @@ class TankController extends GetxController {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        getTankList(farmId);
+        // Silent for the same reason as the save above: the toggle has its own
+        // overlay, so the refresh must not blank the screen behind it.
+        getTankList(farmId, silent: true);
         CustomToast.success('Tank Updated Successfully');
         return true;
       } else {
@@ -116,30 +133,24 @@ class TankController extends GetxController {
   Future<String?> getReport({String? tankId}) async {
     isDownloading(true);
     try {
-      final response = await getRequest(
+      // POST with the tank id. This used to be a GET with no body, which the
+      // route rejects with 405 (it is POST-only), so a report was never
+      // generated and the Download button did nothing.
+      final response = await postRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/download-tank-feed-report",
         headers: await buildHeader(),
+        body: {'tank_id': tankId},
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        try {
-          return jsonDecode(response.body)['download_link'].toString();
-        } catch (e) {
-          print(e.toString());
-        }
-      } else {
-        // CustomToast.error('Failed to get feed report');
-        try {
-          return {
-            "status": true,
-            "message": "Tank feed report generated successfully.",
-            "download_link":
-                "https://aliceblue-wallaby-326294.hostingersite.com/reports/tank_feed_report_2025_11_15_05_52_44.csv",
-          }['download_link'].toString();
-        } catch (e) {
-          print(e.toString());
-        }
+        final link = jsonDecode(response.body)['download_link'];
+        if (link != null) return link.toString();
       }
+
+      // Previously this fell back to a hardcoded CSV URL on another server,
+      // so a failure looked like a success and handed the download a link to
+      // a file that was not the user's report. Fail honestly instead.
+      CustomToast.error('Could not generate the feed report');
     } catch (e) {
       CustomToast.error('Someting went wrong');
     } finally {
@@ -153,9 +164,89 @@ class TankController extends GetxController {
     null,
   );
 
-  Future<void> getTankHistory(String tankId) async {
+  /// Remove an already-recorded feed entry.
+  ///
+  /// Like the edit, this has to go through the API: the row exists in two
+  /// tables and the tank's total has to be recomputed from what remains.
+  Future<bool> deleteFeedEntry({
+    required int historyId,
+    required String tankId,
+  }) async {
     try {
-      isTankHistoryLoading.value = true;
+      isAddingTodayTankQuntity(true);
+
+      final response = await postRequest(
+        endPoint: "${NetworkConfig.baseURL}/farmer/tank-feed-entry/delete",
+        headers: await buildHeader(),
+        body: {
+          'history_id': historyId.toString(),
+          'tank_id': tankId,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        CustomToast.success('Feed entry deleted');
+        return true;
+      }
+
+      CustomToast.error('Could not delete the entry');
+    } catch (e) {
+      CustomToast.error('Could not delete the entry');
+    } finally {
+      isAddingTodayTankQuntity(false);
+    }
+
+    return false;
+  }
+
+  /// Correct an already-recorded feed entry.
+  ///
+  /// Feed lives in two tables server-side, so this cannot be a local edit —
+  /// the endpoint keeps both in step and recomputes the tank's total.
+  Future<bool> updateFeedEntry({
+    required int historyId,
+    required String tankId,
+    required String meals,
+    required String feedQuantity,
+  }) async {
+    try {
+      isAddingTodayTankQuntity(true);
+
+      final response = await postRequest(
+        endPoint: "${NetworkConfig.baseURL}/farmer/tank-feed-entry",
+        headers: await buildHeader(),
+        body: {
+          'history_id': historyId.toString(),
+          'tank_id': tankId,
+          'meals': meals,
+          'feed_quantity': feedQuantity,
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        CustomToast.success('Feed entry updated');
+        return true;
+      }
+
+      CustomToast.error('Could not update the entry');
+    } catch (e) {
+      CustomToast.error('Could not update the entry');
+    } finally {
+      isAddingTodayTankQuntity(false);
+    }
+
+    return false;
+  }
+
+  /// [silent] refreshes without raising the loading flag.
+  ///
+  /// The screen swaps its whole body for a shimmer while that flag is up, which
+  /// throws away the scroll position — so recording feed against an old date
+  /// near the bottom bounced the farmer back to the top, and they had to scroll
+  /// all the way down again for the next day.
+  Future<void> getTankHistory(String tankId, {bool silent = false}) async {
+    try {
+      if (!silent) isTankHistoryLoading.value = true;
       final response = await postRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/tank-feed-history",
         headers: await buildHeader(),
@@ -193,21 +284,38 @@ class TankController extends GetxController {
           status: dataResponse["status"] ?? false,
           message: dataResponse["message"] ?? "",
           dates: tankDates,
+          stockingDate: dataResponse["stocking_date"]?.toString(),
+        );
+      } else if (response.statusCode == 404) {
+        // The API answers 404 (not 200 with []) when a tank has no feed rows
+        // yet. Leaving the value null made the screen render nothing at all —
+        // just the tank name on a blank page. An empty response means
+        // "loaded, nothing recorded", which the screen can show properly.
+        // Still carries the stocking date, so a tank with nothing recorded
+        // yet still shows a card for every day since stocking.
+        final body = json.decode(response.body);
+        tankHistoryData.value = TankFeedHistoryResponse(
+          status: true,
+          message: "No record found",
+          dates: [],
+          stockingDate: body["stocking_date"]?.toString(),
         );
       }
     } catch (e) {
       CustomToast.error('Failed to fetch tank history');
     } finally {
-      isTankHistoryLoading.value = false;
+      if (!silent) isTankHistoryLoading.value = false;
     }
   }
 
   Rx<FeedStoreModel?> feedStoreData = Rx<FeedStoreModel?>(null);
   RxBool isFeedLoading = false.obs;
   RxBool isOverlay = false.obs;
-  Future<void> getFeedStore(dynamic farmId) async {
+  /// [silent] refreshes without raising the loading flag — the header card
+  /// swaps to a shimmer while it is up, which flashes on an incidental refresh.
+  Future<void> getFeedStore(dynamic farmId, {bool silent = false}) async {
     try {
-      isFeedLoading(true);
+      if (!silent) isFeedLoading(true);
 
       final response = await getRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/farm/feed-store/$farmId",
@@ -225,7 +333,7 @@ class TankController extends GetxController {
       print(s.toString());
       CustomToast.error("Something went wrong");
     } finally {
-      isFeedLoading(false);
+      if (!silent) isFeedLoading(false);
       // loadDummyFeedStore(farmId);
     }
   }

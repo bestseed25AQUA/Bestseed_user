@@ -6,9 +6,16 @@ import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/farm_management/partner/controller/partener_controller.dart';
 import 'package:seedsuser/app/farm_management/partner/model/partner_list_model.dart';
 import 'package:seedsuser/app/farm_management/partner/view/add_partner_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_empty_state.dart';
 
 class PartnerScreen extends StatefulWidget {
-  const PartnerScreen({super.key});
+  /// Set when the screen is opened from a specific farm. Null from the
+  /// farm-less entry point, where the list falls back to every partner on the
+  /// farms this farmer owns.
+  final int? farmId;
+
+  const PartnerScreen({super.key, this.farmId});
 
   @override
   State<PartnerScreen> createState() => _PartnerScreenState();
@@ -20,7 +27,7 @@ class _PartnerScreenState extends State<PartnerScreen> {
   @override
   void initState() {
     super.initState();
-    controller.fetchPartners();
+    controller.fetchPartners(farmId: widget.farmId);
   }
 
   void _showEditPartner(BuildContext context, Partner partner) {
@@ -36,9 +43,9 @@ class _PartnerScreenState extends State<PartnerScreen> {
             bottom: MediaQuery.of(context).viewInsets.bottom,
             top: 20,
           ),
-          child: AddPartnerDetailsForm(
+          child: AddPartnerDetailsForm(farmId: widget.farmId, 
             partner: partner,
-            onSave: (_) => controller.fetchPartners(),
+            onSave: (_) => controller.fetchPartners(farmId: widget.farmId),
           ),
         ),
       ),
@@ -53,7 +60,10 @@ class _PartnerScreenState extends State<PartnerScreen> {
         backgroundColor: Colors.blue,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          // Black, not white: CustomAppBar ignores the `backgroundColor` we
+          // pass and always renders a WHITE bar, so a white arrow was
+          // invisible — the button was there, it just could not be seen.
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Partners', style: GoogleFonts.roboto(color: Colors.white)),
@@ -85,7 +95,7 @@ class _PartnerScreenState extends State<PartnerScreen> {
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
+          return const ListTileShimmer();
         }
 
         return Stack(
@@ -95,15 +105,34 @@ class _PartnerScreenState extends State<PartnerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Partner Access with Phone Number',
-                    style: GoogleFonts.roboto(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  // The section label only makes sense above an actual
+                  // list; with nothing to label it just floats over a blank
+                  // page above the empty state.
+                  if (controller.partnerList.isNotEmpty) ...[
+                    Text(
+                      'Partner Access with Phone Number',
+                      style: GoogleFonts.roboto(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                  ],
 
+                  // Nothing to list yet: say so, and offer the one
+                  // action that makes sense here.
+                  if (controller.partnerList.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 60),
+                      child: FarmEmptyState(
+                        icon: Icons.handshake_outlined,
+                        title: 'No partners yet',
+                        message:
+                            'Add a partner to share this farm with someone — you choose exactly what they can see and change.',
+                        actionLabel: 'Add Partner',
+                        onAction: () => _showAddPartnerDetails(context),
+                      ),
+                    ),
                   ...controller.partnerList.map(
                     (partner) => PartnerCard(
                       partner: partner,
@@ -114,7 +143,7 @@ class _PartnerScreenState extends State<PartnerScreen> {
                           id: partner.id.toString(),
                           accessType: type,
                         );
-                        if (success) controller.fetchPartners();
+                        if (success) controller.fetchPartners(farmId: widget.farmId);
                       },
 
                       onDelete: () async {
@@ -151,7 +180,7 @@ class _PartnerScreenState extends State<PartnerScreen> {
                           bool deleted = await controller.deletePartner(
                             id: partner.id.toString(),
                           );
-                          if (deleted) controller.fetchPartners();
+                          if (deleted) controller.fetchPartners(farmId: widget.farmId);
                         }
                       },
                     ),
@@ -188,7 +217,7 @@ class _PartnerScreenState extends State<PartnerScreen> {
             bottom: MediaQuery.of(context).viewInsets.bottom,
             top: 20,
           ),
-          child: AddPartnerDetailsForm(onSave: (_) => controller.fetchPartners()),
+          child: AddPartnerDetailsForm(farmId: widget.farmId, onSave: (_) => controller.fetchPartners(farmId: widget.farmId)),
         ),
       ),
     );

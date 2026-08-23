@@ -11,6 +11,17 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 
 import 'package:http/http.dart' as http;
 
+/// The one shared [FarmListController].
+///
+/// `Get.put()` REPLACES any existing registration, so several screens each
+/// calling it were handed different objects — a list refreshed on one was
+/// invisible to another, which is why a deleted farm stayed on screen and why
+/// a freshly added farm did not appear. Always reuse the registered instance.
+FarmListController get farmListController =>
+    Get.isRegistered<FarmListController>()
+        ? Get.find<FarmListController>()
+        : Get.put(FarmListController());
+
 class FarmListController extends GetxController {
   var isLoading = true.obs;
   Rx<FarmListModel?> farmList = Rx<FarmListModel?>(null);
@@ -33,6 +44,11 @@ class FarmListController extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         farmList.value = FarmListModel.fromJson(data);
+      } else if (response.statusCode == 404) {
+        // The API answers 404 (not 200 with []) when the farmer has no farms.
+        // Ignoring it meant the previous list survived, so deleting the LAST
+        // farm left it on screen even though the server had removed it.
+        farmList.value = FarmListModel(data: []);
       }
     } catch (e) {
       print("Error fetching farms  ");
@@ -51,6 +67,7 @@ class FarmListController extends GetxController {
     required String lowFeedLimit,
     required String tanks,
     required List<String> imagePaths,
+    String feedUsedBefore = '',
   }) async {
     try {
       isOverlay(true);
@@ -59,11 +76,16 @@ class FarmListController extends GetxController {
         endPoint: "${NetworkConfig.baseURL}/farmer/create-farm",
         fields: {
           "type": "form",
+          // So the server can tell "no image chosen" from "image was dropped".
+          "image_count": imagePaths.length.toString(),
           "farm_name": farmName,
           "stocking_date": stockingDate,
           "store": store,
           "low_feed_limit": lowFeedLimit,
           "tanks": tanks,
+          // Only meaningful when the farm was stocked before today; the server
+          // spreads it across the tanks and the days that have passed.
+          if (feedUsedBefore.isNotEmpty) "feed_used_before": feedUsedBefore,
         },
         headers: await buildHeader(),
         imagePaths: imagePaths,
@@ -125,6 +147,7 @@ class FarmListController extends GetxController {
     required String lowFeedLimit,
     required String tanks,
     required List<String> imagePaths,
+    String feedUsedBefore = '',
   }) async {
     try {
       isOverlay(true);
@@ -137,6 +160,8 @@ class FarmListController extends GetxController {
           "store": store,
           "low_feed_limit": lowFeedLimit,
           "no_of_tanks": tanks,
+          // Ignored by the server unless the farm still has no feed recorded.
+          if (feedUsedBefore.isNotEmpty) "feed_used_before": feedUsedBefore,
         },
         headers: await buildHeader(),
         imagePaths: imagePaths,

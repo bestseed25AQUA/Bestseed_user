@@ -13,6 +13,8 @@ import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/request_sent_dialog.dart';
+import 'package:seedsuser/app/utils/network_utils.dart';
 
 class AddFarmerDetailsFormScreen extends StatefulWidget {
   const AddFarmerDetailsFormScreen({super.key, this.farmData});
@@ -25,12 +27,40 @@ class AddFarmerDetailsFormScreen extends StatefulWidget {
 
 class _AddFarmerDetailsFormScreenState
     extends State<AddFarmerDetailsFormScreen> {
-  final FarmListController controller = Get.put(FarmListController());
+  final FarmListController controller = farmListController;
 
   final TextEditingController farmName = TextEditingController();
   final TextEditingController stockingDate = TextEditingController();
   final TextEditingController store = TextEditingController();
   final TextEditingController lowFeedLimit = TextEditingController();
+
+  /// Only used when the farm was stocked before today — see [_daysSinceStocking].
+  final TextEditingController feedUsedBefore = TextEditingController();
+
+  /// Whether to offer the "feed already used" field.
+  ///
+  /// Shown for a past stocking date, on create AND on edit — a farmer often
+  /// realises afterwards that the history is missing. It disappears once the
+  /// farm has feed recorded against it, because backfilling then would
+  /// double-count; the server enforces the same rule.
+  /// Whether to offer the "feed already used" field: any farm stocked before
+  /// today, on create or edit. Editing the figure REPLACES the generated
+  /// history — feed entered by hand since is preserved.
+  bool get _showFeedUsedField => _daysSinceStocking > 0;
+
+  /// Days from the chosen stocking date to today, inclusive. 0 when the date is
+  /// today, in the future, or not chosen yet.
+  int get _daysSinceStocking {
+    final picked = DateTime.tryParse(stockingDate.text.trim());
+    if (picked == null) return 0;
+
+    final start = DateTime(picked.year, picked.month, picked.day);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    if (!start.isBefore(today)) return 0;
+    return today.difference(start).inDays + 1;
+  }
   final _formKey = GlobalKey<FormState>();
 
   final ImagePicker _picker = ImagePicker();
@@ -41,7 +71,16 @@ class _AddFarmerDetailsFormScreenState
   final List<int> tankOptions = List.generate(50, (i) => i + 1);
 
   Future<void> pickImages() async {
-    final List<XFile>? files = await _picker.pickMultiImage();
+    // Downscale and re-encode at pick time. A straight camera-roll photo is
+    // ~4 MB, which silently exceeded the server's upload_max_filesize: PHP
+    // discarded the file, hasFile() came back false, and the farm was created
+    // with NO image while the API still reported success. These limits keep a
+    // photo well under any sane server cap and cut upload time on mobile data.
+    final List<XFile>? files = await _picker.pickMultiImage(
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 80,
+    );
     if (files != null && files.isNotEmpty) {
       setState(() {
         for (var value in files) {
@@ -74,6 +113,8 @@ class _AddFarmerDetailsFormScreenState
     if (pick != null) {
       stockingDate.text =
           "${pick.year}-${pick.month.toString().padLeft(2, '0')}-${pick.day.toString().padLeft(2, '0')}";
+      // Refresh: a past date reveals the "feed already used" field below Store.
+      setState(() {});
     }
   }
 
@@ -86,6 +127,15 @@ class _AddFarmerDetailsFormScreenState
       store.text = widget.farmData!.store ?? "";
       lowFeedLimit.text = widget.farmData!.lowFeedLimit ?? "";
       selectedTanks = widget.farmData!.noOfTanks;
+
+      // Prefill with the figure the farmer entered. Farms created before that
+      // figure was recorded fall back to their running total, so the box shows
+      // something meaningful instead of sitting empty next to weeks of history.
+      final entered =
+          widget.farmData!.feedUsedBefore ?? widget.farmData!.totalFeedUsed ?? 0;
+      if (entered > 0) {
+        feedUsedBefore.text = entered.toString();
+      }
       if (widget.farmData!.images?.imagesList != null) {
         for (var value in widget.farmData!.images!.imagesList!) {
           images.add({'network': value});
@@ -141,10 +191,7 @@ class _AddFarmerDetailsFormScreenState
                 // Farm Name
                 _buildLabel("Farm Name"),
                 const SizedBox(height: 8),
-                _buildTextField(
-                  controller: farmName,
-                  hint: "Enter Farm Name",
-                ),
+                _buildTextField(controller: farmName, hint: "Enter Farm Name"),
                 const SizedBox(height: 20),
 
                 // Stocking Date
@@ -178,6 +225,57 @@ class _AddFarmerDetailsFormScreenState
                   keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 20),
+
+                // Feed already used — only for a farm stocked in the past.
+                // A farm registered weeks after stocking has history the app
+                // knows nothing about; this one figure fills it in.
+                if (_showFeedUsedField) ...[
+                  _buildLabel("Feed Already Used"),
+                  const SizedBox(height: 8),
+                  _buildTextField(
+                    controller: feedUsedBefore,
+                    hint: "Total feed used so far",
+                    keyboardType: TextInputType.number,
+                    // Optional: the farmer may prefer to enter feed tank by
+                    // tank on the history screen instead of one lump figure.
+                    isRequired: false,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 6),
+                  Builder(
+                    builder: (context) {
+                      final days = _daysSinceStocking;
+                      final tanks = selectedTanks ?? 0;
+                      final total =
+                          double.tryParse(feedUsedBefore.text.trim()) ?? 0;
+
+                      if (total <= 0 || tanks <= 0) {
+                        return Text(
+                          "$days days since stocking. Leave blank if none was used.",
+                          style: GoogleFonts.roboto(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        );
+                      }
+
+                      final perTank = total / tanks;
+                      final perDay = perTank / days;
+
+                      return Text(
+                        "$days days · $tanks tanks  →  "
+                        "${perTank.toStringAsFixed(2)} kg per tank "
+                        "(${perDay.toStringAsFixed(2)} kg/day)",
+                        style: GoogleFonts.roboto(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                ],
 
                 // Low Feed Limit with info tooltip
                 Row(
@@ -250,6 +348,7 @@ class _AddFarmerDetailsFormScreenState
                           store: store.text,
                           lowFeedLimit: lowFeedLimit.text,
                           tanks: selectedTanks.toString(),
+                          feedUsedBefore: feedUsedBefore.text.trim(),
                           imagePaths: images
                               .where((item) => item.containsKey('local'))
                               .map((item) => item['local'].toString())
@@ -262,6 +361,9 @@ class _AddFarmerDetailsFormScreenState
                           store: store.text,
                           lowFeedLimit: lowFeedLimit.text,
                           tanks: selectedTanks.toString(),
+                          // Backfill applies to a NEW farm only; editing must
+                          // not re-create history that already exists.
+                          feedUsedBefore: feedUsedBefore.text.trim(),
                           imagePaths: images
                               .where((item) => item.containsKey('local'))
                               .map((item) => item['local'].toString())
@@ -269,8 +371,18 @@ class _AddFarmerDetailsFormScreenState
                         );
                       }
                       if (success) {
+                        // Only a newly submitted farm is a "request"; an edit
+                        // just saves, so it skips the confirmation popup.
+                        if (!isEdit && context.mounted) {
+                          await showRequestSentDialog(context);
+                        }
+
+                        // Refresh BEFORE popping. Popping first left the
+                        // previous screen rebuilding against a stale, empty
+                        // list, so a farm that had just been created still
+                        // showed the "no farms yet" screen.
+                        await farmListController.fetchFarmList();
                         safeBack();
-                        Get.find<FarmListController>().fetchFarmList();
                       }
                     },
                   );
@@ -295,10 +407,7 @@ class _AddFarmerDetailsFormScreenState
           decoration: BoxDecoration(
             color: Colors.grey.shade50,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Colors.grey.shade300,
-              width: 1.5,
-            ),
+            border: Border.all(color: Colors.grey.shade300, width: 1.5),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -417,12 +526,17 @@ class _AddFarmerDetailsFormScreenState
                             },
                           )
                         : isNetwork
-                            ? CustomNetworkImage(
-                                imageUrl: map['network'] ?? '',
-                                width: double.infinity,
-                                height: 180,
-                              )
-                            : const SizedBox(),
+                        ? CustomNetworkImage(
+                            // Stored urls may still name an old deployment host.
+                            imageUrl: resolveMediaUrl(map['network']),
+                            width: double.infinity,
+                            height: 180,
+                            // Without a fit the image drew at its natural size
+                            // and sat letterboxed inside the grey box, unlike
+                            // the locally picked images beside it.
+                            fit: BoxFit.cover,
+                          )
+                        : const SizedBox(),
                   ),
                   // Delete Button
                   if (isLocal)
@@ -502,14 +616,20 @@ class _AddFarmerDetailsFormScreenState
     VoidCallback? onTap,
     TextInputType? keyboardType,
     Widget? suffixIcon,
+    ValueChanged<String>? onChanged,
+    bool isRequired = true,
   }) {
     return TextFormField(
       controller: controller,
+      onChanged: onChanged,
       readOnly: readOnly,
       keyboardType: keyboardType,
       onTap: onTap,
       style: GoogleFonts.roboto(fontSize: 14, color: Colors.black87),
       validator: (value) {
+        // Every field here is mandatory except where a screen says otherwise.
+        if (!isRequired) return null;
+
         if (value == null || value.trim().isEmpty) {
           return "$hint is required";
         }
@@ -554,10 +674,7 @@ class _AddFarmerDetailsFormScreenState
       value: selectedTanks,
       hint: Text(
         "Select No. of Tanks",
-        style: GoogleFonts.roboto(
-          fontSize: 14,
-          color: Colors.grey.shade400,
-        ),
+        style: GoogleFonts.roboto(fontSize: 14, color: Colors.grey.shade400),
       ),
       style: GoogleFonts.roboto(fontSize: 14, color: Colors.black87),
       icon: Icon(
@@ -589,10 +706,7 @@ class _AddFarmerDetailsFormScreenState
         ),
       ),
       items: tankOptions.map((int value) {
-        return DropdownMenuItem<int>(
-          value: value,
-          child: Text("$value"),
-        );
+        return DropdownMenuItem<int>(value: value, child: Text("$value"));
       }).toList(),
       onChanged: (value) {
         setState(() {

@@ -3,10 +3,15 @@ class TankFeedHistoryResponse {
   final String message;
   final List<TankDate> dates;
 
+  /// When the farm was stocked. The screen draws a card for every day from
+  /// this date to today, so days with nothing recorded can still be filled in.
+  final String? stockingDate;
+
   TankFeedHistoryResponse({
     required this.status,
     required this.message,
     required this.dates,
+    this.stockingDate,
   });
 }
 

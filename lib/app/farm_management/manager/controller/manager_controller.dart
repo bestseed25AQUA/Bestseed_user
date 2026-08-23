@@ -9,13 +9,16 @@ class ManagerController extends GetxController {
   var isLoading = true.obs;
   var managerList = <Manager>[].obs;
 
-  Future<void> fetchManagers() async {
+  /// [farmId] narrows the list to one farm. Omitting it returns the managers
+  /// across every farm the logged-in farmer owns — the API scopes it either
+  /// way, so no other farmer's team is ever returned.
+  Future<void> fetchManagers({int? farmId}) async {
     try {
       isLoading.value = true;
 
       final response = await getRequest(
-        endPoint:
-            "${NetworkConfig.baseURL}/manager/managers", // change API if needed
+        endPoint: "${NetworkConfig.baseURL}/manager/managers",
+        params: farmId != null ? "?farm_id=$farmId" : null,
         headers: await buildHeader(),
       );
 
@@ -40,6 +43,7 @@ class ManagerController extends GetxController {
   RxBool isCreateLoading = false.obs;
 
   Future<bool> createManager({
+    required int farmId,
     required String personName,
     required String phoneNumber,
     required bool canEdit,
@@ -52,6 +56,9 @@ class ManagerController extends GetxController {
 
     try {
       Map<String, dynamic> body = {
+        // The API requires the farm: a manager belongs to one farm, and only
+        // that farm's owner may appoint them.
+        "farm_id": farmId.toString(),
         "name": personName,
         "phone": phoneNumber,
         "edit_access": canEdit ? "1" : "0",

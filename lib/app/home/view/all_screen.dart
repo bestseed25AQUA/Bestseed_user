@@ -13,7 +13,9 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:seedsuser/app/common/safe_network_image.dart';
 import 'package:seedsuser/app/utils/video_file_cache.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
-import 'package:seedsuser/app/farm_management/coming_soon_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
 import 'package:seedsuser/app/home/contact_us.dart';
 import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
@@ -57,6 +59,7 @@ class _HomePageState extends State<HomePage>
   final _homeBannerController = Get.find<HomeBannerController>();
   final _hatcheryController = Get.put(HatcheryUpdatesController());
   final _broodStockController = Get.put(BroodStockController());
+  final _farmListController = farmListController;
 
   @override
   void initState() {
@@ -462,12 +465,20 @@ class _HomePageState extends State<HomePage>
                         'Farm Management',
                         'assets/images/farm.png',
                         () {
-                          Navigator.push(
-                            context,
-                            AppAnimations.fade(
-                              const FarmManagementComingSoonScreen(),
-                            ),
-                          );
+                          final farmData =
+                              _farmListController.farmList.value?.data;
+
+                          if (farmData != null && farmData.isNotEmpty) {
+                            Navigator.push(
+                              context,
+                              AppAnimations.fade(const FarmManagementScreen()),
+                            );
+                          } else {
+                            Navigator.push(
+                              context,
+                              AppAnimations.fade(const InitialFarmScreen()),
+                            );
+                          }
                         },
                         networkImageUrl: farmIcons.isNotEmpty
                             ? farmIcons.first.url
