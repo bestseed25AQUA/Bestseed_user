@@ -61,12 +61,27 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
   /// Dates the user has collapsed. Absent means expanded.
   final Map<String, bool> _collapsed = {};
 
+  /// True for the card the farmer is most likely here to fill in.
+  bool _isToday(String date) {
+    final parsed = DateTime.tryParse(date);
+    if (parsed == null) return false;
+
+    final now = DateTime.now();
+    return parsed.year == now.year &&
+        parsed.month == now.month &&
+        parsed.day == now.day;
+  }
+
+  /// Shared by the scroll view and its Scrollbar, so the thumb tracks the list.
+  final ScrollController _scrollController = ScrollController();
+
   /// The entry currently loaded into each card's fields, by card index.
   /// Absent means the card is in "add" mode.
   final Map<int, MealEntry> _editing = {};
 
   @override
   void dispose() {
+    _scrollController.dispose();
     for (var controller in _mealControllers.values) {
       controller.dispose();
     }
@@ -78,6 +93,10 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
 
   @override
   void initState() {
+    // The controller is shared and outlives this screen, so a spinner left up
+    // by earlier work would dim a screen that has only just opened.
+    _tankController.isAddingTodayTankQuntity(false);
+
     _tankController.getTankHistory(widget.tankId);
     super.initState();
   }
@@ -249,10 +268,14 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
         }
 
         final dates = <TankDate>[];
-        for (var d = today;
-            !d.isBefore(cursor);
-            d = d.subtract(const Duration(days: 1))) {
-          dates.add(byDate[key(d)] ?? TankDate(date: key(d), tankDateHistory: []));
+        for (
+          var d = today;
+          !d.isBefore(cursor);
+          d = d.subtract(const Duration(days: 1))
+        ) {
+          dates.add(
+            byDate[key(d)] ?? TankDate(date: key(d), tankDateHistory: []),
+          );
         }
 
         // Any recorded date outside that window (e.g. entered before the
@@ -276,99 +299,117 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
 
         return Stack(
           children: [
-            SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16.0, 26.0, 16.0, 26.0),
-                    child: Text(
-                      widget.tankName,
-                      style: GoogleFonts.roboto(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+            // A visible thumb down the right edge: this list runs one card per
+            // day since stocking, so there is otherwise no sense of its length.
+            Scrollbar(
+              controller: _scrollController,
+              thumbVisibility: true,
+              radius: const Radius.circular(8),
+              thickness: 4,
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        16.0,
+                        26.0,
+                        16.0,
+                        26.0,
                       ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            "${totalFeedUsed.toStringAsFixed(totalFeedUsed % 1 == 0 ? 0 : 2)} kgs",
-                            style: GoogleFonts.roboto(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "Total feed Used",
-                            style: GoogleFonts.roboto(
-                              fontSize: 14,
-                              color: Colors.black54,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Column(
-                    children: List.generate(dates.length, (index) {
-                      final tankDate = dates[index];
-
-                      if (!_mealControllers.containsKey(index)) {
-                        _mealControllers[index] = TextEditingController();
-                      }
-                      if (!_quantityControllers.containsKey(index)) {
-                        _quantityControllers[index] = TextEditingController();
-                      }
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: DailyFeedCard(
-                          isLoading:
-                              _tankController.isAddingTodayTankQuntity.value,
-                          record: DailyFeedRecord(
-                            date: tankDate.date,
-                            isExpanded: !(_collapsed[tankDate.date] ?? false),
-                            entries: tankDate.tankDateHistory.map((item) {
-                              return MealEntry(
-                                item.meals.toString(),
-                                item.feedQuantity.toString(),
-                                historyId: item.id,
-                              );
-                            }).toList(),
-                          ),
-                          mealController:
-                              _mealControllers[index] ??
-                              TextEditingController(),
-                          quantityController:
-                              _quantityControllers[index] ??
-                              TextEditingController(),
-                          onTapHeader: () => setState(() {
-                            _collapsed[tankDate.date] =
-                                !(_collapsed[tankDate.date] ?? false);
-                          }),
-                          onAdd: () => _submitEntry(index, tankDate.date),
-                          onEditEntry: (entry) => _beginEdit(index, entry),
-                          isEditing: _editing.containsKey(index),
-                          onCancelEdit: () => _cancelEdit(index),
-                          onDeleteEntry: (entry) => _deleteEntry(index, entry),
+                      child: Text(
+                        widget.tankName,
+                        style: GoogleFonts.roboto(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
                         ),
-                      );
-                    }),
-                  ),
-                ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              "${totalFeedUsed.toStringAsFixed(totalFeedUsed % 1 == 0 ? 0 : 2)} kgs",
+                              style: GoogleFonts.roboto(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "Total feed Used",
+                              style: GoogleFonts.roboto(
+                                fontSize: 14,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Column(
+                      children: List.generate(dates.length, (index) {
+                        final tankDate = dates[index];
+
+                        if (!_mealControllers.containsKey(index)) {
+                          _mealControllers[index] = TextEditingController();
+                        }
+                        if (!_quantityControllers.containsKey(index)) {
+                          _quantityControllers[index] = TextEditingController();
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: DailyFeedCard(
+                            isLoading:
+                                _tankController.isAddingTodayTankQuntity.value,
+                            record: DailyFeedRecord(
+                              date: tankDate.date,
+                              isExpanded:
+                                  !(_collapsed[tankDate.date] ??
+                                      !_isToday(tankDate.date)),
+                              entries: tankDate.tankDateHistory.map((item) {
+                                return MealEntry(
+                                  item.meals.toString(),
+                                  item.feedQuantity.toString(),
+                                  historyId: item.id,
+                                );
+                              }).toList(),
+                            ),
+                            mealController:
+                                _mealControllers[index] ??
+                                TextEditingController(),
+                            quantityController:
+                                _quantityControllers[index] ??
+                                TextEditingController(),
+                            onTapHeader: () => setState(() {
+                              _collapsed[tankDate.date] =
+                                  !(_collapsed[tankDate.date] ??
+                                      !_isToday(tankDate.date));
+                            }),
+                            onAdd: () => _submitEntry(index, tankDate.date),
+                            onEditEntry: (entry) => _beginEdit(index, entry),
+                            isEditing: _editing.containsKey(index),
+                            onCancelEdit: () => _cancelEdit(index),
+                            onDeleteEntry: (entry) =>
+                                _deleteEntry(index, entry),
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
               ),
             ),
             if (_tankController.isAddingTodayTankQuntity.value)
@@ -422,6 +463,27 @@ class DailyFeedCard extends StatelessWidget {
     required this.isLoading,
   });
 
+  /// Feed recorded on this day, summed across its entries.
+  String _totalQuantity(List<MealEntry> entries) {
+    final total = entries.fold<double>(
+      0,
+      (sum, e) => sum + (double.tryParse(e.quantity) ?? 0),
+    );
+
+    // Whole numbers read better without a trailing .00.
+    return total % 1 == 0 ? total.toStringAsFixed(0) : total.toStringAsFixed(2);
+  }
+
+  /// Meals recorded on this day, summed across its entries.
+  String _totalMeals(List<MealEntry> entries) {
+    final total = entries.fold<int>(
+      0,
+      (sum, e) => sum + (int.tryParse(e.meal) ?? 0),
+    );
+
+    return total.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -445,7 +507,14 @@ class DailyFeedCard extends StatelessWidget {
           InkWell(
             onTap: record.isExpandable ? onTapHeader : null,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              // A closed card is only this header, so it carries its own
+              // bottom padding; an open one leaves it to the add row below.
+              padding: EdgeInsets.fromLTRB(
+                16,
+                record.isExpanded ? 16 : 20,
+                16,
+                record.isExpanded ? 0 : 20,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -458,6 +527,7 @@ class DailyFeedCard extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+
                       if (record.hasLink)
                         const Padding(
                           padding: EdgeInsets.only(left: 8.0),
@@ -469,6 +539,36 @@ class DailyFeedCard extends StatelessWidget {
                         ),
                     ],
                   ),
+
+                  // Centred in the gap between the date and the chevron, so
+                  // a collapsed card still says what happened that day.
+                  Expanded(
+                    child: Center(
+                      child: record.entries.isEmpty
+                          ? const SizedBox.shrink()
+                          : Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  "${_totalQuantity(record.entries)} kg",
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                Text(
+                                  "${_totalMeals(record.entries)} meals",
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+
                   if (record.isExpandable)
                     Icon(
                       record.isExpanded
@@ -480,88 +580,89 @@ class DailyFeedCard extends StatelessWidget {
               ),
             ),
           ),
-          // Input Fields & Add Button
-          // Input Fields & Add Button
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: mealController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintText: 'Enter Meals',
-                      hintStyle: GoogleFonts.roboto(
-                        color: Color(0xff908A8A),
-                        fontSize: 13,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade200, // light grey fill
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderSide: BorderSide.none, // remove border
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: quantityController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintStyle: GoogleFonts.roboto(
-                        color: Color(0xff908A8A),
-                        fontSize: 13,
-                      ),
-                      hintText: 'Enter Feed Quantity',
-                      filled: true,
-                      fillColor: Colors.grey.shade200,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderSide: BorderSide.none,
-                        borderRadius: BorderRadius.circular(8),
+          // Input fields + Add button — part of the open card, so a closed
+          // card is just the date, its total, and the chevron.
+          if (record.isExpanded)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: mealController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        hintText: 'Enter Meals',
+                        hintStyle: GoogleFonts.roboto(
+                          color: Color(0xff908A8A),
+                          fontSize: 13,
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade200, // light grey fill
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide.none, // remove border
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: TextButton.icon(
-                    onPressed: !isLoading ? onAdd : null,
-                    icon: Icon(
-                      isEditing ? Icons.check : Icons.add,
-                      color: Colors.white,
-                      size: 20,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: quantityController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        hintStyle: GoogleFonts.roboto(
+                          color: Color(0xff908A8A),
+                          fontSize: 13,
+                        ),
+                        hintText: 'Enter Feed Quantity',
+                        filled: true,
+                        fillColor: Colors.grey.shade200,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
                     ),
-                    label: Text(
-                      isEditing ? 'Update' : 'Add',
-                      style: GoogleFonts.roboto(color: Colors.white),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: TextButton.icon(
+                      onPressed: !isLoading ? onAdd : null,
+                      icon: Icon(
+                        isEditing ? Icons.check : Icons.add,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      label: Text(
+                        isEditing ? 'Update' : 'Add',
+                        style: GoogleFonts.roboto(color: Colors.white),
+                      ),
                     ),
                   ),
-                ),
-                if (isEditing && onCancelEdit != null)
-                  IconButton(
-                    tooltip: 'Cancel edit',
-                    onPressed: onCancelEdit,
-                    icon: const Icon(Icons.close, size: 20),
-                  ),
-              ],
+                  if (isEditing && onCancelEdit != null)
+                    IconButton(
+                      tooltip: 'Cancel edit',
+                      onPressed: onCancelEdit,
+                      icon: const Icon(Icons.close, size: 20),
+                    ),
+                ],
+              ),
             ),
-          ),
 
           // Meal Entries
           if (record.isExpanded && record.entries.isNotEmpty)
@@ -622,22 +723,22 @@ class DailyFeedCard extends StatelessWidget {
                                       ),
                                     ),
                                     if (onEditEntry != null) ...[
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 10),
                                       Icon(
                                         Icons.edit_outlined,
-                                        size: 16,
+                                        size: 22,
                                         color: AppColors.primary,
                                       ),
                                     ],
                                     if (onDeleteEntry != null) ...[
-                                      const SizedBox(width: 4),
+                                      const SizedBox(width: 6),
                                       InkWell(
                                         onTap: () => onDeleteEntry!(entry),
                                         child: const Padding(
                                           padding: EdgeInsets.all(4),
                                           child: Icon(
                                             Icons.delete_outline,
-                                            size: 18,
+                                            size: 24,
                                             color: Colors.red,
                                           ),
                                         ),

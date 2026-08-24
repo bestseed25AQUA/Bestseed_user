@@ -97,17 +97,16 @@ class FarmListController extends GetxController {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         CustomToast.success("Farm added successfully ✔");
-        isOverlay(false);
         return true;
-      } else {
-        final msg = parseErrorMessage(response);
-        CustomToast.error(msg);
       }
+
+      CustomToast.error(parseErrorMessage(response));
     } catch (e) {
       CustomToast.error("Error  ");
+    } finally {
+      isOverlay(false);
     }
-    isOverlay(false);
-    // ignore: control_flow_in_finally
+
     return false;
   }
 
@@ -172,14 +171,18 @@ class FarmListController extends GetxController {
       if (response.statusCode == 200) {
         CustomToast.success("Farm updated successfully ");
         return true;
-      } else {
-        CustomToast.error("Failed to update farm");
       }
+
+      CustomToast.error("Failed to update farm");
     } catch (e) {
       CustomToast.error("Something went wrong");
+    } finally {
+      // In a finally: the success path returns from inside the try, so a
+      // trailing isOverlay(false) never ran and the Update button span for
+      // ever after a successful edit.
+      isOverlay(false);
     }
-    isOverlay(false);
-    // ignore: control_flow_in_finally
+
     return false;
   }
 

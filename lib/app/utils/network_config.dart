@@ -4,10 +4,13 @@ class NetworkConfig {
   // ----------------------------------------------------------------
   // INTERNAL DEV TESTING
   // ----------------------------------------------------------------
-  // LOCAL: this Mac on the LAN. Works from the simulator AND a physical device
-  // on the same Wi-Fi. Requires: php artisan serve --host=0.0.0.0 --port=8100
-  static const baseURL = "http://192.168.1.7:8100/api";
-  // "https://lemonchiffon-dragonfly-369328.hostingersite.com/api";
+  // LOCAL, for the iOS simulator: it shares this Mac's network, so 127.0.0.1
+  // works and — unlike the LAN IP — never changes when DHCP moves you.
+  // For a PHYSICAL device swap this for the Mac's LAN IP (ipconfig getifaddr en0).
+  // Either way: php artisan serve --host=0.0.0.0 --port=8100
+  static const baseURL =
+      // "http://127.0.0.1:8100/api";
+      "https://lemonchiffon-dragonfly-369328.hostingersite.com/api";
   // "http://192.168.0.104:8000/api";
   // "https://staging.bestseed.in/api";
   // "https://bestseed.in/api";
@@ -16,9 +19,9 @@ class NetworkConfig {
 
   // static const imageURL = "https://aqua.bestseed.in";
   // static const imageURL = "https://bestseed.in";
-  static const imageURL = "http://192.168.1.7:8100";
-  // static const imageURL =
-  // "https://lemonchiffon-dragonfly-369328.hostingersite.com";
+  // static const imageURL = "http://127.0.0.1:8100";
+  static const imageURL =
+      "https://lemonchiffon-dragonfly-369328.hostingersite.com";
   // static const imageURL = "http://192.168.31.8:8000";
 
   // Injected at build time from the gitignored secrets.json — see [AppKeys].

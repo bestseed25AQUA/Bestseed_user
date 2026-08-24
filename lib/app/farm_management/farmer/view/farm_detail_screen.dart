@@ -42,9 +42,24 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
   bool _lowFeedWarned = false;
   Worker? _storeWatcher;
 
+  /// Shared by the scroll view and its Scrollbar, so the thumb tracks the list.
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
+
+    // Clear the busy flags before anything else.
+    //
+    // TankController is shared across four screens and outlives any one of
+    // them, so a spinner raised by an earlier action — a status toggle whose
+    // request stalled, or a save the user backed out of — was still set when
+    // this screen opened, leaving it dimmed under a spinner that nothing was
+    // going to clear. A screen that has just opened is not busy.
+    tankController.isUpdatingTankStatus(false);
+    tankController.isAddingTodayTankQuntity(false);
+    tankController.isOverlay(false);
+
     tankController.getTankList(widget.farmId);
     tankController.getFeedStore(int.parse(widget.farmId));
     _maybeWarnLowFeed();
@@ -60,6 +75,7 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
   @override
   void dispose() {
     _storeWatcher?.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -135,44 +151,53 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
         return Stack(
           children: [
             Positioned.fill(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    FeedStoreCard(farmId: widget.farmId),
-                    const SizedBox(height: 16),
+              // A visible thumb down the right edge: with a dozen tanks there
+              // is no other clue as to how much list is left below the fold.
+              child: Scrollbar(
+                controller: _scrollController,
+                thumbVisibility: true,
+                radius: const Radius.circular(8),
+                thickness: 4,
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      FeedStoreCard(farmId: widget.farmId),
+                      const SizedBox(height: 16),
 
-                    ...tankPairs.map((pair) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TankStatusCard(
-                                farmName: widget.farmName,
-                                tank: pair[0],
-                                controller: tankController,
-                                farmId: widget.farmId,
+                      ...tankPairs.map((pair) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TankStatusCard(
+                                  farmName: widget.farmName,
+                                  tank: pair[0],
+                                  controller: tankController,
+                                  farmId: widget.farmId,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 16),
+                              const SizedBox(width: 16),
 
-                            // if odd number → show empty box
-                            Expanded(
-                              child: pair.length > 1
-                                  ? TankStatusCard(
-                                      farmName: widget.farmName,
-                                      tank: pair[1],
-                                      controller: tankController,
-                                      farmId: widget.farmId,
-                                    )
-                                  : const SizedBox(),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                  ],
+                              // if odd number → show empty box
+                              Expanded(
+                                child: pair.length > 1
+                                    ? TankStatusCard(
+                                        farmName: widget.farmName,
+                                        tank: pair[1],
+                                        controller: tankController,
+                                        farmId: widget.farmId,
+                                      )
+                                    : const SizedBox(),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -258,7 +283,7 @@ class FeedStoreCard extends StatelessWidget {
               Column(
                 children: [
                   Text(
-                    "Store",
+                    "Remaining Stock",
                     style: GoogleFonts.roboto(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -266,8 +291,11 @@ class FeedStoreCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
+                  // What is LEFT, not what was put in: the raw store figure
+                  // never moves as feed is recorded, so it read as though
+                  // nothing had been used.
                   Text(
-                    data?.feedStore.toString() ?? "0",
+                    (data?.remainingStore ?? data?.feedStore ?? 0).toString(),
                     style: GoogleFonts.roboto(
                       color: Colors.white,
                       fontSize: 24,
@@ -784,6 +812,9 @@ void showEditFeedBottomSheet(String farmId) {
   final storeController = TextEditingController(
     text: controller.feedStoreData.value?.feedStore.toString(),
   );
+  final lowFeedController = TextEditingController(
+    text: controller.feedStoreData.value?.lowFeedLimit?.toString() ?? '',
+  );
 
   Get.bottomSheet(
     SafeArea(
@@ -838,6 +869,19 @@ void showEditFeedBottomSheet(String farmId) {
             const SizedBox(height: 8),
             feedInputField(storeController, false),
 
+            const SizedBox(height: 20),
+
+            // Low feed limit — the threshold that triggers the alert.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                "Low feed limit",
+                style: GoogleFonts.roboto(fontSize: 16),
+              ),
+            ),
+            const SizedBox(height: 8),
+            feedInputField(lowFeedController, false),
+
             const SizedBox(height: 30),
 
             // Save Button
@@ -848,6 +892,7 @@ void showEditFeedBottomSheet(String farmId) {
                     farmId: farmId,
                     totalFeedUsed: totalFeedController.text.trim(),
                     feedStore: storeController.text.trim(),
+                    lowFeedLimit: lowFeedController.text.trim(),
                   );
 
                   if (ok) {

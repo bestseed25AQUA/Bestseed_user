@@ -352,6 +352,7 @@ class TankController extends GetxController {
     required dynamic farmId,
     required String totalFeedUsed,
     required String feedStore,
+    String lowFeedLimit = '',
   }) async {
     try {
       isOverlay(true);
@@ -363,6 +364,7 @@ class TankController extends GetxController {
         body: {
           // "total_feed_used": totalFeedUsed,
           "store": feedStore,
+          if (lowFeedLimit.isNotEmpty) "low_feed_limit": lowFeedLimit,
         },
       );
 
