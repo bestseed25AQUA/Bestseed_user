@@ -377,10 +377,7 @@ class _MemberCard extends StatelessWidget {
                     if (value == 'remove') onRemove();
                   },
                   itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Text('Change access'),
-                    ),
+                    PopupMenuItem(value: 'edit', child: Text('Change access')),
                     PopupMenuItem(
                       value: 'remove',
                       child: Text('Remove access'),
@@ -457,10 +454,7 @@ class _MemberCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color),
       ),
-      child: Text(
-        label,
-        style: GoogleFonts.roboto(fontSize: 12, color: color),
-      ),
+      child: Text(label, style: GoogleFonts.roboto(fontSize: 12, color: color)),
     );
   }
 }
@@ -594,7 +588,9 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
           canDelete: _canDelete,
         );
 
-        if (grant == null) return false;
+        if (grant == null) {
+          return 'Could not create the access code. Please try again.';
+        }
 
         // Anyone picked above gets access immediately, tied to this code so
         // revoking the QR revokes them too. Scanning still works as before for
@@ -603,7 +599,7 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
           await _grantDirect(grantId: grant.id, showToast: false);
         }
 
-        if (!mounted) return true;
+        if (!mounted) return null;
 
         // Close the PIN sheet, then swap this form for the QR result so
         // backing out lands on the access list rather than the form again.
@@ -611,7 +607,7 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => QrGeneratedScreen(grant: grant)),
         );
-        return true;
+        return null;
       },
     );
   }
@@ -743,8 +739,7 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
                 _dropdownField(
                   value: _selectedDuration,
                   items: _durations,
-                  onChanged: (val) =>
-                      setState(() => _selectedDuration = val!),
+                  onChanged: (val) => setState(() => _selectedDuration = val!),
                 ),
                 const SizedBox(height: 24),
 

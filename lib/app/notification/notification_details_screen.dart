@@ -8,6 +8,8 @@ import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
 import 'package:seedsuser/app/best_deals/view/best_deals_screen.dart';
 
 import 'package:seedsuser/app/news & ads/view/climate_news_screen.dart';
+import 'package:seedsuser/app/farm_management/coming_soon_screen.dart';
+import 'package:seedsuser/app/farm_management/farm_management_feature.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
 import 'package:seedsuser/app/home/view/hatchery_filter_screen.dart';
 import 'package:seedsuser/app/home/view/hatchery_category_screen.dart';
@@ -55,9 +57,7 @@ class NotificationDetailScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: CustomAppBar(
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
+      appBar: CustomAppBar(iconTheme: const IconThemeData(color: Colors.black)),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,7 +104,10 @@ class NotificationDetailScreen extends StatelessWidget {
                       child: GestureDetector(
                         onTap: () => _navigateToModule(context, module!),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.blue.shade50,
                             borderRadius: BorderRadius.circular(6),
@@ -171,7 +174,11 @@ class NotificationDetailScreen extends StatelessWidget {
         screen = const ClimateNewsScreen();
         break;
       case 'Farm Management':
-        screen = const FarmManagementScreen();
+        // A push notification must not be a side door into a feature the
+        // home screen is still hiding.
+        screen = kFarmManagementEnabled
+            ? const FarmManagementScreen()
+            : const FarmManagementComingSoonScreen();
         break;
       case 'Hatchery':
         // If the notification is tied to a specific hatchery, open that
@@ -181,11 +188,13 @@ class NotificationDetailScreen extends StatelessWidget {
           // HatcheryCategoryController lifecycle — disposing and recreating it
           // on each entry. With Navigator.push the controller is left in a
           // stale state on re-entry, so a second tap doesn't refresh properly.
-          Get.to(() => HatcheryCateogryScreen(
-                hatcheryId: hatcheryId!,
-                hatcheryName: hatcheryName ?? '',
-                useHatcheryId: true,
-              ));
+          Get.to(
+            () => HatcheryCateogryScreen(
+              hatcheryId: hatcheryId!,
+              hatcheryName: hatcheryName ?? '',
+              useHatcheryId: true,
+            ),
+          );
           return;
         }
         screen = const HatcheryFilterScreen();
@@ -200,7 +209,10 @@ class NotificationDetailScreen extends StatelessWidget {
         screen = const MedicineNewsScreen();
         break;
       case 'Seed Request':
-        Navigator.push(context, AppAnimations.slideLeftToRight(SeedRequestsFormScreen()));
+        Navigator.push(
+          context,
+          AppAnimations.slideLeftToRight(SeedRequestsFormScreen()),
+        );
         return;
       case 'Spot Hatchery':
         screen = const SpotHatcheryScreen();

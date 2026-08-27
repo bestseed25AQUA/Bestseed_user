@@ -143,7 +143,12 @@ class TankController extends GetxController {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final link = jsonDecode(response.body)['download_link'];
-        if (link != null) return link.toString();
+
+        // The backend builds this from APP_URL, which on a dev machine is
+        // usually 127.0.0.1 — the phone itself, where no server is running.
+        // Re-point it at the host this build actually talks to, the same way
+        // farm images are handled.
+        if (link != null) return resolveMediaUrl(link.toString());
       }
 
       // Previously this fell back to a hardcoded CSV URL on another server,

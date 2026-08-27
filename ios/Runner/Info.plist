@@ -41,21 +41,17 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>This app needs camera access to scan the QR code shared by your farm manager or partner.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>This app needs access to your location to show nearby hatcheries and delivery tracking.</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>This app needs access to your location.</string>
+	<string>Bestseed uses the camera only when you tap Scan QR, so you can scan the QR code a farm owner or manager shows you and be given access to that farm. The camera is not used anywhere else in the app.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We need your location to show map.</string>
+	<string>Bestseed uses your location while you are using the app to show aquaculture seed hatcheries near you and to arrange delivery to your farm. For example, the home screen lists nearby hatcheries ordered by distance from you, your delivery address is pre-filled when you place a seed booking, and your delivery vehicle's live position is shown next to your own on the map. Your location is never collected in the background and is not used for advertising.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>This app needs microphone access to record your voice.</string>
+	<string>Bestseed uses the microphone only while you are using voice search, so you can speak a search instead of typing it — for example, saying “Vannamei” to find Vannamei seed hatcheries. Nothing is recorded or stored, and the microphone is off at all other times.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app needs access to your photo library to update profile picture.</string>
+	<string>Bestseed needs access to your photo library so you can pick a picture for your profile, and choose photos of your farm when you add or edit a farm in Farm Management. Only the photos you select are uploaded.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>This app needs speech recognition to convert your voice to text.</string>
+	<string>Bestseed uses speech recognition to turn your spoken search into text — for example, saying “Vannamei” types that word into the search box so we can show you matching hatcheries. It runs only while you are using voice search.</string>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>This app uses your data to provide personalized content and improve your experience.</string>
+	<string>Bestseed asks for this so we can measure which seed listings and offers you find useful and show you more relevant hatcheries and deals. If you choose Ask App Not to Track, the app works exactly the same and no tracking identifier is used.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

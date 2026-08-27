@@ -44,7 +44,8 @@ class FarmAccessController extends GetxController {
           final errors = decoded['errors'] as Map;
           if (errors.isNotEmpty) {
             final first = errors.values.first;
-            if (first is List && first.isNotEmpty) return first.first.toString();
+            if (first is List && first.isNotEmpty)
+              return first.first.toString();
           }
         }
       }
@@ -289,7 +290,9 @@ class FarmAccessController extends GetxController {
         return ScannedGrantPreview.fromJson(data);
       }
 
-      CustomToast.error(_messageFrom(response.body, 'This QR code is not valid'));
+      CustomToast.error(
+        _messageFrom(response.body, 'This QR code is not valid'),
+      );
       return null;
     } catch (_) {
       CustomToast.error('Could not verify this QR code');
@@ -300,7 +303,12 @@ class FarmAccessController extends GetxController {
   }
 
   /// Step 2 of scanning — confirms the PIN and completes the grant.
-  Future<bool> verifyPin({
+  ///
+  /// Returns null when the PIN was accepted, or the reason it was not, so the
+  /// PIN sheet can show it in place under the boxes. A wrong PIN is a normal
+  /// thing for a farmer to do; it does not deserve a toast that covers the
+  /// keyboard, and it must never look like a session failure.
+  Future<String?> verifyPin({
     required String token,
     required String pin,
     String? name,
@@ -319,13 +327,11 @@ class FarmAccessController extends GetxController {
         },
       );
 
-      if (response.statusCode == 200) return true;
+      if (response.statusCode == 200) return null;
 
-      CustomToast.error(_messageFrom(response.body, 'Incorrect PIN'));
-      return false;
+      return _messageFrom(response.body, 'Incorrect PIN. Please try again.');
     } catch (_) {
-      CustomToast.error('Could not verify the PIN');
-      return false;
+      return 'Could not verify the PIN. Check your connection and try again.';
     } finally {
       isSubmitting.value = false;
     }

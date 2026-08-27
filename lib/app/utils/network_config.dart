@@ -15,7 +15,7 @@ class NetworkConfig {
       // until they time out. This PC is .202 (ipconfig / Get-NetIPAddress),
       // and DHCP can move it, so re-check the last octet if the app starts
       // timing out again after a reconnect.
-      "http://192.168.29.202:8000/api";
+      "http://192.168.1.7:8000/api";
   // "https://staging.bestseed.in/api";
   // "https://bestseed.in/api";
   // "https://aqua.bestseed.in/api";
@@ -25,8 +25,8 @@ class NetworkConfig {
   // static const imageURL = "https://bestseed.in";
   // static const imageURL = "http://127.0.0.1:8100";
   // static const imageURL =
-      // "https://lemonchiffon-dragonfly-369328.hostingersite.com";
-  static const imageURL = "http://192.168.29.202:8000";
+  // "https://lemonchiffon-dragonfly-369328.hostingersite.com";
+  static const imageURL = "http://192.168.1.7:8000";
 
   // Injected at build time from the gitignored secrets.json — see [AppKeys].
   // Both names are kept because call sites use each; they are the same key.

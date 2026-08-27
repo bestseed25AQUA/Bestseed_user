@@ -17,7 +17,9 @@ class SetPinSheet extends StatefulWidget {
 
   /// Called with the 4-digit PIN. Returning false keeps the sheet open, which
   /// is what the verify step needs after a wrong PIN.
-  final Future<bool> Function(String pin) onConfirm;
+  /// Handles the entered PIN. Return null when it is accepted, or the message
+  /// to show in red under the boxes when it is not.
+  final Future<String?> Function(String pin) onConfirm;
 
   const SetPinSheet({
     super.key,
@@ -56,16 +58,20 @@ class _SetPinSheetState extends State<SetPinSheet> {
       _error = null;
     });
 
-    final ok = await widget.onConfirm(pin);
+    // null means accepted; anything else is the reason it was not.
+    final failure = await widget.onConfirm(pin);
 
     if (!mounted) return;
 
-    setState(() => _busy = false);
-
-    if (!ok) {
+    if (failure != null) {
       // Wrong PIN — clear so the next attempt starts from an empty field.
       _pinController.clear();
     }
+
+    setState(() {
+      _busy = false;
+      _error = failure;
+    });
   }
 
   @override
@@ -145,16 +151,50 @@ class _SetPinSheetState extends State<SetPinSheet> {
                 selectedColor: AppColors.primary,
                 inactiveColor: Colors.grey.shade400,
               ),
-              onChanged: (_) {
+              onChanged: (value) {
+                // Emptying the field in code after a failed attempt lands here
+                // too, with an empty value — and that used to wipe the message
+                // in the same frame it was set, so nothing was ever shown.
+                // Only real typing dismisses it.
+                if (value.isEmpty) return;
                 if (_error != null) setState(() => _error = null);
               },
               onCompleted: (_) => _submit(),
             ),
             if (_error != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                _error!,
-                style: GoogleFonts.roboto(color: Colors.red, fontSize: 12),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 18,
+                      color: Colors.red.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: GoogleFonts.roboto(
+                          color: Colors.red.shade700,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
             const SizedBox(height: 20),
@@ -180,7 +220,7 @@ Future<void> showPinSheet(
   required String title,
   required String subtitle,
   required String confirmLabel,
-  required Future<bool> Function(String pin) onConfirm,
+  required Future<String?> Function(String pin) onConfirm,
 }) {
   return showModalBottomSheet<void>(
     context: context,

@@ -13,6 +13,8 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:seedsuser/app/common/safe_network_image.dart';
 import 'package:seedsuser/app/utils/video_file_cache.dart';
 import 'package:seedsuser/app/dashboard/dashboard_controller.dart';
+import 'package:seedsuser/app/farm_management/coming_soon_screen.dart';
+import 'package:seedsuser/app/farm_management/farm_management_feature.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
@@ -465,6 +467,16 @@ class _HomePageState extends State<HomePage>
                         'Farm Management',
                         'assets/images/farm.png',
                         () {
+                          if (!kFarmManagementEnabled) {
+                            Navigator.push(
+                              context,
+                              AppAnimations.fade(
+                                const FarmManagementComingSoonScreen(),
+                              ),
+                            );
+                            return;
+                          }
+
                           final farmData =
                               _farmListController.farmList.value?.data;
 
@@ -705,7 +717,8 @@ class _HomePageState extends State<HomePage>
                               constraints.maxWidth,
                               constraints.maxHeight,
                             ),
-                            fallback: () => _featureCardFallback(iconPath, text),
+                            fallback: () =>
+                                _featureCardFallback(iconPath, text),
                           );
                         },
                       )
@@ -1161,8 +1174,12 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
           videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
         );
       } else {
-        debugPrint('🎥 [WIDGET] init — streaming (no cache yet), caching for next time');
-        VideoFileCache.instance.ensure(widget.url); // background, for next launch
+        debugPrint(
+          '🎥 [WIDGET] init — streaming (no cache yet), caching for next time',
+        );
+        VideoFileCache.instance.ensure(
+          widget.url,
+        ); // background, for next launch
         controller = VideoPlayerController.networkUrl(
           Uri.parse(widget.url),
           httpHeaders: const {
@@ -1175,9 +1192,7 @@ class _AutoLoopBannerVideoState extends State<_AutoLoopBannerVideo>
         );
       }
       _videoController = controller;
-      debugPrint(
-        '🎥 [WIDGET] init — initializing (poster shows meanwhile)...',
-      );
+      debugPrint('🎥 [WIDGET] init — initializing (poster shows meanwhile)...');
       // NO timeout — let ExoPlayer download at its own pace.
       // Shimmer/thumbnail shows in the meantime. If there's a real error,
       // ExoPlayer reports it via hasError which heartbeat catches.

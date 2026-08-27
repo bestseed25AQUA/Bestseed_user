@@ -68,7 +68,7 @@ class HarvestBottomSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 // Total Fields Display (Read-only/Fixed Value)
-                ReadOnlyInput(text: '${tank.store ?? 0} kgs'),
+                ReadOnlyInput(text: '${tank.totalFeedUsed ?? "0"} kgs'),
                 const SizedBox(height: 24),
 
                 // Days Label

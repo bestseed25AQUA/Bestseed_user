@@ -63,14 +63,14 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       subtitle: "Enter the 4-digit PIN to confirm it's you and continue.",
       confirmLabel: 'Confirm PIN',
       onConfirm: (pin) async {
-        final ok = await _accessController.verifyPin(
+        final failure = await _accessController.verifyPin(
           token: preview.token,
           pin: pin,
         );
 
-        if (!ok) return false;
+        if (failure != null) return failure;
 
-        if (!mounted) return true;
+        if (!mounted) return null;
 
         // Close the PIN sheet, then replace the scanner with the success page.
         Navigator.of(context).pop();
@@ -79,7 +79,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
             builder: (_) => AccessGrantedScreen(farmName: preview.farmName),
           ),
         );
-        return true;
+        return null;
       },
     );
 
@@ -142,9 +142,8 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
               children: [
                 MobileScanner(
                   controller: _scanner,
-                  errorBuilder: (context, error) => _CameraUnavailable(
-                    onUpload: _uploadFromGallery,
-                  ),
+                  errorBuilder: (context, error) =>
+                      _CameraUnavailable(onUpload: _uploadFromGallery),
                   onDetect: (capture) {
                     final raw = capture.barcodes.firstOrNull?.rawValue;
                     if (raw != null && raw.isNotEmpty) _handleToken(raw);
@@ -232,8 +231,11 @@ class _CameraUnavailable extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.no_photography_outlined,
-              color: Colors.white70, size: 48),
+          const Icon(
+            Icons.no_photography_outlined,
+            color: Colors.white70,
+            size: 48,
+          ),
           const SizedBox(height: 12),
           Text(
             'Camera is not available',
@@ -256,8 +258,7 @@ class _CameraUnavailable extends StatelessWidget {
             style: TextButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: AppColors.primary,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),

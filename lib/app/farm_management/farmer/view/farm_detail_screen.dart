@@ -191,7 +191,10 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      FeedStoreCard(farmId: widget.farmId, access: widget.access),
+                      FeedStoreCard(
+                        farmId: widget.farmId,
+                        access: widget.access,
+                      ),
                       const SizedBox(height: 16),
 
                       ...tankPairs.map((pair) {
@@ -284,36 +287,36 @@ class FeedStoreCard extends StatelessWidget {
               // and the row overflowed rather than wrapping.
               Flexible(
                 child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  Text(
-                    "Total feed used",
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.roboto(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Total feed used",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.roboto(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    data?.totalFeedUsed.toString() ?? "0",
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.roboto(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                    const SizedBox(height: 4),
+                    Text(
+                      data?.totalFeedUsed.toString() ?? "0",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.roboto(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  // InkWell(
-                  //   onTap: () {
-                  //     showEditFeedBottomSheet(farmId.toString());
-                  //   },
-                  //   child: EditButton(),
-                  // ),
-                ],
+                    const SizedBox(height: 8),
+                    // InkWell(
+                    //   onTap: () {
+                    //     showEditFeedBottomSheet(farmId.toString());
+                    //   },
+                    //   child: EditButton(),
+                    // ),
+                  ],
                 ),
               ),
 
@@ -580,69 +583,72 @@ class TankStatusCard extends StatelessWidget {
                     // colour still tells a view-only partner whether the tank
                     // is running, which is the point of the card. /tank/status
                     // requires `farm.access:edit`.
-                    onChanged: !access.canEdit ? null : (value) async {
-                      if (value) {
-                        controller.updateTankStatus(
-                          status: 1,
-                          tankId: tank.id.toString(),
-                          farmId: farmId,
-                        );
-                      } else {
-                        bool isUpdated = false;
+                    onChanged: !access.canEdit
+                        ? null
+                        : (value) async {
+                            if (value) {
+                              controller.updateTankStatus(
+                                status: 1,
+                                tankId: tank.id.toString(),
+                                farmId: farmId,
+                              );
+                            } else {
+                              bool isUpdated = false;
 
-                        await showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          useSafeArea: true,
-                          builder: (_) => SafeArea(
-                            top: false,
-                            child: HarvestBottomSheet(
-                              tank: tank,
-                              statusToUpdate: value ? 1 : 0,
-                              onSubmit: () async {
-                                isUpdated = await controller.updateTankStatus(
-                                  status: 0,
+                              await showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                useSafeArea: true,
+                                builder: (_) => SafeArea(
+                                  top: false,
+                                  child: HarvestBottomSheet(
+                                    tank: tank,
+                                    statusToUpdate: value ? 1 : 0,
+                                    onSubmit: () async {
+                                      isUpdated = await controller
+                                          .updateTankStatus(
+                                            status: 0,
+                                            tankId: tank.id.toString(),
+                                            farmId: farmId,
+                                          );
+                                      safeBack();
+                                    },
+                                  ),
+                                ),
+                              );
+
+                              await Future.delayed(const Duration(seconds: 2));
+
+                              if (isUpdated) {
+                                String? report = await controller.getReport(
                                   tankId: tank.id.toString(),
-                                  farmId: farmId,
                                 );
-                                safeBack();
-                              },
-                            ),
-                          ),
-                        );
 
-                        await Future.delayed(const Duration(seconds: 2));
+                                // No link means the report was not generated —
+                                // getReport has already said so. Offering Download
+                                // and Share for a link that does not exist only
+                                // produces a second, more confusing failure.
+                                final safeContext = navigatorKey.currentContext;
+                                if (report == null ||
+                                    report.isEmpty ||
+                                    safeContext == null) {
+                                  return;
+                                }
 
-                        if (isUpdated) {
-                          String? report = await controller.getReport(
-                            tankId: tank.id.toString(),
-                          );
-
-                          // No link means the report was not generated —
-                          // getReport has already said so. Offering Download
-                          // and Share for a link that does not exist only
-                          // produces a second, more confusing failure.
-                          final safeContext = navigatorKey.currentContext;
-                          if (report == null ||
-                              report.isEmpty ||
-                              safeContext == null) {
-                            return;
-                          }
-
-                          showReportPopup(
-                            safeContext,
-                            tankName: tank.tankName ?? 'Tank',
-                            () async {
-                              downloadReport(report);
-                            },
-                            () {
-                              shareReport(report);
-                            },
-                          );
-                        }
-                      }
-                    },
+                                showReportPopup(
+                                  safeContext,
+                                  tankName: tank.tankName ?? 'Tank',
+                                  () async {
+                                    downloadReport(report);
+                                  },
+                                  () {
+                                    shareReport(report);
+                                  },
+                                );
+                              }
+                            }
+                          },
                   ),
                 ),
               ],
@@ -722,133 +728,133 @@ void showReportPopup(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                // Skip button (top right)
-                Align(
-                  alignment: Alignment.topRight,
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Padding(
-                      padding: EdgeInsets.only(top: 10, right: 10),
-                      child: Text(
-                        "Skip",
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                // Report Image
-                Image.asset(
-                  "assets/images/report.png",
-                  width: 180,
-                  height: 180,
-                  fit: BoxFit.contain,
-                ),
-
-                const SizedBox(height: 10),
-
-                // Title — the tank the report is actually for. This read
-                // "Tank 1" for every tank on every farm.
-                Text(
-                  "$tankName Feed Report Document",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-
-                const SizedBox(height: 18),
-
-                // Buttons Row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    /// DOWNLOAD BUTTON
-                    Expanded(
-                      child: Container(
-                        width: 150,
-                        height: 45,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 1.63,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xffD9F1FF),
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: InkWell(
-                          onTap: ontapDownload,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Image.asset(
-                                "assets/images/download.png",
-                                width: 24,
-                                height: 24,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                "Download",
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                  // Skip button (top right)
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: const Padding(
+                        padding: EdgeInsets.only(top: 10, right: 10),
+                        child: Text(
+                          "Skip",
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ),
-                    SizedBox(width: 20),
+                  ),
 
-                    /// SHARE BUTTON
-                    Expanded(
-                      child: Container(
-                        width: 150,
-                        height: 45,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 1.63,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: InkWell(
-                          onTap: ontapShare,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Image.asset(
-                                "assets/images/share.png",
-                                width: 24,
-                                height: 24,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                "Share",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
+                  const SizedBox(height: 10),
+
+                  // Report Image
+                  Image.asset(
+                    "assets/images/report.png",
+                    width: 180,
+                    height: 180,
+                    fit: BoxFit.contain,
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Title — the tank the report is actually for. This read
+                  // "Tank 1" for every tank on every farm.
+                  Text(
+                    "$tankName Feed Report Document",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // Buttons Row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      /// DOWNLOAD BUTTON
+                      Expanded(
+                        child: Container(
+                          width: 150,
+                          height: 45,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 1.63,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xffD9F1FF),
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: InkWell(
+                            onTap: ontapDownload,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Image.asset(
+                                  "assets/images/download.png",
+                                  width: 24,
+                                  height: 24,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 8),
+                                const Text(
+                                  "Download",
+                                  style: TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                      SizedBox(width: 20),
+
+                      /// SHARE BUTTON
+                      Expanded(
+                        child: Container(
+                          width: 150,
+                          height: 45,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 1.63,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: InkWell(
+                            onTap: ontapShare,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Image.asset(
+                                  "assets/images/share.png",
+                                  width: 24,
+                                  height: 24,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  "Share",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -935,139 +941,139 @@ void showEditFeedBottomSheet(String farmId) {
       // the sheet reported an overflow instead of scrolling.
       child: Builder(
         builder: (sheetContext) => Container(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: 20 + MediaQuery.viewInsetsOf(sheetContext).bottom,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: 20 + MediaQuery.viewInsetsOf(sheetContext).bottom,
           ),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Close Button
-            Align(
-              alignment: Alignment.topRight,
-              child: GestureDetector(
-                onTap: () => safeBack(),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.black26),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(30),
+              topRight: Radius.circular(30),
+            ),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Close Button
+                Align(
+                  alignment: Alignment.topRight,
+                  child: GestureDetector(
+                    onTap: () => safeBack(),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.black26),
+                      ),
+                      child: const Icon(Icons.close, size: 18),
+                    ),
                   ),
-                  child: const Icon(Icons.close, size: 18),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-            // Total feed used
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Total feed used",
-                style: GoogleFonts.roboto(fontSize: 16),
-              ),
-            ),
-            const SizedBox(height: 8),
-            feedInputField(totalFeedController, true),
+                // Total feed used
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Total feed used",
+                    style: GoogleFonts.roboto(fontSize: 16),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                feedInputField(totalFeedController, true),
 
-            const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-            // Store
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text("Store", style: GoogleFonts.roboto(fontSize: 16)),
-            ),
-            const SizedBox(height: 8),
-            feedInputField(storeController, false),
+                // Store
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text("Store", style: GoogleFonts.roboto(fontSize: 16)),
+                ),
+                const SizedBox(height: 8),
+                feedInputField(storeController, false),
 
-            const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-            // Low feed limit — the threshold that triggers the alert.
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Low feed limit",
-                style: GoogleFonts.roboto(fontSize: 16),
-              ),
-            ),
-            const SizedBox(height: 8),
-            feedInputField(lowFeedController, false),
+                // Low feed limit — the threshold that triggers the alert.
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Low feed limit",
+                    style: GoogleFonts.roboto(fontSize: 16),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                feedInputField(lowFeedController, false),
 
-            const SizedBox(height: 30),
+                const SizedBox(height: 30),
 
-            // Save Button
-            Obx(() {
-              return GestureDetector(
-                onTap: () async {
-                  // Don't fire a second request while one is in flight — a
-                  // double tap on Save sent the update twice.
-                  if (controller.isOverlay.value) return;
+                // Save Button
+                Obx(() {
+                  return GestureDetector(
+                    onTap: () async {
+                      // Don't fire a second request while one is in flight — a
+                      // double tap on Save sent the update twice.
+                      if (controller.isOverlay.value) return;
 
-                  final store = storeController.text.trim();
-                  final lowLimit = lowFeedController.text.trim();
+                      final store = storeController.text.trim();
+                      final lowLimit = lowFeedController.text.trim();
 
-                  // The server rejects a non-numeric store with a 422 the
-                  // screen reports only as "Failed to update feed". Say what
-                  // is actually wrong, before sending it.
-                  if (store.isEmpty || double.tryParse(store) == null) {
-                    CustomToast.error('Enter the store quantity in Kgs');
-                    return;
-                  }
-                  if (lowLimit.isNotEmpty &&
-                      double.tryParse(lowLimit) == null) {
-                    CustomToast.error('Enter the low feed limit in Kgs');
-                    return;
-                  }
+                      // The server rejects a non-numeric store with a 422 the
+                      // screen reports only as "Failed to update feed". Say what
+                      // is actually wrong, before sending it.
+                      if (store.isEmpty || double.tryParse(store) == null) {
+                        CustomToast.error('Enter the store quantity in Kgs');
+                        return;
+                      }
+                      if (lowLimit.isNotEmpty &&
+                          double.tryParse(lowLimit) == null) {
+                        CustomToast.error('Enter the low feed limit in Kgs');
+                        return;
+                      }
 
-                  bool ok = await controller.updateFeedStore(
-                    farmId: farmId,
-                    totalFeedUsed: totalFeedController.text.trim(),
-                    feedStore: store,
-                    lowFeedLimit: lowLimit,
+                      bool ok = await controller.updateFeedStore(
+                        farmId: farmId,
+                        totalFeedUsed: totalFeedController.text.trim(),
+                        feedStore: store,
+                        lowFeedLimit: lowLimit,
+                      );
+
+                      if (ok) {
+                        safeBack();
+                        controller.getFeedStore(farmId);
+                      }
+                    },
+                    child: Container(
+                      height: 50,
+                      width: double.infinity,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: controller.isOverlay.value
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              "Save",
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
                   );
+                }),
 
-                  if (ok) {
-                    safeBack();
-                    controller.getFeedStore(farmId);
-                  }
-                },
-                child: Container(
-                  height: 50,
-                  width: double.infinity,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: controller.isOverlay.value
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          "Save",
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                ),
-              );
-            }),
-
-            const SizedBox(height: 20),
-          ],
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
-        ),
         ),
       ),
     ),
