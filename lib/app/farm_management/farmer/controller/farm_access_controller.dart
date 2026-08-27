@@ -15,6 +15,17 @@ class FarmAccessController extends GetxController {
   /// People who have redeemed a code for that farm.
   final grantees = <FarmGrantee>[].obs;
 
+  /// Everyone who currently holds access to that farm, however they got it.
+  ///
+  /// This is the list the SERVER consults when it decides who may open a farm.
+  /// The Setup Access screen used to be built from `/manager/managers` and
+  /// `/partner/parteners` instead — a per-farm address book of names and phone
+  /// numbers that is not tied to any login, is readable only by the owner, and
+  /// has no bearing on access at all. So somebody who scanned a QR never
+  /// appeared there, and somebody typed in by hand appeared but could not open
+  /// the farm.
+  final members = <FarmMember>[].obs;
+
   final isLoading = false.obs;
   final isSubmitting = false.obs;
 
@@ -149,6 +160,66 @@ class FarmAccessController extends GetxController {
       CustomToast.error(_messageFrom(response.body, 'Could not give access'));
     } catch (_) {
       CustomToast.error('Could not give access. Please try again.');
+    }
+
+    return false;
+  }
+
+  /// Loads everyone who holds access to [farmId], for the Setup Access screen.
+  ///
+  /// Readable by any member, not just the owner, so a manager passing access
+  /// on can see who is already on the farm.
+  Future<void> fetchMembers({required int farmId}) async {
+    isLoading.value = true;
+    try {
+      final response = await getRequest(
+        endPoint: '$_base/farmer/farm/$farmId/members',
+        headers: await buildHeader(),
+      );
+
+      if (response.statusCode == 200) {
+        final list = jsonDecode(response.body)['data'] as List<dynamic>? ?? [];
+        members.value = list
+            .map((e) => FarmMember.fromJson(e as Map<String, dynamic>))
+            .toList();
+        return;
+      }
+
+      CustomToast.error(
+        _messageFrom(response.body, 'Could not load who has access'),
+      );
+    } catch (_) {
+      CustomToast.error('Could not load who has access');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// Takes one person's access away.
+  ///
+  /// The owner may remove anyone; a manager or partner may only remove someone
+  /// they themselves admitted — the server enforces that, so a member cannot
+  /// lock out the person who let them in.
+  Future<bool> revokeMember(int memberId) async {
+    isSubmitting.value = true;
+    try {
+      final response = await postRequest(
+        endPoint: '$_base/farmer/members/$memberId/revoke',
+        headers: await buildHeader(),
+        body: const {},
+      );
+
+      if (response.statusCode == 200) {
+        members.removeWhere((m) => m.id == memberId);
+        CustomToast.success('Access removed');
+        return true;
+      }
+
+      CustomToast.error(_messageFrom(response.body, 'Could not remove access'));
+    } catch (_) {
+      CustomToast.error('Could not remove access');
+    } finally {
+      isSubmitting.value = false;
     }
 
     return false;

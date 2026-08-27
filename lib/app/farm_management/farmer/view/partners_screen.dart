@@ -126,20 +126,32 @@ class PartnerCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: GoogleFonts.roboto(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+              // Expanded: a long partner name ran into the menu icon and
+              // overflowed the row.
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.roboto(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(phone, style: GoogleFonts.roboto(color: Colors.grey)),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      phone,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.roboto(color: Colors.grey),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               const Icon(Icons.more_vert, color: Colors.grey),
             ],
           ),
@@ -147,9 +159,9 @@ class PartnerCard extends StatelessWidget {
           // Access chips
           Row(
             children: [
-              _buildAccessChip(context, 'Edit Access', Colors.blue),
+              Flexible(child: _buildAccessChip(context, 'Edit Access', Colors.blue)),
               const SizedBox(width: 8),
-              _buildAccessChip(context, 'View Access', Colors.blue),
+              Flexible(child: _buildAccessChip(context, 'View Access', Colors.blue)),
             ],
           ),
         ],
@@ -168,7 +180,14 @@ class PartnerCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: GoogleFonts.roboto(fontSize: 12, color: color)),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.roboto(fontSize: 12, color: color),
+            ),
+          ),
           const SizedBox(width: 4),
           GestureDetector(
             onTap: () {
@@ -213,11 +232,15 @@ class _AddPartnersDetailsSheetState extends State<AddPartnersDetailsSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Add Partners Details',
-                style: GoogleFonts.roboto(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  'Add Partners Details',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.roboto(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               IconButton(

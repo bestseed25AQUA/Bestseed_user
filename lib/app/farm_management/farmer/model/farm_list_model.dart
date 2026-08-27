@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
 
 class FarmListModel {
   bool? status;
@@ -39,6 +40,12 @@ class FarmData {
   dynamic activeCount;
   dynamic inactiveCount;
 
+  /// What the logged-in farmer may do with THIS farm.
+  ///
+  /// The list endpoint returns one of these per farm precisely so the app can
+  /// hide what the caller cannot do; it was being dropped on the floor.
+  FarmAccess access = const FarmAccess.ownerFallback();
+
   FarmData({
     this.id,
     this.farmName,
@@ -69,6 +76,7 @@ class FarmData {
     images = json['images'] != null
         ? FarmImages.fromJson(json['images'])
         : null;
+    access = FarmAccess.fromJson(json['access'] as Map<String, dynamic>?);
   }
 
   Map<String, dynamic> toJson() {

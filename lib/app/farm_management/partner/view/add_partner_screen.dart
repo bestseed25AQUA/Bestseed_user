@@ -71,13 +71,17 @@ class _AddPartnerDetailsFormState extends State<AddPartnerDetailsForm> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  widget.partner == null
-                      ? "Add Partner Details"
-                      : "Edit Partner Details",
-                  style: GoogleFonts.roboto(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    widget.partner == null
+                        ? "Add Partner Details"
+                        : "Edit Partner Details",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.roboto(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 IconButton(

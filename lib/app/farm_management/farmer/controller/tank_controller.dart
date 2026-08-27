@@ -36,6 +36,10 @@ class TankController extends GetxController {
         // The API answers 404 when a farm has no tanks; without this the
         // previous list would linger after the last tank was removed.
         farmList.value = TankListModel(data: []);
+      } else {
+        // Anything else went unreported: the screen simply kept whatever it
+        // had and the farmer had no way to tell the list was stale.
+        CustomToast.error('Failed to fetch tank list');
       }
     } catch (e) {
       CustomToast.error('Failed to fetch tank list');
@@ -54,7 +58,6 @@ class TankController extends GetxController {
     String? mealId,
     String? farmId,
   }) async {
-    print('adding...');
 
     Map<String, String>? body = {
       "meals": mealQty,
@@ -67,9 +70,6 @@ class TankController extends GetxController {
     };
     String endPoint =
         "${NetworkConfig.baseURL}/farmer/tanks/add-todays-tanks-quantity";
-    print(endPoint);
-    print('=i===');
-    print(body);
     //  return false;
     try {
       isAddingTodayTankQuntity(true);
@@ -103,7 +103,6 @@ class TankController extends GetxController {
     required int status,
     required String farmId,
   }) async {
-    print('adding...');
     isUpdatingTankStatus(true);
     try {
       final response = await postRequest(
@@ -321,16 +320,19 @@ class TankController extends GetxController {
         endPoint: "${NetworkConfig.baseURL}/farmer/farm/feed-store/$farmId",
         headers: await buildHeader(),
       );
-      print('==========+++++++++============');
-       print(response.body.toString());
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        feedStoreData.value = FeedStoreModel.fromJson(data["data"]);
+
+        // A 200 with no "data" (the farm has no store row yet) used to throw
+        // inside fromJson and land in the catch as "Something went wrong".
+        // Nothing recorded is a valid answer, not an error.
+        if (data is Map && data["data"] != null) {
+          feedStoreData.value = FeedStoreModel.fromJson(data["data"]);
+        }
       } else {
         CustomToast.error("Failed to fetch feed store");
       }
-    } catch (e, s) {
-      print(s.toString());
+    } catch (e) {
       CustomToast.error("Something went wrong");
     } finally {
       if (!silent) isFeedLoading(false);

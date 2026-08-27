@@ -1,14 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/access_management_screen.dart';
 
 class SetupAccessGuideScreen extends StatelessWidget {
   /// Farm the access is being granted for — access grants are per-farm.
   final int farmId;
 
-  const SetupAccessGuideScreen({Key? key, required this.farmId})
-      : super(key: key);
+  /// What the logged-in farmer holds on that farm — passed straight through so
+  /// the access screen knows whether it may offer a QR (owner only) and which
+  /// permissions it is allowed to hand out.
+  final FarmAccess access;
+
+  /// Which tab the access screen opens on: 0 = Managers, 1 = Partners.
+  final int initialTab;
+
+  const SetupAccessGuideScreen({
+    Key? key,
+    required this.farmId,
+    this.access = const FarmAccess.ownerFallback(),
+    this.initialTab = 0,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -151,7 +164,11 @@ class SetupAccessGuideScreen extends StatelessWidget {
                             context,
                             MaterialPageRoute(
                               builder: (_) =>
-                                  AccessManagementScreen(farmId: farmId),
+                                  AccessManagementScreen(
+                                    farmId: farmId,
+                                    access: access,
+                                    initialTab: initialTab,
+                                  ),
                             ),
                           );
                         },

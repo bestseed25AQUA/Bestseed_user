@@ -3,23 +3,43 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_button.dart';
-import 'package:seedsuser/app/farm_management/manager/controller/manager_controller.dart';
-import 'package:seedsuser/app/farm_management/manager/model/manager_list_model.dart'
-    as mgr;
-import 'package:seedsuser/app/farm_management/partner/controller/partener_controller.dart';
-import 'package:seedsuser/app/farm_management/partner/model/partner_list_model.dart'
-    as prt;
+import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_access_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/qr_generated_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/set_pin_sheet.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farmer_picker.dart';
 
+/// Who currently holds access to one farm, and how to give or take it away.
+///
+/// Built entirely from `GET /farmer/farm/{id}/members` — the same table the
+/// server consults when it decides whether someone may open a farm. It used to
+/// be built from `/manager/managers` and `/partner/parteners`, a per-farm
+/// address book of names that is not tied to any login and grants nothing, so
+/// the two never agreed: a person who scanned a QR held access but was absent
+/// from this list, and a person typed in by hand appeared on it while the farm
+/// stayed invisible to them.
+///
+/// Open to members, not just the owner. Anyone holding access may pass on what
+/// they hold — the server caps the grant at the giver's own permissions.
 class AccessManagementScreen extends StatefulWidget {
-  /// Farm the access codes belong to.
+  /// Farm the access belongs to.
   final int farmId;
 
-  const AccessManagementScreen({super.key, required this.farmId});
+  /// What the logged-in farmer holds on that farm. Decides whether a QR can be
+  /// issued (owner only) and caps the permissions this screen may hand out.
+  final FarmAccess access;
+
+  /// 0 = Managers, 1 = Partners.
+  final int initialTab;
+
+  const AccessManagementScreen({
+    super.key,
+    required this.farmId,
+    this.access = const FarmAccess.ownerFallback(),
+    this.initialTab = 0,
+  });
 
   @override
   State<AccessManagementScreen> createState() => _AccessManagementScreenState();
@@ -28,15 +48,17 @@ class AccessManagementScreen extends StatefulWidget {
 class _AccessManagementScreenState extends State<AccessManagementScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final ManagerController _managerController = Get.put(ManagerController());
-  final PartnerController _partnerController = Get.put(PartnerController());
+  final FarmAccessController _access = Get.put(FarmAccessController());
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _managerController.fetchManagers(farmId: widget.farmId);
-    _partnerController.fetchPartners(farmId: widget.farmId);
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTab.clamp(0, 1),
+    );
+    _refresh();
   }
 
   @override
@@ -44,6 +66,8 @@ class _AccessManagementScreenState extends State<AccessManagementScreen>
     _tabController.dispose();
     super.dispose();
   }
+
+  Future<void> _refresh() => _access.fetchMembers(farmId: widget.farmId);
 
   @override
   Widget build(BuildContext context) {
@@ -65,32 +89,38 @@ class _AccessManagementScreenState extends State<AccessManagementScreen>
           ),
         ),
         actions: [
-          InkWell(
-            onTap: () => _onAddTap(),
-            child: Container(
-              margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.add, color: AppColors.primary, size: 18),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Add',
-                    style: GoogleFonts.roboto(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
+          // Hidden outright for someone who holds nothing to pass on — the
+          // server would refuse the grant, so offering Add is a dead end.
+          if (widget.access.canShareAccess)
+            InkWell(
+              onTap: _onAddTap,
+              child: Container(
+                margin: const EdgeInsets.only(right: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.add, color: AppColors.primary, size: 18),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Add',
+                      style: GoogleFonts.roboto(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -114,47 +144,65 @@ class _AccessManagementScreenState extends State<AccessManagementScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [_buildManagersTab(), _buildPartnersTab()],
+        children: [_buildTab(isPartner: false), _buildTab(isPartner: true)],
       ),
     );
   }
 
-  void _onAddTap() {
-    final initialRole = _tabController.index == 0 ? 'Manager' : 'Partner';
-    Navigator.push(
+  void _onAddTap() async {
+    final role = _tabController.index == 0 ? 'Manager' : 'Partner';
+
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => _AddAccessFormScreen(
           farmId: widget.farmId,
-          initialRole: initialRole,
-          onSaved: () {
-            _managerController.fetchManagers(farmId: widget.farmId);
-            _partnerController.fetchPartners(farmId: widget.farmId);
-          },
+          callerAccess: widget.access,
+          initialRole: role,
         ),
       ),
     );
+
+    await _refresh();
   }
 
-  // ── Managers Tab ──
-  Widget _buildManagersTab() {
+  Widget _buildTab({required bool isPartner}) {
     return Obx(() {
-      if (_managerController.isLoading.value) {
+      if (_access.isLoading.value) {
         return const ListTileShimmer();
       }
 
-      if (_managerController.managerList.isEmpty) {
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+      final people = _access.members
+          .where((m) => m.isPartner == isPartner)
+          .toList();
+
+      if (people.isEmpty) {
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          color: AppColors.primary,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             children: [
+              SizedBox(height: MediaQuery.sizeOf(context).height * 0.25),
               Icon(Icons.people_outline, size: 64, color: Colors.grey[300]),
               const SizedBox(height: 12),
               Text(
-                'No managers added yet',
+                isPartner ? 'No partners yet' : 'No managers yet',
+                textAlign: TextAlign.center,
                 style: GoogleFonts.roboto(
                   fontSize: 16,
                   color: Colors.grey[500],
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                widget.access.canShareAccess
+                    ? 'Tap Add to give someone access to this farm.'
+                    : 'Only people who can share access may add someone.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.roboto(
+                  fontSize: 13,
+                  color: Colors.grey[400],
                 ),
               ),
             ],
@@ -164,31 +212,31 @@ class _AccessManagementScreenState extends State<AccessManagementScreen>
 
       return Stack(
         children: [
-          ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _managerController.managerList.length,
-            itemBuilder: (context, index) {
-              final manager = _managerController.managerList[index];
-              return _ManagerCard(
-                manager: manager,
-                onEdit: () => _showEditManager(manager),
-                onRemoveAccess: (accessType) async {
-                  bool isRemove = await _managerController.removeAccess(
-                    id: manager.id.toString(),
-                    accessType: accessType,
-                  );
-                  if (isRemove)
-                    _managerController.fetchManagers(farmId: widget.farmId);
-                },
-                onDelete: () => _confirmDeleteManager(manager),
-              );
-            },
+          RefreshIndicator(
+            onRefresh: _refresh,
+            color: AppColors.primary,
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: people.length,
+              itemBuilder: (context, index) {
+                final member = people[index];
+                return _MemberCard(
+                  member: member,
+                  // Only offer the menu when there is something behind it. The
+                  // server lets the owner touch anyone and lets a member touch
+                  // only the people they admitted; it will still refuse, but
+                  // there is no reason to show a control that must fail.
+                  canManage: widget.access.canShareAccess,
+                  onEdit: () => _editMember(member),
+                  onRemove: () => _confirmRemove(member),
+                );
+              },
+            ),
           ),
-          if (_managerController.isAccessUpdating.value ||
-              _managerController.isCreateLoading.value ||
-              _managerController.isDeleting.value)
+          if (_access.isSubmitting.value)
             Container(
-              color: Colors.black.withOpacity(0.4),
+              color: Colors.black.withValues(alpha: 0.4),
               child: const Center(
                 child: CircularProgressIndicator(color: Colors.white),
               ),
@@ -198,207 +246,79 @@ class _AccessManagementScreenState extends State<AccessManagementScreen>
     });
   }
 
-  // ── Partners Tab ──
-  Widget _buildPartnersTab() {
-    return Obx(() {
-      if (_partnerController.isLoading.value) {
-        return const ListTileShimmer();
-      }
+  Future<void> _editMember(FarmMember member) async {
+    if (member.farmerId == null) {
+      CustomToast.error('This person has no account to update');
+      return;
+    }
 
-      if (_partnerController.partnerList.isEmpty) {
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.people_outline, size: 64, color: Colors.grey[300]),
-              const SizedBox(height: 12),
-              Text(
-                'No partners added yet',
-                style: GoogleFonts.roboto(
-                  fontSize: 16,
-                  color: Colors.grey[500],
-                ),
-              ),
-            ],
-          ),
-        );
-      }
-
-      return Stack(
-        children: [
-          ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _partnerController.partnerList.length,
-            itemBuilder: (context, index) {
-              final partner = _partnerController.partnerList[index];
-              return _PartnerCard(
-                partner: partner,
-                onEdit: () => _showEditPartner(partner),
-                onRemoveAccess: (accessType) async {
-                  bool success = await _partnerController.removePartnerAccess(
-                    id: partner.id.toString(),
-                    accessType: accessType,
-                  );
-                  if (success)
-                    _partnerController.fetchPartners(farmId: widget.farmId);
-                },
-                onDelete: () => _confirmDeletePartner(partner),
-              );
-            },
-          ),
-          if (_partnerController.isAccessUpdating.value ||
-              _partnerController.isCreateLoading.value ||
-              _partnerController.isDeleting.value)
-            Container(
-              color: Colors.black.withOpacity(0.4),
-              child: const Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              ),
-            ),
-        ],
-      );
-    });
-  }
-
-  // ── Edit actions ──
-  void _showEditManager(mgr.Manager manager) {
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => _AddAccessFormScreen(
           farmId: widget.farmId,
-          initialRole: 'Manager',
-          editManagerId: manager.id.toString(),
-          initialName: manager.name,
-          initialPhone: manager.phone,
-          initialEdit: manager.editAccess,
-          initialView: manager.viewAccess,
-          initialDelete: manager.deleteAccess,
-          initialCreate: manager.createAccess,
-          onSaved: () {
-            _managerController.fetchManagers(farmId: widget.farmId);
-            _partnerController.fetchPartners(farmId: widget.farmId);
-          },
+          callerAccess: widget.access,
+          initialRole: member.isPartner ? 'Partner' : 'Manager',
+          editing: member,
         ),
       ),
     );
+
+    await _refresh();
   }
 
-  void _showEditPartner(prt.Partner partner) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => _AddAccessFormScreen(
-          farmId: widget.farmId,
-          initialRole: 'Partner',
-          editPartnerId: partner.id.toString(),
-          initialName: partner.name,
-          initialPhone: partner.phone,
-          initialEdit: partner.editAccess,
-          initialView: partner.viewAccess,
-          initialDelete: false,
-          initialCreate: false,
-          onSaved: () {
-            _managerController.fetchManagers(farmId: widget.farmId);
-            _partnerController.fetchPartners(farmId: widget.farmId);
-          },
-        ),
-      ),
-    );
-  }
-
-  Future<void> _confirmDeleteManager(mgr.Manager manager) async {
-    bool confirm = await showDialog(
+  Future<void> _confirmRemove(FarmMember member) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Confirm Delete"),
-        content: const Text("Are you sure you want to delete this manager?"),
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Remove access?'),
+        content: Text(
+          '${member.name} will no longer be able to open this farm.',
+          style: GoogleFonts.roboto(fontSize: 14),
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel"),
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Remove', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
-    if (confirm == true) {
-      bool deleted = await _managerController.deleteManager(
-        id: manager.id.toString(),
-      );
-      if (deleted) _managerController.fetchManagers(farmId: widget.farmId);
-    }
-  }
 
-  Future<void> _confirmDeletePartner(prt.Partner partner) async {
-    bool confirm = await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Confirm Delete"),
-        content: const Text("Are you sure you want to delete this partner?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Delete", style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      bool deleted = await _partnerController.deletePartner(
-        id: partner.id.toString(),
-      );
-      if (deleted) _partnerController.fetchPartners(farmId: widget.farmId);
-    }
+    if (confirmed != true) return;
+
+    if (await _access.revokeMember(member.id)) await _refresh();
   }
 }
 
-// ── Manager Card ──
-class _ManagerCard extends StatelessWidget {
-  final mgr.Manager manager;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
-  final Function(String accessType)? onRemoveAccess;
+// ── One person's access ──
+class _MemberCard extends StatelessWidget {
+  final FarmMember member;
+  final bool canManage;
+  final VoidCallback onEdit;
+  final VoidCallback onRemove;
 
-  const _ManagerCard({
-    required this.manager,
-    this.onEdit,
-    this.onDelete,
-    this.onRemoveAccess,
+  const _MemberCard({
+    required this.member,
+    required this.canManage,
+    required this.onEdit,
+    required this.onRemove,
   });
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> accessButtons = [];
-    if (manager.editAccess) {
-      accessButtons.add(
-        _chip("Edit access", () => onRemoveAccess?.call("edit_access")),
-      );
-    }
-    if (manager.viewAccess) {
-      accessButtons.add(
-        _chip("View access", () => onRemoveAccess?.call("view_access")),
-      );
-    }
-    if (manager.deleteAccess) {
-      accessButtons.add(
-        _chip("Delete access", () => onRemoveAccess?.call("delete_access")),
-      );
-    }
-    if (manager.createAccess) {
-      accessButtons.add(
-        _chip("Create access", () => onRemoveAccess?.call("create_access")),
-      );
-    }
+    final chips = <Widget>[
+      if (member.permissions.view) _chip('View access', AppColors.primary),
+      if (member.permissions.edit) _chip('Edit access', AppColors.primary),
+      if (member.permissions.create) _chip('Create access', AppColors.primary),
+      if (member.permissions.delete) _chip('Delete access', Colors.red),
+    ];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -408,7 +328,7 @@ class _ManagerCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 6,
             offset: const Offset(0, 3),
           ),
@@ -425,277 +345,190 @@ class _ManagerCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      manager.name,
+                      member.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.roboto(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      manager.phone,
-                      style: GoogleFonts.roboto(
-                        fontSize: 14,
-                        color: Colors.grey[600],
+                    if (member.mobile != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        member.mobile!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.grey),
-                onSelected: (value) {
-                  if (value == 'edit') onEdit?.call();
-                  if (value == 'delete') onDelete?.call();
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  PopupMenuItem(value: 'delete', child: Text('Delete')),
-                ],
-              ),
+              _statusChip(member),
+              if (canManage)
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, color: Colors.grey),
+                  onSelected: (value) {
+                    if (value == 'edit') onEdit();
+                    if (value == 'remove') onRemove();
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Change access'),
+                    ),
+                    PopupMenuItem(
+                      value: 'remove',
+                      child: Text('Remove access'),
+                    ),
+                  ],
+                ),
             ],
           ),
-          const SizedBox(height: 12),
-          Wrap(spacing: 8, runSpacing: 4, children: accessButtons),
+          const SizedBox(height: 8),
+
+          // How they got in, and from whom. Without this an owner had no way
+          // to tell someone their manager let in from someone they admitted
+          // themselves — which is exactly what decides who may remove them.
+          Text(
+            [
+              member.via == 'qr' ? 'Joined by QR' : 'Added directly',
+              if (member.grantedBy != null) 'by ${member.grantedBy}',
+              if (member.expiresAt != null) '· ${_expiryLabel(member)}',
+            ].join(' '),
+            style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[600]),
+          ),
+
+          if (chips.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, runSpacing: 8, children: chips),
+          ] else ...[
+            const SizedBox(height: 12),
+            Text(
+              'No permissions left — this person can no longer open the farm.',
+              style: GoogleFonts.roboto(fontSize: 12, color: Colors.red),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _chip(String label, VoidCallback onRemove) {
-    return GestureDetector(
-      onTap: onRemove,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.primary),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.roboto(fontSize: 12, color: AppColors.primary),
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.close, size: 14, color: AppColors.primary),
-          ],
-        ),
-      ),
-    );
+  static String _expiryLabel(FarmMember member) {
+    final expires = member.expiresAt;
+    if (expires == null) return 'no expiry';
+
+    final days = expires.difference(DateTime.now()).inDays;
+    if (days < 0) return 'expired';
+    if (days == 0) return 'expires today';
+    return 'expires in $days day${days == 1 ? '' : 's'}';
   }
-}
 
-// ── Partner Card ──
-class _PartnerCard extends StatelessWidget {
-  final prt.Partner partner;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
-  final Function(String accessType)? onRemoveAccess;
+  Widget _statusChip(FarmMember member) {
+    if (member.isActive) return const SizedBox.shrink();
 
-  const _PartnerCard({
-    required this.partner,
-    this.onEdit,
-    this.onDelete,
-    this.onRemoveAccess,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final List<Widget> accessButtons = [];
-    if (partner.editAccess) {
-      accessButtons.add(
-        _chip("Edit access", () => onRemoveAccess?.call("edit_access")),
-      );
-    }
-    if (partner.viewAccess) {
-      accessButtons.add(
-        _chip("View access", () => onRemoveAccess?.call("view_access")),
-      );
-    }
-    if (partner.readAccess) {
-      accessButtons.add(
-        _chip("Read access", () => onRemoveAccess?.call("read_access")),
-      );
-    }
-    if (partner.createAccess) {
-      accessButtons.add(
-        _chip("Create access", () => onRemoveAccess?.call("create_access")),
-      );
-    }
-    if (partner.deleteAccess) {
-      accessButtons.add(
-        _chip("Delete access", () => onRemoveAccess?.call("delete_access")),
-      );
-    }
+    final revoked = member.status == 'revoked';
+    final color = revoked ? Colors.red : Colors.orange;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(right: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-        border: Border.all(color: Colors.grey.shade200),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      partner.name,
-                      style: GoogleFonts.roboto(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      partner.phone,
-                      style: GoogleFonts.roboto(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.grey),
-                onSelected: (value) {
-                  if (value == 'edit') onEdit?.call();
-                  if (value == 'delete') onDelete?.call();
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  PopupMenuItem(value: 'delete', child: Text('Delete')),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(spacing: 8, runSpacing: 4, children: accessButtons),
-        ],
+      child: Text(
+        revoked ? 'Removed' : 'Expired',
+        style: GoogleFonts.roboto(fontSize: 11, color: color),
       ),
     );
   }
 
-  Widget _chip(String label, VoidCallback onRemove) {
-    return GestureDetector(
-      onTap: onRemove,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.primary),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.roboto(fontSize: 12, color: AppColors.primary),
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.close, size: 14, color: AppColors.primary),
-          ],
-        ),
+  Widget _chip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.roboto(fontSize: 12, color: color),
       ),
     );
   }
 }
 
-// ── Unified Add/Edit Access Form Screen ──
+// ── Give or change access ──
 class _AddAccessFormScreen extends StatefulWidget {
   final int farmId;
+
+  /// What the person filling this form holds. Every toggle below is capped
+  /// against it, matching the server, which silently drops any permission the
+  /// giver does not hold and refuses the grant outright if that leaves nothing.
+  final FarmAccess callerAccess;
+
   final String initialRole;
-  final String? editManagerId;
-  final String? editPartnerId;
-  final String? initialName;
-  final String? initialPhone;
-  final bool initialEdit;
-  final bool initialView;
-  final bool initialDelete;
-  final bool initialCreate;
-  final VoidCallback? onSaved;
+
+  /// Set when changing an existing member's access rather than adding one.
+  final FarmMember? editing;
 
   const _AddAccessFormScreen({
     required this.farmId,
+    required this.callerAccess,
     required this.initialRole,
-    this.editManagerId,
-    this.editPartnerId,
-    this.initialName,
-    this.initialPhone,
-    this.initialEdit = false,
-    this.initialView = true,
-    this.initialDelete = false,
-    this.initialCreate = false,
-    this.onSaved,
+    this.editing,
   });
 
-  bool get isEditing => editManagerId != null || editPartnerId != null;
+  bool get isEditing => editing != null;
 
   @override
   State<_AddAccessFormScreen> createState() => _AddAccessFormScreenState();
 }
 
 class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
-  final ManagerController _managerController = Get.find<ManagerController>();
-  final PartnerController _partnerController = Get.find<PartnerController>();
-  final FarmAccessController _accessController = Get.put(
-    FarmAccessController(),
-  );
-
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
+  final FarmAccessController _access = Get.put(FarmAccessController());
 
   late String _selectedRole;
-  String _selectedDuration = '30 Days';
+  late String _selectedDuration;
 
-  /// People chosen to receive access directly. Optional: leave it empty and
-  /// the QR alone decides who gets in.
+  /// People chosen to receive access directly.
   List<Map<String, dynamic>> _selectedPeople = [];
-  late bool _canEdit;
+
   late bool _canView;
-  late bool _canDelete;
+  late bool _canEdit;
   late bool _canCreate;
+  late bool _canDelete;
+
   bool _isSaving = false;
 
   final List<String> _roles = ['Manager', 'Partner'];
   final List<String> _durations = ['30 Days', '60 Days', '90 Days', '1 Year'];
 
+  /// Only the owner may mint a QR — `/farm/{id}/access/generate` checks
+  /// ownership, not a permission flag, because the code is the farm's key.
+  /// A manager passing access on therefore grants people directly instead.
+  bool get _canIssueQr => widget.callerAccess.canManageAccessCodes;
+
   @override
   void initState() {
     super.initState();
     _selectedRole = widget.initialRole;
-    _canEdit = widget.initialEdit;
-    _canView = widget.initialView;
-    _canDelete = widget.initialDelete;
-    _canCreate = widget.initialCreate;
-    if (widget.initialName != null) _nameController.text = widget.initialName!;
-    if (widget.initialPhone != null)
-      _phoneController.text = widget.initialPhone!;
-  }
+    _selectedDuration = _durations.first;
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    super.dispose();
+    final existing = widget.editing?.permissions;
+    // Capped from the start: pre-ticking something the giver cannot grant only
+    // sets up a save that comes back changed.
+    _canView = (existing?.view ?? true) && widget.callerAccess.canView;
+    _canEdit = (existing?.edit ?? false) && widget.callerAccess.canEdit;
+    _canCreate = (existing?.create ?? false) && widget.callerAccess.canCreate;
+    _canDelete = (existing?.delete ?? false) && widget.callerAccess.canDelete;
   }
 
   /// '30 Days' → 30, '1 Year' → 365.
@@ -704,15 +537,44 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
     return int.tryParse(_selectedDuration.split(' ').first) ?? 30;
   }
 
+  /// Whole days left on the member being edited, so changing their permissions
+  /// does not silently reset their expiry to "never".
+  int? get _remainingDays {
+    final expires = widget.editing?.expiresAt;
+    if (expires == null) return null;
+
+    final days = expires.difference(DateTime.now()).inDays;
+    return days > 0 ? days : 1;
+  }
+
+  bool get _grantsAnything => _canView || _canEdit || _canCreate || _canDelete;
+
   Future<void> _onSave() async {
-    // Editing an existing person keeps the old update path — no new QR is
-    // issued, only their permissions change.
-    if (widget.isEditing) {
-      await _updateExistingPerson();
+    if (!_grantsAnything) {
+      CustomToast.error('Give at least one kind of access');
       return;
     }
 
-    // New access: the farmer sets a PIN, which pairs with the generated QR.
+    if (widget.isEditing) {
+      await _saveExisting();
+      return;
+    }
+
+    // No QR to issue: grant the picked people directly. This is the path a
+    // manager or partner takes when passing on access.
+    if (!_canIssueQr) {
+      if (_selectedPeople.isEmpty) {
+        CustomToast.error('Choose at least one person to give access to');
+        return;
+      }
+      await _grantDirect(grantId: null);
+      return;
+    }
+
+    await _generateQr();
+  }
+
+  Future<void> _generateQr() async {
     await showPinSheet(
       context,
       title: 'Set a PIN',
@@ -721,7 +583,7 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
           'ensure only trusted members can use it.',
       confirmLabel: 'Confirm',
       onConfirm: (pin) async {
-        final grant = await _accessController.generateAccess(
+        final grant = await _access.generateAccess(
           farmId: widget.farmId,
           role: _selectedRole.toLowerCase(),
           durationDays: _durationDays,
@@ -738,20 +600,7 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
         // revoking the QR revokes them too. Scanning still works as before for
         // anyone not on the list.
         if (_selectedPeople.isNotEmpty) {
-          await _accessController.grantAccessTo(
-            farmId: widget.farmId,
-            farmerIds: _selectedPeople
-                .map((p) => int.tryParse(p['id'].toString()) ?? 0)
-                .where((id) => id > 0)
-                .toList(),
-            role: _selectedRole.toLowerCase(),
-            canView: _canView,
-            canEdit: _canEdit,
-            canCreate: _canCreate,
-            canDelete: _canDelete,
-            durationDays: _durationDays,
-            grantId: grant.id,
-          );
+          await _grantDirect(grantId: grant.id, showToast: false);
         }
 
         if (!mounted) return true;
@@ -759,7 +608,6 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
         // Close the PIN sheet, then swap this form for the QR result so
         // backing out lands on the access list rather than the form again.
         Navigator.of(context).pop();
-        widget.onSaved?.call();
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => QrGeneratedScreen(grant: grant)),
         );
@@ -768,42 +616,66 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
     );
   }
 
-  /// Permission-only update for a manager/partner that already exists.
-  Future<void> _updateExistingPerson() async {
-    final name = _nameController.text.trim();
-    final phone = _phoneController.text.trim();
+  Future<void> _grantDirect({int? grantId, bool showToast = true}) async {
+    final ids = _selectedPeople
+        .map((p) => int.tryParse('${p['id']}') ?? 0)
+        .where((id) => id > 0)
+        .toList();
+
+    if (ids.isEmpty) return;
 
     setState(() => _isSaving = true);
 
-    bool success = false;
-    if (_selectedRole == 'Manager') {
-      success = await _managerController.createManager(
-        farmId: widget.farmId,
-        personName: name.isEmpty ? (widget.initialName ?? '') : name,
-        phoneNumber: phone.isEmpty ? (widget.initialPhone ?? '') : phone,
-        canEdit: _canEdit,
-        canView: _canView,
-        canDelete: _canDelete,
-        canCreate: _canCreate,
-        id: widget.editManagerId,
-      );
-    } else {
-      success = await _partnerController.createPartner(
-        farmId: widget.farmId,
-        name: name.isEmpty ? (widget.initialName ?? '') : name,
-        phone: phone.isEmpty ? (widget.initialPhone ?? '') : phone,
-        viewAccess: _canView,
-        editAccess: _canEdit,
-        id: widget.editPartnerId,
-      );
-    }
+    final ok = await _access.grantAccessTo(
+      farmId: widget.farmId,
+      farmerIds: ids,
+      role: _selectedRole.toLowerCase(),
+      canView: _canView,
+      canEdit: _canEdit,
+      canCreate: _canCreate,
+      canDelete: _canDelete,
+      durationDays: _durationDays,
+      grantId: grantId,
+    );
 
     if (!mounted) return;
     setState(() => _isSaving = false);
 
-    if (success) {
-      widget.onSaved?.call();
-      if (mounted) Navigator.pop(context);
+    if (ok && showToast) {
+      CustomToast.success('Access given');
+      Navigator.pop(context);
+    }
+  }
+
+  /// Change an existing member's permissions.
+  ///
+  /// The same members endpoint: it upserts on (farm, farmer), so re-sending a
+  /// person with different flags rewrites their access in place. Their
+  /// remaining days are sent back unchanged so an edit does not quietly turn a
+  /// 30-day grant into a permanent one.
+  Future<void> _saveExisting() async {
+    final farmerId = widget.editing?.farmerId;
+    if (farmerId == null) return;
+
+    setState(() => _isSaving = true);
+
+    final ok = await _access.grantAccessTo(
+      farmId: widget.farmId,
+      farmerIds: [farmerId],
+      role: _selectedRole.toLowerCase(),
+      canView: _canView,
+      canEdit: _canEdit,
+      canCreate: _canCreate,
+      canDelete: _canDelete,
+      durationDays: _remainingDays,
+    );
+
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+
+    if (ok) {
+      CustomToast.success('Access updated');
+      Navigator.pop(context);
     }
   }
 
@@ -818,7 +690,7 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          widget.isEditing ? 'Setup Access' : 'Setup Access',
+          widget.isEditing ? 'Change Access' : 'Setup Access',
           style: GoogleFonts.roboto(
             color: Colors.black,
             fontSize: 18,
@@ -830,101 +702,134 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 12),
-                  // ── Choose Role ──
-                  _sectionLabel('Choose Role'),
-                  const SizedBox(height: 8),
-                  _dropdownField(
-                    value: _selectedRole,
-                    items: _roles,
-                    onChanged: widget.isEditing
-                        ? null
-                        : (val) => setState(() => _selectedRole = val!),
+              if (widget.isEditing) ...[
+                const SizedBox(height: 4),
+                Text(
+                  widget.editing!.name,
+                  style: GoogleFonts.roboto(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 20),
-
-                  // ── Duration ──
-                  _sectionLabel('Duration'),
-                  const SizedBox(height: 8),
-                  _dropdownField(
-                    value: _selectedDuration,
-                    items: _durations,
-                    onChanged: (val) =>
-                        setState(() => _selectedDuration = val!),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // ── Give access to specific people ──
-                  // Not shown while editing one person's permissions: that
-                  // flow changes an existing member, it does not admit new ones.
-                  if (!widget.isEditing) ...[
-                    FarmerPicker(
-                      selected: _selectedPeople,
-                      onChanged: (people) =>
-                          setState(() => _selectedPeople = people),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // ── App Access ──
+                ),
+                if (widget.editing!.mobile != null)
                   Text(
-                    'App Access',
+                    widget.editing!.mobile!,
                     style: GoogleFonts.roboto(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Colors.grey[600],
                     ),
                   ),
-                  const SizedBox(height: 12),
+              ],
 
-                  _accessRow(
-                    'Do you want to give ',
-                    'edit access',
-                    ' to this Person ?',
-                    _canEdit,
-                    (v) => setState(() => _canEdit = v),
-                    labelColor: AppColors.primary,
-                  ),
-                  _accessRow(
-                    'Do you want to give ',
-                    'view access',
-                    ' to this Person ?',
-                    _canView,
-                    (v) => setState(() => _canView = v),
-                    labelColor: AppColors.primary,
-                  ),
-                  _accessRow(
-                    'Do you want to give ',
-                    'Delete access',
-                    ' to this Person ?',
-                    _canDelete,
-                    (v) => setState(() => _canDelete = v),
-                    labelColor: Colors.red,
-                  ),
-                  _accessRow(
-                    'Do you want to give ',
-                    'Create access',
-                    ' to this Person ?',
-                    _canCreate,
-                    (v) => setState(() => _canCreate = v),
-                    labelColor: AppColors.primary,
-                  ),
-                ],
+              const SizedBox(height: 12),
+              _sectionLabel('Choose Role'),
+              const SizedBox(height: 8),
+              _dropdownField(
+                value: _selectedRole,
+                items: _roles,
+                onChanged: widget.isEditing
+                    ? null
+                    : (val) => setState(() => _selectedRole = val!),
               ),
+              const SizedBox(height: 20),
+
+              // Editing keeps whatever is left of the existing grant, so a
+              // duration picker here would be a lie.
+              if (!widget.isEditing) ...[
+                _sectionLabel('Duration'),
+                const SizedBox(height: 8),
+                _dropdownField(
+                  value: _selectedDuration,
+                  items: _durations,
+                  onChanged: (val) =>
+                      setState(() => _selectedDuration = val!),
+                ),
+                const SizedBox(height: 24),
+
+                FarmerPicker(
+                  selected: _selectedPeople,
+                  onChanged: (people) =>
+                      setState(() => _selectedPeople = people),
+                ),
+                const SizedBox(height: 8),
+
+                Text(
+                  _canIssueQr
+                      ? 'Anyone picked here gets access straight away. Leave it '
+                            'empty and only the QR decides who gets in.'
+                      : 'Pick the people you want to give access to. Only the '
+                            'farm owner can issue a QR code.',
+                  style: GoogleFonts.roboto(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              Text(
+                'App Access',
+                style: GoogleFonts.roboto(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (!widget.callerAccess.isOwner) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'You can only pass on the access you hold yourself.',
+                  style: GoogleFonts.roboto(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+
+              // Each row is hidden when the giver does not hold that ability —
+              // the server would strip it anyway, and a toggle whose answer is
+              // ignored is worse than no toggle.
+              if (widget.callerAccess.canView)
+                _accessRow(
+                  'view access',
+                  _canView,
+                  (v) => setState(() => _canView = v),
+                ),
+              if (widget.callerAccess.canEdit)
+                _accessRow(
+                  'edit access',
+                  _canEdit,
+                  (v) => setState(() => _canEdit = v),
+                ),
+              if (widget.callerAccess.canCreate)
+                _accessRow(
+                  'Create access',
+                  _canCreate,
+                  (v) => setState(() => _canCreate = v),
+                ),
+              if (widget.callerAccess.canDelete)
+                _accessRow(
+                  'Delete access',
+                  _canDelete,
+                  (v) => setState(() => _canDelete = v),
+                  labelColor: Colors.red,
+                ),
 
               const SizedBox(height: 30),
 
-              // ── Generate QR Button ──
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: CustomButton(
-                  text: 'Generate QR',
-                  isLoading: _isSaving,
-                  onPressed: _onSave,
-                  borderRadius: 30,
+                child: Obx(
+                  () => CustomButton(
+                    text: widget.isEditing
+                        ? 'Save'
+                        : (_canIssueQr ? 'Generate QR' : 'Give Access'),
+                    isLoading: _isSaving || _access.isSubmitting.value,
+                    onPressed: _onSave,
+                    borderRadius: 30,
+                  ),
                 ),
               ),
               const SizedBox(height: 30),
@@ -942,26 +847,6 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: Colors.black87,
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: GoogleFonts.roboto(color: Colors.grey[400], fontSize: 14),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: AppColors.primary),
       ),
     );
   }
@@ -993,12 +878,10 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
   }
 
   Widget _accessRow(
-    String prefix,
     String highlight,
-    String suffix,
     bool value,
     Function(bool) onChanged, {
-    Color labelColor = Colors.blue,
+    Color labelColor = AppColors.primary,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -1009,7 +892,7 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
             text: TextSpan(
               style: GoogleFonts.roboto(fontSize: 13, color: Colors.black87),
               children: [
-                TextSpan(text: prefix),
+                const TextSpan(text: 'Do you want to give '),
                 TextSpan(
                   text: highlight,
                   style: TextStyle(
@@ -1018,7 +901,7 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                TextSpan(text: suffix),
+                const TextSpan(text: ' to this Person ?'),
               ],
             ),
           ),
@@ -1027,16 +910,20 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
             children: [
               Radio<bool>(
                 value: true,
+                // ignore: deprecated_member_use
                 groupValue: value,
                 activeColor: AppColors.primary,
+                // ignore: deprecated_member_use
                 onChanged: (v) => onChanged(v!),
               ),
               Text('Yes', style: GoogleFonts.roboto(fontSize: 14)),
               const SizedBox(width: 24),
               Radio<bool>(
                 value: false,
+                // ignore: deprecated_member_use
                 groupValue: value,
                 activeColor: AppColors.primary,
+                // ignore: deprecated_member_use
                 onChanged: (v) => onChanged(v!),
               ),
               Text('NO', style: GoogleFonts.roboto(fontSize: 14)),

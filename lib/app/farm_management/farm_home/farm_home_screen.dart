@@ -236,30 +236,40 @@ class _UserCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.roboto(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+              // Expanded/Flexible: the 137px image, the title and the chevron
+              // together are wider than this card on a small phone (and on any
+              // phone once the system font size is turned up), and the row
+              // overflowed. The title gives way first.
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.roboto(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(
-                      50.0,
-                    ), // Makes it look circular
-                    child: Image.asset(
-                      imageAsset, // Replace with your actual asset path
-                      width: 137,
-                      height: 137,
-                      fit: BoxFit.cover,
+                    const SizedBox(width: 16),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(
+                        50.0,
+                      ), // Makes it look circular
+                      child: Image.asset(
+                        imageAsset, // Replace with your actual asset path
+                        width: 137,
+                        height: 137,
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const Icon(Icons.arrow_circle_right, color: Colors.black),
             ],

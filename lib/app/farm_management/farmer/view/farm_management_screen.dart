@@ -5,13 +5,16 @@ import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/farm_management/farm_home/form_details_screen.dart';
+import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
 // import 'package:seedsuser/app/farm_management/farmer/controller/former_details_controller.dart'  hide FarmListController;
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_detail_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/feed_update_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/access_management_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/setup_access_guide_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/scanner_guide_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/qr_code_list_screen.dart';
@@ -19,9 +22,7 @@ import 'package:seedsuser/app/farm_management/farmer/view/scanned_details_screen
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/chat_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_options.dart';
-import 'package:seedsuser/app/farm_management/manager/view/manager_screen.dart';
 import 'package:seedsuser/app/farm_management/farm_home/notify_us_screen.dart';
-import 'package:seedsuser/app/farm_management/partner/view/partner_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
@@ -48,11 +49,15 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
   }
 
   List<FarmSection> get farmSections {
-    final data = controller.farmList.value?.data ?? [] as List<FarmData>?;
+    // `?? [] as List<FarmData>?` cast an empty List<dynamic>, which throws a
+    // TypeError the moment it is reached — and it IS reached whenever the farm
+    // list request fails, because this getter runs from build() as soon as
+    // isLoading drops. A typed empty list cannot throw.
+    final data = controller.farmList.value?.data ?? <FarmData>[];
 
     // The API returns farms oldest-first. Sort newest-first here so the most
     // recently added farm is at the TOP of the list.
-    final ordered = [...data!]
+    final ordered = [...data]
       ..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
 
     return ordered.map((e) {
@@ -60,8 +65,9 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
         lowFeedLimit: e.lowFeedLimit ?? '',
         noOfTanks: e.noOfTanks ?? 0,
         name: e.farmName ?? "Unknown Farm",
-        feedUsed: e.lowFeedLimit ?? "0 kgs",
-        store: e.store ?? "0 kgs",
+        // Empty, not "0 kgs": the card appends " kgs" itself, so that fallback
+        // rendered "0 kgs kgs" — and store being unset is not a store of zero.
+        store: e.store ?? '',
         activeCount: e.activeCount.toString(),
         inactiveCount: e.inactiveCount.toString(), // Static (Not in API)
         imageUrls: e.images?.imagesList ?? [],
@@ -69,6 +75,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
         stockingDate: e.stockingDate.toString(),
         totalFeedUsed: e.totalFeedUsed ?? 0,
         feedUsedBefore: e.feedUsedBefore,
+        access: e.access,
       );
     }).toList();
   }
@@ -87,7 +94,13 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
     // "!_dirty is not true" crash every frame. Navigating leaves exactly one
     // screen mounted, and the guard makes it fire once.
     return Obx(() {
-      if (!controller.isLoading.value && farmSections.isEmpty && !_handedOver) {
+      // `!hasLoadError`: an empty list after a FAILED request is not the same
+      // as a farmer with no farms, and handing over on it showed the
+      // add-your-first-farm screen to someone who simply had no signal.
+      if (!controller.isLoading.value &&
+          !controller.hasLoadError.value &&
+          farmSections.isEmpty &&
+          !_handedOver) {
         _handedOver = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
@@ -199,6 +212,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
                                 FarmTankListScreen(
                                   farmId: farms[index].id,
                                   farmName: farms[index].name,
+                                  access: farms[index].access,
                                 ),
                               );
                             },
@@ -288,6 +302,8 @@ class FarmCard extends StatelessWidget {
       ),
       child: Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: GoogleFonts.roboto(color: Colors.white, fontSize: 12),
       ),
     );
@@ -323,13 +339,31 @@ class FarmCard extends StatelessWidget {
                     right: 20,
                     child: InkWell(
                       onTap: () {
+                        // Every option below needs the farm id as a number.
+                        // It arrives here as a string built with `toString()`,
+                        // so a farm the API returned without an id becomes the
+                        // literal "null" and `int.parse` threw inside the tap
+                        // callback — an unhandled exception, and the sheet
+                        // simply did nothing. Resolve it once, up front.
+                        final farmIdNum = int.tryParse(farm.id);
+                        if (farmIdNum == null) {
+                          CustomToast.error('This farm is missing its id');
+                          return;
+                        }
+
                         showFarmBottomSheet(
                           context: context,
                           farmName: farm.name,
+                          access: farm.access,
                           onAddTankQty: () {
                             Navigator.pop(context);
                             tankController.getTankList(farm.id);
-                            Get.to(FeedUpdateScreen(farmId: farm.id));
+                            Get.to(
+                              FeedUpdateScreen(
+                                farmId: farm.id,
+                                access: farm.access,
+                              ),
+                            );
                           },
 
                           onTapAccessSetup: () {
@@ -341,28 +375,51 @@ class FarmCard extends StatelessWidget {
                             rootNav.push(
                               MaterialPageRoute(
                                 builder: (_) => SetupAccessGuideScreen(
-                                  farmId: int.parse(farm.id),
+                                  farmId: farmIdNum,
+                                  access: farm.access,
                                 ),
                               ),
                             );
                           },
 
+                          // Partners and Manager open the SAME list as Setup
+                          // Access, on the matching tab.
+                          //
+                          // They used to open PartnerScreen/ManagerScreen,
+                          // which read /partner/parteners and /manager/managers
+                          // — a per-farm address book of names that grants
+                          // nothing. Somebody who scanned a QR held access but
+                          // never showed up there, and somebody typed into it
+                          // showed up but could not open the farm. One list,
+                          // built from the table the server actually checks,
+                          // is the only way the two can agree.
                           onPartners: () {
                             Navigator.pop(context);
-                            Get.to(PartnerScreen(farmId: int.parse(farm.id)));
-                            print("Partners clicked");
+                            Get.to(
+                              () => AccessManagementScreen(
+                                farmId: farmIdNum,
+                                access: farm.access,
+                                initialTab: 1,
+                              ),
+                            );
                           },
 
                           onManager: () {
                             Navigator.pop(context);
-                            Get.to(ManagerScreen(farmId: int.parse(farm.id)));
+                            Get.to(
+                              () => AccessManagementScreen(
+                                farmId: farmIdNum,
+                                access: farm.access,
+                                initialTab: 0,
+                              ),
+                            );
                           },
 
                           onQrCodes: () {
                             Navigator.pop(context);
                             Get.to(
                               () =>
-                                  QrCodeListScreen(farmId: int.parse(farm.id)),
+                                  QrCodeListScreen(farmId: farmIdNum),
                             );
                           },
 
@@ -370,7 +427,7 @@ class FarmCard extends StatelessWidget {
                             Navigator.pop(context);
                             Get.to(
                               () => ScannedDetailsScreen(
-                                farmId: int.parse(farm.id),
+                                farmId: farmIdNum,
                               ),
                             );
                           },
@@ -380,16 +437,22 @@ class FarmCard extends StatelessWidget {
                             Get.to(
                               () => AddFarmerDetailsFormScreen(
                                 farmData: FarmData(
-                                  id: int.parse(farm.id),
+                                  id: farmIdNum,
                                   farmName: farm.name,
-                                  farmerId: int.parse(farm.id),
+                                  farmerId: farmIdNum,
                                   images: FarmImages(
                                     imagesList: farm.imageUrls,
                                   ),
                                   stockingDate: farm.stockingDate,
                                   store: farm.store,
                                   noOfTanks: farm.noOfTanks,
-                                  lowFeedLimit: farm.feedUsed,
+                                  // The real field. It used to read
+                                  // `farm.feedUsed`, which happened to hold the
+                                  // low-feed limit too — right value, wrong
+                                  // name, and it would have started filling the
+                                  // edit form with the feed total the moment
+                                  // that field was corrected.
+                                  lowFeedLimit: farm.lowFeedLimit,
                                   // Without this the edit form showed an empty
                                   // "Feed Already Used" box on a farm that has
                                   // weeks of history.
@@ -440,14 +503,18 @@ class FarmCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    _buildStatusChip(
-                      'Active - ${farm.activeCount}',
-                      Colors.green,
+                    Flexible(
+                      child: _buildStatusChip(
+                        'Active - ${farm.activeCount}',
+                        Colors.green,
+                      ),
                     ),
                     const SizedBox(width: 8),
-                    _buildStatusChip(
-                      'Inactive - ${farm.inactiveCount}',
-                      Colors.red,
+                    Flexible(
+                      child: _buildStatusChip(
+                        'Inactive - ${farm.inactiveCount}',
+                        Colors.red,
+                      ),
                     ),
                   ],
                 ),
@@ -463,51 +530,63 @@ class FarmCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
+                // Both figures are Flexible: "Total Feed Used: 12500 kgs" and
+                // "Store 8000 kgs" side by side are wider than a narrow phone,
+                // and a fixed pair of RichTexts overflowed instead of trimming.
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    RichText(
-                      text: TextSpan(
-                        style: GoogleFonts.roboto(fontSize: 14),
-                        children: [
-                          TextSpan(
-                            text: "Total Feed Used: ",
-                            style: TextStyle(color: Colors.black),
-                          ),
-                          TextSpan(
-                            text: '${farm.feedUsed} kgs',
-                            style: GoogleFonts.roboto(
-                              fontSize: 14,
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: RichText(
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        text: TextSpan(
+                          style: GoogleFonts.roboto(fontSize: 14),
+                          children: [
+                            const TextSpan(
+                              text: "Total Feed Used: ",
+                              style: TextStyle(color: Colors.black),
                             ),
-                          ),
-                        ],
+                            TextSpan(
+                              text: '${farm.totalFeedUsedLabel} kgs',
+                              style: GoogleFonts.roboto(
+                                fontSize: 14,
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
 
-                    RichText(
-                      text: TextSpan(
-                        style: GoogleFonts.roboto(fontSize: 14),
-                        children: [
-                          TextSpan(
-                            text: "Store ",
-                            style: TextStyle(color: Colors.black),
-                          ),
-                          TextSpan(
-                            text: farm.store + ' kgs',
-                            style: GoogleFonts.roboto(
-                              fontSize: 14,
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
+                    const SizedBox(width: 8),
+
+                    Flexible(
+                      child: RichText(
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        text: TextSpan(
+                          style: GoogleFonts.roboto(fontSize: 14),
+                          children: [
+                            const TextSpan(
+                              text: "Store ",
+                              style: TextStyle(color: Colors.black),
                             ),
-                          ),
-                        ],
+                            TextSpan(
+                              text: farm.storeLabel,
+                              style: GoogleFonts.roboto(
+                                fontSize: 14,
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
 
                     // Text(
-                    //   "Total Feed Used: ${farm.feedUsed} ",
                     //   style: GoogleFonts.roboto(fontSize: 14),
                     // ),
                   ],
@@ -533,7 +612,10 @@ class ChatbotWidget extends StatelessWidget {
       // Margin to slightly lift it above the floating action buttons
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(16.0),
-      width: 320, // Set a fixed width for the card (adjust as needed)
+      // A hard 320 is wider than the usable width of a small phone once the
+      // surrounding padding is taken off, so the card overflowed there. Cap it
+      // instead, and let it shrink on anything narrower.
+      constraints: const BoxConstraints(maxWidth: 320),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
@@ -561,12 +643,16 @@ class ChatbotWidget extends StatelessWidget {
                 size: 28,
               ),
               const SizedBox(width: 10),
-              Text(
-                'Hi ! I\'m Bestseed Bot',
-                style: GoogleFonts.roboto(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blueGrey.shade800,
+              Expanded(
+                child: Text(
+                  'Hi ! I\'m Bestseed Bot',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.roboto(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blueGrey.shade800,
+                  ),
                 ),
               ),
             ],
@@ -581,8 +667,14 @@ class ChatbotWidget extends StatelessWidget {
           const SizedBox(height: 20),
 
           // Action Buttons: Chat and Voice assist
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+          //
+          // Wrap rather than Row: at a larger system font size the two buttons
+          // are wider than the card and a Row overflowed. This drops "Voice
+          // assist" onto its own line instead.
+          Wrap(
+            alignment: WrapAlignment.spaceAround,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               // Chat Button
               OutlinedButton.icon(
@@ -718,9 +810,23 @@ class VoiceAssistanceModal extends StatelessWidget {
   }
 }
 
+/// The per-farm options sheet.
+///
+/// [access] decides which options appear. Every one of these actions is gated
+/// server-side; offering all of them to everybody meant a partner with view
+/// access could tap Delete farm and be told "Failed to delete" — a 403 dressed
+/// up as a fault. The rules mirror the API exactly:
+///
+///   * Add today's quantity → create access
+///   * Edit farm details    → edit access
+///   * Delete farm          → delete access
+///   * Setup Access         → anyone holding access may pass on what they hold
+///   * QR Codes, Scanned Details, Partners, Manager → owner only, because the
+///     endpoints behind them (`ownedFarm`, `ownedFarmIds`) refuse anyone else.
 void showFarmBottomSheet({
   required BuildContext context,
   required String farmName,
+  required FarmAccess access,
   required VoidCallback onAddTankQty,
   required VoidCallback onTapAccessSetup,
   required VoidCallback onPartners,
@@ -755,13 +861,20 @@ void showFarmBottomSheet({
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    farmName,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+                  // Expanded: a farm name long enough to reach the close
+                  // button pushed it off the sheet and overflowed the row.
+                  Expanded(
+                    child: Text(
+                      farmName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 12),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: const Icon(Icons.close, size: 24),
@@ -770,64 +883,96 @@ void showFarmBottomSheet({
               ),
               const SizedBox(height: 18),
 
-              _sheetItem(
-                icon: Icons.layers,
-                title: "Add today's tanks quantity",
-                onTap: onAddTankQty,
-              ),
+              // Recording feed is a create, not an edit — matches
+              // `farm.access:create` on /tanks/add-todays-tanks-quantity.
+              if (access.canCreate)
+                _sheetItem(
+                  icon: Icons.layers,
+                  title: "Add today's tanks quantity",
+                  onTap: onAddTankQty,
+                ),
 
-              _sheetItem(
-                icon: Icons.person_2,
-                title: "Set Up Access for Manager or Partner",
-                onTap: onTapAccessSetup,
-              ),
+              // Not owner-only: the members endpoint lets anyone with access
+              // pass on what they hold, so a manager can appoint someone too.
+              if (access.canShareAccess)
+                _sheetItem(
+                  icon: Icons.person_2,
+                  title: "Set Up Access for Manager or Partner",
+                  onTap: onTapAccessSetup,
+                ),
 
-              _sheetItem(
-                icon: Icons.group,
-                title: "Partners",
-                onTap: onPartners,
-              ),
+              // The four below are the farm's keys. /manager/managers,
+              // /partner/parteners, /farm/{id}/access and /farm/{id}/grantees
+              // all resolve the farm through the caller's OWNED farms, so for
+              // a manager or partner they can only ever answer 403 or an empty
+              // list — showing them was offering a door with no handle.
+              if (access.canManageAccessCodes) ...[
+                _sheetItem(
+                  icon: Icons.group,
+                  title: "Partners",
+                  onTap: onPartners,
+                ),
 
-              _sheetItem(
-                icon: Icons.person,
-                title: "Manager",
-                onTap: onManager,
-              ),
+                _sheetItem(
+                  icon: Icons.person,
+                  title: "Manager",
+                  onTap: onManager,
+                ),
 
-              _sheetItem(
-                icon: Icons.qr_code_2,
-                title: "QR Codes",
-                onTap: onQrCodes,
-              ),
+                _sheetItem(
+                  icon: Icons.qr_code_2,
+                  title: "QR Codes",
+                  onTap: onQrCodes,
+                ),
 
-              _sheetItem(
-                icon: Icons.qr_code_scanner,
-                title: "Scanned Details",
-                onTap: onScannedDetails,
-              ),
+                _sheetItem(
+                  icon: Icons.qr_code_scanner,
+                  title: "Scanned Details",
+                  onTap: onScannedDetails,
+                ),
+              ],
 
-              _sheetItem(
-                icon: Icons.edit,
-                title: "Edit farm Details",
-                onTap: onEditFarm,
-              ),
+              if (access.canEdit)
+                _sheetItem(
+                  icon: Icons.edit,
+                  title: "Edit farm Details",
+                  onTap: onEditFarm,
+                ),
 
-              _sheetItem(
-                icon: Icons.delete,
-                title: "Delete farm",
-                iconColor: Colors.red,
-                textColor: Colors.red,
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    barrierDismissible:
-                        false, // User must tap a button to close
-                    builder: (BuildContext context) {
-                      return CustomConfirmationDialog(ontapYes: onDeleteFarm);
-                    },
-                  );
-                },
-              ),
+              if (access.canDelete)
+                _sheetItem(
+                  icon: Icons.delete,
+                  title: "Delete farm",
+                  iconColor: Colors.red,
+                  textColor: Colors.red,
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      barrierDismissible:
+                          false, // User must tap a button to close
+                      builder: (BuildContext context) {
+                        return CustomConfirmationDialog(ontapYes: onDeleteFarm);
+                      },
+                    );
+                  },
+                ),
+
+              // A partner given view access only would otherwise be shown an
+              // empty sheet with no explanation.
+              if (!access.canCreate &&
+                  !access.canEdit &&
+                  !access.canDelete &&
+                  !access.canShareAccess)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12.0),
+                  child: Text(
+                    'You have view-only access to this farm.',
+                    style: GoogleFonts.roboto(
+                      fontSize: 15,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -987,7 +1132,6 @@ class CustomConfirmationDialog extends StatelessWidget {
 
 class FarmSection {
   final String name;
-  final String feedUsed;
   final String store;
   final String activeCount;
   final String inactiveCount;
@@ -997,20 +1141,37 @@ class FarmSection {
   final String stockingDate;
   final String lowFeedLimit;
 
-  /// Feed recorded against the farm so far — needed by the edit form to show
-  /// (and lock) the "feed already used" figure.
+  /// Feed recorded against the farm so far — the sum of every feed entry.
+  ///
+  /// The same figure the farm detail screen shows in its header, because both
+  /// come from the same `Feed::sum('feed_quantity')` server-side.
   final num totalFeedUsed;
+
+  /// [totalFeedUsed] without a pointless ".0" on a whole number.
+  String get totalFeedUsedLabel => totalFeedUsed % 1 == 0
+      ? totalFeedUsed.toStringAsFixed(0)
+      : totalFeedUsed.toStringAsFixed(2);
+
+  /// The stock figure, or an em dash when the farmer has not entered one.
+  ///
+  /// Store is optional, so this can genuinely be unset — which is not the same
+  /// as a store of zero and should not be shown as one.
+  String get storeLabel => store.trim().isEmpty ? '—' : '$store kgs';
 
   /// The figure entered as "feed already used", if any.
   final num? feedUsedBefore;
 
+  /// What the logged-in farmer may do with this farm — owner, or a manager or
+  /// partner with whatever the grant gave them.
+  final FarmAccess access;
+
   FarmSection({
+    this.access = const FarmAccess.ownerFallback(),
     required this.lowFeedLimit,
     required this.noOfTanks,
     this.totalFeedUsed = 0,
     this.feedUsedBefore,
     required this.name,
-    required this.feedUsed,
     required this.store,
     required this.activeCount,
     required this.inactiveCount,

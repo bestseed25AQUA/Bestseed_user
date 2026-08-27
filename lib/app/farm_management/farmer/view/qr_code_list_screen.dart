@@ -159,11 +159,15 @@ class _GrantCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Text(
-                        'Duration : ${grant.durationDays} Days',
-                        style: GoogleFonts.roboto(
-                          fontSize: 14,
-                          color: Colors.grey.shade700,
+                      Flexible(
+                        child: Text(
+                          'Duration : ${grant.durationDays} Days',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.roboto(
+                            fontSize: 14,
+                            color: Colors.grey.shade700,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),

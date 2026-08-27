@@ -47,7 +47,21 @@ class TankModel {
   FeedModel? feed;
   int? day;
 
+  /// Every entry recorded against this tank TODAY, oldest first.
+  ///
+  /// Feed is given several times a day. [feed] is a single row — and the tank's
+  /// most recent of any date at that — so it can neither show what was fed
+  /// today nor hold more than one meal.
+  List<TodayFeedEntry> todaysFeed;
+
+  /// Today's totals, summed server-side so every screen agrees.
+  num todaysMeals;
+  num todaysQuantity;
+
   TankModel({
+    this.todaysFeed = const [],
+    this.todaysMeals = 0,
+    this.todaysQuantity = 0,
     this.id,
     this.farmId,
     this.tankName,
@@ -79,6 +93,15 @@ class TankModel {
         updatedAt: json["updated_at"] ?? "",
         day: json["day"] ?? 0,
         feed: json["feed"] != null ? FeedModel.fromJson(json["feed"]) : null,
+        todaysFeed: json["todays_feed"] is List
+            ? List<TodayFeedEntry>.from(
+                (json["todays_feed"] as List).map(
+                  (e) => TodayFeedEntry.fromJson(e as Map<String, dynamic>),
+                ),
+              )
+            : const [],
+        todaysMeals: num.tryParse('${json["todays_meals"] ?? 0}') ?? 0,
+        todaysQuantity: num.tryParse('${json["todays_quantity"] ?? 0}') ?? 0,
       );
     } catch (e) {
       return TankModel(id: 0, tankName: "Error");
@@ -150,4 +173,29 @@ class FeedModel {
     "created_at": createdAt,
     "updated_at": updatedAt,
   };
+}
+
+/// One feed entry recorded today.
+///
+/// [id] is the `tank_feed_histories` row id — the same handle the tank history
+/// screen edits and deletes by, so the two screens act on the same records
+/// rather than each keeping its own idea of the day.
+class TodayFeedEntry {
+  final int? id;
+  final String meals;
+  final String feedQuantity;
+
+  const TodayFeedEntry({
+    this.id,
+    required this.meals,
+    required this.feedQuantity,
+  });
+
+  factory TodayFeedEntry.fromJson(Map<String, dynamic> json) {
+    return TodayFeedEntry(
+      id: int.tryParse('${json["id"]}'),
+      meals: '${json["meals"] ?? 0}',
+      feedQuantity: '${json["feed_quantity"] ?? 0}',
+    );
+  }
 }

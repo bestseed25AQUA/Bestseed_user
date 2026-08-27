@@ -26,6 +26,14 @@ class FarmListController extends GetxController {
   var isLoading = true.obs;
   Rx<FarmListModel?> farmList = Rx<FarmListModel?>(null);
 
+  /// True when the last fetch failed outright (no network, server down).
+  ///
+  /// Distinct from "the farmer has no farms": both leave the list empty, but
+  /// only the second one should send the screen to the add-your-first-farm
+  /// page. Without this, losing signal for a moment told a farmer with a dozen
+  /// farms that they had none.
+  RxBool hasLoadError = false.obs;
+
   @override
   void onInit() {
     super.onInit();
@@ -44,14 +52,23 @@ class FarmListController extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         farmList.value = FarmListModel.fromJson(data);
+        hasLoadError.value = false;
       } else if (response.statusCode == 404) {
         // The API answers 404 (not 200 with []) when the farmer has no farms.
         // Ignoring it meant the previous list survived, so deleting the LAST
         // farm left it on screen even though the server had removed it.
         farmList.value = FarmListModel(data: []);
+        hasLoadError.value = false;
+      } else {
+        // Any other status is a failure, not an empty farm list.
+        hasLoadError.value = true;
+        CustomToast.error('Could not load your farms');
       }
     } catch (e) {
-      print("Error fetching farms  ");
+      // Was a bare print, so a failed load looked exactly like "no farms yet"
+      // and the screen offered to add a first farm.
+      hasLoadError.value = true;
+      CustomToast.error('Could not load your farms');
     } finally {
       isLoading.value = false;
     }
@@ -100,14 +117,28 @@ class FarmListController extends GetxController {
         return true;
       }
 
-      CustomToast.error(parseErrorMessage(response));
+      // Decoded, not the raw Response: parseErrorMessage only understands a
+      // Map, so handing it the http.Response meant every validation failure
+      // ("The farm name has already been taken") was reported to the farmer as
+      // a flat "Something went wrong!".
+      CustomToast.error(parseErrorMessage(_decodeBody(response.body)));
     } catch (e) {
-      CustomToast.error("Error  ");
+      CustomToast.error("Could not add the farm");
     } finally {
       isOverlay(false);
     }
 
     return false;
+  }
+
+  /// The response body as a Map, or null when it is not JSON at all — an HTML
+  /// error page from the proxy, say, which json.decode would throw on.
+  dynamic _decodeBody(String body) {
+    try {
+      return json.decode(body);
+    } catch (_) {
+      return null;
+    }
   }
 
   String parseErrorMessage(dynamic error) {
@@ -151,7 +182,7 @@ class FarmListController extends GetxController {
     try {
       isOverlay(true);
 
-      var response = await multipartPostRequest(
+      final streamedResponse = await multipartPostRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/farms/$farmId",
         fields: {
           "farm_name": farmName,
@@ -165,17 +196,23 @@ class FarmListController extends GetxController {
         headers: await buildHeader(),
         imagePaths: imagePaths,
       );
-      print('response is = ${response.stream.toString()}');
-      print('status code = ${response.statusCode.toString()}');
+
+      // Read the body, the way the create call does. It used to print
+      // `response.stream` — which says nothing — and then report every failure
+      // as "Failed to update farm", hiding what the server actually rejected.
+      final http.Response response = await http.Response.fromStream(
+        streamedResponse,
+      );
+      debugPrint("Update response: ${response.statusCode} -> ${response.body}");
 
       if (response.statusCode == 200) {
         CustomToast.success("Farm updated successfully ");
         return true;
       }
 
-      CustomToast.error("Failed to update farm");
+      CustomToast.error(parseErrorMessage(_decodeBody(response.body)));
     } catch (e) {
-      CustomToast.error("Something went wrong");
+      CustomToast.error("Could not update the farm");
     } finally {
       // In a finally: the success path returns from inside the try, so a
       // trailing isOverlay(false) never ran and the Update button span for
@@ -191,23 +228,21 @@ class FarmListController extends GetxController {
     try {
       isOverlay(true);
       String url = "${NetworkConfig.baseURL}/farmer/farm/delete/$farmId";
-      print(url);
 
       var response = await getRequest(
         endPoint: url,
         headers: await buildHeader(),
       );
-      print('============response==============');
+      debugPrint("Delete response: ${response.statusCode} -> ${response.body}");
 
-      print(response.body);
       if (response.statusCode == 200) {
         CustomToast.success("Farm deleted successfully ✔");
         return true;
       } else {
-        CustomToast.error("Failed to delete");
+        CustomToast.error(parseErrorMessage(_decodeBody(response.body)));
       }
     } catch (e) {
-      CustomToast.error("Error deleting");
+      CustomToast.error("Could not delete the farm");
     } finally {
       isOverlay(false);
     }

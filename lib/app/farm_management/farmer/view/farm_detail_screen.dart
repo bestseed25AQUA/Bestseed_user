@@ -7,6 +7,7 @@ import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/app_globals.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/harvest_bottom.dart';
@@ -23,10 +24,20 @@ import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 class FarmTankListScreen extends StatefulWidget {
   final String farmId;
   final String farmName;
+
+  /// What the logged-in farmer may do with this farm.
+  ///
+  /// Every write below is gated server-side by `farm.access:*`. Showing the
+  /// controls regardless meant a partner with view access could flip a tank to
+  /// harvested and be told "Failed to update tank" — a 403 dressed up as a
+  /// fault, with no hint that they were never allowed to.
+  final FarmAccess access;
+
   const FarmTankListScreen({
     super.key,
     required this.farmId,
     required this.farmName,
+    this.access = const FarmAccess.ownerFallback(),
   });
 
   @override
@@ -35,6 +46,15 @@ class FarmTankListScreen extends StatefulWidget {
 
 class _FarmTankListScreenState extends State<FarmTankListScreen> {
   final TankController tankController = Get.put(TankController());
+
+  /// The farm id as a number, or null when it is not one.
+  ///
+  /// The id arrives as a string built with `e.id.toString()`, so a farm the
+  /// API returned without an id reaches this screen as the literal "null".
+  /// `int.parse` threw on that from initState — an exception with no catch
+  /// around it, so the screen came up as a red error page. The calls that
+  /// need a number are skipped instead.
+  int? get _farmIdNum => int.tryParse(widget.farmId);
 
   /// True while the low-feed dialog is up, or after it has been shown for the
   /// current low spell. Reset once the store recovers, so the farmer is warned
@@ -61,8 +81,12 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
     tankController.isOverlay(false);
 
     tankController.getTankList(widget.farmId);
-    tankController.getFeedStore(int.parse(widget.farmId));
-    _maybeWarnLowFeed();
+
+    final farmIdNum = _farmIdNum;
+    if (farmIdNum != null) {
+      tankController.getFeedStore(farmIdNum);
+      _maybeWarnLowFeed();
+    }
 
     // Re-check whenever the store figure changes — editing the store or
     // recording feed both land here — so the alert appears the moment stock
@@ -82,9 +106,12 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
   /// Surfaces the low-feed alert once the screen has settled, so the dialog
   /// does not race the first frame.
   Future<void> _maybeWarnLowFeed() async {
+    final farmIdNum = _farmIdNum;
+    if (farmIdNum == null) return;
+
     final limit = await Get.put(
       FarmAccessController(),
-    ).checkFeedLimit(int.parse(widget.farmId));
+    ).checkFeedLimit(farmIdNum);
 
     if (!mounted) return;
 
@@ -124,7 +151,8 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
           foregroundColor: Colors.white,
           elevation: 0,
           title: Text(
-            'Sattamma Thalli - A section',
+            widget.farmName,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.roboto(color: Colors.white, fontSize: 18),
           ),
         ),
@@ -163,7 +191,7 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      FeedStoreCard(farmId: widget.farmId),
+                      FeedStoreCard(farmId: widget.farmId, access: widget.access),
                       const SizedBox(height: 16),
 
                       ...tankPairs.map((pair) {
@@ -174,6 +202,7 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
                               Expanded(
                                 child: TankStatusCard(
                                   farmName: widget.farmName,
+                                  access: widget.access,
                                   tank: pair[0],
                                   controller: tankController,
                                   farmId: widget.farmId,
@@ -186,6 +215,7 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
                                 child: pair.length > 1
                                     ? TankStatusCard(
                                         farmName: widget.farmName,
+                                        access: widget.access,
                                         tank: pair[1],
                                         controller: tankController,
                                         farmId: widget.farmId,
@@ -218,8 +248,13 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
 }
 
 class FeedStoreCard extends StatelessWidget {
-  const FeedStoreCard({super.key, required this.farmId});
+  const FeedStoreCard({
+    super.key,
+    required this.farmId,
+    this.access = const FarmAccess.ownerFallback(),
+  });
   final String farmId;
+  final FarmAccess access;
 
   @override
   Widget build(BuildContext context) {
@@ -243,11 +278,17 @@ class FeedStoreCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // TOTAL FEED USED
-              Column(
+              //
+              // Flexible: the two labels and a five-figure total are wider
+              // than a narrow phone once the system font size is turned up,
+              // and the row overflowed rather than wrapping.
+              Flexible(
+                child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   Text(
                     "Total feed used",
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.roboto(
                       color: Colors.white,
                       fontSize: 14,
@@ -257,6 +298,8 @@ class FeedStoreCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     data?.totalFeedUsed.toString() ?? "0",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.roboto(
                       color: Colors.white,
                       fontSize: 24,
@@ -271,6 +314,7 @@ class FeedStoreCard extends StatelessWidget {
                   //   child: EditButton(),
                   // ),
                 ],
+                ),
               ),
 
               const VerticalDivider(
@@ -280,37 +324,47 @@ class FeedStoreCard extends StatelessWidget {
               ),
 
               // FEED STORE
-              Column(
-                children: [
-                  Text(
-                    "Remaining Stock",
-                    style: GoogleFonts.roboto(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+              Flexible(
+                child: Column(
+                  children: [
+                    Text(
+                      "Remaining Stock",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.roboto(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  // What is LEFT, not what was put in: the raw store figure
-                  // never moves as feed is recorded, so it read as though
-                  // nothing had been used.
-                  Text(
-                    (data?.remainingStore ?? data?.feedStore ?? 0).toString(),
-                    style: GoogleFonts.roboto(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                    const SizedBox(height: 4),
+                    // What is LEFT, not what was put in: the raw store figure
+                    // never moves as feed is recorded, so it read as though
+                    // nothing had been used.
+                    // An em dash, not "0": the store is optional, and a farm
+                    // whose stock nobody has entered yet has an UNKNOWN
+                    // remainder, not a remainder of nothing. Tapping Edit is
+                    // how the farmer fills it in.
+                    Text(
+                      (data?.remainingStore ?? data?.feedStore)?.toString() ??
+                          '—',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.roboto(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () {
-                      print(farmId.toString());
-                      showEditFeedBottomSheet(farmId.toString());
-                    },
-                    child: EditButton(),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    // Changing the store is an edit — /update-total-feed sits
+                    // behind `farm.access:edit`.
+                    if (access.canEdit)
+                      InkWell(
+                        onTap: () => showEditFeedBottomSheet(farmId.toString()),
+                        child: const EditButton(),
+                      ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -353,6 +407,7 @@ class TankStatusCard extends StatelessWidget {
   final TankController controller;
   final String farmId;
   final String farmName;
+  final FarmAccess access;
 
   const TankStatusCard({
     super.key,
@@ -360,6 +415,7 @@ class TankStatusCard extends StatelessWidget {
     required this.controller,
     required this.farmId,
     required this.farmName,
+    this.access = const FarmAccess.ownerFallback(),
   });
 
   @override
@@ -373,6 +429,7 @@ class TankStatusCard extends StatelessWidget {
             tankId: tank.id.toString(),
             tankName: tank.tankName ?? '',
             farmName: farmName,
+            access: access,
           ),
         );
 
@@ -382,7 +439,13 @@ class TankStatusCard extends StatelessWidget {
         //
         // Silent: no shimmer, no scroll jump — the numbers just update.
         await controller.getTankList(farmId, silent: true);
-        await controller.getFeedStore(int.parse(farmId), silent: true);
+
+        // tryParse, not parse: a farm that came back without an id reaches
+        // here as "null" and the throw would escape this callback unhandled.
+        final farmIdNum = int.tryParse(farmId);
+        if (farmIdNum != null) {
+          await controller.getFeedStore(farmIdNum, silent: true);
+        }
       },
       child: Container(
         padding: const EdgeInsets.all(12.0),
@@ -406,21 +469,30 @@ class TankStatusCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // tank name
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFF1976D2)),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    tank.tankName ?? "Tank",
-                    style: GoogleFonts.roboto(
-                      color: const Color(0xFF1976D2),
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
+                //
+                // Flexible, because the card is half the screen wide and the
+                // switch beside it is a fixed ~60dp: on a narrow phone the
+                // name and the switch together were wider than the card and
+                // the row overflowed. The name gives way instead.
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFF1976D2)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      tank.tankName ?? "Tank",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.roboto(
+                        color: const Color(0xFF1976D2),
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -504,7 +576,11 @@ class TankStatusCard extends StatelessWidget {
                   ),
                   child: Switch(
                     value: isActive,
-                    onChanged: (value) async {
+                    // Null disables the switch rather than hiding it: the
+                    // colour still tells a view-only partner whether the tank
+                    // is running, which is the point of the card. /tank/status
+                    // requires `farm.access:edit`.
+                    onChanged: !access.canEdit ? null : (value) async {
                       if (value) {
                         controller.updateTankStatus(
                           status: 1,
@@ -543,15 +619,25 @@ class TankStatusCard extends StatelessWidget {
                             tankId: tank.id.toString(),
                           );
 
-                          final safeContext = navigatorKey.currentContext!;
+                          // No link means the report was not generated —
+                          // getReport has already said so. Offering Download
+                          // and Share for a link that does not exist only
+                          // produces a second, more confusing failure.
+                          final safeContext = navigatorKey.currentContext;
+                          if (report == null ||
+                              report.isEmpty ||
+                              safeContext == null) {
+                            return;
+                          }
 
                           showReportPopup(
                             safeContext,
+                            tankName: tank.tankName ?? 'Tank',
                             () async {
-                              downloadReport(report ?? '');
+                              downloadReport(report);
                             },
                             () {
-                              shareReport(report ?? '');
+                              shareReport(report);
                             },
                           );
                         }
@@ -570,14 +656,21 @@ class TankStatusCard extends StatelessWidget {
                 // total_feed_used, not the tank's feed_quantity column: that
                 // column is never written to, so every tank read "0 Kgs" even
                 // with weeks of feed recorded against it.
-                Text(
-                  "${tank.totalFeedUsed ?? "0"} Kgs",
-                  style: GoogleFonts.roboto(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                // Expanded rather than a Spacer after it: a four-figure total
+                // ("1,250.00 Kgs") plus the day label is wider than half a
+                // narrow screen, and the row overflowed instead of trimming.
+                Expanded(
+                  child: Text(
+                    "${tank.totalFeedUsed ?? "0"} Kgs",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.roboto(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 6),
                 // The API computes `day` as the number of distinct days fed.
                 // This showed `meals` — a different, unset column — so it was
                 // always "Day. 0".
@@ -600,8 +693,9 @@ class TankStatusCard extends StatelessWidget {
 void showReportPopup(
   BuildContext context,
   VoidCallback ontapDownload,
-  VoidCallback ontapShare,
-) {
+  VoidCallback ontapShare, {
+  String tankName = 'Tank',
+}) {
   showDialog(
     context: context,
     barrierDismissible: true,
@@ -615,15 +709,19 @@ void showReportPopup(
           child: Container(
             margin: EdgeInsets.zero,
             // width: 356,
-            height: 371,
+            // Sized to its contents inside a scroll view rather than pinned to
+            // 371: at a larger system font size the fixed box was shorter than
+            // the text and image it holds, and the card overflowed.
             padding: const EdgeInsets.only(left: 22, right: 17, bottom: 23),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(30), // Extra-large
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
                 // Skip button (top right)
                 Align(
                   alignment: Alignment.topRight,
@@ -655,10 +753,12 @@ void showReportPopup(
 
                 const SizedBox(height: 10),
 
-                // Title
-                const Text(
-                  "Tank 1 Feed Report Document",
-                  style: TextStyle(
+                // Title — the tank the report is actually for. This read
+                // "Tank 1" for every tank on every farm.
+                Text(
+                  "$tankName Feed Report Document",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: Colors.black,
@@ -749,7 +849,8 @@ void showReportPopup(
                     ),
                   ],
                 ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -793,14 +894,24 @@ Future<String?> downloadReport(String url) async {
     CustomToast.success('Feed Report Document Downloaded Successfully');
     return filePath;
   } catch (e) {
+    // Say so. A silent null here left the farmer tapping Download on a dialog
+    // that never acknowledged the tap — no file, no message, nothing.
+    CustomToast.error('Feed Report Document Failed To Download');
     return null;
   }
 }
 
 Future<void> shareReport(String url) async {
+  if (url.isEmpty) {
+    CustomToast.error('No report link to share');
+    return;
+  }
+
   try {
     await Share.share(url, subject: "Feed Report Link");
-  } catch (e) {}
+  } catch (e) {
+    CustomToast.error('Could not share the report');
+  }
 }
 
 void showEditFeedBottomSheet(String farmId) {
@@ -818,8 +929,18 @@ void showEditFeedBottomSheet(String farmId) {
 
   Get.bottomSheet(
     SafeArea(
-      child: Container(
-        padding: const EdgeInsets.all(20),
+      // Builder, for a context below the sheet's route: the keyboard's height
+      // has to be read from it. Three text fields with no allowance for the
+      // keyboard meant tapping one pushed the Save button off the bottom and
+      // the sheet reported an overflow instead of scrolling.
+      child: Builder(
+        builder: (sheetContext) => Container(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: 20 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: const BorderRadius.only(
@@ -827,7 +948,8 @@ void showEditFeedBottomSheet(String farmId) {
             topRight: Radius.circular(30),
           ),
         ),
-        child: Column(
+        child: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // Close Button
@@ -888,18 +1010,36 @@ void showEditFeedBottomSheet(String farmId) {
             Obx(() {
               return GestureDetector(
                 onTap: () async {
+                  // Don't fire a second request while one is in flight — a
+                  // double tap on Save sent the update twice.
+                  if (controller.isOverlay.value) return;
+
+                  final store = storeController.text.trim();
+                  final lowLimit = lowFeedController.text.trim();
+
+                  // The server rejects a non-numeric store with a 422 the
+                  // screen reports only as "Failed to update feed". Say what
+                  // is actually wrong, before sending it.
+                  if (store.isEmpty || double.tryParse(store) == null) {
+                    CustomToast.error('Enter the store quantity in Kgs');
+                    return;
+                  }
+                  if (lowLimit.isNotEmpty &&
+                      double.tryParse(lowLimit) == null) {
+                    CustomToast.error('Enter the low feed limit in Kgs');
+                    return;
+                  }
+
                   bool ok = await controller.updateFeedStore(
                     farmId: farmId,
                     totalFeedUsed: totalFeedController.text.trim(),
-                    feedStore: storeController.text.trim(),
-                    lowFeedLimit: lowFeedController.text.trim(),
+                    feedStore: store,
+                    lowFeedLimit: lowLimit,
                   );
 
                   if (ok) {
                     safeBack();
-                    print('++++++++++++++loading the data+++++++++++++=');
                     controller.getFeedStore(farmId);
-                    storeController.text = storeController.text.trim();
                   }
                 },
                 child: Container(
@@ -926,6 +1066,8 @@ void showEditFeedBottomSheet(String farmId) {
 
             const SizedBox(height: 20),
           ],
+          ),
+        ),
         ),
       ),
     ),

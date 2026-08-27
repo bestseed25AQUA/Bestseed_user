@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_feed_history_response.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 
@@ -42,16 +43,28 @@ class TankFeedScreen extends StatefulWidget {
     required this.tankId,
     required this.tankName,
     required this.farmName,
+    this.access = const FarmAccess.ownerFallback(),
   });
   final String tankId;
   final String tankName;
   final String farmName;
+
+  /// Recording feed needs create access, correcting an entry needs edit, and
+  /// removing one needs delete — the three endpoints behind this screen are
+  /// gated on exactly those. Offering all three to everyone turned a partner's
+  /// missing permission into "Failed to save tank".
+  final FarmAccess access;
   @override
   State<TankFeedScreen> createState() => _TankFeedScreenState();
 }
 
 class _TankFeedScreenState extends State<TankFeedScreen> {
-  final TankController _tankController = Get.find<TankController>();
+  // Registered here when it is not already, rather than find()-ing blind:
+  // find() throws when nothing put() the controller first, which killed this
+  // screen on construction rather than showing anything.
+  final TankController _tankController = Get.isRegistered<TankController>()
+      ? Get.find<TankController>()
+      : Get.put(TankController());
   // Mock data
 
   // Controllers for text fields per card
@@ -78,6 +91,23 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
   /// The entry currently loaded into each card's fields, by card index.
   /// Absent means the card is in "add" mode.
   final Map<int, MealEntry> _editing = {};
+
+  /// True while the app bar's refresh is in flight, so the button can show it.
+  bool _refreshing = false;
+
+  /// Re-read the tank's history from the server.
+  ///
+  /// Silent on purpose. The loading flag swaps the whole body for a shimmer,
+  /// which throws away the scroll position — and this list runs one card per
+  /// day since stocking, so a farmer refreshing near the bottom would be
+  /// bounced back to the top. The spinner in the button is the feedback.
+  Future<void> _refresh() async {
+    if (_refreshing) return;
+
+    setState(() => _refreshing = true);
+    await _tankController.getTankHistory(widget.tankId, silent: true);
+    if (mounted) setState(() => _refreshing = false);
+  }
 
   @override
   void dispose() {
@@ -228,8 +258,27 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
           elevation: 0,
           title: Text(
             widget.farmName,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.roboto(color: Colors.white, fontSize: 18),
           ),
+          actions: [
+            IconButton(
+              tooltip: 'Refresh',
+              onPressed: _refreshing ? null : _refresh,
+              // Same 24dp footprint either way, so the icon does not jump as
+              // it swaps to the spinner and back.
+              icon: _refreshing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.refresh, color: Colors.white),
+            ),
+          ],
         ),
       ),
       body: Obx(() {
@@ -399,11 +448,18 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
                                       !_isToday(tankDate.date));
                             }),
                             onAdd: () => _submitEntry(index, tankDate.date),
-                            onEditEntry: (entry) => _beginEdit(index, entry),
+                            // Null hides the control entirely — the card falls
+                            // back to a read-only record of the day, which is
+                            // exactly what view-only access means.
+                            canRecord: widget.access.canCreate,
+                            onEditEntry: widget.access.canEdit
+                                ? (entry) => _beginEdit(index, entry)
+                                : null,
                             isEditing: _editing.containsKey(index),
                             onCancelEdit: () => _cancelEdit(index),
-                            onDeleteEntry: (entry) =>
-                                _deleteEntry(index, entry),
+                            onDeleteEntry: widget.access.canDelete
+                                ? (entry) => _deleteEntry(index, entry)
+                                : null,
                           ),
                         );
                       }),
@@ -449,6 +505,10 @@ class DailyFeedCard extends StatelessWidget {
   final VoidCallback onAdd;
   final bool isLoading;
 
+  /// False for someone without create access: the Meals / Feed Quantity boxes
+  /// and the Add button are dropped, leaving the day's record readable.
+  final bool canRecord;
+
   const DailyFeedCard({
     super.key,
     required this.record,
@@ -459,6 +519,7 @@ class DailyFeedCard extends StatelessWidget {
     this.isEditing = false,
     this.onCancelEdit,
     this.onDeleteEntry,
+    this.canRecord = true,
     required this.onAdd,
     required this.isLoading,
   });
@@ -518,26 +579,36 @@ class DailyFeedCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        formatDate(record.date),
-                        style: GoogleFonts.roboto(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      if (record.hasLink)
-                        const Padding(
-                          padding: EdgeInsets.only(left: 8.0),
-                          child: Icon(
-                            Icons.link,
-                            size: 18,
-                            color: Colors.black54,
+                  // Flexible: the date, the day's total and the chevron
+                  // together are wider than the card at a larger system font
+                  // size, and the header overflowed rather than trimming.
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            formatDate(record.date),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.roboto(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                    ],
+
+                        if (record.hasLink)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 8.0),
+                            child: Icon(
+                              Icons.link,
+                              size: 18,
+                              color: Colors.black54,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
 
                   // Centred in the gap between the date and the chevron, so
@@ -551,6 +622,8 @@ class DailyFeedCard extends StatelessWidget {
                               children: [
                                 Text(
                                   "${_totalQuantity(record.entries)} kg",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.roboto(
                                     fontSize: 15,
                                     fontWeight: FontWeight.bold,
@@ -559,6 +632,8 @@ class DailyFeedCard extends StatelessWidget {
                                 ),
                                 Text(
                                   "${_totalMeals(record.entries)} meals",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.roboto(
                                     fontSize: 11,
                                     color: Colors.grey.shade600,
@@ -582,7 +657,7 @@ class DailyFeedCard extends StatelessWidget {
           ),
           // Input fields + Add button — part of the open card, so a closed
           // card is just the date, its total, and the chevron.
-          if (record.isExpanded)
+          if (record.isExpanded && canRecord)
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Row(
@@ -705,21 +780,32 @@ class DailyFeedCard extends StatelessWidget {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  entry.meal,
-                                  style: GoogleFonts.roboto(
-                                    color: Color(0xff908A8A),
-                                    fontSize: 15,
+                                Expanded(
+                                  child: Text(
+                                    entry.meal,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.roboto(
+                                      color: Color(0xff908A8A),
+                                      fontSize: 15,
+                                    ),
                                   ),
                                 ),
-                                Row(
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(
-                                      entry.quantity,
-                                      style: GoogleFonts.roboto(
-                                        color: Colors.black,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
+                                    Flexible(
+                                      child: Text(
+                                        entry.quantity,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.roboto(
+                                          color: Colors.black,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
                                     if (onEditEntry != null) ...[
@@ -745,6 +831,7 @@ class DailyFeedCard extends StatelessWidget {
                                       ),
                                     ],
                                   ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -755,7 +842,7 @@ class DailyFeedCard extends StatelessWidget {
                         ],
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),

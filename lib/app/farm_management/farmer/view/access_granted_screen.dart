@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
 
 /// Terminal screen of the scan flow, shown once a PIN has been accepted.
 class AccessGrantedScreen extends StatelessWidget {
@@ -71,6 +72,15 @@ class AccessGrantedScreen extends StatelessWidget {
                   width: double.infinity,
                   child: TextButton(
                     onPressed: () {
+                      // Re-read the farm list before unwinding.
+                      //
+                      // The farm the scan just granted is new to this account,
+                      // and nothing else on the way back refetches — so the
+                      // farmer landed on the same list they left, with no sign
+                      // of the farm they had just been let into, until they
+                      // happened to pull to refresh.
+                      farmListController.fetchFarmList();
+
                       // Unwind the whole scan flow back to the farm list.
                       Navigator.of(context).popUntil((r) => r.isFirst);
                     },

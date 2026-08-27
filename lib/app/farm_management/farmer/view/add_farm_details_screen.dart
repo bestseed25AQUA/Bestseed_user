@@ -82,8 +82,23 @@ class _AddFarmerDetailsFormScreenState
       imageQuality: 80,
     );
     if (files != null && files.isNotEmpty) {
+      // Capped to match the server's `farm_image|max:20`. Without this the
+      // picker let a farmer select thirty photos, upload them all, and get back
+      // a bare validation error after the wait.
+      const maxImages = 20;
+      final room = maxImages - images.length;
+
+      if (room <= 0) {
+        CustomToast.show(message: 'You can add up to $maxImages photos');
+        return;
+      }
+
+      if (files.length > room) {
+        CustomToast.show(message: 'Only the first $room photos were added');
+      }
+
       setState(() {
-        for (var value in files) {
+        for (var value in files.take(room)) {
           images.add({'local': value.path});
         }
       });
@@ -219,10 +234,15 @@ class _AddFarmerDetailsFormScreenState
                 // Store
                 _buildLabel("Store"),
                 const SizedBox(height: 8),
+                // Optional: a farm can be set up before any feed has been
+                // delivered, so there is no stock figure to give yet. Left
+                // blank the server stores NULL, and it can be filled in later
+                // from the farm's feed-store card.
                 _buildTextField(
                   controller: store,
                   hint: "Enter Store",
                   keyboardType: TextInputType.number,
+                  isRequired: false,
                 ),
                 const SizedBox(height: 20),
 
@@ -341,8 +361,16 @@ class _AddFarmerDetailsFormScreenState
                       bool success = false;
 
                       if (isEdit) {
+                        // `id!` threw here for a farm the API returned without
+                        // one, losing everything the form had been filled with.
+                        final farmId = widget.farmData?.id;
+                        if (farmId == null) {
+                          CustomToast.error('This farm is missing its id');
+                          return;
+                        }
+
                         success = await controller.updateFarmData(
-                          farmId: widget.farmData!.id!,
+                          farmId: farmId,
                           farmName: farmName.text,
                           stockingDate: stockingDate.text,
                           store: store.text,
