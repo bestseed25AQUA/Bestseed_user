@@ -14,11 +14,7 @@ import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart'
 import 'package:seedsuser/app/farm_management/farmer/view/farm_detail_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/feed_update_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/access_management_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/setup_access_guide_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/scanner_guide_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/qr_code_list_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/scanned_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/chat_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_options.dart';
@@ -131,42 +127,10 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
           style: GoogleFonts.roboto(color: Colors.white),
         ),
         // leading: const Icon(Icons.menu),
-        actions: [
-          InkWell(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ScannerGuideScreen()),
-            ),
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              margin: const EdgeInsets.only(right: 16.0),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Scan',
-                    style: GoogleFonts.roboto(
-                      color: Colors.black,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.qr_code_scanner,
-                    color: AppColors.primary,
-                    size: 18,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+        //
+        // The Scan action is gone with the rest of the QR flow: access is
+        // given by picking people directly in Setup Access, so there is no
+        // code to scan.
       ),
       body: Obx(() {
         final farms = farmSections;
@@ -366,7 +330,10 @@ class FarmCard extends StatelessWidget {
                             );
                           },
 
-                          onTapAccessSetup: () {
+                          // One entry point per role. The role is chosen HERE
+                          // and carried through the guide, the access list and
+                          // the add form, so it is never asked for twice.
+                          onManagerAccess: () {
                             final rootNav = Navigator.of(
                               context,
                               rootNavigator: true,
@@ -377,57 +344,25 @@ class FarmCard extends StatelessWidget {
                                 builder: (_) => SetupAccessGuideScreen(
                                   farmId: farmIdNum,
                                   access: farm.access,
+                                  role: FarmRole.manager,
                                 ),
                               ),
                             );
                           },
 
-                          // Partners and Manager open the SAME list as Setup
-                          // Access, on the matching tab.
-                          //
-                          // They used to open PartnerScreen/ManagerScreen,
-                          // which read /partner/parteners and /manager/managers
-                          // — a per-farm address book of names that grants
-                          // nothing. Somebody who scanned a QR held access but
-                          // never showed up there, and somebody typed into it
-                          // showed up but could not open the farm. One list,
-                          // built from the table the server actually checks,
-                          // is the only way the two can agree.
-                          onPartners: () {
-                            Navigator.pop(context);
-                            Get.to(
-                              () => AccessManagementScreen(
-                                farmId: farmIdNum,
-                                access: farm.access,
-                                initialTab: 1,
-                              ),
+                          onPartnerAccess: () {
+                            final rootNav = Navigator.of(
+                              context,
+                              rootNavigator: true,
                             );
-                          },
-
-                          onManager: () {
                             Navigator.pop(context);
-                            Get.to(
-                              () => AccessManagementScreen(
-                                farmId: farmIdNum,
-                                access: farm.access,
-                                initialTab: 0,
-                              ),
-                            );
-                          },
-
-                          onQrCodes: () {
-                            Navigator.pop(context);
-                            Get.to(
-                              () =>
-                                  QrCodeListScreen(farmId: farmIdNum),
-                            );
-                          },
-
-                          onScannedDetails: () {
-                            Navigator.pop(context);
-                            Get.to(
-                              () => ScannedDetailsScreen(
-                                farmId: farmIdNum,
+                            rootNav.push(
+                              MaterialPageRoute(
+                                builder: (_) => SetupAccessGuideScreen(
+                                  farmId: farmIdNum,
+                                  access: farm.access,
+                                  role: FarmRole.partner,
+                                ),
                               ),
                             );
                           },
@@ -820,19 +755,15 @@ class VoiceAssistanceModal extends StatelessWidget {
 ///   * Add today's quantity → create access
 ///   * Edit farm details    → edit access
 ///   * Delete farm          → delete access
-///   * Setup Access         → anyone holding access may pass on what they hold
-///   * QR Codes, Scanned Details, Partners, Manager → owner only, because the
-///     endpoints behind them (`ownedFarm`, `ownedFarmIds`) refuse anyone else.
+///   * Set Up Access (either role) → anyone holding access may pass on what
+///     they hold, capped server-side at their own permissions.
 void showFarmBottomSheet({
   required BuildContext context,
   required String farmName,
   required FarmAccess access,
   required VoidCallback onAddTankQty,
-  required VoidCallback onTapAccessSetup,
-  required VoidCallback onPartners,
-  required VoidCallback onManager,
-  required VoidCallback onScannedDetails,
-  required VoidCallback onQrCodes,
+  required VoidCallback onManagerAccess,
+  required VoidCallback onPartnerAccess,
   required VoidCallback onEditFarm,
   required VoidCallback onDeleteFarm,
 }) {
@@ -892,43 +823,28 @@ void showFarmBottomSheet({
                   onTap: onAddTankQty,
                 ),
 
+              // One row per role, each carrying the role all the way through
+              // to the access list and the add form.
+              //
+              // This was three rows: a combined "Manager or Partner" setup,
+              // plus separate Partners and Manager entries that opened the old
+              // address-book screens. The farmer had to pick the role twice —
+              // once here and again in a dropdown — and the two list screens
+              // showed people who did not necessarily hold any access.
+              //
               // Not owner-only: the members endpoint lets anyone with access
               // pass on what they hold, so a manager can appoint someone too.
-              if (access.canShareAccess)
-                _sheetItem(
-                  icon: Icons.person_2,
-                  title: "Set Up Access for Manager or Partner",
-                  onTap: onTapAccessSetup,
-                ),
-
-              // The four below are the farm's keys. /manager/managers,
-              // /partner/parteners, /farm/{id}/access and /farm/{id}/grantees
-              // all resolve the farm through the caller's OWNED farms, so for
-              // a manager or partner they can only ever answer 403 or an empty
-              // list — showing them was offering a door with no handle.
-              if (access.canManageAccessCodes) ...[
-                _sheetItem(
-                  icon: Icons.group,
-                  title: "Partners",
-                  onTap: onPartners,
-                ),
-
+              if (access.canShareAccess) ...[
                 _sheetItem(
                   icon: Icons.person,
-                  title: "Manager",
-                  onTap: onManager,
+                  title: "Set Up Access for Manager",
+                  onTap: onManagerAccess,
                 ),
 
                 _sheetItem(
-                  icon: Icons.qr_code_2,
-                  title: "QR Codes",
-                  onTap: onQrCodes,
-                ),
-
-                _sheetItem(
-                  icon: Icons.qr_code_scanner,
-                  title: "Scanned Details",
-                  onTap: onScannedDetails,
+                  icon: Icons.group,
+                  title: "Set Up Access for Partner",
+                  onTap: onPartnerAccess,
                 ),
               ],
 

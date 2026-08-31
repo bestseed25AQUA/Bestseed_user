@@ -6,8 +6,6 @@ import 'package:seedsuser/app/common/custom_button.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_access_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/qr_generated_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/widget/set_pin_sheet.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farmer_picker.dart';
 
@@ -17,8 +15,8 @@ import 'package:seedsuser/app/farm_management/farmer/widget/farmer_picker.dart';
 /// server consults when it decides whether someone may open a farm. It used to
 /// be built from `/manager/managers` and `/partner/parteners`, a per-farm
 /// address book of names that is not tied to any login and grants nothing, so
-/// the two never agreed: a person who scanned a QR held access but was absent
-/// from this list, and a person typed in by hand appeared on it while the farm
+/// the two never agreed: a person who really held access could be absent from
+/// this list, and a person typed in by hand appeared on it while the farm
 /// stayed invisible to them.
 ///
 /// Open to members, not just the owner. Anyone holding access may pass on what
@@ -27,44 +25,37 @@ class AccessManagementScreen extends StatefulWidget {
   /// Farm the access belongs to.
   final int farmId;
 
-  /// What the logged-in farmer holds on that farm. Decides whether a QR can be
-  /// issued (owner only) and caps the permissions this screen may hand out.
+  /// What the logged-in farmer holds on that farm. Caps the permissions this
+  /// screen may hand out.
   final FarmAccess access;
 
-  /// 0 = Managers, 1 = Partners.
-  final int initialTab;
+  /// The one role this screen is about.
+  ///
+  /// There used to be a Managers / Partners tab bar here. The farmer had
+  /// already chosen a role to reach this screen, so the tabs let them wander
+  /// into the other one and then be asked for the role a third time in the add
+  /// form — where a different answer would silently contradict the tab they
+  /// were looking at. One screen, one role.
+  final FarmRole role;
 
   const AccessManagementScreen({
     super.key,
     required this.farmId,
+    required this.role,
     this.access = const FarmAccess.ownerFallback(),
-    this.initialTab = 0,
   });
 
   @override
   State<AccessManagementScreen> createState() => _AccessManagementScreenState();
 }
 
-class _AccessManagementScreenState extends State<AccessManagementScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _AccessManagementScreenState extends State<AccessManagementScreen> {
   final FarmAccessController _access = Get.put(FarmAccessController());
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
-      length: 2,
-      vsync: this,
-      initialIndex: widget.initialTab.clamp(0, 1),
-    );
     _refresh();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   Future<void> _refresh() => _access.fetchMembers(farmId: widget.farmId);
@@ -81,7 +72,9 @@ class _AccessManagementScreenState extends State<AccessManagementScreen>
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Setup Access',
+          'Setup Access for ${widget.role.label}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.roboto(
             color: Colors.white,
             fontSize: 18,
@@ -122,43 +115,19 @@ class _AccessManagementScreenState extends State<AccessManagementScreen>
               ),
             ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          labelStyle: GoogleFonts.roboto(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-          unselectedLabelStyle: GoogleFonts.roboto(
-            fontSize: 14,
-            fontWeight: FontWeight.w400,
-          ),
-          tabs: const [
-            Tab(text: 'Managers'),
-            Tab(text: 'Partners'),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [_buildTab(isPartner: false), _buildTab(isPartner: true)],
-      ),
+      body: _buildList(),
     );
   }
 
   void _onAddTap() async {
-    final role = _tabController.index == 0 ? 'Manager' : 'Partner';
-
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => _AddAccessFormScreen(
           farmId: widget.farmId,
           callerAccess: widget.access,
-          initialRole: role,
+          role: widget.role,
         ),
       ),
     );
@@ -166,14 +135,17 @@ class _AccessManagementScreenState extends State<AccessManagementScreen>
     await _refresh();
   }
 
-  Widget _buildTab({required bool isPartner}) {
+  Widget _buildList() {
     return Obx(() {
       if (_access.isLoading.value) {
         return const ListTileShimmer();
       }
 
+      // Only this screen's role. A manager and a partner hold different things
+      // on the farm, and mixing them in one list was what made the tab bar
+      // necessary in the first place.
       final people = _access.members
-          .where((m) => m.isPartner == isPartner)
+          .where((m) => m.isPartner == widget.role.isPartner)
           .toList();
 
       if (people.isEmpty) {
@@ -187,7 +159,7 @@ class _AccessManagementScreenState extends State<AccessManagementScreen>
               Icon(Icons.people_outline, size: 64, color: Colors.grey[300]),
               const SizedBox(height: 12),
               Text(
-                isPartner ? 'No partners yet' : 'No managers yet',
+                'No ${widget.role.pluralLabel.toLowerCase()} yet',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.roboto(
                   fontSize: 16,
@@ -197,7 +169,8 @@ class _AccessManagementScreenState extends State<AccessManagementScreen>
               const SizedBox(height: 6),
               Text(
                 widget.access.canShareAccess
-                    ? 'Tap Add to give someone access to this farm.'
+                    ? 'Tap Add to make someone a '
+                          '${widget.role.label.toLowerCase()} on this farm.'
                     : 'Only people who can share access may add someone.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.roboto(
@@ -258,7 +231,7 @@ class _AccessManagementScreenState extends State<AccessManagementScreen>
         builder: (_) => _AddAccessFormScreen(
           farmId: widget.farmId,
           callerAccess: widget.access,
-          initialRole: member.isPartner ? 'Partner' : 'Manager',
+          role: widget.role,
           editing: member,
         ),
       ),
@@ -393,7 +366,7 @@ class _MemberCard extends StatelessWidget {
           // themselves — which is exactly what decides who may remove them.
           Text(
             [
-              member.via == 'qr' ? 'Joined by QR' : 'Added directly',
+              'Added directly',
               if (member.grantedBy != null) 'by ${member.grantedBy}',
               if (member.expiresAt != null) '· ${_expiryLabel(member)}',
             ].join(' '),
@@ -468,7 +441,10 @@ class _AddAccessFormScreen extends StatefulWidget {
   /// giver does not hold and refuses the grant outright if that leaves nothing.
   final FarmAccess callerAccess;
 
-  final String initialRole;
+  /// The role being granted. Fixed by the screen that opened this form —
+  /// there is no role picker any more, because the farmer already chose one
+  /// to get here and a second answer could contradict the first.
+  final FarmRole role;
 
   /// Set when changing an existing member's access rather than adding one.
   final FarmMember? editing;
@@ -476,7 +452,7 @@ class _AddAccessFormScreen extends StatefulWidget {
   const _AddAccessFormScreen({
     required this.farmId,
     required this.callerAccess,
-    required this.initialRole,
+    required this.role,
     this.editing,
   });
 
@@ -489,7 +465,6 @@ class _AddAccessFormScreen extends StatefulWidget {
 class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
   final FarmAccessController _access = Get.put(FarmAccessController());
 
-  late String _selectedRole;
   late String _selectedDuration;
 
   /// People chosen to receive access directly.
@@ -502,18 +477,11 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
 
   bool _isSaving = false;
 
-  final List<String> _roles = ['Manager', 'Partner'];
   final List<String> _durations = ['30 Days', '60 Days', '90 Days', '1 Year'];
-
-  /// Only the owner may mint a QR — `/farm/{id}/access/generate` checks
-  /// ownership, not a permission flag, because the code is the farm's key.
-  /// A manager passing access on therefore grants people directly instead.
-  bool get _canIssueQr => widget.callerAccess.canManageAccessCodes;
 
   @override
   void initState() {
     super.initState();
-    _selectedRole = widget.initialRole;
     _selectedDuration = _durations.first;
 
     final existing = widget.editing?.permissions;
@@ -554,65 +522,17 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
       return;
     }
 
-    // No QR to issue: grant the picked people directly. This is the path a
-    // manager or partner takes when passing on access.
-    if (!_canIssueQr) {
-      if (_selectedPeople.isEmpty) {
-        CustomToast.error('Choose at least one person to give access to');
-        return;
-      }
-      await _grantDirect(grantId: null);
+    // Access is always given directly to people picked by name — there is no
+    // QR or PIN any more, for the owner or anyone else.
+    if (_selectedPeople.isEmpty) {
+      CustomToast.error('Choose at least one person to give access to');
       return;
     }
 
-    await _generateQr();
+    await _grantDirect();
   }
 
-  Future<void> _generateQr() async {
-    await showPinSheet(
-      context,
-      title: 'Set a PIN',
-      subtitle:
-          'Enter a PIN to keep your access safe from misuse and '
-          'ensure only trusted members can use it.',
-      confirmLabel: 'Confirm',
-      onConfirm: (pin) async {
-        final grant = await _access.generateAccess(
-          farmId: widget.farmId,
-          role: _selectedRole.toLowerCase(),
-          durationDays: _durationDays,
-          pin: pin,
-          canView: _canView,
-          canEdit: _canEdit,
-          canCreate: _canCreate,
-          canDelete: _canDelete,
-        );
-
-        if (grant == null) {
-          return 'Could not create the access code. Please try again.';
-        }
-
-        // Anyone picked above gets access immediately, tied to this code so
-        // revoking the QR revokes them too. Scanning still works as before for
-        // anyone not on the list.
-        if (_selectedPeople.isNotEmpty) {
-          await _grantDirect(grantId: grant.id, showToast: false);
-        }
-
-        if (!mounted) return null;
-
-        // Close the PIN sheet, then swap this form for the QR result so
-        // backing out lands on the access list rather than the form again.
-        Navigator.of(context).pop();
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => QrGeneratedScreen(grant: grant)),
-        );
-        return null;
-      },
-    );
-  }
-
-  Future<void> _grantDirect({int? grantId, bool showToast = true}) async {
+  Future<void> _grantDirect({bool showToast = true}) async {
     final ids = _selectedPeople
         .map((p) => int.tryParse('${p['id']}') ?? 0)
         .where((id) => id > 0)
@@ -625,13 +545,12 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
     final ok = await _access.grantAccessTo(
       farmId: widget.farmId,
       farmerIds: ids,
-      role: _selectedRole.toLowerCase(),
+      role: widget.role.apiValue,
       canView: _canView,
       canEdit: _canEdit,
       canCreate: _canCreate,
       canDelete: _canDelete,
       durationDays: _durationDays,
-      grantId: grantId,
     );
 
     if (!mounted) return;
@@ -658,7 +577,7 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
     final ok = await _access.grantAccessTo(
       farmId: widget.farmId,
       farmerIds: [farmerId],
-      role: _selectedRole.toLowerCase(),
+      role: widget.role.apiValue,
       canView: _canView,
       canEdit: _canEdit,
       canCreate: _canCreate,
@@ -720,14 +639,50 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
               ],
 
               const SizedBox(height: 12),
-              _sectionLabel('Choose Role'),
+
+              // The role, stated rather than asked.
+              //
+              // This was a Manager/Partner dropdown, which meant choosing the
+              // role a second time after the farm sheet had already settled it
+              // — and picking the other one here silently added the person to
+              // a list the farmer was not looking at.
+              _sectionLabel('Role'),
               const SizedBox(height: 8),
-              _dropdownField(
-                value: _selectedRole,
-                items: _roles,
-                onChanged: widget.isEditing
-                    ? null
-                    : (val) => setState(() => _selectedRole = val!),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      widget.role.isPartner ? Icons.group : Icons.person,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.role.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 20),
 
@@ -751,11 +706,8 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
                 const SizedBox(height: 8),
 
                 Text(
-                  _canIssueQr
-                      ? 'Anyone picked here gets access straight away. Leave it '
-                            'empty and only the QR decides who gets in.'
-                      : 'Pick the people you want to give access to. Only the '
-                            'farm owner can issue a QR code.',
+                  'Pick the people you want to give access to. They get it '
+                  'straight away.',
                   style: GoogleFonts.roboto(
                     fontSize: 12,
                     color: Colors.grey[600],
@@ -818,9 +770,7 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Obx(
                   () => CustomButton(
-                    text: widget.isEditing
-                        ? 'Save'
-                        : (_canIssueQr ? 'Generate QR' : 'Give Access'),
+                    text: widget.isEditing ? 'Save' : 'Give Access',
                     isLoading: _isSaving || _access.isSubmitting.value,
                     onPressed: _onSave,
                     borderRadius: 30,

@@ -11,7 +11,6 @@ import 'package:seedsuser/app/farm_management/farm_home/notify_us_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/scanner_guide_screen.dart';
 
 class InitialFarmScreen extends StatefulWidget {
   const InitialFarmScreen({super.key});
@@ -37,8 +36,8 @@ class _InitialFarmScreenState extends State<InitialFarmScreen> {
   /// Re-check after any screen we opened closes.
   ///
   /// Every route out of here can end with a farm existing — the add form
-  /// directly, or Contact Us -> Fill Form, or scanning a QR that grants access
-  /// to someone else's farm. Without this the user came back to "no farms yet"
+  /// directly, or Contact Us -> Fill Form, or someone granting them access to
+  /// their farm. Without this the user came back to "no farms yet"
   /// even though they had just created one.
   Future<void> _openThenRefresh(Widget screen) async {
     await Get.to(() => screen);
@@ -88,42 +87,9 @@ class _InitialFarmScreenState extends State<InitialFarmScreen> {
           ),
         ),
         centerTitle: false,
-        actions: [
-          // This chip had no tap handler at all — it was decoration. Scanning
-          // matters most here: a manager or partner with no farm of their own
-          // reaches this screen, and the QR is how they get access to one.
-          InkWell(
-            onTap: () => _openThenRefresh(const ScannerGuideScreen()),
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              margin: const EdgeInsets.only(right: 16.0),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Scan',
-                    style: GoogleFonts.roboto(
-                      color: Colors.black,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.qr_code_scanner,
-                    color: AppColors.primary,
-                    size: 18,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+        // No Scan action: access is given by the farm owner picking people
+        // directly, so a manager or partner with no farm of their own does
+        // not scan anything — the farm simply appears once they are added.
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),

@@ -1,4 +1,4 @@
-/// Permission flags carried by an access grant.
+/// Permission flags carried by a membership.
 class AccessPermissions {
   final bool view;
   final bool edit;
@@ -23,128 +23,6 @@ class AccessPermissions {
   }
 }
 
-/// A QR + PIN access code issued for a farm.
-///
-/// [pin] is only present on responses to the issuing farmer — the scanner side
-/// never receives it.
-class FarmAccessGrant {
-  final int id;
-  final int farmId;
-  final String token;
-  final String role;
-  final String? pin;
-  final int durationDays;
-  final int daysRemaining;
-  final String status;
-  final DateTime? expiresAt;
-  final DateTime? createdAt;
-  final AccessPermissions permissions;
-
-  const FarmAccessGrant({
-    required this.id,
-    required this.farmId,
-    required this.token,
-    required this.role,
-    required this.durationDays,
-    required this.daysRemaining,
-    required this.status,
-    required this.permissions,
-    this.pin,
-    this.expiresAt,
-    this.createdAt,
-  });
-
-  bool get isPartner => role == 'partner';
-
-  factory FarmAccessGrant.fromJson(Map<String, dynamic> json) {
-    return FarmAccessGrant(
-      id: json['id'] ?? 0,
-      farmId: json['farm_id'] ?? 0,
-      token: json['token']?.toString() ?? '',
-      role: json['role']?.toString() ?? 'manager',
-      pin: json['pin']?.toString(),
-      durationDays: int.tryParse('${json['duration_days']}') ?? 0,
-      daysRemaining: int.tryParse('${json['days_remaining']}') ?? 0,
-      status: json['status']?.toString() ?? 'pending',
-      expiresAt: DateTime.tryParse('${json['expires_at']}'),
-      createdAt: DateTime.tryParse('${json['created_at']}'),
-      permissions: AccessPermissions.fromJson(
-        json['permissions'] as Map<String, dynamic>?,
-      ),
-    );
-  }
-}
-
-/// A person who scanned a code and now holds access — the "Scanned Details" row.
-class FarmGrantee {
-  final int grantId;
-  final int? managerId;
-  final String? name;
-  final String? phone;
-  final String? farmName;
-  final String role;
-  final int daysRemaining;
-  final String status;
-  final DateTime? redeemedAt;
-  final AccessPermissions permissions;
-
-  const FarmGrantee({
-    required this.grantId,
-    required this.role,
-    required this.daysRemaining,
-    required this.status,
-    required this.permissions,
-    this.managerId,
-    this.name,
-    this.phone,
-    this.farmName,
-    this.redeemedAt,
-  });
-
-  bool get isPartner => role == 'partner';
-
-  factory FarmGrantee.fromJson(Map<String, dynamic> json) {
-    return FarmGrantee(
-      grantId: json['grant_id'] ?? 0,
-      managerId: json['manager_id'],
-      name: json['name']?.toString(),
-      phone: json['phone']?.toString(),
-      farmName: json['farm_name']?.toString(),
-      role: json['role']?.toString() ?? 'manager',
-      daysRemaining: int.tryParse('${json['days_remaining']}') ?? 0,
-      status: json['status']?.toString() ?? 'active',
-      redeemedAt: DateTime.tryParse('${json['redeemed_at']}'),
-      permissions: AccessPermissions.fromJson(
-        json['permissions'] as Map<String, dynamic>?,
-      ),
-    );
-  }
-}
-
-/// Result of scanning a QR, before the PIN step.
-class ScannedGrantPreview {
-  final String token;
-  final int farmId;
-  final String? farmName;
-  final String role;
-
-  const ScannedGrantPreview({
-    required this.token,
-    required this.farmId,
-    required this.role,
-    this.farmName,
-  });
-
-  factory ScannedGrantPreview.fromJson(Map<String, dynamic> json) {
-    return ScannedGrantPreview(
-      token: json['token']?.toString() ?? '',
-      farmId: json['farm_id'] ?? 0,
-      farmName: json['farm_name']?.toString(),
-      role: json['role']?.toString() ?? 'manager',
-    );
-  }
-}
-
 /// What the logged-in farmer may do with one farm.
 ///
 /// The farm list already returns this against every farm — role, whether they
@@ -155,7 +33,6 @@ class ScannedGrantPreview {
 class FarmAccess {
   final String role;
   final bool isOwner;
-  final int? grantId;
   final DateTime? expiresAt;
   final AccessPermissions permissions;
 
@@ -163,7 +40,6 @@ class FarmAccess {
     required this.role,
     required this.isOwner,
     required this.permissions,
-    this.grantId,
     this.expiresAt,
   });
 
@@ -173,7 +49,6 @@ class FarmAccess {
   const FarmAccess.ownerFallback()
       : role = 'owner',
         isOwner = true,
-        grantId = null,
         expiresAt = null,
         permissions = const AccessPermissions(
           view: true,
@@ -188,7 +63,6 @@ class FarmAccess {
     return FarmAccess(
       role: json['role']?.toString() ?? 'owner',
       isOwner: json['is_owner'] == true,
-      grantId: int.tryParse('${json['grant_id']}'),
       expiresAt: DateTime.tryParse('${json['expires_at']}'),
       permissions: AccessPermissions.fromJson(
         json['permissions'] as Map<String, dynamic>?,
@@ -201,17 +75,12 @@ class FarmAccess {
   bool get canCreate => isOwner || permissions.create;
   bool get canDelete => isOwner || permissions.delete;
 
-  /// Issuing QR codes, listing them and reading Scanned Details are the farm's
-  /// keys — the API restricts all three to the owner, so the app must not
-  /// offer them to a manager or partner.
-  bool get canManageAccessCodes => isOwner;
-
   /// Anyone holding access may pass it on, capped at what they hold —
   /// `POST /farmer/farm/{id}/members` enforces the cap server-side.
   bool get canShareAccess => canView || canEdit || canCreate || canDelete;
 }
 
-/// A person who currently holds access to a farm, however they got it.
+/// A person who currently holds access to a farm.
 ///
 /// Backs the Setup Access list. Unlike the legacy `managers`/`partners`
 /// endpoints — which are a per-farm address book of names and are readable
@@ -223,9 +92,6 @@ class FarmMember {
   final String name;
   final String? mobile;
   final String role;
-
-  /// 'qr' when they scanned a code, 'direct' when someone picked them.
-  final String via;
 
   /// Name of whoever admitted them.
   final String? grantedBy;
@@ -239,7 +105,6 @@ class FarmMember {
     required this.id,
     required this.name,
     required this.role,
-    required this.via,
     required this.status,
     required this.permissions,
     this.farmerId,
@@ -262,7 +127,6 @@ class FarmMember {
       name: name.isEmpty ? (json['mobile']?.toString() ?? 'Unknown') : name,
       mobile: json['mobile']?.toString(),
       role: json['role']?.toString() ?? 'manager',
-      via: json['via']?.toString() ?? 'direct',
       grantedBy: json['granted_by']?.toString(),
       status: json['status']?.toString() ?? 'active',
       expiresAt: DateTime.tryParse('${json['expires_at']}'),
@@ -271,4 +135,30 @@ class FarmMember {
       ),
     );
   }
+}
+
+/// The role access is being set up for.
+///
+/// Chosen once, on the farm's options sheet, and carried through the guide,
+/// the access list and the add form. Before this the farmer picked a role on
+/// the sheet and was then asked for it AGAIN in a dropdown, which could
+/// disagree with what they had just tapped.
+enum FarmRole {
+  manager,
+  partner;
+
+  /// What the API expects in `role`.
+  String get apiValue => this == FarmRole.partner ? 'partner' : 'manager';
+
+  /// Singular, for a title: "Set Up Access for Manager".
+  String get label => this == FarmRole.partner ? 'Partner' : 'Manager';
+
+  /// Plural, for a list heading: "No partners yet".
+  String get pluralLabel => this == FarmRole.partner ? 'Partners' : 'Managers';
+
+  bool get isPartner => this == FarmRole.partner;
+
+  /// Matches a member row to this role.
+  static FarmRole fromApi(String? value) =>
+      value?.toLowerCase() == 'partner' ? FarmRole.partner : FarmRole.manager;
 }

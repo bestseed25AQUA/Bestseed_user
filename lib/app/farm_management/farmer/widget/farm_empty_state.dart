@@ -4,7 +4,7 @@ import 'package:seedsuser/app/common/app_color.dart';
 
 /// Empty state for the Farm Management lists.
 ///
-/// Follows the look already used by the "No scanned person found" screen —
+/// Follows the look used by the other empty-state screens —
 /// a large tinted icon over a grey line of text — and adds an optional action
 /// so a screen with nothing on it still offers the obvious next step.
 class FarmEmptyState extends StatelessWidget {

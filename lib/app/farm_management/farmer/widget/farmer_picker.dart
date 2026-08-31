@@ -8,9 +8,8 @@ import 'package:seedsuser/app/farm_management/farmer/controller/farm_access_cont
 
 /// Pick people to give farm access to, by name or mobile number.
 ///
-/// Optional by design: a farmer can generate a QR and let people scan it, pick
-/// people here and skip the QR entirely, or do both. Anyone chosen here gets
-/// access the moment the code is created — no scanning, no PIN.
+/// This is the only way access is granted. Anyone chosen here holds it as soon
+/// as the form is saved and the farm appears in their app.
 class FarmerPicker extends StatefulWidget {
   /// Currently selected people, as `{id, name, mobile}`.
   final List<Map<String, dynamic>> selected;
@@ -98,19 +97,11 @@ class _FarmerPickerState extends State<FarmerPicker> {
                 color: Colors.black87,
               ),
             ),
-            const SizedBox(width: 6),
-            Text(
-              '(optional)',
-              style: GoogleFonts.roboto(
-                fontSize: 13,
-                color: Colors.grey.shade600,
-              ),
-            ),
           ],
         ),
         const SizedBox(height: 4),
         Text(
-          'They get access straight away — no need to scan the QR.',
+          'They get access straight away.',
           style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
         ),
         const SizedBox(height: 10),

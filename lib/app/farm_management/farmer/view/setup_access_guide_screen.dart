@@ -9,18 +9,19 @@ class SetupAccessGuideScreen extends StatelessWidget {
   final int farmId;
 
   /// What the logged-in farmer holds on that farm — passed straight through so
-  /// the access screen knows whether it may offer a QR (owner only) and which
-  /// permissions it is allowed to hand out.
+  /// the access screen knows which permissions it may hand out.
   final FarmAccess access;
 
-  /// Which tab the access screen opens on: 0 = Managers, 1 = Partners.
-  final int initialTab;
+  /// Manager or Partner. Chosen on the farm's options sheet and carried all
+  /// the way through, so this screen, the access list and the add form all
+  /// speak about one role and never ask for it again.
+  final FarmRole role;
 
   const SetupAccessGuideScreen({
     Key? key,
     required this.farmId,
+    required this.role,
     this.access = const FarmAccess.ownerFallback(),
-    this.initialTab = 0,
   }) : super(key: key);
 
   @override
@@ -62,12 +63,16 @@ class SetupAccessGuideScreen extends StatelessWidget {
                           ),
                           onPressed: () => Navigator.pop(context),
                         ),
-                        Text(
-                          'Access Setup',
-                          style: GoogleFonts.roboto(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
+                        Expanded(
+                          child: Text(
+                            'Access Setup — ${role.label}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.roboto(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
@@ -100,7 +105,7 @@ class SetupAccessGuideScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     Text(
-                      "Follow These Steps to Give Access",
+                      "Follow These Steps to Give ${role.label} Access",
                       textAlign: TextAlign.center,
                       style: GoogleFonts.roboto(
                         fontSize: 18,
@@ -109,23 +114,22 @@ class SetupAccessGuideScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    // Step 1
+                    // Step 1 no longer says "choose the role" — the role was
+                    // chosen on the farm's options sheet to get here, and the
+                    // steps below name it rather than asking again.
+                    //
+                    // Steps 2 and 3 used to cover generating a QR code with a
+                    // PIN and sending both on WhatsApp. Access is now given
+                    // directly to a person, so there is nothing to share.
                     _buildStep(
                       stepNumber: "1",
                       title: "Step 1",
                       items: [
                         _StepItem(
-                          title: "Set Access",
+                          title: "Pick the people",
                           description:
-                              "Choose who you want to give access to  Manager or Partner",
-                        ),
-                        _StepItem(
-                          title: "Select what they can do",
-                          description: "View / Edit / Add",
-                        ),
-                        _StepItem(
-                          title: "Set how long the access should stay active",
-                          description: "Choose Days or Weeks",
+                              "Search by name or mobile number and choose who "
+                              "you want to make a ${role.label.toLowerCase()}.",
                         ),
                       ],
                     ),
@@ -136,9 +140,8 @@ class SetupAccessGuideScreen extends StatelessWidget {
                       title: "Step 2",
                       items: [
                         _StepItem(
-                          title: "Create a QR code with a PIN",
-                          description:
-                              "We'll generate a QR code and password. Share both with the person to give them access.",
+                          title: "Set how long the access should stay active",
+                          description: "Choose Days or Weeks",
                         ),
                       ],
                     ),
@@ -149,7 +152,10 @@ class SetupAccessGuideScreen extends StatelessWidget {
                       title: "Step 3",
                       items: [
                         _StepItem(
-                          title: "Send the QR code and password on WhatsApp.",
+                          title: "Select what they can do",
+                          description:
+                              "View / Edit / Add / Delete. They get access "
+                              "straight away — the farm appears in their app.",
                         ),
                       ],
                     ),
@@ -167,7 +173,7 @@ class SetupAccessGuideScreen extends StatelessWidget {
                                   AccessManagementScreen(
                                     farmId: farmId,
                                     access: access,
-                                    initialTab: initialTab,
+                                    role: role,
                                   ),
                             ),
                           );
@@ -183,7 +189,7 @@ class SetupAccessGuideScreen extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              "Setup access",
+                              "Setup ${role.label} access",
                               style: GoogleFonts.roboto(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,

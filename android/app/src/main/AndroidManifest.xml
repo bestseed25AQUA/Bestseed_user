@@ -69,7 +69,12 @@
          and requires no permission. Play Store rejected an earlier build
          for declaring these sensitive permissions without a matching core
          functionality (Anti-SMS Phishing / Default SMS handler etc.). -->
-    <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- CAMERA removed with the QR scanner, which was the only thing that used
+         it. Every remaining image pick is ImageSource.gallery. Declaring a
+         sensitive permission with no matching core functionality is what got
+         an earlier build rejected (see the note above), so it should not come
+         back unless something actually captures a photo in-app. -->
+    <!-- <uses-permission android:name="android.permission.CAMERA"/> -->
     <!-- MANAGE_EXTERNAL_STORAGE removed to comply with Play Store policy.
          The PDF report download in FarmTankListScreen now writes to the
          app-owned external files directory (no permission required) and

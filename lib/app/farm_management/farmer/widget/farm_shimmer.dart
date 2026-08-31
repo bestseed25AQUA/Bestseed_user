@@ -198,8 +198,7 @@ class TankHistoryShimmer extends StatelessWidget {
   }
 }
 
-/// Placeholder for the people/code lists — managers, partners, QR codes,
-/// scanned details and the access management screen.
+/// Placeholder for the people lists — managers, partners and the access/// management screen.
 class ListTileShimmer extends StatelessWidget {
   final int itemCount;
   final double height;
