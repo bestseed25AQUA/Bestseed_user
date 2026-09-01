@@ -359,9 +359,9 @@ class FeedStoreCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // Changing the store is an edit — /update-total-feed sits
-                    // behind `farm.access:edit`.
-                    if (access.canEdit)
+                    // The store has its own permission — /update-total-feed
+                    // sits behind `farm.access:total_feed`, not plain edit.
+                    if (access.canEditTotalFeed)
                       InkWell(
                         onTap: () => showEditFeedBottomSheet(farmId.toString()),
                         child: const EditButton(),
@@ -582,8 +582,8 @@ class TankStatusCard extends StatelessWidget {
                     // Null disables the switch rather than hiding it: the
                     // colour still tells a view-only partner whether the tank
                     // is running, which is the point of the card. /tank/status
-                    // requires `farm.access:edit`.
-                    onChanged: !access.canEdit
+                    // requires `farm.access:tank_status`.
+                    onChanged: !access.canChangeTankStatus
                         ? null
                         : (value) async {
                             if (value) {

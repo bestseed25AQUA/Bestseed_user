@@ -169,12 +169,11 @@ class SetupAccessGuideScreen extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) =>
-                                  AccessManagementScreen(
-                                    farmId: farmId,
-                                    access: access,
-                                    role: role,
-                                  ),
+                              builder: (_) => AccessManagementScreen(
+                                farmId: farmId,
+                                access: access,
+                                role: role,
+                              ),
                             ),
                           );
                         },

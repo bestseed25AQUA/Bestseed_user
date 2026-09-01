@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:get/get.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/farm_management/farmer/model/mobile_lookup.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
@@ -49,27 +50,50 @@ class FarmAccessController extends GetxController {
     return fallback;
   }
 
-
   /// Find people to grant access to, by name or mobile.
   ///
   /// Returns `[{id, name, mobile, image}]`. The server requires at least three
   /// characters, so short terms are not worth a round trip.
-  Future<List<Map<String, dynamic>>> searchFarmers(String term) async {
-    if (term.trim().length < 3) return [];
+  /// Look up one person by their full 10-digit mobile number.
+  ///
+  /// Returns the person, or null when nobody holds that number — which is a
+  /// normal answer, not a failure: the caller then offers to add them by it.
+  /// There is deliberately no partial or name search. Picking the wrong
+  /// "Ramesh" out of a list of suggestions hands a stranger the farm.
+  Future<MobileLookup> lookupByMobile(String mobile) async {
+    final digits = mobile.replaceAll(RegExp(r'\D'), '');
+
+    if (digits.length != 10) {
+      return const MobileLookup.incomplete();
+    }
 
     try {
       final response = await getRequest(
         endPoint: '$_base/farmer/farmers/search',
-        params: '?q=${Uri.encodeQueryComponent(term.trim())}',
+        params: '?q=$digits',
         headers: await buildHeader(),
       );
 
-      if (response.statusCode != 200) return [];
+      final body = jsonDecode(response.body);
 
-      final data = jsonDecode(response.body)['data'] as List<dynamic>? ?? [];
-      return data.cast<Map<String, dynamic>>();
+      if (response.statusCode != 200) {
+        return MobileLookup.error(
+          body is Map && body['message'] != null
+              ? body['message'].toString()
+              : 'Could not check that number.',
+        );
+      }
+
+      final data = (body['data'] as List<dynamic>? ?? [])
+          .cast<Map<String, dynamic>>();
+
+      return data.isEmpty
+          ? MobileLookup.notFound(digits)
+          : MobileLookup.found(data.first);
     } catch (_) {
-      return [];
+      return const MobileLookup.error(
+        'Could not check that number. Check your connection.',
+      );
     }
   }
 
@@ -80,11 +104,13 @@ class FarmAccessController extends GetxController {
     required String role,
     required bool canView,
     required bool canEdit,
+    required bool canChangeTankStatus,
+    required bool canEditTotalFeed,
     required bool canCreate,
     required bool canDelete,
-    int? durationDays,
+    List<String> mobiles = const [],
   }) async {
-    if (farmerIds.isEmpty) return true;
+    if (farmerIds.isEmpty && mobiles.isEmpty) return true;
 
     try {
       final response = await postRequest(
@@ -92,12 +118,16 @@ class FarmAccessController extends GetxController {
         headers: await buildHeader(),
         body: {
           'farmer_ids': farmerIds,
+          // Numbers with no account yet. The server registers them, so the
+          // farm is waiting the first time they sign in.
+          'mobiles': mobiles,
           'role': role,
           'view_access': canView ? 1 : 0,
           'edit_access': canEdit ? 1 : 0,
+          'tank_status_access': canChangeTankStatus ? 1 : 0,
+          'total_feed_access': canEditTotalFeed ? 1 : 0,
           'create_access': canCreate ? 1 : 0,
           'delete_access': canDelete ? 1 : 0,
-          if (durationDays != null) 'duration_days': durationDays,
         },
       );
 
@@ -171,7 +201,6 @@ class FarmAccessController extends GetxController {
     return false;
   }
 
-
   /// Returns the remaining feed in store when a farm is below its low-feed
   /// limit, or null when it is fine (or the farm has no feed data yet).
   Future<num?> checkFeedLimit(int farmId) async {
@@ -193,5 +222,4 @@ class FarmAccessController extends GetxController {
       return null;
     }
   }
-
 }

@@ -71,6 +71,13 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
+        // Explicit, because AppBar's default differs by platform — centred on
+        // iOS, left-aligned on Android — and every other screen in this module
+        // is left-aligned.
+        centerTitle: false,
+        // The back arrow already occupies a 56px slot; AppBar adds another
+        // 16px before the title on top of it, which read as a gap.
+        titleSpacing: 0,
         title: Text(
           'Setup Access for ${widget.role.label}',
           maxLines: 1,
@@ -368,7 +375,6 @@ class _MemberCard extends StatelessWidget {
             [
               'Added directly',
               if (member.grantedBy != null) 'by ${member.grantedBy}',
-              if (member.expiresAt != null) '· ${_expiryLabel(member)}',
             ].join(' '),
             style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[600]),
           ),
@@ -386,16 +392,6 @@ class _MemberCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _expiryLabel(FarmMember member) {
-    final expires = member.expiresAt;
-    if (expires == null) return 'no expiry';
-
-    final days = expires.difference(DateTime.now()).inDays;
-    if (days < 0) return 'expired';
-    if (days == 0) return 'expires today';
-    return 'expires in $days day${days == 1 ? '' : 's'}';
   }
 
   Widget _statusChip(FarmMember member) {
@@ -465,51 +461,52 @@ class _AddAccessFormScreen extends StatefulWidget {
 class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
   final FarmAccessController _access = Get.put(FarmAccessController());
 
-  late String _selectedDuration;
-
   /// People chosen to receive access directly.
   List<Map<String, dynamic>> _selectedPeople = [];
 
   late bool _canView;
   late bool _canEdit;
+  late bool _canChangeTankStatus;
+  late bool _canEditTotalFeed;
   late bool _canCreate;
   late bool _canDelete;
 
   bool _isSaving = false;
 
-  final List<String> _durations = ['30 Days', '60 Days', '90 Days', '1 Year'];
-
   @override
   void initState() {
     super.initState();
-    _selectedDuration = _durations.first;
 
     final existing = widget.editing?.permissions;
     // Capped from the start: pre-ticking something the giver cannot grant only
     // sets up a save that comes back changed.
     _canView = (existing?.view ?? true) && widget.callerAccess.canView;
-    _canEdit = (existing?.edit ?? false) && widget.callerAccess.canEdit;
+    // On by default: a manager is brought in to run the farm day to day, and
+    // correcting what a tank was fed is the core of that.
+    _canEdit = (existing?.edit ?? true) && widget.callerAccess.canEdit;
+
+    // On by default for the same reason — harvesting a tank is part of
+    // running it.
+    _canChangeTankStatus =
+        (existing?.tankStatus ?? true) &&
+        widget.callerAccess.canChangeTankStatus;
+
+    // Off by default: the store figure drives the low-feed alerts and every
+    // remaining-stock number on the farm, so it is handed over deliberately.
+    _canEditTotalFeed =
+        (existing?.totalFeed ?? false) && widget.callerAccess.canEditTotalFeed;
+
     _canCreate = (existing?.create ?? false) && widget.callerAccess.canCreate;
     _canDelete = (existing?.delete ?? false) && widget.callerAccess.canDelete;
   }
 
-  /// '30 Days' → 30, '1 Year' → 365.
-  int get _durationDays {
-    if (_selectedDuration.toLowerCase().contains('year')) return 365;
-    return int.tryParse(_selectedDuration.split(' ').first) ?? 30;
-  }
-
-  /// Whole days left on the member being edited, so changing their permissions
-  /// does not silently reset their expiry to "never".
-  int? get _remainingDays {
-    final expires = widget.editing?.expiresAt;
-    if (expires == null) return null;
-
-    final days = expires.difference(DateTime.now()).inDays;
-    return days > 0 ? days : 1;
-  }
-
-  bool get _grantsAnything => _canView || _canEdit || _canCreate || _canDelete;
+  bool get _grantsAnything =>
+      _canView ||
+      _canEdit ||
+      _canChangeTankStatus ||
+      _canEditTotalFeed ||
+      _canCreate ||
+      _canDelete;
 
   Future<void> _onSave() async {
     if (!_grantsAnything) {
@@ -538,19 +535,29 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
         .where((id) => id > 0)
         .toList();
 
-    if (ids.isEmpty) return;
+    // People added by a number nobody has registered yet. The server creates
+    // their account, so the farm is waiting the first time they log in.
+    final mobiles = _selectedPeople
+        .where((p) => p['is_new'] == true)
+        .map((p) => '${p['mobile']}')
+        .where((m) => m.length == 10)
+        .toList();
+
+    if (ids.isEmpty && mobiles.isEmpty) return;
 
     setState(() => _isSaving = true);
 
     final ok = await _access.grantAccessTo(
       farmId: widget.farmId,
       farmerIds: ids,
+      mobiles: mobiles,
       role: widget.role.apiValue,
       canView: _canView,
       canEdit: _canEdit,
+      canChangeTankStatus: _canChangeTankStatus,
+      canEditTotalFeed: _canEditTotalFeed,
       canCreate: _canCreate,
       canDelete: _canDelete,
-      durationDays: _durationDays,
     );
 
     if (!mounted) return;
@@ -580,9 +587,10 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
       role: widget.role.apiValue,
       canView: _canView,
       canEdit: _canEdit,
+      canChangeTankStatus: _canChangeTankStatus,
+      canEditTotalFeed: _canEditTotalFeed,
       canCreate: _canCreate,
       canDelete: _canDelete,
-      durationDays: _remainingDays,
     );
 
     if (!mounted) return;
@@ -686,18 +694,10 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Editing keeps whatever is left of the existing grant, so a
-              // duration picker here would be a lie.
+              // Only when creating: editing changes one existing member's
+              // permissions, so choosing a different set of people there would
+              // have nothing to act on.
               if (!widget.isEditing) ...[
-                _sectionLabel('Duration'),
-                const SizedBox(height: 8),
-                _dropdownField(
-                  value: _selectedDuration,
-                  items: _durations,
-                  onChanged: (val) => setState(() => _selectedDuration = val!),
-                ),
-                const SizedBox(height: 24),
-
                 FarmerPicker(
                   selected: _selectedPeople,
                   onChanged: (people) =>
@@ -749,6 +749,18 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
                   'edit access',
                   _canEdit,
                   (v) => setState(() => _canEdit = v),
+                ),
+              if (widget.callerAccess.canChangeTankStatus)
+                _accessRow(
+                  'Tank active / inactive access',
+                  _canChangeTankStatus,
+                  (v) => setState(() => _canChangeTankStatus = v),
+                ),
+              if (widget.callerAccess.canEditTotalFeed)
+                _accessRow(
+                  'Total feed access',
+                  _canEditTotalFeed,
+                  (v) => setState(() => _canEditTotalFeed = v),
                 ),
               if (widget.callerAccess.canCreate)
                 _accessRow(

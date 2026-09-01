@@ -2,12 +2,21 @@
 class AccessPermissions {
   final bool view;
   final bool edit;
+
+  /// Mark a tank active or inactive — harvesting it.
+  final bool tankStatus;
+
+  /// Change the farm's feed store and low-feed limit.
+  final bool totalFeed;
+
   final bool create;
   final bool delete;
 
   const AccessPermissions({
     this.view = false,
     this.edit = false,
+    this.tankStatus = false,
+    this.totalFeed = false,
     this.create = false,
     this.delete = false,
   });
@@ -17,6 +26,8 @@ class AccessPermissions {
     return AccessPermissions(
       view: json['view'] == true,
       edit: json['edit'] == true,
+      tankStatus: json['tank_status'] == true,
+      totalFeed: json['total_feed'] == true,
       create: json['create'] == true,
       delete: json['delete'] == true,
     );
@@ -47,15 +58,17 @@ class FarmAccess {
   /// server is the real gate — the app only decides what to *offer*, and
   /// hiding everything on an old payload would leave an owner unable to work.
   const FarmAccess.ownerFallback()
-      : role = 'owner',
-        isOwner = true,
-        expiresAt = null,
-        permissions = const AccessPermissions(
-          view: true,
-          edit: true,
-          create: true,
-          delete: true,
-        );
+    : role = 'owner',
+      isOwner = true,
+      expiresAt = null,
+      permissions = const AccessPermissions(
+        view: true,
+        edit: true,
+        tankStatus: true,
+        totalFeed: true,
+        create: true,
+        delete: true,
+      );
 
   factory FarmAccess.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const FarmAccess.ownerFallback();
@@ -72,12 +85,24 @@ class FarmAccess {
 
   bool get canView => isOwner || permissions.view;
   bool get canEdit => isOwner || permissions.edit;
+
+  /// Whether this person may harvest a tank (mark it active or inactive).
+  bool get canChangeTankStatus => isOwner || permissions.tankStatus;
+
+  /// Whether this person may change the farm's feed store and low-feed limit.
+  bool get canEditTotalFeed => isOwner || permissions.totalFeed;
   bool get canCreate => isOwner || permissions.create;
   bool get canDelete => isOwner || permissions.delete;
 
   /// Anyone holding access may pass it on, capped at what they hold —
   /// `POST /farmer/farm/{id}/members` enforces the cap server-side.
-  bool get canShareAccess => canView || canEdit || canCreate || canDelete;
+  bool get canShareAccess =>
+      canView ||
+      canEdit ||
+      canChangeTankStatus ||
+      canEditTotalFeed ||
+      canCreate ||
+      canDelete;
 }
 
 /// A person who currently holds access to a farm.
