@@ -5,6 +5,7 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart';
+import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/feed_store_model.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
@@ -76,6 +77,37 @@ class FarmListController extends GetxController {
 
   RxBool isOverlay = false.obs;
 
+  /// The tanks of the farm currently being edited.
+  ///
+  /// The edit form needs them to list what the farm already has and to number
+  /// anything new from the end — `FarmData` carries only a count, which says
+  /// nothing about each tank's own stocking date.
+  final RxList<TankModel> farmTanks = <TankModel>[].obs;
+
+  Future<void> fetchFarmTanks(int farmId) async {
+    try {
+      final response = await getRequest(
+        endPoint: "${NetworkConfig.baseURL}/farmer/farms/$farmId/tanks",
+        headers: await buildHeader(),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        farmTanks.value = TankListModel.fromJson(
+          json.decode(response.body),
+        ).data ??
+            [];
+        return;
+      }
+
+      // 404 is the API's way of saying "this farm has no tanks", which is a
+      // perfectly good answer for a farm that has just been created.
+      farmTanks.clear();
+    } catch (e) {
+      farmTanks.clear();
+      CustomToast.error('Could not load this farm\'s tanks');
+    }
+  }
+
   /// ------------ ADD NEW FARM ---------------- ///
   Future<bool> uploadFarmData({
     required String farmName,
@@ -85,6 +117,7 @@ class FarmListController extends GetxController {
     required String tanks,
     required List<String> imagePaths,
     String feedUsedBefore = '',
+    List<Map<String, String>> tanksMeta = const [],
   }) async {
     try {
       isOverlay(true);
@@ -100,6 +133,13 @@ class FarmListController extends GetxController {
           "store": store,
           "low_feed_limit": lowFeedLimit,
           "tanks": tanks,
+          // Per-tank stocking dates and prior feed.
+          //
+          // JSON in a single field because a multipart form cannot carry
+          // nested arrays cleanly — Laravel's parser flattens `tanks[0][date]`
+          // inconsistently across clients, and one string decodes the same
+          // way everywhere.
+          if (tanksMeta.isNotEmpty) "tanks_meta": jsonEncode(tanksMeta),
           // Only meaningful when the farm was stocked before today; the server
           // spreads it across the tanks and the days that have passed.
           if (feedUsedBefore.isNotEmpty) "feed_used_before": feedUsedBefore,
@@ -178,6 +218,8 @@ class FarmListController extends GetxController {
     required String tanks,
     required List<String> imagePaths,
     String feedUsedBefore = '',
+    List<Map<String, String>> newTanksMeta = const [],
+    List<Map<String, String>> existingTanksMeta = const [],
   }) async {
     try {
       isOverlay(true);
@@ -190,6 +232,17 @@ class FarmListController extends GetxController {
           "store": store,
           "low_feed_limit": lowFeedLimit,
           "no_of_tanks": tanks,
+          // Tanks being ADDED, each with its own stocking date and prior feed.
+          // The server appends them after the farm's existing tanks and never
+          // touches those; it also recomputes no_of_tanks from what really
+          // exists, so the count above is advisory.
+          if (newTanksMeta.isNotEmpty)
+            "new_tanks_meta": jsonEncode(newTanksMeta),
+          // Corrections to the tanks the farm already has. Sent for all of
+          // them; the server compares each against what it holds and rewrites
+          // only the generated history of the ones that actually changed.
+          if (existingTanksMeta.isNotEmpty)
+            "existing_tanks_meta": jsonEncode(existingTanksMeta),
           // Ignored by the server unless the farm still has no feed recorded.
           if (feedUsedBefore.isNotEmpty) "feed_used_before": feedUsedBefore,
         },

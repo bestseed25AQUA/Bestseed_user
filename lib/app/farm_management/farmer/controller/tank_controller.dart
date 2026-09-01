@@ -98,17 +98,35 @@ class TankController extends GetxController {
   }
 
   RxBool isUpdatingTankStatus = false.obs;
+
+  /// Start or finish a tank's crop cycle.
+  ///
+  /// Deactivating closes the running batch — its feed drops out of the farm's
+  /// total and the tank screen goes read-only, with the report still available.
+  /// Activating opens a NEW batch from [stockingDate], starting at zero; a date
+  /// in the past also takes [feedUsedBefore] so the days already gone are
+  /// filled in, exactly as a newly added tank is.
   Future<bool> updateTankStatus({
     String? tankId,
     required int status,
     required String farmId,
+    String? stockingDate,
+    String? feedUsedBefore,
   }) async {
     isUpdatingTankStatus(true);
     try {
       final response = await postRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/tank/status",
         headers: await buildHeader(),
-        body: {"status": status, "tank_id": tankId},
+        body: {
+          "status": status,
+          "tank_id": tankId,
+          // Only meaningful when activating; the server ignores them otherwise.
+          if (stockingDate != null && stockingDate.isNotEmpty)
+            "stocking_date": stockingDate,
+          if (feedUsedBefore != null && feedUsedBefore.isNotEmpty)
+            "feed_used_before": feedUsedBefore,
+        },
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -161,6 +179,25 @@ class TankController extends GetxController {
       isDownloading(false);
     }
     return null;
+  }
+
+  /// The crop cycle number in a tank-history response, or null on a server
+  /// that predates batches.
+  int? _batchNo(dynamic body) {
+    final batch = body is Map ? body['batch'] : null;
+    if (batch is! Map) return null;
+    return int.tryParse('${batch['batch_no']}');
+  }
+
+  /// Whether that cycle is still running.
+  ///
+  /// Defaults to TRUE when the field is absent, so a response from a server
+  /// without batches leaves the history editable rather than silently locking
+  /// every tank behind a finished-batch banner.
+  bool _batchActive(dynamic body) {
+    final batch = body is Map ? body['batch'] : null;
+    if (batch is! Map) return true;
+    return batch['is_active'] != false;
   }
 
   var isTankHistoryLoading = true.obs;
@@ -289,6 +326,8 @@ class TankController extends GetxController {
           message: dataResponse["message"] ?? "",
           dates: tankDates,
           stockingDate: dataResponse["stocking_date"]?.toString(),
+          batchNo: _batchNo(dataResponse),
+          batchActive: _batchActive(dataResponse),
         );
       } else if (response.statusCode == 404) {
         // The API answers 404 (not 200 with []) when a tank has no feed rows
@@ -303,6 +342,8 @@ class TankController extends GetxController {
           message: "No record found",
           dates: [],
           stockingDate: body["stocking_date"]?.toString(),
+          batchNo: _batchNo(body),
+          batchActive: _batchActive(body),
         );
       }
     } catch (e) {

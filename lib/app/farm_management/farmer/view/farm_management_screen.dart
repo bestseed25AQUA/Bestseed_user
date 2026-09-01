@@ -44,6 +44,21 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
     });
   }
 
+  /// Open a screen and re-read the farm list once it closes.
+  ///
+  /// Nearly everything reachable from here changes what the cards show:
+  /// recording feed moves Total Feed Used, editing a farm rewrites the
+  /// generated history behind it, adding a tank changes the count. None of
+  /// those returns were refreshing the list, so a farmer came back to their own
+  /// change missing and had to pull-to-refresh to see it.
+  ///
+  /// Cheap enough to do unconditionally — one request on the way back beats
+  /// trying to guess which screens changed something.
+  Future<void> _openThenRefresh(Widget screen) async {
+    await Get.to(() => screen);
+    if (mounted) await controller.fetchFarmList();
+  }
+
   List<FarmSection> get farmSections {
     // `?? [] as List<FarmData>?` cast an empty List<dynamic>, which throws a
     // TypeError the moment it is reached — and it IS reached whenever the farm
@@ -171,15 +186,13 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 16.0),
                           child: InkWell(
-                            onTap: () {
-                              Get.to(
-                                FarmTankListScreen(
-                                  farmId: farms[index].id,
-                                  farmName: farms[index].name,
-                                  access: farms[index].access,
-                                ),
-                              );
-                            },
+                            onTap: () => _openThenRefresh(
+                              FarmTankListScreen(
+                                farmId: farms[index].id,
+                                farmName: farms[index].name,
+                                access: farms[index].access,
+                              ),
+                            ),
                             child: FarmCard(
                               farm: farms[index],
                               tankController: tankController,
@@ -257,6 +270,43 @@ class FarmCard extends StatelessWidget {
   const FarmCard({super.key, required this.farm, required this.tankController});
   final TankController tankController;
 
+  /// Open a screen from the farm's options sheet and re-read the list after.
+  ///
+  /// Same reason as the screen's own version: recording feed and editing a farm
+  /// both change what this card shows, and nothing was re-reading the list on
+  /// the way back. Uses the shared controller directly — this card is
+  /// stateless, and the list it feeds is a singleton.
+  Future<void> _openThenRefresh(Widget screen) async {
+    await Get.to(() => screen);
+    await farmListController.fetchFarmList();
+  }
+
+  /// One "label: value" figure on a farm card.
+  ///
+  /// No maxLines and no ellipsis on purpose — see the Wrap that lays these
+  /// out. A long figure wraps within itself rather than being cut short.
+  Widget _farmFigure(String label, String value) {
+    return RichText(
+      text: TextSpan(
+        style: GoogleFonts.roboto(fontSize: 14),
+        children: [
+          TextSpan(
+            text: label,
+            style: const TextStyle(color: Colors.black),
+          ),
+          TextSpan(
+            text: value,
+            style: GoogleFonts.roboto(
+              fontSize: 14,
+              color: Colors.black,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatusChip(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -322,7 +372,7 @@ class FarmCard extends StatelessWidget {
                           onAddTankQty: () {
                             Navigator.pop(context);
                             tankController.getTankList(farm.id);
-                            Get.to(
+                            _openThenRefresh(
                               FeedUpdateScreen(
                                 farmId: farm.id,
                                 access: farm.access,
@@ -369,8 +419,8 @@ class FarmCard extends StatelessWidget {
 
                           onEditFarm: () {
                             Navigator.pop(context);
-                            Get.to(
-                              () => AddFarmerDetailsFormScreen(
+                            _openThenRefresh(
+                              AddFarmerDetailsFormScreen(
                                 farmData: FarmData(
                                   id: farmIdNum,
                                   farmName: farm.name,
@@ -465,65 +515,20 @@ class FarmCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                // Both figures are Flexible: "Total Feed Used: 12500 kgs" and
-                // "Store 8000 kgs" side by side are wider than a narrow phone,
-                // and a fixed pair of RichTexts overflowed instead of trimming.
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // Wrap, not Row.
+                //
+                // A Row had to trim one of these to fit, and what it trimmed
+                // was the end of the line — the FIGURE. "Total Feed Used:
+                // 300…" is worse than useless: it reads as a number. A Wrap
+                // never truncates; the two sit side by side while they fit and
+                // the second drops to its own line when they do not, so the
+                // full count is always readable.
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 6,
                   children: [
-                    Flexible(
-                      child: RichText(
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        text: TextSpan(
-                          style: GoogleFonts.roboto(fontSize: 14),
-                          children: [
-                            const TextSpan(
-                              text: "Total Feed Used: ",
-                              style: TextStyle(color: Colors.black),
-                            ),
-                            TextSpan(
-                              text: '${farm.totalFeedUsedLabel} kgs',
-                              style: GoogleFonts.roboto(
-                                fontSize: 14,
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(width: 8),
-
-                    Flexible(
-                      child: RichText(
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        text: TextSpan(
-                          style: GoogleFonts.roboto(fontSize: 14),
-                          children: [
-                            const TextSpan(
-                              text: "Store ",
-                              style: TextStyle(color: Colors.black),
-                            ),
-                            TextSpan(
-                              text: farm.storeLabel,
-                              style: GoogleFonts.roboto(
-                                fontSize: 14,
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Text(
-                    //   style: GoogleFonts.roboto(fontSize: 14),
-                    // ),
+                    _farmFigure("Total Feed Used: ", '${farm.totalFeedUsedLabel} kgs'),
+                    _farmFigure("Store ", farm.storeLabel),
                   ],
                 ),
               ],

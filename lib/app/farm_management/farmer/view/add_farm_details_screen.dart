@@ -12,6 +12,7 @@ import 'package:seedsuser/app/common/custom_network_image.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart';
+import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/request_sent_dialog.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
@@ -34,33 +35,9 @@ class _AddFarmerDetailsFormScreenState
   final TextEditingController store = TextEditingController();
   final TextEditingController lowFeedLimit = TextEditingController();
 
-  /// Only used when the farm was stocked before today — see [_daysSinceStocking].
+  /// Farm-level prior feed. Edit only — create asks per tank instead.
   final TextEditingController feedUsedBefore = TextEditingController();
 
-  /// Whether to offer the "feed already used" field.
-  ///
-  /// Shown for a past stocking date, on create AND on edit — a farmer often
-  /// realises afterwards that the history is missing. It disappears once the
-  /// farm has feed recorded against it, because backfilling then would
-  /// double-count; the server enforces the same rule.
-  /// Whether to offer the "feed already used" field: any farm stocked before
-  /// today, on create or edit. Editing the figure REPLACES the generated
-  /// history — feed entered by hand since is preserved.
-  bool get _showFeedUsedField => _daysSinceStocking > 0;
-
-  /// Days from the chosen stocking date to today, inclusive. 0 when the date is
-  /// today, in the future, or not chosen yet.
-  int get _daysSinceStocking {
-    final picked = DateTime.tryParse(stockingDate.text.trim());
-    if (picked == null) return 0;
-
-    final start = DateTime(picked.year, picked.month, picked.day);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    if (!start.isBefore(today)) return 0;
-    return today.difference(start).inDays + 1;
-  }
   final _formKey = GlobalKey<FormState>();
 
   final ImagePicker _picker = ImagePicker();
@@ -69,6 +46,236 @@ class _AddFarmerDetailsFormScreenState
   int? selectedTanks;
 
   final List<int> tankOptions = List.generate(50, (i) => i + 1);
+
+  // ── Per-tank stocking dates and prior feed ─────────────────────────────
+  //
+  // Tanks are stocked as ponds are prepared, not all on one day, so each
+  // carries its own date. A tank stocked in the PAST also has feed history the
+  // app knows nothing about, so that tank — and only that tank — asks for the
+  // total already used.
+  //
+  // Two parallel lists rather than a list of objects: the text controllers
+  // have to outlive rebuilds, and resizing them together is the whole job.
+
+  /// `yyyy-MM-dd` per tank. Empty until the farmer picks one.
+  ///
+  /// On CREATE these are the farm's tanks. On EDIT they are only the tanks
+  /// being ADDED — the ones already on the farm are listed above, read-only.
+  final List<TextEditingController> _tankDates = [];
+
+  /// Feed already used, per tank. Only read when that tank's date is past.
+  final List<TextEditingController> _tankFeedUsed = [];
+
+  /// Tanks the farm already has, loaded when editing.
+  ///
+  /// Editable, both the date and the prior-feed figure. Changing either makes
+  /// the server rewrite that tank's GENERATED history from the new values;
+  /// feed the farmer recorded by hand is untouched, because only generated
+  /// rows carry the backfill mark.
+  List<TankModel> _existingTanks = [];
+  bool _loadingTanks = false;
+
+  /// Editable date and prior-feed per EXISTING tank, keyed by tank id.
+  ///
+  /// Keyed by id rather than position so a reload cannot shuffle one tank's
+  /// typed figure onto another.
+  final Map<int, TextEditingController> _existingDates = {};
+  final Map<int, TextEditingController> _existingFeedUsed = {};
+
+  TextEditingController _existingDateController(TankModel tank) =>
+      _existingDates.putIfAbsent(
+        tank.id ?? 0,
+        () => TextEditingController(text: tank.effectiveStockingDate ?? ''),
+      );
+
+  TextEditingController _existingFeedController(TankModel tank) =>
+      _existingFeedUsed.putIfAbsent(tank.id ?? 0, () {
+        final used = tank.feedUsedBefore;
+        return TextEditingController(
+          text: used > 0
+              ? (used % 1 == 0
+                    ? used.toStringAsFixed(0)
+                    : used.toStringAsFixed(2))
+              : '',
+        );
+      });
+
+  /// True when this existing tank's date is in the past — the only case where
+  /// a prior-feed figure means anything.
+  bool _existingIsPast(TankModel tank) {
+    final picked = DateTime.tryParse(
+      _existingDateController(tank).text.trim(),
+    );
+    if (picked == null) return false;
+
+    final now = DateTime.now();
+    return DateTime(
+      picked.year,
+      picked.month,
+      picked.day,
+    ).isBefore(DateTime(now.year, now.month, now.day));
+  }
+
+  /// Pick a new stocking date for a tank the farm already has.
+  Future<void> _pickExistingDate(TankModel tank) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final current = DateTime.tryParse(
+      _existingDateController(tank).text.trim(),
+    );
+
+    final picked = await showDatePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: today,
+      initialDate: current ?? today,
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: AppColors.primary,
+            onPrimary: Colors.white,
+            surface: Colors.white,
+            onSurface: Colors.black,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (picked == null) return;
+
+    _existingDateController(tank).text =
+        "${picked.year}-${picked.month.toString().padLeft(2, '0')}-"
+        "${picked.day.toString().padLeft(2, '0')}";
+
+    // Moved to today or later: there is no past left to account for, so the
+    // figure goes with it rather than being sent for a date it cannot apply to.
+    if (!_existingIsPast(tank)) _existingFeedController(tank).clear();
+
+    setState(() {});
+  }
+
+  /// Where the numbering for a newly added tank starts.
+  int get _existingTankCount => _existingTanks.length;
+
+  /// Load the farm's current tanks so the edit form can show them and number
+  /// anything new from the end.
+  Future<void> _loadExistingTanks(int farmId) async {
+    setState(() => _loadingTanks = true);
+
+    await controller.fetchFarmTanks(farmId);
+
+    if (!mounted) return;
+    setState(() {
+      _existingTanks = controller.farmTanks;
+      _loadingTanks = false;
+    });
+  }
+
+  /// Append one blank tank row.
+  void _addTankRow() {
+    setState(() {
+      _tankDates.add(TextEditingController());
+      _tankFeedUsed.add(TextEditingController());
+    });
+  }
+
+  /// Drop the last added row — only ever a row added in this session, never a
+  /// tank the farm already has.
+  void _removeTankRow(int i) {
+    setState(() {
+      _tankDates.removeAt(i).dispose();
+      _tankFeedUsed.removeAt(i).dispose();
+    });
+  }
+
+  /// Grow or shrink the per-tank rows to match the chosen tank count.
+  ///
+  /// Existing rows keep what has been typed into them, so changing 2 tanks to
+  /// 3 does not clear the two dates already chosen.
+  void _syncTankRows(int count) {
+    while (_tankDates.length < count) {
+      _tankDates.add(TextEditingController());
+      _tankFeedUsed.add(TextEditingController());
+    }
+
+    while (_tankDates.length > count) {
+      _tankDates.removeLast().dispose();
+      _tankFeedUsed.removeLast().dispose();
+    }
+  }
+
+  /// The date chosen for tank [i], or null when it has not been set.
+  DateTime? _tankDate(int i) {
+    if (i >= _tankDates.length) return null;
+    return DateTime.tryParse(_tankDates[i].text.trim());
+  }
+
+  /// True when tank [i] was stocked before today, which is what makes its
+  /// "already used" figure meaningful. A tank stocked today or later has no
+  /// past to account for.
+  bool _tankIsPast(int i) {
+    final picked = _tankDate(i);
+    if (picked == null) return false;
+
+    final now = DateTime.now();
+    return DateTime(
+      picked.year,
+      picked.month,
+      picked.day,
+    ).isBefore(DateTime(now.year, now.month, now.day));
+  }
+
+  /// Days from tank [i]'s stocking date to today, inclusive. 0 when not past.
+  int _tankDays(int i) {
+    final picked = _tankDate(i);
+    if (picked == null || !_tankIsPast(i)) return 0;
+
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day)
+            .difference(DateTime(picked.year, picked.month, picked.day))
+            .inDays +
+        1;
+  }
+
+  /// Pick a stocking date for tank [i].
+  ///
+  /// Capped at today: a tank cannot already have been stocked on a date that
+  /// has not arrived, and the server rejects one.
+  Future<void> _pickTankDate(int i) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    final picked = await showDatePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: today,
+      initialDate: _tankDate(i) ?? today,
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: AppColors.primary,
+            onPrimary: Colors.white,
+            surface: Colors.white,
+            onSurface: Colors.black,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (picked == null) return;
+
+    _tankDates[i].text =
+        "${picked.year}-${picked.month.toString().padLeft(2, '0')}-"
+        "${picked.day.toString().padLeft(2, '0')}";
+
+    // A past date reveals that tank's "already used" box; today's hides it,
+    // and anything typed into it is dropped so a stale figure cannot be sent.
+    if (!_tankIsPast(i)) _tankFeedUsed[i].clear();
+
+    setState(() {});
+  }
 
   Future<void> pickImages() async {
     // Downscale and re-encode at pick time. A straight camera-roll photo is
@@ -156,7 +363,38 @@ class _AddFarmerDetailsFormScreenState
           images.add({'network': value});
         }
       }
+
+      // The farm's current tanks, so the form can list them and number
+      // anything added from the end. FarmData carries only a count.
+      final farmId = widget.farmData!.id;
+      if (farmId != null) _loadExistingTanks(farmId);
     }
+  }
+
+  @override
+  void dispose() {
+    // The form's controllers were never disposed. Harmless while there were
+    // five of them; a farm with twenty tanks now creates forty more.
+    farmName.dispose();
+    stockingDate.dispose();
+    store.dispose();
+    lowFeedLimit.dispose();
+    feedUsedBefore.dispose();
+
+    for (final c in _tankDates) {
+      c.dispose();
+    }
+    for (final c in _tankFeedUsed) {
+      c.dispose();
+    }
+    for (final c in _existingDates.values) {
+      c.dispose();
+    }
+    for (final c in _existingFeedUsed.values) {
+      c.dispose();
+    }
+
+    super.dispose();
   }
 
   int currentIndex = 0;
@@ -209,27 +447,30 @@ class _AddFarmerDetailsFormScreenState
                 _buildTextField(controller: farmName, hint: "Enter Farm Name"),
                 const SizedBox(height: 20),
 
-                // Stocking Date
-                _buildLabel("Stocking Date"),
-                const SizedBox(height: 8),
-                _buildTextField(
-                  controller: stockingDate,
-                  hint: "Select Date",
-                  readOnly: true,
-                  onTap: pickDate,
-                  suffixIcon: Icon(
-                    Icons.calendar_today_outlined,
-                    color: Colors.grey.shade500,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // No. of Tanks (Dropdown)
+                // No. of Tanks FIRST, because everything below it is per tank.
+                //
+                // There is no farm-level Stocking Date on either path. Tanks
+                // are stocked as ponds are prepared, so one date for the whole
+                // farm made a tank stocked last week and one stocked today the
+                // same age, and the history generated from it was wrong for
+                // both.
                 _buildLabel("No. of Tanks"),
                 const SizedBox(height: 8),
-                _buildTanksDropdown(),
-                const SizedBox(height: 20),
+
+                // CREATE picks a count from the dropdown. EDIT shows the count
+                // it has with a + beside it: the dropdown never created a tank,
+                // it only wrote a number to the farm, so raising 5 to 6 changed
+                // a label and nothing else.
+                if (isEdit) _buildTankCountWithAdd() else _buildTanksDropdown(),
+                const SizedBox(height: 16),
+
+                // Every tank, in one list and one style: the ones the farm
+                // already has first — shown exactly like the others but not
+                // editable — then any being added, numbered on from them.
+                if (isEdit) ..._buildExistingTanks(),
+                ..._buildTankRows(startNumber: isEdit ? _existingTankCount : 0),
+
+                if (isEdit) const SizedBox(height: 4),
 
                 // Store
                 _buildLabel("Store"),
@@ -246,56 +487,6 @@ class _AddFarmerDetailsFormScreenState
                 ),
                 const SizedBox(height: 20),
 
-                // Feed already used — only for a farm stocked in the past.
-                // A farm registered weeks after stocking has history the app
-                // knows nothing about; this one figure fills it in.
-                if (_showFeedUsedField) ...[
-                  _buildLabel("Feed Already Used"),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    controller: feedUsedBefore,
-                    hint: "Total feed used so far",
-                    keyboardType: TextInputType.number,
-                    // Optional: the farmer may prefer to enter feed tank by
-                    // tank on the history screen instead of one lump figure.
-                    isRequired: false,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                  const SizedBox(height: 6),
-                  Builder(
-                    builder: (context) {
-                      final days = _daysSinceStocking;
-                      final tanks = selectedTanks ?? 0;
-                      final total =
-                          double.tryParse(feedUsedBefore.text.trim()) ?? 0;
-
-                      if (total <= 0 || tanks <= 0) {
-                        return Text(
-                          "$days days since stocking. Leave blank if none was used.",
-                          style: GoogleFonts.roboto(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        );
-                      }
-
-                      final perTank = total / tanks;
-                      final perDay = perTank / days;
-
-                      return Text(
-                        "$days days · $tanks tanks  →  "
-                        "${perTank.toStringAsFixed(2)} kg per tank "
-                        "(${perDay.toStringAsFixed(2)} kg/day)",
-                        style: GoogleFonts.roboto(
-                          fontSize: 12,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                ],
 
                 // Low Feed Limit with info tooltip
                 Row(
@@ -351,11 +542,57 @@ class _AddFarmerDetailsFormScreenState
                         return;
                       }
 
-                      if (selectedTanks == null) {
+                      if (!isEdit && selectedTanks == null) {
                         CustomToast.show(
                           message: "Please select number of tanks",
                         );
                         return;
+                      }
+
+                      // Every tank being added needs a stocking date, and one
+                      // stocked in the past needs its prior feed — that figure
+                      // is what builds its history, and a blank one leaves the
+                      // tank reading "0 kgs" for weeks it was actually fed.
+                      //
+                      // Checked here rather than with the field validators
+                      // because the rule spans two fields per row, and the
+                      // message has to name which tank is at fault.
+                      //
+                      // Runs on BOTH paths: create sizes the rows from the
+                      // dropdown, edit grows them a tap at a time, but a row is
+                      // a row and an added tank needs the same answers.
+                      final startNumber = isEdit ? _existingTankCount : 0;
+                      final rowCount = isEdit
+                          ? _tankDates.length
+                          : (selectedTanks ?? 0);
+
+                      for (int i = 0; i < rowCount; i++) {
+                        final label = 'Tank ${startNumber + i + 1}';
+
+                        if (_tankDate(i) == null) {
+                          CustomToast.show(
+                            message: "Select the stocking date for $label",
+                          );
+                          return;
+                        }
+
+                        if (!_tankIsPast(i)) continue;
+
+                        final used = _tankFeedUsed[i].text.trim();
+                        if (used.isEmpty) {
+                          CustomToast.show(
+                            message: "Enter the feed already used for $label",
+                          );
+                          return;
+                        }
+
+                        final parsed = double.tryParse(used);
+                        if (parsed == null || parsed < 0) {
+                          CustomToast.show(
+                            message: "Feed used for $label must be a number",
+                          );
+                          return;
+                        }
                       }
 
                       bool success = false;
@@ -369,29 +606,77 @@ class _AddFarmerDetailsFormScreenState
                           return;
                         }
 
+                        // Tanks being ADDED. The server appends them after the
+                        // existing ones.
+                        final newTanksMeta = [
+                          for (int i = 0; i < _tankDates.length; i++)
+                            {
+                              'stocking_date': _tankDates[i].text.trim(),
+                              'feed_used_before': _tankIsPast(i)
+                                  ? _tankFeedUsed[i].text.trim()
+                                  : '0',
+                            },
+                        ];
+
+                        // Corrections to the tanks the farm already has. Sent
+                        // for all of them; the server compares against what it
+                        // holds and only rewrites the ones that changed.
+                        final existingTanksMeta = [
+                          for (final tank in _existingTanks)
+                            if (tank.id != null)
+                              {
+                                'id': tank.id.toString(),
+                                'stocking_date': _existingDateController(
+                                  tank,
+                                ).text.trim(),
+                                'feed_used_before': _existingIsPast(tank)
+                                    ? _existingFeedController(tank).text.trim()
+                                    : '0',
+                              },
+                        ];
+
                         success = await controller.updateFarmData(
                           farmId: farmId,
                           farmName: farmName.text,
                           stockingDate: stockingDate.text,
                           store: store.text,
                           lowFeedLimit: lowFeedLimit.text,
-                          tanks: selectedTanks.toString(),
-                          feedUsedBefore: feedUsedBefore.text.trim(),
+                          // What the farm will have once the additions land.
+                          tanks: (_existingTankCount + _tankDates.length)
+                              .toString(),
+                          newTanksMeta: newTanksMeta,
+                          existingTanksMeta: existingTanksMeta,
                           imagePaths: images
                               .where((item) => item.containsKey('local'))
                               .map((item) => item['local'].toString())
                               .toList(),
                         );
                       } else {
+                        // Per-tank dates and prior feed, as JSON. A multipart
+                        // form cannot carry nested arrays cleanly, so the
+                        // server decodes this one field — see tanksMetaFrom().
+                        final tanksMeta = [
+                          for (int i = 0; i < (selectedTanks ?? 0); i++)
+                            {
+                              'stocking_date': _tankDates[i].text.trim(),
+                              // Only for a tank stocked in the past; a tank
+                              // stocked today has nothing to account for.
+                              'feed_used_before': _tankIsPast(i)
+                                  ? _tankFeedUsed[i].text.trim()
+                                  : '0',
+                            },
+                        ];
+
                         success = await controller.uploadFarmData(
                           farmName: farmName.text,
-                          stockingDate: stockingDate.text,
+                          // The earliest tank date, so the farm's own date
+                          // stays meaningful for older screens. The server
+                          // derives the same thing; this is belt and braces.
+                          stockingDate: _earliestTankDate(),
                           store: store.text,
                           lowFeedLimit: lowFeedLimit.text,
                           tanks: selectedTanks.toString(),
-                          // Backfill applies to a NEW farm only; editing must
-                          // not re-create history that already exists.
-                          feedUsedBefore: feedUsedBefore.text.trim(),
+                          tanksMeta: tanksMeta,
                           imagePaths: images
                               .where((item) => item.containsKey('local'))
                               .map((item) => item['local'].toString())
@@ -625,6 +910,432 @@ class _AddFarmerDetailsFormScreenState
   }
 
   // ─── Label Widget ───
+  /// The earliest date across the tanks — the day the farm started operating.
+  ///
+  /// Sent as the farm's own `stocking_date` so reports and the admin panel,
+  /// which still read one date per farm, keep working.
+  String _earliestTankDate() {
+    final dates = [
+      for (int i = 0; i < (selectedTanks ?? 0); i++)
+        if (_tankDates[i].text.trim().isNotEmpty) _tankDates[i].text.trim(),
+    ]..sort();
+
+    return dates.isEmpty ? '' : dates.first;
+  }
+
+  /// The tanks the farm already has, read-only.
+  ///
+  /// Listed so the farmer can see what is there before adding to it, and so
+  /// the numbering of anything new is obvious. Not editable: a tank's stocking
+  /// date is what its generated history was built from, and removing a tank
+  /// would take every feed row recorded against it.
+  List<Widget> _buildExistingTanks() {
+    if (_loadingTanks) {
+      return [
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ];
+    }
+
+    if (_existingTanks.isEmpty) return const [];
+
+    // The same editable block a tank being added gets, so the whole list reads
+    // as one set of tanks. Changing a date or a figure here makes the server
+    // rewrite that tank's generated history from the new values.
+    return [
+      for (final tank in _existingTanks)
+        Builder(
+          builder: (context) {
+            final isPast = _existingIsPast(tank);
+            final days = _existingDays(tank);
+
+            return Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        tank.tankName ?? 'Tank',
+                        style: GoogleFonts.roboto(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      if (isPast) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '$days days',
+                          style: GoogleFonts.roboto(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Same fixed split as an added tank, so the date field does
+                  // not change width as the feed box comes and goes.
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildFieldLabel("Stocking date"),
+                            const SizedBox(height: 4),
+                            _buildTextField(
+                              controller: _existingDateController(tank),
+                              hint: "Select date",
+                              readOnly: true,
+                              dense: true,
+                              onTap: () => _pickExistingDate(tank),
+                              suffixIcon: Icon(
+                                Icons.calendar_today_outlined,
+                                color: Colors.grey.shade500,
+                                size: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (isPast)
+                        Expanded(
+                          flex: 4,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildFieldLabel("Feed used"),
+                              const SizedBox(height: 4),
+                              _buildTextField(
+                                controller: _existingFeedController(tank),
+                                hint: "kg",
+                                keyboardType: TextInputType.number,
+                                dense: true,
+                                isRequired: false,
+                                onChanged: (_) => setState(() {}),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        const Spacer(flex: 4),
+                    ],
+                  ),
+
+                  if (isPast)
+                    Builder(
+                      builder: (context) {
+                        final total =
+                            double.tryParse(
+                              _existingFeedController(tank).text.trim(),
+                            ) ??
+                            0;
+
+                        if (total <= 0 || days <= 0) {
+                          return const SizedBox.shrink();
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            "${(total / days).toStringAsFixed(2)} kg/day "
+                            "across $days days",
+                            style: GoogleFonts.roboto(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+    ];
+  }
+
+  /// Days from an existing tank's chosen date to today, inclusive.
+  int _existingDays(TankModel tank) {
+    final picked = DateTime.tryParse(
+      _existingDateController(tank).text.trim(),
+    );
+    if (picked == null || !_existingIsPast(tank)) return 0;
+
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day)
+            .difference(DateTime(picked.year, picked.month, picked.day))
+            .inDays +
+        1;
+  }
+
+  /// The tank count on EDIT: what the farm has, with a + to add one.
+  ///
+  /// Deliberately not a dropdown. The count is not something a farmer picks
+  /// when editing — it is the number of tanks that exist, and it changes by
+  /// adding one, which is what the + does. A dropdown here also implied the
+  /// count could be lowered, which would mean deleting a tank and every feed
+  /// row recorded against it.
+  Widget _buildTankCountWithAdd() {
+    final total = _existingTankCount + _tankDates.length;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Text(
+              _loadingTanks ? 'Loading…' : '$total',
+              style: GoogleFonts.roboto(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        // Square, matching the field's height, so the row reads as one control.
+        InkWell(
+          onTap: _addTankRow,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.add, color: Colors.white, size: 24),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// A block per tank being added: stocking date, then the prior-feed box when
+  /// that date is in the past.
+  ///
+  /// [startNumber] is how many tanks the farm already has, so an added tank is
+  /// labelled Tank 6 on a farm with five rather than Tank 1.
+  ///
+  /// On create, returns nothing until a tank count is chosen — there is
+  /// nothing to ask about yet, and an empty framed section reads as a fault.
+  List<Widget> _buildTankRows({int startNumber = 0}) {
+    final isEdit = widget.farmData != null;
+
+    // Which mode we are in is decided by `farmData`, NOT by whether the
+    // existing tanks have arrived.
+    //
+    // This used to fall back to the create branch whenever `_existingTanks`
+    // was empty — which it is for the first moment of every edit, while the
+    // tanks are still loading. `selectedTanks` was already prefilled with the
+    // farm's count, so _syncTankRows() built that many blank rows, and once
+    // the real tanks landed they were relabelled Tank 4, Tank 5, Tank 6 and
+    // sat there empty. Editing adds nothing until the farmer taps +.
+    final count = isEdit ? _tankDates.length : (selectedTanks ?? 0);
+
+    if (count <= 0) return const [];
+
+    if (!isEdit) _syncTankRows(count);
+
+    return [
+      for (int i = 0; i < count; i++) ...[
+        // Compact on purpose. Each tank was a padded card with its own
+        // headings and a paragraph of explanation under the feed box; five
+        // tanks ran to several screens of mostly whitespace. The tank number
+        // sits on the same line as the date, and the day count is a chip
+        // beside it rather than a sentence below.
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    // Numbered on from the tanks the farm already has, so a
+                    // farm with five gains "Tank 6" — the same name the
+                    // server gives it.
+                    'Tank ${startNumber + i + 1}',
+                    style: GoogleFonts.roboto(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+
+                  if (_tankIsPast(i)) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      '${_tankDays(i)} days',
+                      style: GoogleFonts.roboto(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+
+                  const Spacer(),
+
+                  // Only a row added in this session can be taken back off —
+                  // never a tank the farm already has.
+                  if (isEdit)
+                    InkWell(
+                      onTap: () => _removeTankRow(i),
+                      customBorder: const CircleBorder(),
+                      child: const Padding(
+                        padding: EdgeInsets.all(2),
+                        child: Icon(Icons.close, size: 16, color: Colors.red),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Side by side rather than one full-width field above another:
+              // a date and a quantity are both short values, and stacking them
+              // made each stretch the whole card for no reason.
+              //
+              // The date keeps the SAME width either way — the space the feed
+              // box will occupy is held empty until a past date is picked, so
+              // the field does not stretch across the card and then snap back
+              // to half of it the moment a date is chosen.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    // The date needs the greater share — it carries a calendar
+                    // icon as well as the value.
+                    flex: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildFieldLabel("Stocking date"),
+                        const SizedBox(height: 4),
+                        _buildTextField(
+                          controller: _tankDates[i],
+                          hint: "Select date",
+                          readOnly: true,
+                          dense: true,
+                          onTap: () => _pickTankDate(i),
+                          suffixIcon: Icon(
+                            Icons.calendar_today_outlined,
+                            color: Colors.grey.shade500,
+                            size: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // Only for a tank stocked in the PAST. A tank stocked today
+                  // has no history to account for, so asking would invite a
+                  // figure that means nothing.
+                  if (_tankIsPast(i))
+                    Expanded(
+                      flex: 4,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildFieldLabel("Feed used"),
+                          const SizedBox(height: 4),
+                          _buildTextField(
+                            controller: _tankFeedUsed[i],
+                            hint: "kg",
+                            keyboardType: TextInputType.number,
+                            dense: true,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    const Spacer(flex: 4),
+                ],
+              ),
+
+              // What the figure works out to once it is spread across the
+              // days and meals since stocking — the farmer's check that they
+              // have typed a sensible number.
+              if (_tankIsPast(i))
+                Builder(
+                  builder: (context) {
+                    final days = _tankDays(i);
+                    final total =
+                        double.tryParse(_tankFeedUsed[i].text.trim()) ?? 0;
+
+                    if (total <= 0 || days <= 0) return const SizedBox.shrink();
+
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        "${(total / days).toStringAsFixed(2)} kg/day "
+                        "across $days days",
+                        style: GoogleFonts.roboto(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+      ],
+    ];
+  }
+
+  /// Small label above a field inside a tank block.
+  ///
+  /// Lighter than [_buildLabel]: these sit two to a row inside an already
+  /// framed block, so the form's usual heading weight would compete with the
+  /// tank name above them.
+  Widget _buildFieldLabel(String label) {
+    return Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: GoogleFonts.roboto(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        color: Colors.grey.shade700,
+      ),
+    );
+  }
+
   Widget _buildLabel(String label) {
     return Text(
       label,
@@ -646,6 +1357,9 @@ class _AddFarmerDetailsFormScreenState
     Widget? suffixIcon,
     ValueChanged<String>? onChanged,
     bool isRequired = true,
+    /// Tighter padding, for the per-tank rows where several fields stack up
+    /// and the form's usual roominess turns into a lot of scrolling.
+    bool dense = false,
   }) {
     return TextFormField(
       controller: controller,
@@ -666,16 +1380,19 @@ class _AddFarmerDetailsFormScreenState
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.roboto(
-          fontSize: 14,
+          fontSize: dense ? 13 : 14,
           color: Colors.grey.shade400,
         ),
         suffixIcon: suffixIcon,
+        suffixIconConstraints: dense
+            ? const BoxConstraints(minWidth: 38, minHeight: 32)
+            : null,
+        isDense: dense,
         filled: true,
-        fillColor: Colors.grey.shade50,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
+        fillColor: dense ? Colors.white : Colors.grey.shade50,
+        contentPadding: dense
+            ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10)
+            : const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.shade300),

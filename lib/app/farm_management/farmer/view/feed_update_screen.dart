@@ -6,31 +6,37 @@ import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
+import 'package:seedsuser/app/farm_management/farmer/model/meal_row_state.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 
-/// Record today's feed, tank by tank.
+/// Record today's feed, tank by tank, one line per meal.
 ///
-/// A day is a LIST of meals, not one figure. This screen used to show a single
-/// Meals / Feed Quantity pair per tank, prefilled from `tank.feed` — the tank's
-/// most recent entry of ANY date — beside a button that read "Edit" whenever
-/// the tank had ever been fed. So a farmer recording a second meal overwrote
-/// the first, and a tank last fed a week ago showed that week-old figure as if
-/// it were today's.
+/// A card opens with a single line — meal 1 — and the farmer adds another for
+/// each further meal they gave. Nothing is assumed about how many that will be:
+/// the 2/3/4 schedule exists to generate a plausible past history for a tank
+/// stocked before the farm was registered, not to decide what happened today.
 ///
-/// Now each card lists everything recorded today and Save ADDS another entry,
-/// which is what the tank history screen has always done.
+/// Both halves of a line are typed: the meal NUMBER as well as the quantity, so
+/// a meal recorded out of order can still be called what it was.
+///
+/// This screen used to show a single "Meals" count and one "Feed Quantity",
+/// prefilled from `tank.feed` — the tank's most recent entry of ANY date —
+/// beside a button that read "Edit" whenever the tank had ever been fed. So a
+/// farmer recording a second meal overwrote the first, and a tank last fed a
+/// week ago showed that week-old figure as if it were today's.
 class FeedUpdateScreen extends StatefulWidget {
   const FeedUpdateScreen({
     super.key,
     required this.farmId,
     this.access = const FarmAccess.ownerFallback(),
   });
+
   final String farmId;
 
   /// Recording a meal needs create access, correcting one needs edit and
-  /// removing one needs delete — the three endpoints behind this screen are
-  /// gated on exactly those, so the controls follow.
+  /// removing one needs delete — the endpoints behind this screen are gated on
+  /// exactly those, so the controls follow.
   final FarmAccess access;
 
   @override
@@ -45,15 +51,11 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
       ? Get.find<TankController>()
       : Get.put(TankController());
 
-  /// One pair of inputs per tank, keyed by tank id so they survive the refresh
-  /// after a save — keying by list index would hand a tank the box its
-  /// neighbour was typing into if the order ever changed.
-  final Map<int, TextEditingController> _mealControllers = {};
-  final Map<int, TextEditingController> _quantityControllers = {};
-
-  /// The entry loaded into each tank's fields for correction, by tank id.
-  /// Absent means that card is in "add another meal" mode.
-  final Map<int, TodayFeedEntry> _editing = {};
+  /// The meal lines on each tank's card, keyed by tank id.
+  ///
+  /// Keyed by id rather than list position: keying by index handed a tank the
+  /// text its neighbour was typing whenever the order changed.
+  final Map<int, List<MealRowState>> _rows = {};
 
   @override
   void initState() {
@@ -64,47 +66,191 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
 
   @override
   void dispose() {
-    for (final c in _mealControllers.values) {
-      c.dispose();
-    }
-    for (final c in _quantityControllers.values) {
-      c.dispose();
+    for (final rows in _rows.values) {
+      for (final r in rows) {
+        r.dispose();
+      }
     }
     super.dispose();
   }
 
-  TextEditingController _mealController(int tankId) =>
-      _mealControllers.putIfAbsent(tankId, () => TextEditingController());
+  /// What the server last said about a tank's meals, so a change can be seen.
+  final Map<int, String> _seededFrom = {};
 
-  TextEditingController _quantityController(int tankId) =>
-      _quantityControllers.putIfAbsent(tankId, () => TextEditingController());
+  /// A fingerprint of the recorded meals — ids, numbers and quantities.
+  String _signature(List<TodayFeedEntry> entries) {
+    final parts = [
+      for (final e in entries) '${e.id}:${e.meals}:${e.feedQuantity}',
+    ]..sort();
+    return parts.join('|');
+  }
 
-  /// Load an existing entry into this tank's fields for correction.
+  /// The lines for one tank, seeded from what is already recorded today.
   ///
-  /// No dialog: the card already has Meals and Feed Quantity boxes, so the
-  /// values go straight into them and Save becomes Update until it is saved or
-  /// the correction is abandoned.
-  void _beginEdit(int tankId, TodayFeedEntry entry) {
-    if (entry.id == null) return;
+  /// Re-seeded whenever the SERVER data changes, not on a manual invalidation.
+  ///
+  /// Clearing the cache and then awaiting the refresh looked equivalent but was
+  /// not: the controller drops its busy flag in a `finally`, which rebuilds
+  /// this screen while `farmList` still holds the OLD tanks. The cache was
+  /// refilled from those, and the newer response then found a populated cache
+  /// and left it alone — so a fifth meal saved fine and the card kept showing
+  /// four until the screen was reopened. Comparing a fingerprint cannot be
+  /// raced: whichever build sees the new data re-seeds from it.
+  List<MealRowState> _rowsFor(TankModel tank) {
+    final tankId = tank.id ?? 0;
+    final signature = _signature(tank.todaysFeed);
 
-    setState(() {
-      _editing[tankId] = entry;
-      _mealController(tankId).text = entry.meals;
-      _quantityController(tankId).text = entry.feedQuantity;
-    });
+    if (_seededFrom[tankId] != signature || _rows[tankId] == null) {
+      for (final r in _rows[tankId] ?? const <MealRowState>[]) {
+        r.dispose();
+      }
+
+      final entries = [...tank.todaysFeed]
+        ..sort(
+          (a, b) => (int.tryParse(a.meals) ?? 0).compareTo(
+            int.tryParse(b.meals) ?? 0,
+          ),
+        );
+
+      _rows[tankId] = entries.isEmpty
+          // Nothing recorded yet: one line, numbered 1. Not the schedule's 2,
+          // 3 or 4 — those are expectations, and an empty box for a meal that
+          // has not happened is just something to scroll past.
+          ? [MealRowState(number: '1')]
+          : [
+              for (final e in entries)
+                MealRowState(
+                  historyId: e.id,
+                  number: e.meals,
+                  quantity: e.feedQuantity,
+                ),
+            ];
+
+      _seededFrom[tankId] = signature;
+    }
+
+    return _rows[tankId]!;
   }
 
-  void _cancelEdit(int tankId) {
-    setState(() {
-      _editing.remove(tankId);
-      _mealController(tankId).clear();
-      _quantityController(tankId).clear();
-    });
+  /// Add a blank line, numbered on from the highest already on the card.
+  ///
+  /// Pre-filled rather than left empty: the next meal is almost always the next
+  /// number, and the field stays editable for the times it is not.
+  void _addRow(TankModel tank) {
+    final rows = _rowsFor(tank);
+
+    var highest = 0;
+    for (final r in rows) {
+      final n = int.tryParse(r.number.text.trim()) ?? 0;
+      if (n > highest) highest = n;
+    }
+
+    setState(() => rows.add(MealRowState(number: '${highest + 1}')));
   }
 
-  /// Remove a recorded entry, after confirming.
-  Future<void> _deleteEntry(int tankId, TodayFeedEntry entry) async {
-    final historyId = entry.id;
+  /// Take a line off the card.
+  ///
+  /// Only a line that has not been saved — one that has is removed with the
+  /// bin, which deletes the record. The first line always stays: a card with no
+  /// lines has nothing to record into.
+  void _removeRow(TankModel tank, int index) {
+    final rows = _rowsFor(tank);
+    if (index <= 0 || index >= rows.length || rows[index].isSaved) return;
+
+    setState(() => rows.removeAt(index).dispose());
+  }
+
+  /// Save every filled line on one card.
+  ///
+  /// A line with no record behind it is added; one whose number or quantity has
+  /// changed is updated; an untouched line is skipped. Clearing a line does NOT
+  /// delete the meal — that is the bin, so a stray backspace cannot erase a
+  /// record.
+  Future<void> _save(TankModel tank) async {
+    final tankId = tank.id;
+    if (tankId == null) return;
+    if (tankController.isAddingTodayTankQuntity.value) return;
+
+    final rows = _rowsFor(tank);
+    final toAdd = <MapEntry<String, String>>[];
+    final toUpdate = <MapEntry<int, MapEntry<String, String>>>[];
+    final seen = <int>{};
+
+    for (final row in rows) {
+      final number = row.number.text.trim();
+      final quantity = row.quantity.text.trim();
+
+      // A line the farmer left alone entirely.
+      if (number.isEmpty && quantity.isEmpty) continue;
+
+      final parsedNumber = int.tryParse(number);
+      if (parsedNumber == null || parsedNumber < 1) {
+        CustomToast.show(message: 'Enter a meal number, like 1 or 2');
+        return;
+      }
+
+      if (quantity.isEmpty || double.tryParse(quantity) == null) {
+        CustomToast.show(message: 'Enter a quantity for meal $number');
+        return;
+      }
+
+      // Two lines claiming the same meal would race each other on the server
+      // and leave whichever landed last.
+      if (!seen.add(parsedNumber)) {
+        CustomToast.show(message: 'Meal $number is listed twice');
+        return;
+      }
+
+      if (row.historyId == null) {
+        toAdd.add(MapEntry(number, quantity));
+      } else {
+        toUpdate.add(
+          MapEntry(row.historyId!, MapEntry(number, quantity)),
+        );
+      }
+    }
+
+    if (toAdd.isEmpty && toUpdate.isEmpty) {
+      CustomToast.show(message: 'Enter a quantity for at least one meal');
+      return;
+    }
+
+    var saved = 0;
+
+    // Sequential, not concurrent: each write recomputes the tank's running
+    // total server-side, and firing them together made the last response win
+    // with a total that had not seen the others.
+    for (final e in toUpdate) {
+      final ok = await tankController.updateFeedEntry(
+        historyId: e.key,
+        tankId: tankId.toString(),
+        meals: e.value.key,
+        feedQuantity: e.value.value,
+      );
+      if (ok) saved++;
+    }
+
+    for (final e in toAdd) {
+      // farmId deliberately omitted: passing it makes the controller fire its
+      // own un-awaited refresh, which would race the awaited one below.
+      final ok = await tankController.addTodayTankQuntity(
+        feedQty: e.value,
+        mealQty: e.key,
+        tankId: tankId.toString(),
+      );
+      if (ok) saved++;
+    }
+
+    if (!mounted || saved == 0) return;
+
+    // No manual invalidation: _rowsFor re-seeds itself as soon as the
+    // response changes the tank's meals.
+    await tankController.getTankList(widget.farmId, silent: true);
+  }
+
+  /// Remove one recorded meal, after confirming.
+  Future<void> _deleteRow(int tankId, MealRowState row) async {
+    final historyId = row.historyId;
     if (historyId == null) return;
 
     final confirmed = await showDialog<bool>(
@@ -112,12 +258,12 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          'Delete entry?',
+          'Delete meal ${row.number.text.trim()}?',
           style: GoogleFonts.roboto(fontWeight: FontWeight.bold),
         ),
         content: Text(
-          '${entry.meals} meals · ${entry.feedQuantity} kg will be removed '
-          "from today and from the tank total.",
+          '${row.quantity.text.trim()} kg will be removed from today and from '
+          'the tank total.',
           style: GoogleFonts.roboto(fontSize: 14),
         ),
         actions: [
@@ -143,65 +289,8 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
 
     if (!ok || !mounted) return;
 
-    // If the row just deleted was the one loaded for correction, drop that too
-    // — otherwise Update would post against a row that no longer exists.
-    if (_editing[tankId]?.id == historyId) _cancelEdit(tankId);
-
-    await tankController.getTankList(widget.farmId, silent: true);
-  }
-
-  /// Save the card's fields — as a correction when an entry is loaded,
-  /// otherwise as another meal for today.
-  Future<void> _save(TankModel tank) async {
-    final tankId = tank.id;
-    if (tankId == null) return;
-
-    final meals = _mealController(tankId).text.trim();
-    final quantity = _quantityController(tankId).text.trim();
-
-    if (meals.isEmpty || quantity.isEmpty) {
-      CustomToast.show(message: 'Enter meals and feed quantity');
-      return;
-    }
-
-    if (double.tryParse(meals) == null || double.tryParse(quantity) == null) {
-      CustomToast.show(message: 'Meals and quantity must be numbers');
-      return;
-    }
-
-    if (tankController.isAddingTodayTankQuntity.value) return;
-
-    final editing = _editing[tankId];
-
-    final bool ok;
-    if (editing?.id != null) {
-      // Correcting: the endpoint keeps `feeds` and `tank_feed_histories` in
-      // step and recomputes the tank's total, so this cannot be a local edit.
-      ok = await tankController.updateFeedEntry(
-        historyId: editing!.id!,
-        tankId: tankId.toString(),
-        meals: meals,
-        feedQuantity: quantity,
-      );
-    } else {
-      // Adding: no feed id, so the API creates a new row rather than replacing
-      // one — the same call the tank history screen makes to add a meal.
-      //
-      // farmId deliberately omitted: passing it makes the controller fire its
-      // own un-awaited refresh, which would race the awaited one below and
-      // could land the older response last.
-      ok = await tankController.addTodayTankQuntity(
-        feedQty: quantity,
-        mealQty: meals,
-        tankId: tankId.toString(),
-      );
-    }
-
-    if (!ok || !mounted) return;
-
-    // Clear the boxes so the next meal starts from empty, and re-read so the
-    // entry just saved joins the list above it.
-    _cancelEdit(tankId);
+    // No manual invalidation: _rowsFor re-seeds itself as soon as the
+    // response changes the tank's meals.
     await tankController.getTankList(widget.farmId, silent: true);
   }
 
@@ -272,25 +361,21 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
                         child: FeedUpdateCard(
                           tankName: tank.tankName ?? "",
                           dayInfo: "${tank.day ?? 0} Day",
-                          entries: tank.todaysFeed,
-                          totalMeals: tank.todaysMeals,
+                          rows: _rowsFor(tank),
                           totalQuantity: tank.todaysQuantity,
-                          mealController: _mealController(tankId),
-                          quantityController: _quantityController(tankId),
                           isSaving:
                               tankController.isAddingTodayTankQuntity.value,
                           onSave: () => _save(tank),
-                          isEditing: _editing.containsKey(tankId),
-                          onCancelEdit: () => _cancelEdit(tankId),
                           // Null hides the control: the endpoints behind them
-                          // require edit and delete access respectively, and a
-                          // button that can only ever come back 403 is worse
-                          // than no button.
-                          onEditEntry: widget.access.canEdit
-                              ? (entry) => _beginEdit(tankId, entry)
+                          // require create and delete access respectively, and
+                          // a button that can only come back 403 is worse than
+                          // no button.
+                          onAddRow: widget.access.canCreate
+                              ? () => _addRow(tank)
                               : null,
-                          onDeleteEntry: widget.access.canDelete
-                              ? (entry) => _deleteEntry(tankId, entry)
+                          onRemoveRow: (i) => _removeRow(tank, i),
+                          onDeleteRow: widget.access.canDelete
+                              ? (row) => _deleteRow(tankId, row)
                               : null,
                         ),
                       );
@@ -318,43 +403,35 @@ class FeedUpdateCard extends StatelessWidget {
   final String tankName;
   final String dayInfo;
 
-  /// Everything already recorded for this tank today.
-  final List<TodayFeedEntry> entries;
-  final num totalMeals;
+  /// The meal lines, in the order they are shown.
+  final List<MealRowState> rows;
+
+  /// Today's total across every meal, summed server-side.
   final num totalQuantity;
 
-  final TextEditingController mealController;
-  final TextEditingController quantityController;
   final bool isSaving;
   final VoidCallback onSave;
 
-  /// True while one of today's entries is loaded into the fields above.
-  final bool isEditing;
+  /// Adds a blank line. Null when the viewer may not record feed.
+  final VoidCallback? onAddRow;
 
-  /// Abandons the correction and clears the fields.
-  final VoidCallback? onCancelEdit;
+  /// Takes an unsaved line off the card.
+  final void Function(int index) onRemoveRow;
 
-  /// Null when the viewer may not correct entries.
-  final void Function(TodayFeedEntry entry)? onEditEntry;
-
-  /// Null when the viewer may not remove entries.
-  final void Function(TodayFeedEntry entry)? onDeleteEntry;
+  /// Deletes a saved meal. Null when the viewer may not remove one.
+  final void Function(MealRowState row)? onDeleteRow;
 
   const FeedUpdateCard({
     super.key,
     required this.tankName,
     required this.dayInfo,
-    required this.entries,
-    required this.totalMeals,
+    required this.rows,
     required this.totalQuantity,
-    required this.mealController,
-    required this.quantityController,
     required this.isSaving,
     required this.onSave,
-    this.isEditing = false,
-    this.onCancelEdit,
-    this.onEditEntry,
-    this.onDeleteEntry,
+    required this.onRemoveRow,
+    this.onAddRow,
+    this.onDeleteRow,
   });
 
   /// Whole numbers read better without a trailing ".00".
@@ -395,111 +472,103 @@ class FeedUpdateCard extends StatelessWidget {
               ],
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
-            // ── What has already gone in today ──
-            _todaysEntries(),
-
-            const SizedBox(height: 16),
-
-            Text(
-              'Meals',
-              style: GoogleFonts.roboto(fontSize: 14, color: Colors.black54),
-            ),
-            const SizedBox(height: 4.0),
-            TextField(
-              controller: mealController,
-              keyboardType: TextInputType.number,
-              decoration: _fieldDecoration('0'),
-            ),
-
-            const SizedBox(height: 16.0),
-
-            Text(
-              'Feed Quantity',
-              style: GoogleFonts.roboto(fontSize: 14, color: Colors.black54),
-            ),
-            const SizedBox(height: 4.0),
+            // Column headings, once — the lines below are two bare fields.
             Row(
-              children: <Widget>[
-                Expanded(
-                  child: TextField(
-                    controller: quantityController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+              children: [
+                SizedBox(width: 78, child: _heading('Meal no.')),
+                const SizedBox(width: 8),
+                Expanded(child: _heading('Quantity')),
+                const SizedBox(width: 32),
+              ],
+            ),
+            const SizedBox(height: 6),
+
+            for (int i = 0; i < rows.length; i++) ...[
+              _mealRow(i),
+              if (i < rows.length - 1) const SizedBox(height: 10),
+            ],
+
+            if (onAddRow != null) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: isSaving ? null : onAddRow,
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Add meal'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
                     ),
-                    decoration: _fieldDecoration('0.00'),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: GoogleFonts.roboto(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8.0),
+              ),
+            ],
 
-                // Fixed unit rather than a dropdown.
-                //
-                // The dropdown offered Kgs / Grams / Lbs but its onChanged did
-                // nothing and the unit was never sent, so picking Grams saved
-                // the number as kilos. Every figure in this app is kilos.
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(4.0),
-                  ),
+            const Divider(height: 24),
+
+            Row(
+              children: [
+                Expanded(
                   child: Text(
-                    'Kgs',
+                    "Today's total",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.roboto(
                       fontSize: 14,
+                      fontWeight: FontWeight.w600,
                       color: Colors.black87,
                     ),
                   ),
                 ),
-              ],
-            ),
-
-            const SizedBox(height: 16.0),
-
-            // ── Save / Update ──
-            //
-            // "Save" ADDS another meal; it only reads "Update" while one of
-            // today's entries is actually loaded for correction. The old button
-            // read "Edit" whenever the tank had ever been fed — including on a
-            // day nothing had been recorded — and saving replaced the earlier
-            // entry instead of adding to it.
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (isEditing && onCancelEdit != null)
-                  TextButton(
-                    onPressed: isSaving ? null : onCancelEdit,
-                    child: Text(
-                      'Cancel',
-                      style: GoogleFonts.roboto(color: Colors.black54),
-                    ),
-                  ),
-                if (isEditing) const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: isSaving ? null : onSave,
-                  icon: Icon(isEditing ? Icons.check : Icons.add, size: 18),
-                  label: Text(isEditing ? 'Update' : 'Save'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: AppColors.primary.withValues(
-                      alpha: .5,
-                    ),
-                    disabledForegroundColor: Colors.white70,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24.0,
-                      vertical: 10.0,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18.0),
-                    ),
+                const SizedBox(width: 8),
+                Text(
+                  '${_fmt(totalQuantity)} kg',
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
                   ),
                 ),
               ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // One Save for the whole card — the farmer fills the meals they
+            // have given and saves once, rather than once per meal.
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton.icon(
+                onPressed: isSaving ? null : onSave,
+                icon: const Icon(Icons.check, size: 18),
+                label: const Text('Save'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.primary.withValues(
+                    alpha: .5,
+                  ),
+                  disabledForegroundColor: Colors.white70,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0,
+                    vertical: 10.0,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18.0),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -507,168 +576,97 @@ class FeedUpdateCard extends StatelessWidget {
     );
   }
 
-  Widget _todaysEntries() {
-    if (entries.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          'No feed recorded today yet',
-          style: GoogleFonts.roboto(fontSize: 13, color: Colors.black54),
-        ),
-      );
-    }
+  Widget _heading(String text) => Text(
+    text,
+    style: GoogleFonts.roboto(
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+      color: Colors.grey.shade700,
+    ),
+  );
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Today's meals",
-            style: GoogleFonts.roboto(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Colors.black54,
+  Widget _mealRow(int index) {
+    final row = rows[index];
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 78,
+          child: TextField(
+            controller: row.number,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            decoration: _fieldDecoration(hint: '1', recorded: row.isSaved),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: TextField(
+            controller: row.quantity,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: _fieldDecoration(
+              hint: '0.00',
+              suffix: 'kg',
+              recorded: row.isSaved,
             ),
           ),
-          const SizedBox(height: 8),
+        ),
 
-          // Numbered, so "the third meal" on screen matches what the farmer
-          // actually gave third.
-          ...entries.asMap().entries.map((e) {
-            final index = e.key + 1;
-            final entry = e.value;
-
-            // An entry with no history id cannot be addressed by the edit or
-            // delete endpoints, so it is shown but not offered as editable.
-            final canTouch = entry.id != null;
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 22,
-                    child: Text(
-                      '$index.',
-                      style: GoogleFonts.roboto(
-                        fontSize: 13,
-                        color: Colors.black45,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      '${entry.meals} meals',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.roboto(
-                        fontSize: 14,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${entry.feedQuantity} kg',
-                    style: GoogleFonts.roboto(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-
-                  if (canTouch && onEditEntry != null) ...[
-                    const SizedBox(width: 4),
-                    InkWell(
-                      onTap: () => onEditEntry!(entry),
-                      customBorder: const CircleBorder(),
-                      child: const Padding(
-                        padding: EdgeInsets.all(4),
-                        child: Icon(
-                          Icons.edit_outlined,
-                          size: 20,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  if (canTouch && onDeleteEntry != null) ...[
-                    const SizedBox(width: 2),
-                    InkWell(
-                      onTap: () => onDeleteEntry!(entry),
-                      customBorder: const CircleBorder(),
-                      child: const Padding(
-                        padding: EdgeInsets.all(4),
-                        child: Icon(
-                          Icons.delete_outline,
-                          size: 20,
-                          color: Colors.red,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            );
-          }),
-
-          const Divider(height: 16),
-
-          Row(
-            children: [
-              const SizedBox(width: 22),
-              Expanded(
-                child: Text(
-                  'Total  ${_fmt(totalMeals)} meals',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.roboto(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${_fmt(totalQuantity)} kg',
-                style: GoogleFonts.roboto(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-            ],
+        // A saved meal gets the bin, which deletes the record.
+        if (row.isSaved && onDeleteRow != null) ...[
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: () => onDeleteRow!(row),
+            customBorder: const CircleBorder(),
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(Icons.delete_outline, size: 20, color: Colors.red),
+            ),
           ),
-        ],
-      ),
+        ]
+        // A line added here gets a ✕, which only takes the line away —
+        // nothing is being deleted, because nothing has been saved. The first
+        // line stays: a card with no lines has nothing to record into.
+        else if (!row.isSaved && index > 0) ...[
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: () => onRemoveRow(index),
+            customBorder: const CircleBorder(),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(Icons.close, size: 20, color: Colors.grey.shade600),
+            ),
+          ),
+        ] else
+          const SizedBox(width: 32),
+      ],
     );
   }
 
-  InputDecoration _fieldDecoration(String hint) {
+  InputDecoration _fieldDecoration({
+    required String hint,
+    required bool recorded,
+    String? suffix,
+  }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.roboto(color: Colors.grey.shade500),
-      border: const OutlineInputBorder(),
+      hintStyle: GoogleFonts.roboto(color: Colors.grey.shade500, fontSize: 13),
+      suffixText: suffix,
+      suffixStyle: GoogleFonts.roboto(fontSize: 13, color: Colors.black54),
       contentPadding: const EdgeInsets.symmetric(
         vertical: 10.0,
         horizontal: 10.0,
       ),
       isDense: true,
+      // A saved line reads as settled; a new one as still to do.
+      filled: recorded,
+      fillColor: AppColors.primary.withValues(alpha: 0.04),
       enabledBorder: OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(
+          color: recorded
+              ? AppColors.primary.withValues(alpha: 0.4)
+              : Colors.grey.shade300,
+        ),
         borderRadius: BorderRadius.circular(4.0),
       ),
       focusedBorder: const OutlineInputBorder(

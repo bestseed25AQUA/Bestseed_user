@@ -121,6 +121,11 @@ class SetupAccessGuideScreen extends StatelessWidget {
                     // Steps 2 and 3 used to cover generating a QR code with a
                     // PIN and sending both on WhatsApp. Access is now given
                     // directly to a person, so there is nothing to share.
+                    //
+                    // Searching by name is gone too: the picker takes a
+                    // 10-digit mobile number only, because that is what
+                    // identifies an account and what creates one for a person
+                    // who has not registered yet.
                     _buildStep(
                       stepNumber: "1",
                       title: "Step 1",
@@ -128,28 +133,23 @@ class SetupAccessGuideScreen extends StatelessWidget {
                         _StepItem(
                           title: "Pick the people",
                           description:
-                              "Search by name or mobile number and choose who "
-                              "you want to make a ${role.label.toLowerCase()}.",
+                              "Enter their 10-digit mobile number and choose "
+                              "who you want to make a "
+                              "${role.label.toLowerCase()}.",
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
                     // Step 2
+                    //
+                    // The old step 2 asked the farmer to set how long the
+                    // access should stay active, in days or weeks. The form
+                    // has no duration field — access lasts until it is changed
+                    // or removed from the access list — so the guide no longer
+                    // promises a choice that is not there.
                     _buildStep(
                       stepNumber: "2",
                       title: "Step 2",
-                      items: [
-                        _StepItem(
-                          title: "Set how long the access should stay active",
-                          description: "Choose Days or Weeks",
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // Step 3
-                    _buildStep(
-                      stepNumber: "3",
-                      title: "Step 3",
                       items: [
                         _StepItem(
                           title: "Select what they can do",

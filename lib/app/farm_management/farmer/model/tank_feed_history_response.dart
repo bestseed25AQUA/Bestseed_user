@@ -3,15 +3,29 @@ class TankFeedHistoryResponse {
   final String message;
   final List<TankDate> dates;
 
-  /// When the farm was stocked. The screen draws a card for every day from
+  /// When THIS BATCH was stocked. The screen draws a card for every day from
   /// this date to today, so days with nothing recorded can still be filled in.
+  ///
+  /// A tank on its second crop dates from that crop, not from the tank's first
+  /// ever stocking — otherwise a re-used tank would show months of empty cards.
   final String? stockingDate;
+
+  /// 1, 2, 3 … the crop cycle these records belong to.
+  final int? batchNo;
+
+  /// False once the tank has been made inactive: the crop is finished, so the
+  /// screen shows it read-only with the report still available. Defaults to
+  /// true so a response from a server without batches stays editable rather
+  /// than silently locking the screen.
+  final bool batchActive;
 
   TankFeedHistoryResponse({
     required this.status,
     required this.message,
     required this.dates,
     this.stockingDate,
+    this.batchNo,
+    this.batchActive = true,
   });
 }
 

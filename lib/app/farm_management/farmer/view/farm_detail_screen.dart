@@ -11,6 +11,7 @@ import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dar
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/harvest_bottom.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/start_batch_sheet.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_access_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/contact_us_dialog.dart';
@@ -587,10 +588,25 @@ class TankStatusCard extends StatelessWidget {
                         ? null
                         : (value) async {
                             if (value) {
-                              controller.updateTankStatus(
+                              // Activating starts a NEW crop, not a
+                              // resumption: ask when it went in, and what it
+                              // has already been fed if that was before today.
+                              // Without a date the tank would read as day 1
+                              // with no way to record what it had already had.
+                              final batch = await showStartBatchSheet(
+                                context,
+                                tankName: tank.tankName ?? 'This tank',
+                              );
+
+                              // Cancelled — leave the tank as it was.
+                              if (batch == null) return;
+
+                              await controller.updateTankStatus(
                                 status: 1,
                                 tankId: tank.id.toString(),
                                 farmId: farmId,
+                                stockingDate: batch.stockingDate,
+                                feedUsedBefore: batch.feedUsedBefore,
                               );
                             } else {
                               bool isUpdated = false;

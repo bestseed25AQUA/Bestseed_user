@@ -58,10 +58,44 @@ class TankModel {
   num todaysMeals;
   num todaysQuantity;
 
+  /// The date this tank's stock went in — its own, or the farm's for tanks
+  /// created before dates were kept per tank. Already resolved server-side.
+  String? effectiveStockingDate;
+
+  /// How many meals today calls for, by the schedule in [mealsForDay].
+  /// Sent by the server so the boxes drawn match the rows behind them.
+  int todaysMealCount;
+
+  /// The "already used" figure this tank was set up with, read back from the
+  /// history it generated. The edit form shows it so it can be corrected.
+  num feedUsedBefore;
+
+  // ── The crop cycle this tank is on ────────────────────────────────────
+  //
+  // A tank is stocked, fed for weeks, harvested, and stocked again. Everything
+  // above — the total, the day count, today's meals — belongs to the CURRENT
+  // batch, so a second crop starts from nothing instead of piling onto the
+  // first.
+
+  int? batchId;
+
+  /// 1, 2, 3 … per tank. What the farmer calls the cycle.
+  int? batchNo;
+
+  /// False once the tank has been made inactive: the crop is finished, the
+  /// screen goes read-only, and the report is still there to download.
+  bool batchActive;
+
   TankModel({
     this.todaysFeed = const [],
     this.todaysMeals = 0,
     this.todaysQuantity = 0,
+    this.effectiveStockingDate,
+    this.todaysMealCount = 0,
+    this.feedUsedBefore = 0,
+    this.batchId,
+    this.batchNo,
+    this.batchActive = true,
     this.id,
     this.farmId,
     this.tankName,
@@ -102,6 +136,18 @@ class TankModel {
             : const [],
         todaysMeals: num.tryParse('${json["todays_meals"] ?? 0}') ?? 0,
         todaysQuantity: num.tryParse('${json["todays_quantity"] ?? 0}') ?? 0,
+        effectiveStockingDate:
+            json["effective_stocking_date"]?.toString() ??
+            json["stocking_date"]?.toString(),
+        todaysMealCount: int.tryParse('${json["todays_meal_count"] ?? 0}') ?? 0,
+        feedUsedBefore: num.tryParse('${json["feed_used_before"] ?? 0}') ?? 0,
+        batchId: int.tryParse('${json["batch_id"]}'),
+        batchNo: int.tryParse('${json["batch_no"]}'),
+        // Defaults to true so a response from a server without batches leaves
+        // the screen editable rather than silently locking every tank.
+        batchActive: json["batch_active"] == null
+            ? true
+            : json["batch_active"] == true,
       );
     } catch (e) {
       return TankModel(id: 0, tankName: "Error");
