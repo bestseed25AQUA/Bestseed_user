@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/farm_management/farmer/util/feed_report.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/meal_row_state.dart';
@@ -83,6 +84,63 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
   /// Dates the user has collapsed. Absent means expanded.
   final Map<String, bool> _collapsed = {};
 
+  /// Generate the report, then either save it or hand it to the share sheet.
+  ///
+  /// The link is asked for at the moment of tapping rather than held from
+  /// earlier: the report is built server-side from whatever has been recorded,
+  /// so a stale link would hand over a stale document.
+  Future<void> _handleReport(_ReportAction action) async {
+    if (_reportAction != null) return;
+
+    setState(() => _reportAction = action);
+
+    try {
+      final link = await _tankController.getReport(tankId: widget.tankId);
+
+      if (!mounted || link == null || link.isEmpty) return;
+
+      if (action == _ReportAction.download) {
+        await downloadReport(link, tankName: widget.tankName);
+      } else {
+        await shareReport(link, tankName: widget.tankName);
+      }
+    } finally {
+      if (mounted) setState(() => _reportAction = null);
+    }
+  }
+
+  Widget _reportButton({
+    required IconData icon,
+    required String label,
+    required bool busy,
+    required VoidCallback onTap,
+  }) {
+    return OutlinedButton.icon(
+      onPressed: _reportAction != null ? null : onTap,
+      icon: busy
+          ? SizedBox(
+              height: 15,
+              width: 15,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.orange.shade800,
+              ),
+            )
+          : Icon(icon, size: 17),
+      label: Text(
+        label,
+        style: GoogleFonts.roboto(fontSize: 13, fontWeight: FontWeight.w600),
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.orange.shade900,
+        backgroundColor: Colors.white,
+        side: BorderSide(color: Colors.orange.shade300),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
   /// True for the card the farmer is most likely here to fill in.
   bool _isToday(String date) {
     final parsed = DateTime.tryParse(date);
@@ -93,6 +151,10 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
         parsed.month == now.month &&
         parsed.day == now.day;
   }
+
+  /// Which report action is running, so its button can show a spinner and
+  /// neither can be fired twice while the file is being fetched.
+  _ReportAction? _reportAction;
 
   /// Shared by the scroll view and its Scrollbar, so the thumb tracks the list.
   final ScrollController _scrollController = ScrollController();
@@ -129,9 +191,8 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
 
       final sorted = [...entries]
         ..sort(
-          (a, b) => (int.tryParse(a.meal) ?? 0).compareTo(
-            int.tryParse(b.meal) ?? 0,
-          ),
+          (a, b) =>
+              (int.tryParse(a.meal) ?? 0).compareTo(int.tryParse(b.meal) ?? 0),
         );
 
       _rows[date] = sorted.isEmpty
@@ -389,7 +450,6 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
         // Whether this tank's crop is still running. A harvested batch is
         // shown but not editable — see the banner and `canRecord` below.
         final batchActive = tankHistory?.batchActive ?? true;
-        final batchNo = tankHistory?.batchNo;
 
         // Every day from stocking to today gets a card, newest first —
         // including days with nothing recorded.
@@ -438,6 +498,32 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
           if (!dates.any((x) => x.date == d.date)) dates.add(d);
         }
 
+        // How long this crop has been going, counting the stocking day as
+        // day 1. A running crop counts to today; a harvested one stops at the
+        // last day feed was recorded, since it is no longer ageing.
+        int? daysDone;
+
+        if (stocked != null) {
+          final start = DateTime(stocked.year, stocked.month, stocked.day);
+
+          var end = today;
+
+          if (!batchActive) {
+            final fed = history
+                .map((d) => DateTime.tryParse(d.date))
+                .whereType<DateTime>()
+                .toList();
+
+            if (fed.isNotEmpty) {
+              fed.sort();
+              end = fed.last;
+            }
+          }
+
+          // A crop stocked in the future has not started: 0 days done.
+          daysDone = end.isBefore(start) ? 0 : end.difference(start).inDays + 1;
+        }
+
         // "Total feed Used" in the design — summed from the rows already
         // loaded, so it needs no extra request.
         final totalFeedUsed = history.fold<double>(
@@ -482,12 +568,16 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
                               color: Colors.black87,
                             ),
                           ),
-                          if (batchNo != null) ...[
+                          // How long the crop has been running, not which
+                          // numbered batch it is. Stocking and harvesting a
+                          // tank is just how a farm works; the farmer counts
+                          // days, not cycles.
+                          if (daysDone != null) ...[
                             const SizedBox(height: 4),
                             Text(
-                              batchActive
-                                  ? 'Batch $batchNo · running'
-                                  : 'Batch $batchNo · finished',
+                              daysDone == 0
+                                  ? 'Not stocked yet'
+                                  : '$daysDone ${daysDone == 1 ? 'day' : 'days'} done',
                               style: GoogleFonts.roboto(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -501,9 +591,10 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
                       ),
                     ),
 
-                    // A harvested crop cannot be added to. Said once, at the
+                    // An inactive tank cannot be added to. Said once, at the
                     // top, rather than leaving the farmer to work out why every
-                    // card below has no fields in it.
+                    // card below has no fields in it — and with the report to
+                    // hand, since that is the only thing left to do here.
                     if (!batchActive)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -515,24 +606,56 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: Colors.orange.shade200),
                           ),
-                          child: Row(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                Icons.info_outline,
-                                size: 18,
-                                color: Colors.orange.shade800,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'This batch is finished. The records below '
-                                  'are read-only, and the report is still '
-                                  'available to download.',
-                                  style: GoogleFonts.roboto(
-                                    fontSize: 12,
-                                    color: Colors.orange.shade900,
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.info_outline,
+                                    size: 18,
+                                    color: Colors.orange.shade800,
                                   ),
-                                ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'This tank is inactive. The records below '
+                                      'are read-only — you can download or share '
+                                      'the report.',
+                                      style: GoogleFonts.roboto(
+                                        fontSize: 12,
+                                        color: Colors.orange.shade900,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _reportButton(
+                                      icon: Icons.download_rounded,
+                                      label: 'Download',
+                                      busy:
+                                          _reportAction ==
+                                          _ReportAction.download,
+                                      onTap: () =>
+                                          _handleReport(_ReportAction.download),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _reportButton(
+                                      icon: Icons.share_rounded,
+                                      label: 'Share',
+                                      busy:
+                                          _reportAction == _ReportAction.share,
+                                      onTap: () =>
+                                          _handleReport(_ReportAction.share),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -836,10 +959,7 @@ class DailyFeedCard extends StatelessWidget {
               label: const Text('Add meal'),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 textStyle: GoogleFonts.roboto(
@@ -863,10 +983,7 @@ class DailyFeedCard extends StatelessWidget {
               foregroundColor: Colors.white,
               disabledBackgroundColor: AppColors.primary.withValues(alpha: .5),
               disabledForegroundColor: Colors.white70,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30),
               ),
@@ -1014,10 +1131,7 @@ class DailyFeedCard extends StatelessWidget {
       fillColor: recorded
           ? AppColors.primary.withValues(alpha: 0.05)
           : Colors.grey.shade200,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 10,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       border: OutlineInputBorder(
         borderSide: BorderSide.none,
         borderRadius: BorderRadius.circular(8),
@@ -1057,3 +1171,6 @@ String formatDate(String? date) {
     return "-"; // safe fallback
   }
 }
+
+/// The two things left to do with a finished tank.
+enum _ReportAction { download, share }

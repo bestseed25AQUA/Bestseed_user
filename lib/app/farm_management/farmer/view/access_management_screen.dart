@@ -356,13 +356,27 @@ class _MemberCard extends StatelessWidget {
                     if (value == 'edit') onEdit();
                     if (value == 'remove') onRemove();
                   },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'edit', child: Text('Change access')),
-                    PopupMenuItem(
-                      value: 'remove',
-                      child: Text('Remove access'),
-                    ),
-                  ],
+                  // Someone whose access was removed has nothing left to
+                  // change or remove — the only thing left to do with them is
+                  // let them back in. Saving from the same sheet restores
+                  // them, because granting clears the revoke.
+                  itemBuilder: (_) => member.isActive
+                      ? const [
+                          PopupMenuItem(
+                            value: 'edit',
+                            child: Text('Change access'),
+                          ),
+                          PopupMenuItem(
+                            value: 'remove',
+                            child: Text('Remove access'),
+                          ),
+                        ]
+                      : const [
+                          PopupMenuItem(
+                            value: 'edit',
+                            child: Text('Give access again'),
+                          ),
+                        ],
                 ),
             ],
           ),

@@ -17,6 +17,50 @@ import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen
 import 'package:seedsuser/app/farm_management/farmer/widget/request_sent_dialog.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
 
+/// Dates are shown to the farmer as dd-MM-yyyy and sent to the server as
+/// yyyy-MM-dd.
+///
+/// The text field's controller holds the DISPLAY form, so every read of it for
+/// the request has to go through [isoDate] — sending "02-09-2026" would either
+/// be rejected or, worse, silently read as a different day.
+String displayDate(DateTime date) =>
+    "${date.day.toString().padLeft(2, '0')}-"
+    "${date.month.toString().padLeft(2, '0')}-"
+    "${date.year}";
+
+/// Parse either form back to a DateTime.
+///
+/// Takes the display form the fields hold, and ISO too, because values arrive
+/// from the API already in ISO before the user has touched anything.
+DateTime? parseDisplayDate(String? value) {
+  final text = value?.trim() ?? '';
+  if (text.isEmpty) return null;
+
+  final parts = text.split('-');
+
+  if (parts.length == 3 && parts.first.length == 2) {
+    final day = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+
+    if (day != null && month != null && year != null) {
+      return DateTime(year, month, day);
+    }
+  }
+
+  return DateTime.tryParse(text);
+}
+
+/// The yyyy-MM-dd the server expects, from whatever a field currently holds.
+String isoDate(String? value) {
+  final parsed = parseDisplayDate(value);
+  if (parsed == null) return '';
+
+  return "${parsed.year.toString().padLeft(4, '0')}-"
+      "${parsed.month.toString().padLeft(2, '0')}-"
+      "${parsed.day.toString().padLeft(2, '0')}";
+}
+
 class AddFarmerDetailsFormScreen extends StatefulWidget {
   const AddFarmerDetailsFormScreen({super.key, this.farmData});
   final FarmData? farmData;
@@ -83,10 +127,12 @@ class _AddFarmerDetailsFormScreenState
   final Map<int, TextEditingController> _existingFeedUsed = {};
 
   TextEditingController _existingDateController(TankModel tank) =>
-      _existingDates.putIfAbsent(
-        tank.id ?? 0,
-        () => TextEditingController(text: tank.effectiveStockingDate ?? ''),
-      );
+      _existingDates.putIfAbsent(tank.id ?? 0, () {
+        final existing = parseDisplayDate(tank.effectiveStockingDate);
+        return TextEditingController(
+          text: existing == null ? '' : displayDate(existing),
+        );
+      });
 
   TextEditingController _existingFeedController(TankModel tank) =>
       _existingFeedUsed.putIfAbsent(tank.id ?? 0, () {
@@ -103,9 +149,7 @@ class _AddFarmerDetailsFormScreenState
   /// True when this existing tank's date is in the past — the only case where
   /// a prior-feed figure means anything.
   bool _existingIsPast(TankModel tank) {
-    final picked = DateTime.tryParse(
-      _existingDateController(tank).text.trim(),
-    );
+    final picked = parseDisplayDate(_existingDateController(tank).text);
     if (picked == null) return false;
 
     final now = DateTime.now();
@@ -117,17 +161,17 @@ class _AddFarmerDetailsFormScreenState
   }
 
   /// Pick a new stocking date for a tank the farm already has.
+  /// Same field, same rule as [_pickTankDate] — a stocking date may be in the
+  /// future, for a pond prepared ahead of time.
   Future<void> _pickExistingDate(TankModel tank) async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final current = DateTime.tryParse(
-      _existingDateController(tank).text.trim(),
-    );
+    final current = parseDisplayDate(_existingDateController(tank).text);
 
     final picked = await showDatePicker(
       context: context,
       firstDate: DateTime(2000),
-      lastDate: today,
+      lastDate: DateTime(now.year + 1, now.month, now.day),
       initialDate: current ?? today,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
@@ -144,9 +188,7 @@ class _AddFarmerDetailsFormScreenState
 
     if (picked == null) return;
 
-    _existingDateController(tank).text =
-        "${picked.year}-${picked.month.toString().padLeft(2, '0')}-"
-        "${picked.day.toString().padLeft(2, '0')}";
+    _existingDateController(tank).text = displayDate(picked);
 
     // Moved to today or later: there is no past left to account for, so the
     // figure goes with it rather than being sent for a date it cannot apply to.
@@ -208,7 +250,7 @@ class _AddFarmerDetailsFormScreenState
   /// The date chosen for tank [i], or null when it has not been set.
   DateTime? _tankDate(int i) {
     if (i >= _tankDates.length) return null;
-    return DateTime.tryParse(_tankDates[i].text.trim());
+    return parseDisplayDate(_tankDates[i].text);
   }
 
   /// True when tank [i] was stocked before today, which is what makes its
@@ -232,16 +274,19 @@ class _AddFarmerDetailsFormScreenState
     if (picked == null || !_tankIsPast(i)) return 0;
 
     final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day)
-            .difference(DateTime(picked.year, picked.month, picked.day))
-            .inDays +
+    return DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).difference(DateTime(picked.year, picked.month, picked.day)).inDays +
         1;
   }
 
   /// Pick a stocking date for tank [i].
   ///
-  /// Capped at today: a tank cannot already have been stocked on a date that
-  /// has not arrived, and the server rejects one.
+  /// Future dates are allowed: a pond is often set up before it is stocked.
+  /// No history is generated for a date that has not arrived, and the tank
+  /// reads Day 0 until it does.
   Future<void> _pickTankDate(int i) async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -249,7 +294,7 @@ class _AddFarmerDetailsFormScreenState
     final picked = await showDatePicker(
       context: context,
       firstDate: DateTime(2000),
-      lastDate: today,
+      lastDate: DateTime(now.year + 1, now.month, now.day),
       initialDate: _tankDate(i) ?? today,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
@@ -266,9 +311,7 @@ class _AddFarmerDetailsFormScreenState
 
     if (picked == null) return;
 
-    _tankDates[i].text =
-        "${picked.year}-${picked.month.toString().padLeft(2, '0')}-"
-        "${picked.day.toString().padLeft(2, '0')}";
+    _tankDates[i].text = displayDate(picked);
 
     // A past date reveals that tank's "already used" box; today's hides it,
     // and anything typed into it is dropped so a stale figure cannot be sent.
@@ -333,8 +376,7 @@ class _AddFarmerDetailsFormScreenState
       },
     );
     if (pick != null) {
-      stockingDate.text =
-          "${pick.year}-${pick.month.toString().padLeft(2, '0')}-${pick.day.toString().padLeft(2, '0')}";
+      stockingDate.text = displayDate(pick);
       // Refresh: a past date reveals the "feed already used" field below Store.
       setState(() {});
     }
@@ -345,7 +387,8 @@ class _AddFarmerDetailsFormScreenState
     super.initState();
     if (widget.farmData != null) {
       farmName.text = widget.farmData!.farmName ?? "";
-      stockingDate.text = widget.farmData!.stockingDate ?? "";
+      final farmDate = parseDisplayDate(widget.farmData!.stockingDate);
+      stockingDate.text = farmDate == null ? "" : displayDate(farmDate);
       store.text = widget.farmData!.store ?? "";
       lowFeedLimit.text = widget.farmData!.lowFeedLimit ?? "";
       selectedTanks = widget.farmData!.noOfTanks;
@@ -354,7 +397,9 @@ class _AddFarmerDetailsFormScreenState
       // figure was recorded fall back to their running total, so the box shows
       // something meaningful instead of sitting empty next to weeks of history.
       final entered =
-          widget.farmData!.feedUsedBefore ?? widget.farmData!.totalFeedUsed ?? 0;
+          widget.farmData!.feedUsedBefore ??
+          widget.farmData!.totalFeedUsed ??
+          0;
       if (entered > 0) {
         feedUsedBefore.text = entered.toString();
       }
@@ -487,7 +532,6 @@ class _AddFarmerDetailsFormScreenState
                 ),
                 const SizedBox(height: 20),
 
-
                 // Low Feed Limit with info tooltip
                 Row(
                   children: [
@@ -611,7 +655,7 @@ class _AddFarmerDetailsFormScreenState
                         final newTanksMeta = [
                           for (int i = 0; i < _tankDates.length; i++)
                             {
-                              'stocking_date': _tankDates[i].text.trim(),
+                              'stocking_date': isoDate(_tankDates[i].text),
                               'feed_used_before': _tankIsPast(i)
                                   ? _tankFeedUsed[i].text.trim()
                                   : '0',
@@ -626,9 +670,9 @@ class _AddFarmerDetailsFormScreenState
                             if (tank.id != null)
                               {
                                 'id': tank.id.toString(),
-                                'stocking_date': _existingDateController(
-                                  tank,
-                                ).text.trim(),
+                                'stocking_date': isoDate(
+                                  _existingDateController(tank).text,
+                                ),
                                 'feed_used_before': _existingIsPast(tank)
                                     ? _existingFeedController(tank).text.trim()
                                     : '0',
@@ -658,7 +702,7 @@ class _AddFarmerDetailsFormScreenState
                         final tanksMeta = [
                           for (int i = 0; i < (selectedTanks ?? 0); i++)
                             {
-                              'stocking_date': _tankDates[i].text.trim(),
+                              'stocking_date': isoDate(_tankDates[i].text),
                               // Only for a tank stocked in the past; a tank
                               // stocked today has nothing to account for.
                               'feed_used_before': _tankIsPast(i)
@@ -915,9 +959,12 @@ class _AddFarmerDetailsFormScreenState
   /// Sent as the farm's own `stocking_date` so reports and the admin panel,
   /// which still read one date per farm, keep working.
   String _earliestTankDate() {
+    // Converted to ISO before sorting, twice over: the field holds dd-MM-yyyy,
+    // which sorts by DAY — "02-09-2026" would come out ahead of "16-08-2026" —
+    // and the farm's date has to leave here in the form the server reads.
     final dates = [
       for (int i = 0; i < (selectedTanks ?? 0); i++)
-        if (_tankDates[i].text.trim().isNotEmpty) _tankDates[i].text.trim(),
+        if (isoDate(_tankDates[i].text).isNotEmpty) isoDate(_tankDates[i].text),
     ]..sort();
 
     return dates.isEmpty ? '' : dates.first;
@@ -1075,15 +1122,15 @@ class _AddFarmerDetailsFormScreenState
 
   /// Days from an existing tank's chosen date to today, inclusive.
   int _existingDays(TankModel tank) {
-    final picked = DateTime.tryParse(
-      _existingDateController(tank).text.trim(),
-    );
+    final picked = parseDisplayDate(_existingDateController(tank).text);
     if (picked == null || !_existingIsPast(tank)) return 0;
 
     final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day)
-            .difference(DateTime(picked.year, picked.month, picked.day))
-            .inDays +
+    return DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).difference(DateTime(picked.year, picked.month, picked.day)).inDays +
         1;
   }
 
@@ -1357,6 +1404,7 @@ class _AddFarmerDetailsFormScreenState
     Widget? suffixIcon,
     ValueChanged<String>? onChanged,
     bool isRequired = true,
+
     /// Tighter padding, for the per-tank rows where several fields stack up
     /// and the form's usual roominess turns into a lot of scrolling.
     bool dense = false,

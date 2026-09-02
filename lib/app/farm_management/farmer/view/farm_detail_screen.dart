@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/app_globals.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/farm_management/farmer/util/feed_report.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
@@ -656,10 +657,16 @@ class TankStatusCard extends StatelessWidget {
                                   safeContext,
                                   tankName: tank.tankName ?? 'Tank',
                                   () async {
-                                    downloadReport(report);
+                                    downloadReport(
+                                      report,
+                                      tankName: tank.tankName,
+                                    );
                                   },
                                   () {
-                                    shareReport(report);
+                                    shareReport(
+                                      report,
+                                      tankName: tank.tankName,
+                                    );
                                   },
                                 );
                               }
@@ -879,61 +886,6 @@ void showReportPopup(
       );
     },
   );
-}
-
-Future<String?> downloadReport(String url) async {
-  try {
-    // FIX URL ISSUE
-    if (url.startsWith("https:/") && !url.startsWith("https://")) {
-      url = url.replaceFirst("https:/", "https://");
-    }
-
-    // Save into the app-owned external storage (Android: /Android/data/<pkg>/files)
-    // or the app documents directory (iOS). Neither location requires a
-    // runtime permission or MANAGE_EXTERNAL_STORAGE — Play Store rejected
-    // the previous /storage/emulated/0/Download path because it needed
-    // broad "All files access", which we're not entitled to use.
-    Directory? directory;
-    if (Platform.isAndroid) {
-      directory = await getExternalStorageDirectory();
-    } else {
-      directory = await getApplicationDocumentsDirectory();
-    }
-    if (directory == null) {
-      CustomToast.error('Feed Report Document Failed To Download');
-      return null;
-    }
-
-    final filePath = "${directory.path}/feed_report.pdf";
-    await Dio().download(url, filePath);
-
-    final file = File(filePath);
-    if (!file.existsSync()) {
-      CustomToast.error('Feed Report Document Failed To Download');
-      return null;
-    }
-
-    CustomToast.success('Feed Report Document Downloaded Successfully');
-    return filePath;
-  } catch (e) {
-    // Say so. A silent null here left the farmer tapping Download on a dialog
-    // that never acknowledged the tap — no file, no message, nothing.
-    CustomToast.error('Feed Report Document Failed To Download');
-    return null;
-  }
-}
-
-Future<void> shareReport(String url) async {
-  if (url.isEmpty) {
-    CustomToast.error('No report link to share');
-    return;
-  }
-
-  try {
-    await Share.share(url, subject: "Feed Report Link");
-  } catch (e) {
-    CustomToast.error('Could not share the report');
-  }
 }
 
 void showEditFeedBottomSheet(String farmId) {

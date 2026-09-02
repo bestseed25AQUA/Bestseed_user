@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class TankListModel {
   bool? status;
   String? message;
@@ -111,21 +113,44 @@ class TankModel {
     this.day,
   });
 
+  /// A decimal that may arrive as a string or a number.
+  ///
+  /// The server sends a raw decimal column as `"0.00"` but a computed sum as
+  /// `0` — and assigning that number to a String field threw, which the catch
+  /// below turned into a tank called "Error" with no status. Both forms are
+  /// legitimate; the model has to take either.
+  static String _decimal(dynamic value, [String fallback = "0.00"]) {
+    if (value == null) return fallback;
+    if (value is num) return value.toStringAsFixed(2);
+
+    final parsed = num.tryParse('$value');
+    return parsed != null ? parsed.toStringAsFixed(2) : '$value';
+  }
+
+  /// A whole number that may arrive as a string, a number, or a decimal.
+  static int _whole(dynamic value, [int fallback = 0]) {
+    if (value == null) return fallback;
+    if (value is int) return value;
+    if (value is num) return value.round();
+
+    return num.tryParse('$value')?.round() ?? fallback;
+  }
+
   factory TankModel.fromJson(Map<String, dynamic> json) {
     try {
       return TankModel(
-        id: json["id"] ?? 0,
-        farmId: json["farm_id"] ?? 0,
-        tankName: json["tank_name"] ?? "",
-        status: json["status"] ?? 0,
-        store: json["store"] ?? 0,
-        totalFeedUsed: json["total_feed_used"] ?? "0.00",
-        meals: json["meals"] ?? 0,
-        feedQuantity: json["feed_quantity"] ?? "0.00",
-        stockingDate: json["stocking_date"] ?? "",
-        createdAt: json["created_at"] ?? "",
-        updatedAt: json["updated_at"] ?? "",
-        day: json["day"] ?? 0,
+        id: _whole(json["id"]),
+        farmId: _whole(json["farm_id"]),
+        tankName: json["tank_name"]?.toString() ?? "",
+        status: _whole(json["status"]),
+        store: _whole(json["store"]),
+        totalFeedUsed: _decimal(json["total_feed_used"]),
+        meals: _whole(json["meals"]),
+        feedQuantity: _decimal(json["feed_quantity"]),
+        stockingDate: json["stocking_date"]?.toString() ?? "",
+        createdAt: json["created_at"]?.toString() ?? "",
+        updatedAt: json["updated_at"]?.toString() ?? "",
+        day: _whole(json["day"]),
         feed: json["feed"] != null ? FeedModel.fromJson(json["feed"]) : null,
         todaysFeed: json["todays_feed"] is List
             ? List<TodayFeedEntry>.from(
@@ -149,7 +174,11 @@ class TankModel {
             ? true
             : json["batch_active"] == true,
       );
-    } catch (e) {
+    } catch (e, stack) {
+      // Never silently: a shape change in the payload showed up as a tank
+      // named "Error" with no status, and nothing said why.
+      debugPrint('TankModel.fromJson failed for $json');
+      debugPrint('$e\n$stack');
       return TankModel(id: 0, tankName: "Error");
     }
   }

@@ -58,7 +58,6 @@ class TankController extends GetxController {
     String? mealId,
     String? farmId,
   }) async {
-
     Map<String, String>? body = {
       "meals": mealQty,
       "feed_quantity": feedQty,
@@ -82,6 +81,11 @@ class TankController extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (farmId != null) {
           getTankList(farmId, silent: true);
+
+          // The header's Total Feed Used and Remaining Stock come from the
+          // feed-store endpoint, not the tank list, so refreshing only the
+          // tanks left the figures above them stale.
+          getFeedStore(farmId, silent: true);
         }
 
         CustomToast.success('Tank Save Successfully');
@@ -133,6 +137,12 @@ class TankController extends GetxController {
         // Silent for the same reason as the save above: the toggle has its own
         // overlay, so the refresh must not blank the screen behind it.
         getTankList(farmId, silent: true);
+
+        // Harvesting closes the tank's crop, and a finished crop's feed drops
+        // out of the farm's running total — so the header has to be re-read,
+        // not just the tank cards.
+        getFeedStore(farmId, silent: true);
+
         CustomToast.success('Tank Updated Successfully');
         return true;
       } else {
@@ -219,10 +229,7 @@ class TankController extends GetxController {
       final response = await postRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/tank-feed-entry/delete",
         headers: await buildHeader(),
-        body: {
-          'history_id': historyId.toString(),
-          'tank_id': tankId,
-        },
+        body: {'history_id': historyId.toString(), 'tank_id': tankId},
       );
 
       if (response.statusCode == 200) {
@@ -356,6 +363,7 @@ class TankController extends GetxController {
   Rx<FeedStoreModel?> feedStoreData = Rx<FeedStoreModel?>(null);
   RxBool isFeedLoading = false.obs;
   RxBool isOverlay = false.obs;
+
   /// [silent] refreshes without raising the loading flag — the header card
   /// swaps to a shimmer while it is up, which flashes on an incidental refresh.
   Future<void> getFeedStore(dynamic farmId, {bool silent = false}) async {
