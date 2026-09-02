@@ -37,6 +37,13 @@ class FarmData {
   /// The "feed already used" figure the farmer entered, if any. Distinct from
   /// [totalFeedUsed], which also includes feed recorded day by day since.
   num? feedUsedBefore;
+
+  /// What is LEFT of [store] — the stock less the feed actually recorded.
+  ///
+  /// Null when the farmer has not entered a store figure, which is not the
+  /// same as a remainder of zero. Computed server-side so the card, the farm
+  /// header and the low-feed warning all quote one number.
+  num? remainingStore;
   dynamic activeCount;
   dynamic inactiveCount;
 
@@ -70,6 +77,9 @@ class FarmData {
         ? null
         : num.tryParse('${json['feed_used_before']}');
     store = json['store'];
+    remainingStore = json['remaining_store'] == null
+        ? null
+        : num.tryParse('${json['remaining_store']}');
     lowFeedLimit = json['low_feed_limit'];
     activeCount = json['active_tanks'];
     inactiveCount = json['inactive_tanks'];

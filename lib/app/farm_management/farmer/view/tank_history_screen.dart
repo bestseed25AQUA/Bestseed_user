@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/farm_management/farmer/util/date_format.dart';
 import 'package:seedsuser/app/farm_management/farmer/util/feed_report.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
@@ -1152,25 +1153,11 @@ class DailyFeedCard extends StatelessWidget {
   }
 }
 
-String formatDate(String? date) {
-  try {
-    if (date == null || date.isEmpty) return "-";
-
-    // Parse the input date (2025-08-09)
-    DateTime parsed = DateTime.tryParse(date) ?? DateTime(0000);
-
-    if (parsed.year == 0000) return "-";
-
-    // Format to dd/MM/yyyy
-    final String day = parsed.day.toString().padLeft(2, '0');
-    final String month = parsed.month.toString().padLeft(2, '0');
-    final String year = parsed.year.toString();
-
-    return "$day/$month/$year";
-  } catch (e) {
-    return "-"; // safe fallback
-  }
-}
+/// The day on a card header, as the farmer reads dates everywhere else.
+///
+/// Delegates rather than formatting its own: this used to produce dd/MM/yyyy
+/// with slashes while every other screen used dashes.
+String formatDate(String? date) => displayDateFrom(date);
 
 /// The two things left to do with a finished tank.
 enum _ReportAction { download, share }

@@ -79,6 +79,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
         // Empty, not "0 kgs": the card appends " kgs" itself, so that fallback
         // rendered "0 kgs kgs" — and store being unset is not a store of zero.
         store: e.store ?? '',
+        remainingStore: e.remainingStore,
         activeCount: e.activeCount.toString(),
         inactiveCount: e.inactiveCount.toString(), // Static (Not in API)
         imageUrls: e.images?.imagesList ?? [],
@@ -528,7 +529,10 @@ class FarmCard extends StatelessWidget {
                   runSpacing: 6,
                   children: [
                     _farmFigure("Total Feed Used: ", '${farm.totalFeedUsedLabel} kgs'),
-                    _farmFigure("Store ", farm.storeLabel),
+                    // Named as the farm's own header names it, since it is now
+                    // the same number — "Store" beside a remainder invited the
+                    // reading that nothing had been used.
+                    _farmFigure("Store: ", farm.storeLabel),
                   ],
                 ),
               ],
@@ -1073,11 +1077,26 @@ class FarmSection {
       ? totalFeedUsed.toStringAsFixed(0)
       : totalFeedUsed.toStringAsFixed(2);
 
-  /// The stock figure, or an em dash when the farmer has not entered one.
+  /// What is LEFT of the stock, as the farm detail screen shows it.
+  final num? remainingStore;
+
+  /// The remaining stock, or an em dash when the farmer has not entered one.
+  ///
+  /// What is LEFT, not what was put in: the raw store figure never moves as
+  /// feed is recorded, so the card read as though nothing had been used while
+  /// the farm's own header showed the remainder correctly.
   ///
   /// Store is optional, so this can genuinely be unset — which is not the same
-  /// as a store of zero and should not be shown as one.
-  String get storeLabel => store.trim().isEmpty ? '—' : '$store kgs';
+  /// as a remainder of zero and should not be shown as one. Falls back to the
+  /// raw figure only if the server sent no remainder at all.
+  String get storeLabel {
+    final left = remainingStore;
+    if (left != null) {
+      return '${left % 1 == 0 ? left.toStringAsFixed(0) : left.toStringAsFixed(2)} kgs';
+    }
+
+    return store.trim().isEmpty ? '—' : '$store kgs';
+  }
 
   /// The figure entered as "feed already used", if any.
   final num? feedUsedBefore;
@@ -1092,6 +1111,7 @@ class FarmSection {
     required this.noOfTanks,
     this.totalFeedUsed = 0,
     this.feedUsedBefore,
+    this.remainingStore,
     required this.name,
     required this.store,
     required this.activeCount,

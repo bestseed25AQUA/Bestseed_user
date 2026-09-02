@@ -7,6 +7,7 @@ import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/meal_row_state.dart';
+import 'package:seedsuser/app/farm_management/farmer/util/date_format.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 
@@ -337,7 +338,7 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
                   const SizedBox(height: 4.0),
                   Center(
                     child: Text(
-                      "${now.day}/${now.month}/${now.year}",
+                      displayDate(now),
                       style: GoogleFonts.roboto(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,

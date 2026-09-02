@@ -15,51 +15,8 @@ import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart'
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/request_sent_dialog.dart';
+import 'package:seedsuser/app/farm_management/farmer/util/date_format.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
-
-/// Dates are shown to the farmer as dd-MM-yyyy and sent to the server as
-/// yyyy-MM-dd.
-///
-/// The text field's controller holds the DISPLAY form, so every read of it for
-/// the request has to go through [isoDate] — sending "02-09-2026" would either
-/// be rejected or, worse, silently read as a different day.
-String displayDate(DateTime date) =>
-    "${date.day.toString().padLeft(2, '0')}-"
-    "${date.month.toString().padLeft(2, '0')}-"
-    "${date.year}";
-
-/// Parse either form back to a DateTime.
-///
-/// Takes the display form the fields hold, and ISO too, because values arrive
-/// from the API already in ISO before the user has touched anything.
-DateTime? parseDisplayDate(String? value) {
-  final text = value?.trim() ?? '';
-  if (text.isEmpty) return null;
-
-  final parts = text.split('-');
-
-  if (parts.length == 3 && parts.first.length == 2) {
-    final day = int.tryParse(parts[0]);
-    final month = int.tryParse(parts[1]);
-    final year = int.tryParse(parts[2]);
-
-    if (day != null && month != null && year != null) {
-      return DateTime(year, month, day);
-    }
-  }
-
-  return DateTime.tryParse(text);
-}
-
-/// The yyyy-MM-dd the server expects, from whatever a field currently holds.
-String isoDate(String? value) {
-  final parsed = parseDisplayDate(value);
-  if (parsed == null) return '';
-
-  return "${parsed.year.toString().padLeft(4, '0')}-"
-      "${parsed.month.toString().padLeft(2, '0')}-"
-      "${parsed.day.toString().padLeft(2, '0')}";
-}
 
 class AddFarmerDetailsFormScreen extends StatefulWidget {
   const AddFarmerDetailsFormScreen({super.key, this.farmData});
@@ -389,7 +346,13 @@ class _AddFarmerDetailsFormScreenState
       farmName.text = widget.farmData!.farmName ?? "";
       final farmDate = parseDisplayDate(widget.farmData!.stockingDate);
       stockingDate.text = farmDate == null ? "" : displayDate(farmDate);
-      store.text = widget.farmData!.store ?? "";
+      // Stock in the shed NOW, not the figure typed when the farm was set up.
+      // `store` itself is the total ever put in, so it stays at 10,000 while
+      // the farm is down to 9,900 — see the same prefill on the feed sheet.
+      store.text =
+          widget.farmData!.remainingStore?.toString() ??
+          widget.farmData!.store ??
+          "";
       lowFeedLimit.text = widget.farmData!.lowFeedLimit ?? "";
       selectedTanks = widget.farmData!.noOfTanks;
 
@@ -577,6 +540,15 @@ class _AddFarmerDetailsFormScreenState
                     isLoading: controller.isOverlay.value,
                     borderRadius: 12,
                     onPressed: () async {
+                      // Put the keyboard away before anything else.
+                      //
+                      // It used to stay up through the whole save and close
+                      // itself only once the farm list had replaced this
+                      // screen, so the list was laid out at the shorter
+                      // keyboard height for a frame and then jumped — which is
+                      // where the empty state's overflow came from.
+                      FocusScope.of(context).unfocus();
+
                       if (!_formKey.currentState!.validate()) return;
 
                       if (images.isEmpty) {
@@ -682,7 +654,10 @@ class _AddFarmerDetailsFormScreenState
                         success = await controller.updateFarmData(
                           farmId: farmId,
                           farmName: farmName.text,
-                          stockingDate: stockingDate.text,
+                          // ISO, not what the field holds: it shows
+                          // dd-MM-yyyy, so posting it raw would hand the API
+                          // "02-09-2026" for a column that reads yyyy-MM-dd.
+                          stockingDate: isoDate(stockingDate.text),
                           store: store.text,
                           lowFeedLimit: lowFeedLimit.text,
                           // What the farm will have once the additions land.

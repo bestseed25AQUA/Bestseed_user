@@ -62,6 +62,13 @@
          build for declaring READ_MEDIA_IMAGES unnecessarily. -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32"/>
+    <!-- Saving a feed report into the phone's Downloads folder on Android 9 and
+         below, which has no MediaStore Downloads collection to write through.
+         Capped at 28: from Android 10 the save goes via MediaStore and needs no
+         permission at all, and this is NOT the broad "All files access"
+         (MANAGE_EXTERNAL_STORAGE) that Play rejected an earlier build for. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"/>
     <!-- CALL_PHONE and SEND_SMS removed. The app never uses SmsManager or
          directly places a call — every "call vendor" / "message vendor"
          action goes through url_launcher with a tel: or WhatsApp URI,

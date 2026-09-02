@@ -311,13 +311,11 @@ class FeedStoreCard extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    // InkWell(
-                    //   onTap: () {
-                    //     showEditFeedBottomSheet(farmId.toString());
-                    //   },
-                    //   child: EditButton(),
-                    // ),
+                    // No Edit button on this side: Total Feed Used is the sum
+                    // of what has been recorded, not something to type over.
+                    // The 8px gap that used to reserve room for one is gone
+                    // with it — it left this column bottom-padded against a
+                    // button that is not there.
                   ],
                 ),
               ),
@@ -365,7 +363,8 @@ class FeedStoreCard extends StatelessWidget {
                     // sits behind `farm.access:total_feed`, not plain edit.
                     if (access.canEditTotalFeed)
                       InkWell(
-                        onTap: () => showEditFeedBottomSheet(farmId.toString()),
+                        onTap: () =>
+                            showEditFeedBottomSheet(context, farmId.toString()),
                         child: const EditButton(),
                       ),
                   ],
@@ -888,164 +887,207 @@ void showReportPopup(
   );
 }
 
-void showEditFeedBottomSheet(String farmId) {
+void showEditFeedBottomSheet(BuildContext context, String farmId) {
   final TankController controller = Get.find();
 
   final totalFeedController = TextEditingController(
     text: controller.feedStoreData.value?.totalFeedUsed.toString(),
   );
+  // What is in the shed NOW, matching the Remaining Stock the header shows —
+  // not the figure typed when the farm was created.
+  //
+  // The raw store column is the total ever put in, so a farm holding 9,900 of
+  // an original 10,000 opened this field on 10,000 and invited the farmer to
+  // correct a number that was not wrong. They edit this when they buy more or
+  // count what is left, and both of those are about stock on hand.
   final storeController = TextEditingController(
-    text: controller.feedStoreData.value?.feedStore.toString(),
+    text:
+        (controller.feedStoreData.value?.remainingStore ??
+                controller.feedStoreData.value?.feedStore)
+            ?.toString() ??
+        '',
   );
   final lowFeedController = TextEditingController(
     text: controller.feedStoreData.value?.lowFeedLimit?.toString() ?? '',
   );
 
-  Get.bottomSheet(
-    SafeArea(
+  // Flutter's own sheet, not Get.bottomSheet.
+  //
+  // GetX lays this out through a CustomSingleChildLayout of its own, and with a
+  // keyboard open it put the sheet at the TOP of the screen, clipped — the
+  // fields visible but the close button above the screen edge and the Save
+  // button below the fold. Every other sheet in this module already uses
+  // showModalBottomSheet and none of them does that.
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    // Transparent, so the only thing painted is the rounded white container
+    // inside; otherwise the sheet's own background shows as a slab behind it.
+    backgroundColor: Colors.transparent,
+    useSafeArea: true,
+    builder: (_) => SafeArea(
+      // top: false. This sheet sits at the BOTTOM of the screen, but SafeArea
+      // reads the whole window's insets, so it was also padding the sheet by
+      // the status bar height — a band of the sheet's own background above the
+      // rounded corners, with nothing in it.
+      top: false,
       // Builder, for a context below the sheet's route: the keyboard's height
       // has to be read from it. Three text fields with no allowance for the
       // keyboard meant tapping one pushed the Save button off the bottom and
       // the sheet reported an overflow instead of scrolling.
       child: Builder(
-        builder: (sheetContext) => Container(
+        builder: (sheetContext) => Padding(
+          // OUTSIDE the white container, not inside it.
+          //
+          // As the container's own bottom padding, the keyboard's height became
+          // part of the sheet: 600-odd pixels of white below the fields, the
+          // sheet grown taller than the screen, and the close button and first
+          // field pushed off the top. What the farmer saw was a mostly empty
+          // white page above the keypad.
+          //
+          // Out here it is the GAP between the sheet and the keyboard, so the
+          // white box hugs its content and sits directly on top of the keypad.
           padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: 20 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
           ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(30),
-              topRight: Radius.circular(30),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(30),
+                topRight: Radius.circular(30),
+              ),
             ),
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Close Button
-                Align(
-                  alignment: Alignment.topRight,
-                  child: GestureDetector(
-                    onTap: () => safeBack(),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.black26),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Close Button
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: GestureDetector(
+                      onTap: () => safeBack(),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.black26),
+                        ),
+                        child: const Icon(Icons.close, size: 18),
                       ),
-                      child: const Icon(Icons.close, size: 18),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                // Total feed used
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "Total feed used",
-                    style: GoogleFonts.roboto(fontSize: 16),
+                  // Total feed used
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "Total feed used",
+                      style: GoogleFonts.roboto(fontSize: 16),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                feedInputField(totalFeedController, true),
+                  const SizedBox(height: 8),
+                  feedInputField(totalFeedController, true),
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                // Store
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text("Store", style: GoogleFonts.roboto(fontSize: 16)),
-                ),
-                const SizedBox(height: 8),
-                feedInputField(storeController, false),
-
-                const SizedBox(height: 20),
-
-                // Low feed limit — the threshold that triggers the alert.
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "Low feed limit",
-                    style: GoogleFonts.roboto(fontSize: 16),
+                  // Store
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "Store",
+                      style: GoogleFonts.roboto(fontSize: 16),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                feedInputField(lowFeedController, false),
+                  const SizedBox(height: 8),
+                  feedInputField(storeController, false),
 
-                const SizedBox(height: 30),
+                  const SizedBox(height: 20),
 
-                // Save Button
-                Obx(() {
-                  return GestureDetector(
-                    onTap: () async {
-                      // Don't fire a second request while one is in flight — a
-                      // double tap on Save sent the update twice.
-                      if (controller.isOverlay.value) return;
+                  // Low feed limit — the threshold that triggers the alert.
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "Low feed limit",
+                      style: GoogleFonts.roboto(fontSize: 16),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  feedInputField(lowFeedController, false),
 
-                      final store = storeController.text.trim();
-                      final lowLimit = lowFeedController.text.trim();
+                  const SizedBox(height: 30),
 
-                      // The server rejects a non-numeric store with a 422 the
-                      // screen reports only as "Failed to update feed". Say what
-                      // is actually wrong, before sending it.
-                      if (store.isEmpty || double.tryParse(store) == null) {
-                        CustomToast.error('Enter the store quantity in Kgs');
-                        return;
-                      }
-                      if (lowLimit.isNotEmpty &&
-                          double.tryParse(lowLimit) == null) {
-                        CustomToast.error('Enter the low feed limit in Kgs');
-                        return;
-                      }
+                  // Save Button
+                  Obx(() {
+                    return GestureDetector(
+                      onTap: () async {
+                        // Don't fire a second request while one is in flight — a
+                        // double tap on Save sent the update twice.
+                        if (controller.isOverlay.value) return;
 
-                      bool ok = await controller.updateFeedStore(
-                        farmId: farmId,
-                        totalFeedUsed: totalFeedController.text.trim(),
-                        feedStore: store,
-                        lowFeedLimit: lowLimit,
-                      );
+                        final store = storeController.text.trim();
+                        final lowLimit = lowFeedController.text.trim();
 
-                      if (ok) {
-                        safeBack();
-                        controller.getFeedStore(farmId);
-                      }
-                    },
-                    child: Container(
-                      height: 50,
-                      width: double.infinity,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: controller.isOverlay.value
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              "Save",
-                              style: TextStyle(
-                                fontSize: 18,
+                        // The server rejects a non-numeric store with a 422 the
+                        // screen reports only as "Failed to update feed". Say what
+                        // is actually wrong, before sending it.
+                        if (store.isEmpty || double.tryParse(store) == null) {
+                          CustomToast.error('Enter the store quantity in Kgs');
+                          return;
+                        }
+                        if (lowLimit.isNotEmpty &&
+                            double.tryParse(lowLimit) == null) {
+                          CustomToast.error('Enter the low feed limit in Kgs');
+                          return;
+                        }
+
+                        bool ok = await controller.updateFeedStore(
+                          farmId: farmId,
+                          totalFeedUsed: totalFeedController.text.trim(),
+                          feedStore: store,
+                          lowFeedLimit: lowLimit,
+                        );
+
+                        if (ok) {
+                          safeBack();
+                          controller.getFeedStore(farmId);
+                        }
+                      },
+                      child: Container(
+                        height: 50,
+                        width: double.infinity,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: controller.isOverlay.value
+                            ? const CircularProgressIndicator(
                                 color: Colors.white,
-                                fontWeight: FontWeight.bold,
+                              )
+                            : const Text(
+                                "Save",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                    ),
-                  );
-                }),
+                      ),
+                    );
+                  }),
 
-                const SizedBox(height: 20),
-              ],
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
           ),
         ),
       ),
     ),
-    isScrollControlled: true,
   );
 }
 

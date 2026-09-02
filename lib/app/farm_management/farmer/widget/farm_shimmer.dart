@@ -104,35 +104,43 @@ class TankGridShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppShimmer(
-      child: Column(
-        children: [
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-            height: 110,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          GridView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: itemCount,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.6,
-            ),
-            itemBuilder: (_, __) => Container(
+      // Scrollable, though a placeholder is never scrolled in practice.
+      //
+      // This is returned straight as the screen's body, and the header plus six
+      // grid cells come to more than a short viewport holds — a landscape phone
+      // or a split-screen window overflowed by a couple of hundred pixels while
+      // the tanks were still loading.
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+              height: 110,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-          ),
-        ],
+            GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: itemCount,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.6,
+              ),
+              itemBuilder: (_, __) => Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

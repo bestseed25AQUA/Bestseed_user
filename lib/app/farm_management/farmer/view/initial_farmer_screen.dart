@@ -97,32 +97,55 @@ class _InitialFarmScreenState extends State<InitialFarmScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // Top content: Image and text
+            //
+            // Scrollable, though it never needs scrolling on a settled screen:
+            // this artwork and its two lines come to just over 300px, and the
+            // keyboard closing behind a route change leaves the area briefly
+            // shorter than that — 261px on a 6" phone — which threw a
+            // 41-pixel RenderFlex overflow across the artwork for a frame or
+            // two. Anything that shortens the viewport does the same: a small
+            // screen, large system text, a split-screen window.
+            //
+            // minHeight keeps it centred whenever there IS room, so the
+            // settled layout is unchanged.
             Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    'assets/images/image 76.png',
-                    width: 200,
-                    height: 200,
-                    fit: BoxFit.cover,
-                  ),
-                  const SizedBox(height: 40),
-                  Text(
-                    'Add Farm Details',
-                    style: GoogleFonts.roboto(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+              child: LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/images/image 76.png',
+                          width: 200,
+                          height: 200,
+                          fit: BoxFit.cover,
+                        ),
+                        const SizedBox(height: 40),
+                        Text(
+                          'Add Farm Details',
+                          style: GoogleFonts.roboto(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Enter your farm's details to get started.",
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.roboto(
+                            fontSize: 16,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Enter your farm's details to get started.",
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.roboto(fontSize: 16, color: Colors.grey),
-                  ),
-                ],
+                ),
               ),
             ),
 

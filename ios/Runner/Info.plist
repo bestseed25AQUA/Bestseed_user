@@ -16,6 +16,15 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>seedsuser</string>
+	<!-- A saved feed report lives in the app's Documents directory. Without
+	     these two keys that directory is invisible: the Files app does not list
+	     the app at all, so a farmer who tapped Download had nowhere to find the
+	     PDF. Together they show it under On My iPhone and let it be opened in
+	     place rather than copied. -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

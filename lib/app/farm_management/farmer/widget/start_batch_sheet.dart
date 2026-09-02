@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/farm_management/farmer/util/date_format.dart';
 
 /// What a farmer answers when starting a fresh crop in a tank.
 class StartBatchResult {
@@ -58,7 +59,8 @@ class _StartBatchSheetState extends State<_StartBatchSheet> {
     super.dispose();
   }
 
-  DateTime? get _picked => DateTime.tryParse(_date.text.trim());
+  /// The field holds the DISPLAY form, so it is parsed rather than read raw.
+  DateTime? get _picked => parseDisplayDate(_date.text);
 
   /// True when the crop went in before today — the only case where a figure
   /// for feed already given means anything.
@@ -80,9 +82,11 @@ class _StartBatchSheetState extends State<_StartBatchSheet> {
     if (picked == null || !_isPast) return 0;
 
     final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day)
-            .difference(DateTime(picked.year, picked.month, picked.day))
-            .inDays +
+    return DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).difference(DateTime(picked.year, picked.month, picked.day)).inDays +
         1;
   }
 
@@ -112,9 +116,8 @@ class _StartBatchSheetState extends State<_StartBatchSheet> {
 
     if (picked == null) return;
 
-    _date.text =
-        "${picked.year}-${picked.month.toString().padLeft(2, '0')}-"
-        "${picked.day.toString().padLeft(2, '0')}";
+    // Shown as dd-MM-yyyy; converted back to ISO in [_submit].
+    _date.text = displayDate(picked);
 
     // Moved to today: there is no past left to account for.
     if (!_isPast) _feedUsed.clear();
@@ -146,7 +149,9 @@ class _StartBatchSheetState extends State<_StartBatchSheet> {
     Navigator.pop(
       context,
       StartBatchResult(
-        stockingDate: _date.text.trim(),
+        // ISO, not what the field shows: the API reads yyyy-MM-dd, and
+        // "02-09-2026" would be rejected or read as a different day.
+        stockingDate: isoDate(_date.text),
         feedUsedBefore: _isPast ? used : '',
       ),
     );
@@ -160,127 +165,135 @@ class _StartBatchSheetState extends State<_StartBatchSheet> {
         // A context below the sheet's route, so the keyboard's height can be
         // read from it — three fields with no allowance for the keyboard push
         // the button off the bottom.
-        builder: (sheetContext) => Container(
+        builder: (sheetContext) => Padding(
+          // OUTSIDE the white container: the gap between the sheet and the
+          // keyboard, not part of the sheet. Applied as the container's own
+          // padding it became 600-odd pixels of white below the fields, with
+          // the sheet grown past the top of the screen.
           padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: 20 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
           ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
             ),
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Activate tank',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.roboto(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const Icon(Icons.close, size: 22),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  // Says what to do, not what the system does behind it. This
+                  // used to explain that the tank "starts again from zero" and
+                  // that "its previous batch stays available to download" —
+                  // bookkeeping the farmer has not asked about, in words they
+                  // do not use.
+                  Text(
+                    'When was ${widget.tankName} stocked?',
+                    style: GoogleFonts.roboto(
+                      fontSize: 13,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  _label('Stocking date'),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _date,
+                    readOnly: true,
+                    onTap: _pickDate,
+                    decoration: _decoration(
+                      hint: 'Select date',
+                      suffixIcon: Icon(
+                        Icons.calendar_today_outlined,
+                        size: 18,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ),
+
+                  if (_isPast) ...[
+                    const SizedBox(height: 14),
+                    _label('Feed already used'),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _feedUsed,
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setState(() {}),
+                      decoration: _decoration(hint: 'kg', suffixText: 'kg'),
+                    ),
+                    const SizedBox(height: 6),
+                    Builder(
+                      builder: (context) {
+                        final total =
+                            double.tryParse(_feedUsed.text.trim()) ?? 0;
+                        if (total <= 0 || _days <= 0) {
+                          return const SizedBox.shrink();
+                        }
+
+                        return Text(
+                          '${(total / _days).toStringAsFixed(2)} kg/day '
+                          'across $_days days',
+                          style: GoogleFonts.roboto(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+
+                  const SizedBox(height: 24),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                      ),
                       child: Text(
-                        'Start a new batch',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        'Activate',
                         style: GoogleFonts.roboto(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: const Icon(Icons.close, size: 22),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${widget.tankName} starts again from zero. Its previous '
-                  'batch is kept and stays available to download.',
-                  style: GoogleFonts.roboto(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                _label('Stocking date'),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _date,
-                  readOnly: true,
-                  onTap: _pickDate,
-                  decoration: _decoration(
-                    hint: 'Select date',
-                    suffixIcon: Icon(
-                      Icons.calendar_today_outlined,
-                      size: 18,
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
-                ),
-
-                if (_isPast) ...[
-                  const SizedBox(height: 14),
-                  _label('Feed already used'),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _feedUsed,
-                    keyboardType: TextInputType.number,
-                    onChanged: (_) => setState(() {}),
-                    decoration: _decoration(hint: 'kg', suffixText: 'kg'),
-                  ),
-                  const SizedBox(height: 6),
-                  Builder(
-                    builder: (context) {
-                      final total =
-                          double.tryParse(_feedUsed.text.trim()) ?? 0;
-                      if (total <= 0 || _days <= 0) {
-                        return const SizedBox.shrink();
-                      }
-
-                      return Text(
-                        '${(total / _days).toStringAsFixed(2)} kg/day '
-                        'across $_days days',
-                        style: GoogleFonts.roboto(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
-                      );
-                    },
                   ),
                 ],
-
-                const SizedBox(height: 24),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                    ),
-                    child: Text(
-                      'Start batch',
-                      style: GoogleFonts.roboto(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -310,10 +323,7 @@ class _StartBatchSheetState extends State<_StartBatchSheet> {
       isDense: true,
       filled: true,
       fillColor: Colors.grey.shade50,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 12,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: Colors.grey.shade300),
