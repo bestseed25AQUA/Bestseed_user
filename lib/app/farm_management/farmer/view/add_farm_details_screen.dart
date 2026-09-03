@@ -225,6 +225,14 @@ class _AddFarmerDetailsFormScreenState
     ).isBefore(DateTime(now.year, now.month, now.day));
   }
 
+  /// Label for the "already used" box, naming the span it will be spread over.
+  ///
+  /// "Feed used" alone left the farmer guessing whether the figure meant one
+  /// day, this week, or the whole crop. It is divided across every day from
+  /// stocking to today, so the label says exactly that.
+  String _feedUsedLabel(int days) =>
+      days > 0 ? 'Feed used past $days days' : 'Feed used';
+
   /// Days from tank [i]'s stocking date to today, inclusive. 0 when not past.
   int _tankDays(int i) {
     final picked = _tankDate(i);
@@ -1043,11 +1051,13 @@ class _AddFarmerDetailsFormScreenState
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildFieldLabel("Feed used"),
+                              _buildFieldLabel(
+                                _feedUsedLabel(_existingDays(tank)),
+                              ),
                               const SizedBox(height: 4),
                               _buildTextField(
                                 controller: _existingFeedController(tank),
-                                hint: "kg",
+                                hint: "Enter total kg",
                                 keyboardType: TextInputType.number,
                                 dense: true,
                                 isRequired: false,
@@ -1291,11 +1301,11 @@ class _AddFarmerDetailsFormScreenState
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildFieldLabel("Feed used"),
+                          _buildFieldLabel(_feedUsedLabel(_tankDays(i))),
                           const SizedBox(height: 4),
                           _buildTextField(
                             controller: _tankFeedUsed[i],
-                            hint: "kg",
+                            hint: "Enter total kg",
                             keyboardType: TextInputType.number,
                             dense: true,
                             onChanged: (_) => setState(() {}),

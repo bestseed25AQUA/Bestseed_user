@@ -553,12 +553,7 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        16.0,
-                        26.0,
-                        16.0,
-                        26.0,
-                      ),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                       child: Column(
                         children: [
                           Text(
@@ -663,10 +658,10 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
                         ),
                       ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
@@ -950,46 +945,58 @@ class DailyFeedCard extends StatelessWidget {
           if (i < rows.length - 1) const SizedBox(height: 10),
         ],
 
-        if (onAddRow != null) ...[
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: isLoading ? null : onAddRow,
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add meal'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                textStyle: GoogleFonts.roboto(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+        const SizedBox(height: 10),
+
+        // One row: Add meal on the left, Save on the right. Stacked, they cost
+        // a whole line of height per card on a screen that is already a long
+        // list of cards.
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Holds the left edge when there is no Add meal, so Save stays
+            // right rather than sliding over to fill the row.
+            if (onAddRow == null)
+              const SizedBox.shrink()
+            else
+              TextButton.icon(
+                onPressed: isLoading ? null : onAddRow,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add meal'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: GoogleFonts.roboto(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ElevatedButton.icon(
+              onPressed: isLoading ? null : onSave,
+              icon: const Icon(Icons.check, size: 18),
+              label: const Text('Save'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: AppColors.primary.withValues(
+                  alpha: .5,
+                ),
+                disabledForegroundColor: Colors.white70,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 0,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
                 ),
               ),
             ),
-          ),
-        ],
-
-        const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerRight,
-          child: ElevatedButton.icon(
-            onPressed: isLoading ? null : onSave,
-            icon: const Icon(Icons.check, size: 18),
-            label: const Text('Save'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: AppColors.primary.withValues(alpha: .5),
-              disabledForegroundColor: Colors.white70,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-            ),
-          ),
+          ],
         ),
       ],
     );

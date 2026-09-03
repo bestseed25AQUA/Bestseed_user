@@ -91,36 +91,46 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
         actions: [
           // Hidden outright for someone who holds nothing to pass on — the
           // server would refuse the grant, so offering Add is a dead end.
+          //
+          // Hidden again while the list is empty: the empty state puts a full
+          // Add button in the middle of the screen, and two of them competing
+          // for the same tap is one too many.
           if (widget.access.canShareAccess)
-            InkWell(
-              onTap: _onAddTap,
-              child: Container(
-                margin: const EdgeInsets.only(right: 12),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.add, color: AppColors.primary, size: 18),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Add',
-                      style: GoogleFonts.roboto(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+            Obx(() {
+              if (_access.isLoading.value || _people.isEmpty) {
+                return const SizedBox.shrink();
+              }
+
+              return InkWell(
+                onTap: _onAddTap,
+                child: Container(
+                  margin: const EdgeInsets.only(right: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.add, color: AppColors.primary, size: 18),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Add',
+                        style: GoogleFonts.roboto(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            }),
         ],
       ),
       body: _buildList(),
@@ -142,18 +152,20 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
     await _refresh();
   }
 
+  /// Only this screen's role. A manager and a partner hold different things on
+  /// the farm, and mixing them in one list was what made the tab bar necessary
+  /// in the first place.
+  List<FarmMember> get _people => _access.members
+      .where((m) => m.isPartner == widget.role.isPartner)
+      .toList();
+
   Widget _buildList() {
     return Obx(() {
       if (_access.isLoading.value) {
         return const ListTileShimmer();
       }
 
-      // Only this screen's role. A manager and a partner hold different things
-      // on the farm, and mixing them in one list was what made the tab bar
-      // necessary in the first place.
-      final people = _access.members
-          .where((m) => m.isPartner == widget.role.isPartner)
-          .toList();
+      final people = _people;
 
       if (people.isEmpty) {
         return RefreshIndicator(
@@ -162,7 +174,7 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
-              SizedBox(height: MediaQuery.sizeOf(context).height * 0.25),
+              SizedBox(height: MediaQuery.sizeOf(context).height * 0.18),
               Icon(Icons.people_outline, size: 64, color: Colors.grey[300]),
               const SizedBox(height: 12),
               Text(
@@ -176,8 +188,7 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
               const SizedBox(height: 6),
               Text(
                 widget.access.canShareAccess
-                    ? 'Tap Add to make someone a '
-                          '${widget.role.label.toLowerCase()} on this farm.'
+                    ? 'Give someone access to help run this farm.'
                     : 'Only people who can share access may add someone.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.roboto(
@@ -185,6 +196,34 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
                   color: Colors.grey[400],
                 ),
               ),
+
+              // The button itself, rather than pointing at the one in the app
+              // bar. An empty screen should carry the thing it is asking for.
+              if (widget.access.canShareAccess) ...[
+                const SizedBox(height: 20),
+                Center(
+                  child: ElevatedButton.icon(
+                    onPressed: _onAddTap,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: Text('Add ${widget.role.label}'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      textStyle: GoogleFonts.roboto(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         );
