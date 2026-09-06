@@ -1,27 +1,70 @@
 // --- Custom Contact Us Dialog Widget ---
 import 'package:flutter/material.dart';
-import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:seedsuser/app/help/contact_labels.dart';
+import 'package:seedsuser/app/help/help_contact_service.dart';
 
-class ContactUsDialog extends StatelessWidget {
-  const ContactUsDialog({super.key});
+/// Contact popup with Call and WhatsApp actions.
+///
+/// The numbers come from the admin panel (GET /farmer/contacts, active rows
+/// only). It used to hard-code 9704756582 and both buttons only showed a
+/// "Need url_launcher" snackbar, so nothing could actually be dialled.
+///
+/// [preferredLabel] picks the slot — e.g. ContactLabels.farmManagementHelp.
+/// When that slot has no active row the first active contact is used instead,
+/// so the popup is never left without a number to show.
+class ContactUsDialog extends StatefulWidget {
+  final String? preferredLabel;
 
-  // The number to be used for calling and WhatsApp
-  final String phoneNumber = '9704756582';
+  const ContactUsDialog({super.key, this.preferredLabel});
 
-  // In a real app, you would use 'url_launcher' package for these actions.
+  @override
+  State<ContactUsDialog> createState() => _ContactUsDialogState();
+}
+
+class _ContactUsDialogState extends State<ContactUsDialog> {
+  HelpContact? _contact;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final contacts = await fetchActiveHelpContacts();
+    if (!mounted) return;
+
+    HelpContact? picked;
+    if (contacts.isNotEmpty) {
+      final label = widget.preferredLabel;
+      picked = label == null
+          ? contacts.first
+          : contacts.firstWhere(
+              (c) => contactLabelMatches(c.label, label),
+              orElse: () => contacts.first,
+            );
+    }
+
+    setState(() {
+      _contact = picked;
+      _loading = false;
+    });
+  }
+
+  String get phoneNumber => _contact?.phone?.trim() ?? '';
+
   void _launchWhatsApp(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Launching WhatsApp... (Need url_launcher)'),
-      ),
-    );
+    final number = _contact?.whatsapp?.trim();
+    if (number == null || number.isEmpty) return;
+    launchHelpWhatsApp(number);
   }
 
   void _launchCall(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Launching Call... (Need url_launcher)')),
-    );
+    final number = _contact?.phone?.trim();
+    if (number == null || number.isEmpty) return;
+    launchHelpCall(number);
   }
 
   @override
@@ -105,14 +148,23 @@ class ContactUsDialog extends StatelessWidget {
                 const SizedBox(height: 12),
 
                 // Phone Number
-                Text(
-                  phoneNumber,
-                  style: GoogleFonts.roboto(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                if (_loading)
+                  const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  Text(
+                    phoneNumber.isEmpty ? 'No number configured' : phoneNumber,
+                    style: GoogleFonts.roboto(
+                      fontSize: phoneNumber.isEmpty ? 14 : 20,
+                      fontWeight: FontWeight.bold,
+                      color: phoneNumber.isEmpty
+                          ? Colors.grey.shade600
+                          : Colors.black,
+                    ),
                   ),
-                ),
                 const SizedBox(height: 24),
 
                 // Action Buttons Row
@@ -121,7 +173,9 @@ class ContactUsDialog extends StatelessWidget {
                     // WhatsApp Button
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => _launchWhatsApp(context),
+                        onPressed: (_contact?.hasWhatsapp ?? false)
+                            ? () => _launchWhatsApp(context)
+                            : null,
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Colors.green, width: 2),
                           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -155,7 +209,9 @@ class ContactUsDialog extends StatelessWidget {
                     // Call Button
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => _launchCall(context),
+                        onPressed: (_contact?.hasPhone ?? false)
+                            ? () => _launchCall(context)
+                            : null,
                         icon: const Icon(Icons.call, color: Colors.white),
                         label: Text(
                           'Call',

@@ -4,8 +4,10 @@ import 'package:get/get.dart';
 import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/help/contact_labels.dart';
 import 'package:seedsuser/app/common/app_globals.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/common/refresh_button.dart';
 import 'package:seedsuser/app/farm_management/farmer/util/feed_report.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
@@ -105,6 +107,62 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
     super.dispose();
   }
 
+  /// Re-read this farm's tanks and its feed store, showing the shimmer while
+  /// it happens.
+  ///
+  /// Same two calls initState makes. The low-feed check is deliberately left
+  /// out: it opens a dialog, and having one appear on every manual refresh
+  /// would fight the farmer rather than inform them.
+  Future<void> _refresh() async {
+    // Show the farm's full name.
+    //
+    // The app bar truncates it — "Sattamma Thalli - A..." — so on a farm with
+    // a long name there is otherwise nowhere in this screen that says which
+    // farm is open. Shown immediately rather than after the reload, so it
+    // answers the tap straight away.
+    final name = widget.farmName.trim();
+    if (name.isNotEmpty) {
+      CustomToast.info(name);
+    }
+
+    // The shimmer is raised here rather than by the controller, and the
+    // fetches stay `silent`. Non-silent calls DO raise isLoading, but they
+    // also fire their own "Tank Feched Successfully" toast, which landed on
+    // top of the farm-name one above and cut it off. This way the grid shows
+    // its loading state and only the name is announced.
+    tankController.isLoading.value = true;
+    final startedAt = DateTime.now();
+
+    try {
+      await tankController.getTankList(widget.farmId, silent: true);
+
+      // Guarded exactly as initState is: a farm that reached this screen
+      // without an id arrives as the literal "null", and int.parse would throw
+      // straight out of the button's callback.
+      final farmIdNum = _farmIdNum;
+      if (farmIdNum != null) {
+        await tankController.getFeedStore(farmIdNum, silent: true);
+      }
+    } finally {
+      // Hold the shimmer for a minimum spell before revealing the data.
+      //
+      // Against a local server both requests come back in single-digit
+      // milliseconds, so isLoading went true and false inside one frame and
+      // the shimmer never rendered at all — the refresh looked like nothing
+      // but a toast. Waiting out the remainder gives it time to be seen and
+      // lets the cross-fade actually play. On a slow connection the requests
+      // already exceed this, so nothing is added to the wait.
+      const minimumShimmer = Duration(milliseconds: 700);
+      final elapsed = DateTime.now().difference(startedAt);
+      if (elapsed < minimumShimmer) {
+        await Future.delayed(minimumShimmer - elapsed);
+      }
+
+      // finally, so a failed request cannot strand the screen in shimmer.
+      tankController.isLoading.value = false;
+    }
+  }
+
   /// Surfaces the low-feed alert once the screen has settled, so the dialog
   /// does not race the first frame.
   Future<void> _maybeWarnLowFeed() async {
@@ -131,7 +189,12 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
       remainingKgs: limit,
       onContactDealer: () {
         Navigator.of(context).pop();
-        showDialog(context: context, builder: (_) => const ContactUsDialog());
+        showDialog(
+          context: context,
+          builder: (_) => const ContactUsDialog(
+            preferredLabel: ContactLabels.farmManagementHelp,
+          ),
+        );
       },
     );
   }
@@ -157,95 +220,120 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.roboto(color: Colors.white, fontSize: 18),
           ),
+          actions: [
+            // The shared button, as used on the booking screens: it spins for
+            // as long as the future it is given takes, so the busy state comes
+            // from the work itself rather than a separate flag.
+            RefreshButton(onTap: _refresh),
+            // Extra breathing room at the edge, as the booking screens do
+            // after the same button — its own 10px margin alone leaves it
+            // sitting tight against the right of the bar.
+            const SizedBox(width: 16),
+          ],
         ),
       ),
       body: Obx(() {
-        if (tankController.isLoading.value) {
-          return const TankGridShimmer();
-        }
+        // Cross-fade the shimmer into the tanks instead of swapping them in
+        // one frame, which read as a flicker on a fast local response.
+        // Keyed on the loading flag so the switcher knows the two apart.
+        Widget buildBody() {
+          if (tankController.isLoading.value) {
+            return const TankGridShimmer();
+          }
 
-        final tanks = tankController.farmList.value?.data ?? [];
+          final tanks = tankController.farmList.value?.data ?? [];
 
-        if (tanks.isEmpty) {
-          return const Center(child: Text("No Tanks Available"));
-        }
+          if (tanks.isEmpty) {
+            return const Center(child: Text("No Tanks Available"));
+          }
 
-        // split into 2-card rows
-        final List<List<TankModel>> tankPairs = [];
-        for (int i = 0; i < tanks.length; i += 2) {
-          tankPairs.add(
-            tanks.sublist(i, i + 2 > tanks.length ? tanks.length : i + 2),
-          );
-        }
+          // split into 2-card rows
+          final List<List<TankModel>> tankPairs = [];
+          for (int i = 0; i < tanks.length; i += 2) {
+            tankPairs.add(
+              tanks.sublist(i, i + 2 > tanks.length ? tanks.length : i + 2),
+            );
+          }
 
-        return Stack(
-          children: [
-            Positioned.fill(
-              // A visible thumb down the right edge: with a dozen tanks there
-              // is no other clue as to how much list is left below the fold.
-              child: Scrollbar(
-                controller: _scrollController,
-                thumbVisibility: true,
-                radius: const Radius.circular(8),
-                thickness: 4,
-                child: SingleChildScrollView(
+          return Stack(
+            children: [
+              Positioned.fill(
+                // A visible thumb down the right edge: with a dozen tanks there
+                // is no other clue as to how much list is left below the fold.
+                child: Scrollbar(
                   controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      FeedStoreCard(
-                        farmId: widget.farmId,
-                        access: widget.access,
-                      ),
-                      const SizedBox(height: 16),
+                  thumbVisibility: true,
+                  radius: const Radius.circular(8),
+                  thickness: 4,
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        FeedStoreCard(
+                          farmId: widget.farmId,
+                          access: widget.access,
+                        ),
+                        const SizedBox(height: 16),
 
-                      ...tankPairs.map((pair) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 16.0),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: TankStatusCard(
-                                  farmName: widget.farmName,
-                                  access: widget.access,
-                                  tank: pair[0],
-                                  controller: tankController,
-                                  farmId: widget.farmId,
+                        ...tankPairs.map((pair) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16.0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TankStatusCard(
+                                    farmName: widget.farmName,
+                                    access: widget.access,
+                                    tank: pair[0],
+                                    controller: tankController,
+                                    farmId: widget.farmId,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 16),
+                                const SizedBox(width: 16),
 
-                              // if odd number → show empty box
-                              Expanded(
-                                child: pair.length > 1
-                                    ? TankStatusCard(
-                                        farmName: widget.farmName,
-                                        access: widget.access,
-                                        tank: pair[1],
-                                        controller: tankController,
-                                        farmId: widget.farmId,
-                                      )
-                                    : const SizedBox(),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
+                                // if odd number → show empty box
+                                Expanded(
+                                  child: pair.length > 1
+                                      ? TankStatusCard(
+                                          farmName: widget.farmName,
+                                          access: widget.access,
+                                          tank: pair[1],
+                                          controller: tankController,
+                                          farmId: widget.farmId,
+                                        )
+                                      : const SizedBox(),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            if (tankController.isUpdatingTankStatus.value)
-              Positioned.fill(
-                child: Container(
-                  height: MediaQuery.of(context).size.height,
-                  width: MediaQuery.of(context).size.width,
-                  color: Colors.black.withOpacity(0.4),
-                  child: const Center(child: CircularProgressIndicator()),
+              if (tankController.isUpdatingTankStatus.value)
+                Positioned.fill(
+                  child: Container(
+                    height: MediaQuery.of(context).size.height,
+                    width: MediaQuery.of(context).size.width,
+                    color: Colors.black.withOpacity(0.4),
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
                 ),
-              ),
-          ],
+            ],
+          );
+        }
+
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 350),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          child: KeyedSubtree(
+            key: ValueKey(tankController.isLoading.value),
+            child: buildBody(),
+          ),
         );
       }),
     );
@@ -1108,9 +1196,71 @@ Widget feedInputField(TextEditingController controller, bool disable) {
             decoration: const InputDecoration(border: InputBorder.none),
           ),
         ),
-        const Text("Kgs", style: TextStyle(color: Colors.black54)),
-        const SizedBox(width: 5),
-        const Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.black54),
+        // Unit selector.
+        //
+        // Was a Text plus a static chevron with no handler, so tapping it did
+        // nothing. Kilograms is the only unit this module has — no unit column
+        // exists on feeds, farms or tanks, and every figure is kg — so the menu
+        // lists one option, ticked.
+        //
+        // PopupMenuButton, not DropdownButton: the latter focuses its selected
+        // item as the menu opens and paints a full-bleed grey slab behind it
+        // that ignores the menu's rounded corners. focusColor did not clear it,
+        // because the highlight is painted by the menu's internals rather than
+        // that property. A popup menu draws a plain list and leaves the row
+        // alone. `initialValue` is deliberately NOT set — it would reintroduce
+        // the same highlight.
+        PopupMenuButton<String>(
+          color: Colors.white,
+          elevation: 4,
+          position: PopupMenuPosition.under,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: EdgeInsets.zero,
+          tooltip: 'Unit',
+          onSelected: (_) {},
+          itemBuilder: (context) => [
+            PopupMenuItem<String>(
+              value: 'Kgs',
+              height: 40,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Kgs',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Icon(Icons.check, size: 16, color: AppColors.primary),
+                ],
+              ),
+            ),
+          ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Text(
+                'Kgs',
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              SizedBox(width: 4),
+              Icon(
+                Icons.keyboard_arrow_down,
+                size: 20,
+                color: AppColors.primary,
+              ),
+            ],
+          ),
+        ),
       ],
     ),
   );

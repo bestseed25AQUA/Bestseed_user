@@ -220,6 +220,13 @@ class FarmListController extends GetxController {
     String feedUsedBefore = '',
     List<Map<String, String>> newTanksMeta = const [],
     List<Map<String, String>> existingTanksMeta = const [],
+
+    /// Stored image urls still on screen when Save was pressed.
+    ///
+    /// The server keeps exactly these and drops the rest, which is what makes
+    /// deleting an already-uploaded photo possible — the update used to append
+    /// new files to the old list and could never remove one.
+    List<String> keptImages = const [],
   }) async {
     try {
       isOverlay(true);
@@ -245,6 +252,11 @@ class FarmListController extends GetxController {
             "existing_tanks_meta": jsonEncode(existingTanksMeta),
           // Ignored by the server unless the farm still has no feed recorded.
           if (feedUsedBefore.isNotEmpty) "feed_used_before": feedUsedBefore,
+          // Always sent, even when empty: an empty array means "the farmer
+          // removed them all". Omitting the field is what tells an older
+          // server to keep everything, so silence here would make a full
+          // clear-out look like no change at all.
+          "kept_images": jsonEncode(keptImages),
         },
         headers: await buildHeader(),
         imagePaths: imagePaths,

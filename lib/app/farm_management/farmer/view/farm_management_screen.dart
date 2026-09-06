@@ -4,6 +4,9 @@ import 'package:get/get.dart';
 import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/help/contact_labels.dart';
+import 'package:seedsuser/app/help/help_contact_service.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/contact_us_dialog.dart';
 import 'package:seedsuser/app/farm_management/farm_home/form_details_screen.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
@@ -16,9 +19,7 @@ import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_scree
 import 'package:seedsuser/app/farm_management/farmer/view/feed_update_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/setup_access_guide_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/widget/chat_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_options.dart';
-import 'package:seedsuser/app/farm_management/farm_home/notify_us_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
@@ -68,8 +69,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
 
     // The API returns farms oldest-first. Sort newest-first here so the most
     // recently added farm is at the TOP of the list.
-    final ordered = [...data]
-      ..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+    final ordered = [...data]..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
 
     return ordered.map((e) {
       return FarmSection(
@@ -247,7 +247,16 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
               padding: const EdgeInsets.only(bottom: 16, top: 8),
               child: TextButton(
                 onPressed: () {
-                  Get.to(() => const NotifyUsScreen());
+                  // Popup, not the bottom sheet: this matches the Contact Us
+                  // design. It reads the numbers the admin panel stores,
+                  // preferring the farm-management slot and falling back to
+                  // the first active contact when that slot is unset.
+                  showDialog(
+                    context: context,
+                    builder: (_) => const ContactUsDialog(
+                      preferredLabel: ContactLabels.farmManagementHelp,
+                    ),
+                  );
                 },
                 child: Text(
                   'Contact Us',
@@ -528,7 +537,10 @@ class FarmCard extends StatelessWidget {
                   spacing: 16,
                   runSpacing: 6,
                   children: [
-                    _farmFigure("Total Feed Used: ", '${farm.totalFeedUsedLabel} kgs'),
+                    _farmFigure(
+                      "Total Feed Used: ",
+                      '${farm.totalFeedUsedLabel} kgs',
+                    ),
                     // Named as the farm's own header names it, since it is now
                     // the same number — "Store" beside a remainder invited the
                     // reading that nothing had been used.
@@ -615,56 +627,97 @@ class ChatbotWidget extends StatelessWidget {
           // Wrap rather than Row: at a larger system font size the two buttons
           // are wider than the card and a Row overflowed. This drops "Voice
           // assist" onto its own line instead.
-          Wrap(
-            alignment: WrapAlignment.spaceAround,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              // Chat Button
-              OutlinedButton.icon(
-                icon: const Icon(Icons.chat_bubble_outline),
-                label: const Text('Chat'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: primaryBlue,
-                  side: const BorderSide(color: primaryBlue),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 10,
+          // Full width, so the Wrap has room to centre within.
+          //
+          // The parent Column is crossAxisAlignment.start — which the heading
+          // and body text want — so without this the Wrap shrank to the width
+          // of its one button and sat against the left edge, and its own
+          // `center` had nothing to centre inside.
+          SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              // center, not spaceAround: with Voice assist hidden there is only
+              // one button, and spaceAround's intent (spread several evenly) no
+              // longer describes what this row is doing.
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                // Chat Button
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.chat_bubble_outline),
+                  label: const Text('Chat'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: primaryBlue,
+                    side: const BorderSide(color: primaryBlue),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  onPressed: () => _openWhatsAppChat(context),
                 ),
-                onPressed: () {
-                  Get.to(() => ChatBotScreen());
-                },
-              ),
-              // Voice Assist Button
-              OutlinedButton.icon(
-                icon: const Icon(Icons.mic_none),
-                label: const Text('Voice assist'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: primaryBlue,
-                  side: const BorderSide(color: primaryBlue),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                onPressed: () {
-                  _showVoiceAssistanceModal(context);
-                },
-              ),
-            ],
+                // Voice Assist Button — hidden for now, wanted later.
+                // _showVoiceAssistanceModal below is kept for the same reason.
+                // OutlinedButton.icon(
+                //   icon: const Icon(Icons.mic_none),
+                //   label: const Text('Voice assist'),
+                //   style: OutlinedButton.styleFrom(
+                //     foregroundColor: primaryBlue,
+                //     side: const BorderSide(color: primaryBlue),
+                //     padding: const EdgeInsets.symmetric(
+                //       horizontal: 18,
+                //       vertical: 10,
+                //     ),
+                //     shape: RoundedRectangleBorder(
+                //       borderRadius: BorderRadius.circular(8),
+                //     ),
+                //   ),
+                //   onPressed: () {
+                //     _showVoiceAssistanceModal(context);
+                //   },
+                // ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
+  /// Open WhatsApp on the support number the admin panel stores.
+  ///
+  /// Same contact the farm's Contact Us popup uses — the farm-management slot,
+  /// falling back to the first active contact when that slot is unset.
+  Future<void> _openWhatsAppChat(BuildContext context) async {
+    final contacts = await fetchActiveHelpContacts();
+
+    final picked = contacts.isEmpty
+        ? null
+        : contacts.firstWhere(
+            (c) =>
+                contactLabelMatches(c.label, ContactLabels.farmManagementHelp),
+            orElse: () => contacts.first,
+          );
+
+    final number = picked?.whatsapp?.trim();
+
+    // Said out loud rather than silently doing nothing: launchHelpWhatsApp
+    // would build "wa.me/" with no number and the tap would look broken.
+    if (number == null || number.isEmpty) {
+      CustomToast.error('No WhatsApp number configured yet');
+      return;
+    }
+
+    await launchHelpWhatsApp(number);
+  }
+
+  /// Kept for the Voice assist button, which is commented out above until
+  /// that feature is wanted again.
+  // ignore: unused_element
   void _showVoiceAssistanceModal(BuildContext context) {
     showGeneralDialog(
       context: context,
@@ -1146,21 +1199,43 @@ class _FarmImageCarouselState extends State<_FarmImageCarousel> {
     super.dispose();
   }
 
-  /// Shown while an image loads and when it fails.
+  /// Shown only while an image is genuinely in flight.
+  Widget _loading() => const AppShimmer(
+    child: ShimmerBlock(height: 150, width: double.infinity, radius: 0),
+  );
+
+  /// Shown when there is no image, or the one on file will not load.
   ///
-  /// Deliberately NOT a stock photo: falling back to farmer_fish.png made a
-  /// farm look like it had an image that was not the one the farmer uploaded.
-  /// A shimmer says "nothing to show here" without lying about the content.
-  Widget _fallback() => const AppShimmer(
-        child: ShimmerBlock(height: 150, width: double.infinity, radius: 0),
-      );
+  /// Still deliberately NOT a stock photo: falling back to farmer_fish.png
+  /// made a farm look like it had an image that was not the one the farmer
+  /// uploaded. But a shimmer was wrong here too — it never resolves, so an
+  /// imageless farm looked permanently stuck mid-load. Farm photos are
+  /// optional, so "no photo" is a normal resting state and should look
+  /// settled rather than pending.
+  Widget _placeholder(String label) => Container(
+    height: 150,
+    width: double.infinity,
+    color: Colors.grey.shade100,
+    alignment: Alignment.center,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.photo_outlined, size: 30, color: Colors.grey.shade400),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade500),
+        ),
+      ],
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
     final urls = widget.imageUrls;
 
     if (urls.isEmpty) {
-      return SizedBox(height: 150, width: double.infinity, child: _fallback());
+      return _placeholder('No photos added');
     }
 
     return SizedBox(
@@ -1178,9 +1253,9 @@ class _FarmImageCarouselState extends State<_FarmImageCarousel> {
               height: 150,
               width: double.infinity,
               fit: BoxFit.cover,
-              errorBuilder: (c, e, st) => _fallback(),
+              errorBuilder: (c, e, st) => _placeholder('Image unavailable'),
               loadingBuilder: (context, child, progress) =>
-                  progress == null ? child : _fallback(),
+                  progress == null ? child : _loading(),
             ),
           ),
 
@@ -1190,8 +1265,10 @@ class _FarmImageCarouselState extends State<_FarmImageCarousel> {
               bottom: 8,
               right: 8,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.55),
                   borderRadius: BorderRadius.circular(20),

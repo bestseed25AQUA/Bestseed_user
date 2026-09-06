@@ -3,6 +3,7 @@ import 'package:seedsuser/app/common/custom_appbar.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/refresh_button.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/util/date_format.dart';
 import 'package:seedsuser/app/farm_management/farmer/util/feed_report.dart';
@@ -248,8 +249,29 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
     if (_refreshing) return;
 
     setState(() => _refreshing = true);
-    await _tankController.getTankHistory(widget.tankId, silent: true);
-    if (mounted) setState(() => _refreshing = false);
+
+    // Raise the shimmer here and keep the fetch `silent`, matching the farm
+    // screen. A silent refresh on its own changed the numbers with no visible
+    // sign anything had happened; a non-silent one would raise the shimmer but
+    // also fire the controller's own toast.
+    _tankController.isTankHistoryLoading.value = true;
+    final startedAt = DateTime.now();
+
+    try {
+      await _tankController.getTankHistory(widget.tankId, silent: true);
+    } finally {
+      // Against a local server this returns in single-digit milliseconds, so
+      // the shimmer would never get a frame to render. Hold the remainder.
+      const minimumShimmer = Duration(milliseconds: 700);
+      final elapsed = DateTime.now().difference(startedAt);
+      if (elapsed < minimumShimmer) {
+        await Future.delayed(minimumShimmer - elapsed);
+      }
+
+      // finally, so a failed request cannot strand the screen in shimmer.
+      _tankController.isTankHistoryLoading.value = false;
+      if (mounted) setState(() => _refreshing = false);
+    }
   }
 
   @override
@@ -423,22 +445,10 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
             style: GoogleFonts.roboto(color: Colors.white, fontSize: 18),
           ),
           actions: [
-            IconButton(
-              tooltip: 'Refresh',
-              onPressed: _refreshing ? null : _refresh,
-              // Same 24dp footprint either way, so the icon does not jump as
-              // it swaps to the spinner and back.
-              icon: _refreshing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.refresh, color: Colors.white),
-            ),
+            // The same shared button the farm screen uses, so refresh looks
+            // and behaves identically on both.
+            RefreshButton(onTap: _refresh),
+            const SizedBox(width: 16),
           ],
         ),
       ),

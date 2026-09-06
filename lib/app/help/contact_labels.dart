@@ -11,8 +11,14 @@ class ContactLabels {
   static const String mainOffice = 'Main Office';
   static const String profileHelp = 'Profile Help';
   static const String bookingHelp = 'Booking Help';
+  static const String farmManagementHelp = 'Farm Management Help';
 
-  static const List<String> all = [mainOffice, profileHelp, bookingHelp];
+  static const List<String> all = [
+    mainOffice,
+    profileHelp,
+    bookingHelp,
+    farmManagementHelp,
+  ];
 }
 
 /// Normalizes a label for comparison — lowercased with all non-alphanumeric
