@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/common/refresh_button.dart';
 import 'package:seedsuser/app/help/contact_labels.dart';
 import 'package:seedsuser/app/help/help_contact_service.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/contact_us_dialog.dart';
@@ -36,13 +37,59 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
 
   /// Guards the one-way handover to the empty-state screen.
   bool _handedOver = false;
+
+  /// True only while the app-bar refresh is running.
+  ///
+  /// Separate from the controller's isLoading so the shimmer can be shown for
+  /// a button press without also firing during a pull-to-refresh, where
+  /// swapping the body out would tear the gesture away mid-pull.
+  bool _refreshing = false;
+
+  /// Shared by the farm list and its Scrollbar, so the thumb tracks the list.
+  /// A Scrollbar and its scroll view must be given the SAME controller, or the
+  /// bar has no position to draw and throws.
+  final ScrollController _listScrollController = ScrollController();
   final tankController = Get.put(TankController());
   bool _isChatbotOpen = false;
+
+  @override
+  void dispose() {
+    _listScrollController.dispose();
+    super.dispose();
+  }
 
   void _toggleChatbot() {
     setState(() {
       _isChatbotOpen = !_isChatbotOpen;
     });
+  }
+
+  /// Re-read the farm list.
+  ///
+  /// Held open for a minimum spell: against a local server the request comes
+  /// back in single-digit milliseconds, so the button's spin would be over
+  /// before it rendered and the tap would look like it did nothing.
+  Future<void> _refreshList() async {
+    if (_refreshing) return;
+
+    setState(() => _refreshing = true);
+    final startedAt = DateTime.now();
+
+    try {
+      await controller.fetchFarmList();
+    } finally {
+      // Held open long enough to be seen. Against a local server the request
+      // returns in single-digit milliseconds, so the shimmer would never get a
+      // frame and the tap would look like it did nothing.
+      const minimumSpin = Duration(milliseconds: 700);
+      final elapsed = DateTime.now().difference(startedAt);
+      if (elapsed < minimumSpin) {
+        await Future.delayed(minimumSpin - elapsed);
+      }
+
+      // finally, so a failed request cannot strand the screen in shimmer.
+      if (mounted) setState(() => _refreshing = false);
+    }
   }
 
   /// Open a screen and re-read the farm list once it closes.
@@ -147,130 +194,161 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
         // The Scan action is gone with the rest of the QR flow: access is
         // given by picking people directly in Setup Access, so there is no
         // code to scan.
+        actions: [
+          // The shared button, as on the farm detail and tank screens.
+          RefreshButton(onTap: _refreshList),
+          const SizedBox(width: 16),
+        ],
       ),
       body: Obx(() {
         final farms = farmSections;
 
-        // Full-screen spinner only on the FIRST load. During a pull-to-refresh
-        // the list stays put and RefreshIndicator draws its own spinner —
-        // swapping the body out would tear the gesture away mid-pull.
-        if (controller.isLoading.value && farms.isEmpty) {
-          return const FarmListShimmer();
-        }
+        // Shimmer on the FIRST load, and on an app-bar refresh.
+        //
+        // NOT during a pull-to-refresh: RefreshIndicator draws its own spinner
+        // and swapping the body out would tear the gesture away mid-pull —
+        // which is why this reads _refreshing rather than isLoading alone.
+        final showShimmer =
+            (controller.isLoading.value && farms.isEmpty) || _refreshing;
 
-        return Column(
-          children: [
-            Expanded(
-              child: Stack(
-                children: [
-                  RefreshIndicator(
-                    color: AppColors.primary,
-                    onRefresh: () => controller.fetchFarmList(),
-                    child: ListView.builder(
-                      // Not reversed: a reversed list anchors its items to the
-                      // BOTTOM of the viewport, which left a single farm
-                      // floating at the bottom of an empty screen. Newest-first
-                      // ordering is done in `farmSections` instead, so the list
-                      // fills from the top like every other list in the app.
-                      //
-                      // AlwaysScrollable so the pull gesture still works when
-                      // there are too few farms to fill the screen.
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.only(
-                        top: 12,
-                        right: 12,
-                        bottom: 12,
-                        left: 12,
-                      ),
-                      itemCount: farms.length,
-                      itemBuilder: (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 16.0),
-                          child: InkWell(
-                            onTap: () => _openThenRefresh(
-                              FarmTankListScreen(
-                                farmId: farms[index].id,
-                                farmName: farms[index].name,
-                                access: farms[index].access,
-                              ),
-                            ),
-                            child: FarmCard(
-                              farm: farms[index],
-                              tankController: tankController,
+        // Cross-faded, so the list arrives rather than snapping in.
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 350),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          child: showShimmer
+              ? const FarmListShimmer(key: ValueKey('farm-shimmer'))
+              : _farmListBody(context, primaryBlue, farms),
+        );
+      }),
+    );
+  }
+
+  /// The list itself, split out so the shimmer and it can be cross-faded.
+  Widget _farmListBody(
+    BuildContext context,
+    Color primaryBlue,
+    List<FarmSection> farms,
+  ) {
+    return Column(
+      children: [
+        Expanded(
+          child: Stack(
+            children: [
+              RefreshIndicator(
+                color: AppColors.primary,
+                onRefresh: () => controller.fetchFarmList(),
+                // Same treatment as the tank list: a visible thumb, so a
+                // farmer with more farms than fit on screen can see there
+                // is more below and where they are in it.
+                child: Scrollbar(
+                  controller: _listScrollController,
+                  thumbVisibility: true,
+                  radius: const Radius.circular(8),
+                  thickness: 4,
+                  child: ListView.builder(
+                    controller: _listScrollController,
+                    // Not reversed: a reversed list anchors its items to the
+                    // BOTTOM of the viewport, which left a single farm
+                    // floating at the bottom of an empty screen. Newest-first
+                    // ordering is done in `farmSections` instead, so the list
+                    // fills from the top like every other list in the app.
+                    //
+                    // AlwaysScrollable so the pull gesture still works when
+                    // there are too few farms to fill the screen.
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(
+                      top: 12,
+                      right: 12,
+                      bottom: 12,
+                      left: 12,
+                    ),
+                    itemCount: farms.length,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: InkWell(
+                          onTap: () => _openThenRefresh(
+                            FarmTankListScreen(
+                              farmId: farms[index].id,
+                              farmName: farms[index].name,
+                              access: farms[index].access,
                             ),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  if (_isChatbotOpen)
-                    const Positioned(
-                      bottom: 120,
-                      right: 16,
-                      child: ChatbotWidget(),
-                    ),
-                  Positioned(
-                    bottom: 16,
-                    right: 16,
-                    child: Column(
-                      children: [
-                        FloatingActionButton(
-                          heroTag: 'chatbotFab',
-                          backgroundColor: _isChatbotOpen
-                              ? Colors.white
-                              : primaryBlue,
-                          onPressed: _toggleChatbot,
-                          child: Icon(
-                            _isChatbotOpen
-                                ? Icons.close
-                                : Icons.smart_toy_outlined,
-                            color: _isChatbotOpen ? primaryBlue : Colors.white,
+                          child: FarmCard(
+                            farm: farms[index],
+                            tankController: tankController,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        FloatingActionButton(
-                          heroTag: 'addFab',
-                          backgroundColor: primaryBlue,
-                          onPressed: () =>
-                              Get.to(() => AddFarmerDetailsFormScreen()),
-                          child: const Icon(Icons.add, color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Fixed Contact Us button at bottom
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16, top: 8),
-              child: TextButton(
-                onPressed: () {
-                  // Popup, not the bottom sheet: this matches the Contact Us
-                  // design. It reads the numbers the admin panel stores,
-                  // preferring the farm-management slot and falling back to
-                  // the first active contact when that slot is unset.
-                  showDialog(
-                    context: context,
-                    builder: (_) => const ContactUsDialog(
-                      preferredLabel: ContactLabels.farmManagementHelp,
-                    ),
-                  );
-                },
-                child: Text(
-                  'Contact Us',
-                  style: GoogleFonts.roboto(
-                    color: AppColors.primary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                      );
+                    },
                   ),
                 ),
               ),
+
+              if (_isChatbotOpen)
+                const Positioned(
+                  bottom: 120,
+                  right: 16,
+                  child: ChatbotWidget(),
+                ),
+              Positioned(
+                bottom: 16,
+                right: 16,
+                child: Column(
+                  children: [
+                    FloatingActionButton(
+                      heroTag: 'chatbotFab',
+                      backgroundColor: _isChatbotOpen
+                          ? Colors.white
+                          : primaryBlue,
+                      onPressed: _toggleChatbot,
+                      child: Icon(
+                        _isChatbotOpen ? Icons.close : Icons.smart_toy_outlined,
+                        color: _isChatbotOpen ? primaryBlue : Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FloatingActionButton(
+                      heroTag: 'addFab',
+                      backgroundColor: primaryBlue,
+                      onPressed: () =>
+                          Get.to(() => AddFarmerDetailsFormScreen()),
+                      child: const Icon(Icons.add, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Fixed Contact Us button at bottom
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16, top: 8),
+          child: TextButton(
+            onPressed: () {
+              // Popup, not the bottom sheet: this matches the Contact Us
+              // design. It reads the numbers the admin panel stores,
+              // preferring the farm-management slot and falling back to
+              // the first active contact when that slot is unset.
+              showDialog(
+                context: context,
+                builder: (_) => const ContactUsDialog(
+                  preferredLabel: ContactLabels.farmManagementHelp,
+                ),
+              );
+            },
+            child: Text(
+              'Contact Us',
+              style: GoogleFonts.roboto(
+                color: AppColors.primary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ],
-        );
-      }),
+          ),
+        ),
+      ],
     );
   }
 }

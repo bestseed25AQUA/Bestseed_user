@@ -20,13 +20,13 @@ class MyHttpOverrides extends HttpOverrides {
   HttpClient createHttpClient(SecurityContext? context) {
     return super.createHttpClient(context)
       ..badCertificateCallback =
-      (X509Certificate cert, String host, int port) => true;
+          (X509Certificate cert, String host, int port) => true;
   }
 }
 
 @override
 void main() async {
-  HttpOverrides.  global = MyHttpOverrides();
+  HttpOverrides.global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
 
   // Install FIRST, before any widget can build. Without this, a widget that
@@ -73,14 +73,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool _wasPaused = false;
 
   @override
-  void initState() { 
+  void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     // Cold start / terminated → open is covered by the Dashboard landing
     // check (it runs once the home screen is actually mounted), so we don't
     // race the splash here.
   }
-  
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -103,11 +103,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return GetBuilder<LanguageController>(
-      builder: (languageController){
+      builder: (languageController) {
         return LayoutBuilder(
-          builder: (context, constraints){
+          builder: (context, constraints) {
             AppSize.init(context);
             final mediaQueryData = MediaQuery.of(context);
             return MediaQuery(
@@ -122,7 +122,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   AppLocalizations.delegate,
                   GlobalMaterialLocalizations.delegate,
                   GlobalWidgetsLocalizations.delegate,
-                  GlobalCupertinoLocalizations.delegate],
+                  GlobalCupertinoLocalizations.delegate,
+                ],
                 supportedLocales: const [
                   Locale('en', 'US'),
                   Locale('te', 'IN'),
@@ -137,6 +138,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   Locale('or', 'IN'),
                   Locale('ur', 'IN'),
                 ],
+
                 ///
                 theme: ThemeData(
                   colorScheme: ColorScheme.fromSeed(
@@ -158,6 +160,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           },
         );
       },
-    );    
+    );
   }
 }

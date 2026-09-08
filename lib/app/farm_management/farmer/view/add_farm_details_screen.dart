@@ -568,12 +568,22 @@ class _AddFarmerDetailsFormScreenState
                         color: Colors.grey.shade500,
                       ),
                     ),
+                    const SizedBox(width: 6),
+                    // Same treatment as Store above: label, then what the box
+                    // is for, on one line. Expanded so it truncates on a narrow
+                    // phone instead of overflowing the row — the placeholder
+                    // repeats the example, so nothing is lost if it does.
+                    Expanded(
+                      child: _buildHelperText(
+                        "Set a low stock limit (e.g., 500) to get an alert",
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 _buildTextField(
                   controller: lowFeedLimit,
-                  hint: "Enter Low Feed Limit",
+                  hint: "e.g., 500 kg",
                   keyboardType: TextInputType.number,
                   // Optional, like Store above it. Left blank the farm simply
                   // has no threshold, so the low-feed alert never fires —
