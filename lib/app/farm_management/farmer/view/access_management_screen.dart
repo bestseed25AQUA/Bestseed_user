@@ -538,11 +538,12 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
     // correcting what a tank was fed is the core of that.
     _canEdit = (existing?.edit ?? true) && widget.callerAccess.canEdit;
 
-    // OFF by default. Marking a tank inactive harvests it — it closes that
-    // tank's crop cycle — so it is handed over deliberately rather than coming
-    // with the role, the same way Total Feed is.
+    // Depends on the role. Marking a tank inactive harvests it — it closes
+    // that tank's crop cycle — which is a partner's call to make, so they get
+    // it with the role. A manager runs the farm day to day and is handed it
+    // deliberately, the same way Total Feed is, so they start off without it.
     _canChangeTankStatus =
-        (existing?.tankStatus ?? false) &&
+        (existing?.tankStatus ?? widget.role.isPartner) &&
         widget.callerAccess.canChangeTankStatus;
 
     // Off by default: the store figure drives the low-feed alerts and every

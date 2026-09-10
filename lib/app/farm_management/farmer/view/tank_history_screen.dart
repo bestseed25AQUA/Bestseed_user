@@ -636,6 +636,64 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
                                   ),
                                 ],
                               ),
+
+                              // The crop's result, once it has been weighed.
+                              // Only shown when the server could state a ratio
+                              // — an unweighed harvest has none, and printing
+                              // "0.00" would read as an excellent result.
+                              if (tankHistory?.fcr != null) ...[
+                                const SizedBox(height: 10),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.orange.shade200,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.calculate_outlined,
+                                        size: 16,
+                                        color: Color(0xFF137333),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'FCR '
+                                        '${tankHistory!.fcr!.toStringAsFixed(2)}',
+                                        style: GoogleFonts.roboto(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: const Color(0xFF137333),
+                                        ),
+                                      ),
+                                      if (tankHistory.harvestQuantity !=
+                                          null) ...[
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Harvest '
+                                            '${tankHistory.harvestQuantity!.toStringAsFixed(0)} kg',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.roboto(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ],
+
                               const SizedBox(height: 10),
                               Row(
                                 children: [

@@ -4,17 +4,69 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 
 // --- Harvest Bottom Sheet Widget ---
-class HarvestBottomSheet extends StatelessWidget {
+class HarvestBottomSheet extends StatefulWidget {
   final TankModel tank;
   final int statusToUpdate;
-  final VoidCallback onSubmit;
 
-  HarvestBottomSheet({
+  /// Called with what the crop weighed, or null when the farmer left it blank.
+  ///
+  /// Null and 0 are different: null is "not weighed", 0 would claim the crop
+  /// yielded nothing. The server only writes a figure it was actually given.
+  final Future<void> Function(double? harvestQuantity) onSubmit;
+
+  const HarvestBottomSheet({
     super.key,
     required this.tank,
     required this.statusToUpdate,
     required this.onSubmit,
   });
+
+  @override
+  State<HarvestBottomSheet> createState() => _HarvestBottomSheetState();
+}
+
+class _HarvestBottomSheetState extends State<HarvestBottomSheet> {
+  final TextEditingController _harvest = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Recompute the ratio as the figure is typed.
+    _harvest.addListener(_onHarvestChanged);
+  }
+
+  void _onHarvestChanged() => setState(() {});
+
+  @override
+  void dispose() {
+    _harvest.removeListener(_onHarvestChanged);
+    _harvest.dispose();
+    super.dispose();
+  }
+
+  /// Digits only — the hint reads "2,500 kg", so a farmer typing it back with
+  /// the comma and unit must not be read as nothing.
+  double? get _harvestValue {
+    final cleaned = _harvest.text.replaceAll(RegExp(r'[^0-9.]'), '');
+    if (cleaned.isEmpty) return null;
+    return double.tryParse(cleaned);
+  }
+
+  /// Kilos of feed per kilo harvested.
+  ///
+  /// Mirrors TankBatch::fcr() on the server, which is what every other screen
+  /// reads — so the number shown here is the number that gets stored. Null
+  /// rather than 0 when it cannot be stated: dividing by a zero harvest is
+  /// undefined, and an unweighed crop has no ratio.
+  double? get _fcr {
+    final harvest = _harvestValue;
+    final feed = double.tryParse('${widget.tank.totalFeedUsed ?? 0}') ?? 0;
+
+    if (harvest == null || harvest <= 0 || feed <= 0) return null;
+
+    return feed / harvest;
+  }
+
   @override
   Widget build(BuildContext context) {
     // We wrap the content in a Padding and a Container to control the height
@@ -68,7 +120,7 @@ class HarvestBottomSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 // Total Fields Display (Read-only/Fixed Value)
-                ReadOnlyInput(text: '${tank.totalFeedUsed ?? "0"} kgs'),
+                ReadOnlyInput(text: '${widget.tank.totalFeedUsed ?? "0"} kgs'),
                 const SizedBox(height: 24),
 
                 // Days Label
@@ -82,12 +134,12 @@ class HarvestBottomSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 // Days Display (Read-only/Fixed Value)
-                ReadOnlyInput(text: '${tank.day ?? "0"} Days'),
+                ReadOnlyInput(text: '${widget.tank.day ?? "0"} Days'),
 
                 const SizedBox(height: 24),
 
                 // Count Label and Input
-                // ReadOnlyInput(text: '${tank.meals ?? 0}'),
+                // ReadOnlyInput(text: '${widget.tank.meals ?? 0}'),
 
                 // const SizedBox(height: 8),
                 // const EditableInput(hint: 'Enter count'),
@@ -99,12 +151,67 @@ class HarvestBottomSheet extends StatelessWidget {
                 // const EditableInput(hint: 'Enter Harvest Quantity'),
                 // const SizedBox(height: 40),
 
+                // Total harvest — optional, and the other half of FCR.
+                //
+                // Feed is already known for this crop; with the weight that
+                // came out, FCR is simply one divided by the other. Optional
+                // because a farmer may harvest without weighing, and a guess
+                // would be worse than no figure at all.
+                const OptionalInputLabel(text: 'Total harvest for FCR'),
+                const SizedBox(height: 8),
+                EditableInput(
+                  controller: _harvest,
+                  hint: 'e.g., 2,500 kg',
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                ),
+
+                // The ratio, as it is typed. Shown only once it can actually be
+                // stated — an empty or zero harvest has no FCR, and printing
+                // "0.00" would look like a real, very good result.
+                if (_fcr != null) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.calculate_outlined,
+                        size: 16,
+                        color: Color(0xFF137333),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'FCR ${_fcr!.toStringAsFixed(2)}',
+                        style: GoogleFonts.roboto(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF137333),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '${widget.tank.totalFeedUsed ?? 0} kg feed '
+                          '\u00F7 ${_harvestValue!.toStringAsFixed(0)} kg harvest',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.roboto(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 32),
+
                 // Inactive/Action Button
                 SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: onSubmit,
+                    onPressed: () => widget.onSubmit(_harvestValue),
 
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFE53935), // Bright Red
@@ -163,11 +270,24 @@ class ReadOnlyInput extends StatelessWidget {
 // --- Reusable Widget for Editable Inputs (Count, Harvest Quantity) ---
 class EditableInput extends StatelessWidget {
   final String hint;
-  const EditableInput({super.key, required this.hint});
+
+  /// Optional, so the existing call sites that only wanted the look are
+  /// unchanged; a caller that needs the value passes one in.
+  final TextEditingController? controller;
+  final TextInputType? keyboardType;
+
+  const EditableInput({
+    super.key,
+    required this.hint,
+    this.controller,
+    this.keyboardType,
+  });
 
   @override
   Widget build(BuildContext context) {
     return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.roboto(color: Colors.grey.shade500),

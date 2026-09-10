@@ -19,6 +19,13 @@ class TankFeedHistoryResponse {
   /// than silently locking the screen.
   final bool batchActive;
 
+  /// What the crop weighed, once harvested. Null until a figure is recorded.
+  final double? harvestQuantity;
+
+  /// Kilos of feed per kilo harvested, computed server-side by
+  /// TankBatch::fcr() so every screen quotes the same number.
+  final double? fcr;
+
   TankFeedHistoryResponse({
     required this.status,
     required this.message,
@@ -26,6 +33,8 @@ class TankFeedHistoryResponse {
     this.stockingDate,
     this.batchNo,
     this.batchActive = true,
+    this.harvestQuantity,
+    this.fcr,
   });
 }
 

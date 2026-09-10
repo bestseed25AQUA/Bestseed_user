@@ -83,6 +83,13 @@ class FarmAccess {
     );
   }
 
+  /// True when this farm reached the list through a MANAGER grant.
+  ///
+  /// Owners and partners are deliberately both false: a partner stands beside
+  /// the owner rather than working for them, so the farm list groups the two
+  /// together and keeps "Manager" for farms someone else runs.
+  bool get isManagerGrant => !isOwner && role == 'manager';
+
   bool get canView => isOwner || permissions.view;
   bool get canEdit => isOwner || permissions.edit;
 

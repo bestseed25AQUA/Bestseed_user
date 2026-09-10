@@ -449,12 +449,22 @@ class FeedStoreCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     // The store has its own permission — /update-total-feed
                     // sits behind `farm.access:total_feed`, not plain edit.
-                    if (access.canEditTotalFeed)
-                      InkWell(
-                        onTap: () =>
-                            showEditFeedBottomSheet(context, farmId.toString()),
-                        child: const EditButton(),
-                      ),
+                    //
+                    // Shown either way, masked when it is not held: a manager
+                    // who cannot change the store should still see that the
+                    // store IS editable and that they were not given it,
+                    // rather than a header with no button and no explanation.
+                    InkWell(
+                      onTap: access.canEditTotalFeed
+                          ? () => showEditFeedBottomSheet(
+                              context,
+                              farmId.toString(),
+                            )
+                          : () => CustomToast.info(
+                              "You don't have access to change this farm's feed store.",
+                            ),
+                      child: EditButton(enabled: access.canEditTotalFeed),
+                    ),
                   ],
                 ),
               ),
@@ -468,27 +478,40 @@ class FeedStoreCard extends StatelessWidget {
 
 // --- Shared Edit Button Widget ---
 class EditButton extends StatelessWidget {
-  const EditButton({super.key});
+  const EditButton({super.key, this.enabled = true});
+
+  /// False renders the button MASKED — faded, with a padlock in place of the
+  /// pencil — instead of removing it. It sits on the coloured farm header, so
+  /// the fade is done with opacity on the whole pill rather than a grey that
+  /// would read as a different button.
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.5)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.edit, color: AppColors.primary, size: 16),
-          SizedBox(width: 4),
-          Text(
-            'Edit',
-            style: GoogleFonts.roboto(color: AppColors.primary, fontSize: 14),
-          ),
-        ],
+    return Opacity(
+      opacity: enabled ? 1 : 0.55,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.5)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              enabled ? Icons.edit : Icons.lock_outline,
+              color: AppColors.primary,
+              size: 16,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Edit',
+              style: GoogleFonts.roboto(color: AppColors.primary, fontSize: 14),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -647,118 +670,141 @@ class TankStatusCard extends StatelessWidget {
                 //     }
                 //   },
                 // ),
-                SwitchTheme(
-                  data: SwitchThemeData(
-                    thumbColor: MaterialStateProperty.resolveWith<Color?>((
-                      states,
-                    ) {
-                      if (states.contains(MaterialState.selected)) {
-                        return Colors.green;
-                      }
-                      return Colors.red;
-                    }),
-                    trackColor: MaterialStateProperty.resolveWith<Color?>((
-                      states,
-                    ) {
-                      if (states.contains(MaterialState.selected)) {
-                        return Colors.green.withOpacity(.5);
-                      }
-                      return Colors.red.withOpacity(.5);
-                    }),
-                  ),
-                  child: Switch(
-                    value: isActive,
-                    // Null disables the switch rather than hiding it: the
-                    // colour still tells a view-only partner whether the tank
-                    // is running, which is the point of the card. /tank/status
-                    // requires `farm.access:tank_status`.
-                    onChanged: !access.canChangeTankStatus
-                        ? null
-                        : (value) async {
-                            if (value) {
-                              // Activating starts a NEW crop, not a
-                              // resumption: ask when it went in, and what it
-                              // has already been fed if that was before today.
-                              // Without a date the tank would read as day 1
-                              // with no way to record what it had already had.
-                              final batch = await showStartBatchSheet(
-                                context,
-                                tankName: tank.tankName ?? 'This tank',
-                              );
+                // A tap on the MASKED switch says why nothing happened. A
+                // disabled Switch has no gesture recogniser of its own, so the
+                // tap reaches this; when the switch is live the null onTap
+                // leaves the gesture to the switch itself.
+                GestureDetector(
+                  onTap: access.canChangeTankStatus
+                      ? null
+                      : () => CustomToast.info(
+                          "You don't have access to change this tank's status.",
+                        ),
+                  child: SwitchTheme(
+                    data: SwitchThemeData(
+                      // The disabled cases come FIRST. These resolvers only
+                      // ever looked at `selected`, so a switch that could not
+                      // be moved still painted full green or red — it looked
+                      // exactly like a working one and simply ignored taps.
+                      // Faded, it reads as present but not yours to touch,
+                      // while still showing whether the tank is running.
+                      thumbColor: MaterialStateProperty.resolveWith<Color?>((
+                        states,
+                      ) {
+                        final off = states.contains(MaterialState.disabled);
+                        if (states.contains(MaterialState.selected)) {
+                          return off ? Colors.green.shade200 : Colors.green;
+                        }
+                        return off ? Colors.red.shade200 : Colors.red;
+                      }),
+                      trackColor: MaterialStateProperty.resolveWith<Color?>((
+                        states,
+                      ) {
+                        final off = states.contains(MaterialState.disabled);
+                        if (states.contains(MaterialState.selected)) {
+                          return Colors.green.withOpacity(off ? .18 : .5);
+                        }
+                        return Colors.red.withOpacity(off ? .18 : .5);
+                      }),
+                    ),
+                    child: Switch(
+                      value: isActive,
+                      // Null disables the switch rather than hiding it: the
+                      // colour still tells a view-only partner whether the tank
+                      // is running, which is the point of the card. /tank/status
+                      // requires `farm.access:tank_status`.
+                      onChanged: !access.canChangeTankStatus
+                          ? null
+                          : (value) async {
+                              if (value) {
+                                // Activating starts a NEW crop, not a
+                                // resumption: ask when it went in, and what it
+                                // has already been fed if that was before today.
+                                // Without a date the tank would read as day 1
+                                // with no way to record what it had already had.
+                                final batch = await showStartBatchSheet(
+                                  context,
+                                  tankName: tank.tankName ?? 'This tank',
+                                );
 
-                              // Cancelled — leave the tank as it was.
-                              if (batch == null) return;
+                                // Cancelled — leave the tank as it was.
+                                if (batch == null) return;
 
-                              await controller.updateTankStatus(
-                                status: 1,
-                                tankId: tank.id.toString(),
-                                farmId: farmId,
-                                stockingDate: batch.stockingDate,
-                                feedUsedBefore: batch.feedUsedBefore,
-                              );
-                            } else {
-                              bool isUpdated = false;
-
-                              await showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                useSafeArea: true,
-                                builder: (_) => SafeArea(
-                                  top: false,
-                                  child: HarvestBottomSheet(
-                                    tank: tank,
-                                    statusToUpdate: value ? 1 : 0,
-                                    onSubmit: () async {
-                                      isUpdated = await controller
-                                          .updateTankStatus(
-                                            status: 0,
-                                            tankId: tank.id.toString(),
-                                            farmId: farmId,
-                                          );
-                                      safeBack();
-                                    },
-                                  ),
-                                ),
-                              );
-
-                              await Future.delayed(const Duration(seconds: 2));
-
-                              if (isUpdated) {
-                                String? report = await controller.getReport(
+                                await controller.updateTankStatus(
+                                  status: 1,
                                   tankId: tank.id.toString(),
+                                  farmId: farmId,
+                                  stockingDate: batch.stockingDate,
+                                  feedUsedBefore: batch.feedUsedBefore,
+                                );
+                              } else {
+                                bool isUpdated = false;
+
+                                await showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  useSafeArea: true,
+                                  builder: (_) => SafeArea(
+                                    top: false,
+                                    child: HarvestBottomSheet(
+                                      tank: tank,
+                                      statusToUpdate: value ? 1 : 0,
+                                      onSubmit: (harvestQuantity) async {
+                                        isUpdated = await controller
+                                            .updateTankStatus(
+                                              status: 0,
+                                              tankId: tank.id.toString(),
+                                              farmId: farmId,
+                                              harvestQuantity: harvestQuantity,
+                                            );
+                                        safeBack();
+                                      },
+                                    ),
+                                  ),
                                 );
 
-                                // No link means the report was not generated —
-                                // getReport has already said so. Offering Download
-                                // and Share for a link that does not exist only
-                                // produces a second, more confusing failure.
-                                final safeContext = navigatorKey.currentContext;
-                                if (report == null ||
-                                    report.isEmpty ||
-                                    safeContext == null) {
-                                  return;
+                                await Future.delayed(
+                                  const Duration(seconds: 2),
+                                );
+
+                                if (isUpdated) {
+                                  String? report = await controller.getReport(
+                                    tankId: tank.id.toString(),
+                                  );
+
+                                  // No link means the report was not generated —
+                                  // getReport has already said so. Offering Download
+                                  // and Share for a link that does not exist only
+                                  // produces a second, more confusing failure.
+                                  final safeContext =
+                                      navigatorKey.currentContext;
+                                  if (report == null ||
+                                      report.isEmpty ||
+                                      safeContext == null) {
+                                    return;
+                                  }
+
+                                  showReportPopup(
+                                    safeContext,
+                                    tankName: tank.tankName ?? 'Tank',
+                                    () async {
+                                      downloadReport(
+                                        report,
+                                        tankName: tank.tankName,
+                                      );
+                                    },
+                                    () {
+                                      shareReport(
+                                        report,
+                                        tankName: tank.tankName,
+                                      );
+                                    },
+                                  );
                                 }
-
-                                showReportPopup(
-                                  safeContext,
-                                  tankName: tank.tankName ?? 'Tank',
-                                  () async {
-                                    downloadReport(
-                                      report,
-                                      tankName: tank.tankName,
-                                    );
-                                  },
-                                  () {
-                                    shareReport(
-                                      report,
-                                      tankName: tank.tankName,
-                                    );
-                                  },
-                                );
                               }
-                            }
-                          },
+                            },
+                    ),
                   ),
                 ),
               ],

@@ -49,12 +49,18 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
   /// A Scrollbar and its scroll view must be given the SAME controller, or the
   /// bar has no position to draw and throws.
   final ScrollController _listScrollController = ScrollController();
+
+  /// The Manager tab's list. A SEPARATE controller, because a Scrollbar and its
+  /// scroll view must be one-to-one — pointing both tabs at one controller
+  /// gives it two positions to draw and throws the moment the bar paints.
+  final ScrollController _managedScrollController = ScrollController();
   final tankController = Get.put(TankController());
   bool _isChatbotOpen = false;
 
   @override
   void dispose() {
     _listScrollController.dispose();
+    _managedScrollController.dispose();
     super.dispose();
   }
 
@@ -139,6 +145,17 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
     }).toList();
   }
 
+  /// Farms belonging in the "Farm" tab: the ones this farmer created, plus any
+  /// they were made a PARTNER on. A partner stands beside the owner rather than
+  /// working for them, so both sit in one list.
+  List<FarmSection> _ownAndPartnered(List<FarmSection> all) =>
+      all.where((f) => !f.access.isManagerGrant).toList();
+
+  /// Farms belonging in the "Manager" tab — the ones somebody else made this
+  /// farmer a manager of.
+  List<FarmSection> _managed(List<FarmSection> all) =>
+      all.where((f) => f.access.isManagerGrant).toList();
+
   @override
   Widget build(BuildContext context) {
     const Color primaryBlue = Color(0xFF007BFF);
@@ -202,6 +219,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
       ),
       body: Obx(() {
         final farms = farmSections;
+        final own = _ownAndPartnered(farms);
+        final managed = _managed(farms);
 
         // Shimmer on the FIRST load, and on an app-bar refresh.
         //
@@ -218,73 +237,146 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
           switchOutCurve: Curves.easeIn,
           child: showShimmer
               ? const FarmListShimmer(key: ValueKey('farm-shimmer'))
-              : _farmListBody(context, primaryBlue, farms),
+              : _farmListBody(context, primaryBlue, own, managed),
         );
       }),
     );
   }
 
+  /// One scrolling list of farm cards.
+  ///
+  /// Lifted out of [_farmListBody] so the two tabs can each have one. Every
+  /// list needs its OWN [scrollController]: a Scrollbar draws from the
+  /// controller's position, and a controller attached to two lists at once has
+  /// two, which throws as soon as the bar paints.
+  Widget _farmScrollList(
+    List<FarmSection> farms,
+    ScrollController scrollController,
+  ) {
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () => controller.fetchFarmList(),
+      // Same treatment as the tank list: a visible thumb, so a
+      // farmer with more farms than fit on screen can see there
+      // is more below and where they are in it.
+      child: Scrollbar(
+        controller: scrollController,
+        thumbVisibility: true,
+        radius: const Radius.circular(8),
+        thickness: 4,
+        child: ListView.builder(
+          controller: scrollController,
+          // Not reversed: a reversed list anchors its items to the
+          // BOTTOM of the viewport, which left a single farm
+          // floating at the bottom of an empty screen. Newest-first
+          // ordering is done in `farmSections` instead, so the list
+          // fills from the top like every other list in the app.
+          //
+          // AlwaysScrollable so the pull gesture still works when
+          // there are too few farms to fill the screen.
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(
+            top: 12,
+            right: 12,
+            bottom: 12,
+            left: 12,
+          ),
+          itemCount: farms.length,
+          itemBuilder: (context, index) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: InkWell(
+                onTap: () => _openThenRefresh(
+                  FarmTankListScreen(
+                    farmId: farms[index].id,
+                    farmName: farms[index].name,
+                    access: farms[index].access,
+                  ),
+                ),
+                child: FarmCard(
+                  farm: farms[index],
+                  tankController: tankController,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  /// The Farm / Manager tabs.
+  ///
+  /// Only reached when BOTH lists have something in them — see [_farmListBody].
+  /// DefaultTabController rather than one built in initState, because whether
+  /// there are tabs at all depends on data that arrives after this screen does,
+  /// and can change under a refresh when a grant is given or revoked.
+  Widget _tabbedLists(List<FarmSection> own, List<FarmSection> managed) {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          ColoredBox(
+            color: Colors.white,
+            child: TabBar(
+              labelColor: AppColors.primary,
+              unselectedLabelColor: Colors.grey.shade600,
+              indicatorColor: AppColors.primary,
+              indicatorWeight: 4,
+              labelStyle: GoogleFonts.roboto(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+              unselectedLabelStyle: GoogleFonts.roboto(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+              tabs: const [
+                Tab(text: 'Farm'),
+                Tab(text: 'Manager'),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFE6E8EB)),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _farmScrollList(own, _listScrollController),
+                _farmScrollList(managed, _managedScrollController),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// The list itself, split out so the shimmer and it can be cross-faded.
+  ///
+  /// [own] is what the farmer created plus anything they partner on; [managed]
+  /// is what someone else made them a manager of. The tabs appear only when
+  /// there is something in both — with one bucket empty a tab bar would just be
+  /// a header over the only list there is, and an empty tab beside it.
   Widget _farmListBody(
     BuildContext context,
     Color primaryBlue,
-    List<FarmSection> farms,
+    List<FarmSection> own,
+    List<FarmSection> managed,
   ) {
+    final showTabs = own.isNotEmpty && managed.isNotEmpty;
+
     return Column(
       children: [
         Expanded(
           child: Stack(
             children: [
-              RefreshIndicator(
-                color: AppColors.primary,
-                onRefresh: () => controller.fetchFarmList(),
-                // Same treatment as the tank list: a visible thumb, so a
-                // farmer with more farms than fit on screen can see there
-                // is more below and where they are in it.
-                child: Scrollbar(
-                  controller: _listScrollController,
-                  thumbVisibility: true,
-                  radius: const Radius.circular(8),
-                  thickness: 4,
-                  child: ListView.builder(
-                    controller: _listScrollController,
-                    // Not reversed: a reversed list anchors its items to the
-                    // BOTTOM of the viewport, which left a single farm
-                    // floating at the bottom of an empty screen. Newest-first
-                    // ordering is done in `farmSections` instead, so the list
-                    // fills from the top like every other list in the app.
-                    //
-                    // AlwaysScrollable so the pull gesture still works when
-                    // there are too few farms to fill the screen.
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.only(
-                      top: 12,
-                      right: 12,
-                      bottom: 12,
-                      left: 12,
-                    ),
-                    itemCount: farms.length,
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: InkWell(
-                          onTap: () => _openThenRefresh(
-                            FarmTankListScreen(
-                              farmId: farms[index].id,
-                              farmName: farms[index].name,
-                              access: farms[index].access,
-                            ),
-                          ),
-                          child: FarmCard(
-                            farm: farms[index],
-                            tankController: tankController,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+              if (showTabs)
+                _tabbedLists(own, managed)
+              else
+                _farmScrollList(
+                  own.isNotEmpty ? own : managed,
+                  _listScrollController,
                 ),
-              ),
 
               if (_isChatbotOpen)
                 const Positioned(
@@ -887,10 +979,13 @@ class VoiceAssistanceModal extends StatelessWidget {
 
 /// The per-farm options sheet.
 ///
-/// [access] decides which options appear. Every one of these actions is gated
-/// server-side; offering all of them to everybody meant a partner with view
-/// access could tap Delete farm and be told "Failed to delete" — a 403 dressed
-/// up as a fault. The rules mirror the API exactly:
+/// Every option is always listed. [access] decides which are LIVE and which
+/// are masked — greyed out, padlocked, and answering a tap with the reason
+/// rather than opening. Every action is gated server-side too; leaving them all
+/// live meant a partner with view access could tap Delete farm and be told
+/// "Failed to delete", a 403 dressed up as a fault. Removing them instead hid
+/// the fact that the feature exists at all, so a manager could not tell a
+/// missing permission from a missing feature. The rules mirror the API exactly:
 ///
 ///   * Add today's quantity → create access
 ///   * Edit farm details    → edit access
@@ -956,12 +1051,14 @@ void showFarmBottomSheet({
 
               // Recording feed is a create, not an edit — matches
               // `farm.access:create` on /tanks/add-todays-tanks-quantity.
-              if (access.canCreate)
-                _sheetItem(
-                  icon: Icons.layers,
-                  title: "Add today's tanks quantity",
-                  onTap: onAddTankQty,
-                ),
+              _sheetItem(
+                icon: Icons.layers,
+                title: "Add today's tanks quantity",
+                onTap: onAddTankQty,
+                enabled: access.canCreate,
+                deniedMessage:
+                    "You don't have create access to this farm, so you can't record feed.",
+              ),
 
               // One row per role, each carrying the role all the way through
               // to the access list and the add form.
@@ -974,53 +1071,57 @@ void showFarmBottomSheet({
               //
               // Not owner-only: the members endpoint lets anyone with access
               // pass on what they hold, so a manager can appoint someone too.
-              if (access.canShareAccess) ...[
-                _sheetItem(
-                  icon: Icons.person,
-                  title: "Set Up Access for Manager",
-                  onTap: onManagerAccess,
-                ),
+              _sheetItem(
+                icon: Icons.person,
+                title: "Set Up Access for Manager",
+                onTap: onManagerAccess,
+                enabled: access.canShareAccess,
+                deniedMessage: "You hold no access on this farm to pass on.",
+              ),
 
-                _sheetItem(
-                  icon: Icons.group,
-                  title: "Set Up Access for Partner",
-                  onTap: onPartnerAccess,
-                ),
-              ],
+              _sheetItem(
+                icon: Icons.group,
+                title: "Set Up Access for Partner",
+                onTap: onPartnerAccess,
+                enabled: access.canShareAccess,
+                deniedMessage: "You hold no access on this farm to pass on.",
+              ),
 
-              if (access.canEdit)
-                _sheetItem(
-                  icon: Icons.edit,
-                  title: "Edit farm Details",
-                  onTap: onEditFarm,
-                ),
+              _sheetItem(
+                icon: Icons.edit,
+                title: "Edit farm Details",
+                onTap: onEditFarm,
+                enabled: access.canEdit,
+                deniedMessage: "You don't have edit access to this farm.",
+              ),
 
-              if (access.canDelete)
-                _sheetItem(
-                  icon: Icons.delete,
-                  title: "Delete farm",
-                  iconColor: Colors.red,
-                  textColor: Colors.red,
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      barrierDismissible:
-                          false, // User must tap a button to close
-                      builder: (BuildContext context) {
-                        return CustomConfirmationDialog(ontapYes: onDeleteFarm);
-                      },
-                    );
-                  },
-                ),
+              _sheetItem(
+                icon: Icons.delete,
+                title: "Delete farm",
+                iconColor: Colors.red,
+                textColor: Colors.red,
+                enabled: access.canDelete,
+                deniedMessage: "You don't have delete access to this farm.",
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    barrierDismissible:
+                        false, // User must tap a button to close
+                    builder: (BuildContext context) {
+                      return CustomConfirmationDialog(ontapYes: onDeleteFarm);
+                    },
+                  );
+                },
+              ),
 
-              // A partner given view access only would otherwise be shown an
-              // empty sheet with no explanation.
+              // Says why the rows above are greyed out. Without it a manager
+              // sees four padlocks and no explanation.
               if (!access.canCreate &&
                   !access.canEdit &&
                   !access.canDelete &&
                   !access.canShareAccess)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12.0),
+                  padding: const EdgeInsets.only(top: 6.0, bottom: 12.0),
                   child: Text(
                     'You have view-only access to this farm.',
                     style: GoogleFonts.roboto(
@@ -1038,32 +1139,62 @@ void showFarmBottomSheet({
 }
 
 /// Single tile widget inside sheet
+/// One row of the farm options sheet.
+///
+/// [enabled] false renders the row MASKED rather than removing it: greyed out,
+/// with a padlock where the chevron would be, and a tap that explains itself
+/// instead of opening anything. Hiding a row left a manager wondering whether
+/// the app had lost the feature or the farm had never had it; showing it
+/// greyed says plainly that the action exists and they were not given it.
+///
+/// [deniedMessage] names the missing permission, so the answer is specific
+/// rather than a blanket "not allowed".
 Widget _sheetItem({
   required IconData icon,
   required String title,
   required VoidCallback onTap,
   Color? iconColor,
   Color? textColor,
+  bool enabled = true,
+  String? deniedMessage,
 }) {
+  // One grey for the icon, the text and the padlock, so the whole row reads as
+  // a single unavailable thing rather than three faded pieces.
+  final disabledGrey = Colors.grey.shade400;
+
   return InkWell(
-    onTap: onTap,
+    onTap: enabled
+        ? onTap
+        : () => CustomToast.info(
+            deniedMessage ?? "You don't have access to do this.",
+          ),
     child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 12.0),
       child: Row(
         children: [
-          Icon(icon, color: iconColor ?? Colors.black, size: 22),
+          Icon(
+            icon,
+            color: enabled ? (iconColor ?? Colors.black) : disabledGrey,
+            size: 22,
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
               title,
               style: TextStyle(
                 fontSize: 16,
-                color: textColor ?? Colors.black,
+                color: enabled ? (textColor ?? Colors.black) : disabledGrey,
                 fontWeight: FontWeight.w500,
               ),
             ),
           ),
-          const Icon(Icons.arrow_forward_ios, size: 16),
+          // The padlock is the mask: an arrow on a row that goes nowhere reads
+          // as a bug.
+          Icon(
+            enabled ? Icons.arrow_forward_ios : Icons.lock_outline,
+            size: enabled ? 16 : 18,
+            color: enabled ? null : disabledGrey,
+          ),
         ],
       ),
     ),

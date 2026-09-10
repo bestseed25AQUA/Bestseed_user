@@ -116,6 +116,10 @@ class TankController extends GetxController {
     required String farmId,
     String? stockingDate,
     String? feedUsedBefore,
+
+    /// What the crop weighed, when harvesting. Null means "not weighed" — the
+    /// server leaves the stored figure alone rather than recording a zero.
+    double? harvestQuantity,
   }) async {
     isUpdatingTankStatus(true);
     try {
@@ -130,6 +134,9 @@ class TankController extends GetxController {
             "stocking_date": stockingDate,
           if (feedUsedBefore != null && feedUsedBefore.isNotEmpty)
             "feed_used_before": feedUsedBefore,
+          // Only meaningful when harvesting. Omitted when null so a blank box
+          // does not overwrite a weight recorded earlier.
+          if (harvestQuantity != null) "harvest_quantity": harvestQuantity,
         },
       );
 
@@ -292,6 +299,26 @@ class TankController extends GetxController {
   /// throws away the scroll position — so recording feed against an old date
   /// near the bottom bounced the farmer back to the top, and they had to scroll
   /// all the way down again for the next day.
+  /// A numeric field from the response, or null when absent or unusable.
+  ///
+  /// The API sends these at the top level on some responses and under `data`
+  /// on others, so both are checked rather than assuming one shape.
+  double? _numOrNull(dynamic body, String key) {
+    if (body is! Map) return null;
+
+    // `batch` first: the history endpoint puts the crop's figures there,
+    // beside batch_no and is_active, so a top-level-only read found nothing
+    // and every finished tank showed no FCR at all. The other two shapes stay
+    // as fallbacks for the endpoints that answer flat.
+    dynamic raw;
+    if (body['batch'] is Map) raw = body['batch'][key];
+    raw ??= body[key];
+    if (raw == null && body['data'] is Map) raw = body['data'][key];
+    if (raw == null) return null;
+
+    return double.tryParse(raw.toString());
+  }
+
   Future<void> getTankHistory(String tankId, {bool silent = false}) async {
     try {
       if (!silent) isTankHistoryLoading.value = true;
@@ -335,6 +362,8 @@ class TankController extends GetxController {
           stockingDate: dataResponse["stocking_date"]?.toString(),
           batchNo: _batchNo(dataResponse),
           batchActive: _batchActive(dataResponse),
+          harvestQuantity: _numOrNull(dataResponse, 'harvest_quantity'),
+          fcr: _numOrNull(dataResponse, 'fcr'),
         );
       } else if (response.statusCode == 404) {
         // The API answers 404 (not 200 with []) when a tank has no feed rows
@@ -351,6 +380,8 @@ class TankController extends GetxController {
           stockingDate: body["stocking_date"]?.toString(),
           batchNo: _batchNo(body),
           batchActive: _batchActive(body),
+          harvestQuantity: _numOrNull(body, 'harvest_quantity'),
+          fcr: _numOrNull(body, 'fcr'),
         );
       }
     } catch (e) {
