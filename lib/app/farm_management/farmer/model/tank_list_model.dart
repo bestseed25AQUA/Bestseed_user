@@ -88,6 +88,13 @@ class TankModel {
   /// screen goes read-only, and the report is still there to download.
   bool batchActive;
 
+  /// Today's note for this tank, or null when nothing was written.
+  ///
+  /// Only TODAY's: the Add-feed screen records one day per tank, so that is the
+  /// only day it can write a note for. The tank history screen carries the
+  /// whole set.
+  String? todayNote;
+
   TankModel({
     this.todaysFeed = const [],
     this.todaysMeals = 0,
@@ -98,6 +105,7 @@ class TankModel {
     this.batchId,
     this.batchNo,
     this.batchActive = true,
+    this.todayNote,
     this.id,
     this.farmId,
     this.tankName,
@@ -170,6 +178,9 @@ class TankModel {
         batchNo: int.tryParse('${json["batch_no"]}'),
         // Defaults to true so a response from a server without batches leaves
         // the screen editable rather than silently locking every tank.
+        todayNote: json["today_note"]?.toString().trim().isEmpty ?? true
+            ? null
+            : json["today_note"].toString().trim(),
         batchActive: json["batch_active"] == null
             ? true
             : json["batch_active"] == true,

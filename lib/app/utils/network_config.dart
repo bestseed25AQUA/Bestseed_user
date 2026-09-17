@@ -4,28 +4,33 @@ class NetworkConfig {
   // ----------------------------------------------------------------
   // INTERNAL DEV TESTING
   // ----------------------------------------------------------------
-  // LOCAL, for the iOS simulator: it shares this Mac's network, so 127.0.0.1
-  // works and — unlike the LAN IP — never changes when DHCP moves you.
-  // For a PHYSICAL device swap this for the Mac's LAN IP (ipconfig getifaddr en0).
-  // Either way: php artisan serve --host=0.0.0.0 --port=8000
+  // LOCAL — this Mac's LAN IP, so the same value serves the iOS simulator AND a
+  // real phone on the same Wi-Fi.
+  //
+  // Run the backend as: php artisan serve --host=0.0.0.0 --port=8000
+  // `--host=0.0.0.0` matters — a server bound to 127.0.0.1 only is unreachable
+  // at this address.
+  //
+  // RE-CHECK THE IP after any reconnect: DHCP moves it, and a stale address
+  // fails as a timeout, which looks like a dead server rather than a wrong URL.
+  //   ipconfig getifaddr en0
+  //
+  // Both of these must name the same host and port. They did not: the API was
+  // on :8100 — where nothing listens at all — while images were on :8000, so
+  // every request failed before it left the device.
   static const baseURL =
-      // "http://127.0.0.1:8100/api";
+      //   "http://10.79.117.125:8000/api";
       "https://lemonchiffon-dragonfly-369328.hostingersite.com/api";
-  // Simulator: loopback reaches this Mac and survives DHCP changes.
-  // Physical device: swap for the LAN IP (ipconfig getifaddr en0),
-  // currently 192.168.1.6 — re-check it after any reconnect.
-  // "http://127.0.0.1:8000/api";
+  static const imageURL =
+      //   "http://10.79.117.125:8000";
+      "https://lemonchiffon-dragonfly-369328.hostingersite.com";
+
+  // Other environments, kept for switching back:
+  // "https://lemonchiffon-dragonfly-369328.hostingersite.com/api";
+  // "http://127.0.0.1:8000/api";   // simulator only — a phone calls itself
   // "https://staging.bestseed.in/api";
   // "https://bestseed.in/api";
   // "https://aqua.bestseed.in/api";
-  // "http://192.168.31.8:8000/api";
-
-  // static const imageURL = "https://aqua.bestseed.in";
-  // static const imageURL = "https://bestseed.in";
-  // static const imageURL = "http://127.0.0.1:8100";
-  static const imageURL =
-      "https://lemonchiffon-dragonfly-369328.hostingersite.com";
-  // static const imageURL = "http://127.0.0.1:8000";
 
   // Injected at build time from the gitignored secrets.json — see [AppKeys].
   // Both names are kept because call sites use each; they are the same key.

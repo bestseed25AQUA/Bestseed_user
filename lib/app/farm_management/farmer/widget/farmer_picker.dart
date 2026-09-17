@@ -45,11 +45,35 @@ class _FarmerPickerState extends State<FarmerPicker> {
   bool _searching = false;
   Timer? _debounce;
 
+  /// One name controller per chosen person, keyed by their mobile number.
+  ///
+  /// Keyed rather than indexed because removing someone from the middle of the
+  /// list would shift every index after them, and each field would inherit the
+  /// next person's name.
+  final Map<String, TextEditingController> _names = {};
+
   @override
   void dispose() {
     _debounce?.cancel();
     _mobile.dispose();
+    for (final c in _names.values) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  /// The name field for one person, created on first use.
+  ///
+  /// Seeded with whatever name is already on the selection — the registered
+  /// name for someone the lookup found, empty for a number with no account —
+  /// so the owner is correcting a name rather than typing one from scratch.
+  TextEditingController _nameFor(Map<String, dynamic> person) {
+    final mobile = '${person['mobile']}';
+
+    return _names.putIfAbsent(mobile, () {
+      final seed = '${person['display_name'] ?? person['name'] ?? ''}'.trim();
+      return TextEditingController(text: seed);
+    });
   }
 
   /// Nothing is asked of the server until all ten digits are in.
@@ -96,8 +120,150 @@ class _FarmerPickerState extends State<FarmerPicker> {
   }
 
   void _remove(Map<String, dynamic> person) {
+    final mobile = '${person['mobile']}';
+
+    // Drop the name field with the person, or re-adding the same number later
+    // would bring back a name they had typed and deleted.
+    _names.remove(mobile)?.dispose();
+
     widget.onChanged(
-      widget.selected.where((p) => p['mobile'] != person['mobile']).toList(),
+      widget.selected.where((p) => '${p['mobile']}' != mobile).toList(),
+    );
+  }
+
+  /// Record the name this farm calls someone by.
+  ///
+  /// Kept on the SELECTION, not on the farmer: it travels up with the rest of
+  /// the payload and the server stores it against this one membership. The
+  /// person's own profile name is never touched.
+  void _setName(Map<String, dynamic> person, String value) {
+    final mobile = '${person['mobile']}';
+
+    widget.onChanged(
+      widget.selected
+          .map(
+            (p) =>
+                '${p['mobile']}' == mobile ? {...p, 'display_name': value} : p,
+          )
+          .toList(),
+    );
+  }
+
+  /// One person: an optional name, with their number pinned inside the field.
+  ///
+  /// Name and number share ONE row, so it takes no reading to see which name
+  /// belongs to whom. The number rides in the field's own suffix as a pill: it
+  /// was 11px grey helper text first, which made the single label identifying
+  /// the person the faintest thing on screen, and then a pill on a row of its
+  /// own, which cost a whole line per person.
+  ///
+  /// The field keeps the same shape as the mobile box below — 8px outline, grey
+  /// at rest and primary on focus — so the whole block reads as one form.
+  Widget _nameRow(Map<String, dynamic> person) {
+    final mobile = '${person['mobile']}';
+    final isNew = person['is_new'] == true;
+
+    // Orange for a number with no account yet, matching the "no one is using
+    // this yet" card; primary for someone already registered.
+    final accent = isNew ? Colors.orange.shade800 : AppColors.primary;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _nameFor(person),
+              onChanged: (v) => _setName(person, v),
+              textCapitalization: TextCapitalization.words,
+              maxLength: 100,
+              style: GoogleFonts.roboto(fontSize: 14),
+              decoration: InputDecoration(
+                // Optional, and it says so. Access is granted on the NUMBER, so
+                // a blank name costs nothing — the farmer's own name is shown
+                // wherever this is empty.
+                hintText: 'Name (optional)',
+                counterText: '',
+                hintStyle: GoogleFonts.roboto(
+                  fontSize: 14,
+                  color: Colors.grey.shade500,
+                ),
+                prefixIcon: const Icon(Icons.person_outline, size: 20),
+
+                // The number, inside the field on the right — same tint, same
+                // 20px radius as before, now sharing the name's row.
+                suffixIcon: Padding(
+                  padding: const EdgeInsets.only(left: 4, right: 6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: accent.withValues(alpha: 0.45)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.phone_outlined, size: 13, color: accent),
+                        const SizedBox(width: 5),
+                        Text(
+                          mobile,
+                          style: GoogleFonts.roboto(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: accent,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                        // An icon rather than the word "new": inside the field
+                        // there is no room to spend on it.
+                        if (isNew) ...[
+                          const SizedBox(width: 5),
+                          Icon(Icons.person_add_alt_1, size: 12, color: accent),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                // Without this the suffix is held to a 48px square minimum,
+                // which pads the field out and clips the pill's border.
+                suffixIconConstraints: const BoxConstraints(
+                  minWidth: 0,
+                  minHeight: 0,
+                ),
+
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: AppColors.primary),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+          // Takes the person off the list. Outside the field, so it cannot be
+          // mistaken for clearing the name.
+          IconButton(
+            onPressed: () => _remove(person),
+            icon: const Icon(Icons.close, size: 18),
+            color: Colors.grey.shade600,
+            tooltip: 'Remove $mobile',
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+          ),
+        ],
+      ),
     );
   }
 
@@ -120,6 +286,33 @@ class _FarmerPickerState extends State<FarmerPicker> {
           style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
         ),
         const SizedBox(height: 10),
+
+        // Everyone chosen so far, each with their own name field, ABOVE the
+        // number box. They were chips before, which showed who was chosen but
+        // gave nowhere to say what this farm calls them.
+        if (widget.selected.isNotEmpty) ...[
+          Text(
+            widget.selected.length == 1
+                ? 'Name for this person (optional)'
+                : 'Names for these ${widget.selected.length} people (optional)',
+            style: GoogleFonts.roboto(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Used on this farm only — it does not change their own name.',
+            style: GoogleFonts.roboto(
+              fontSize: 11,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...widget.selected.map(_nameRow),
+          const SizedBox(height: 6),
+        ],
 
         TextField(
           controller: _mobile,
@@ -166,15 +359,9 @@ class _FarmerPickerState extends State<FarmerPicker> {
 
         if (!_searching) _resultBlock(),
 
-        // Who is already chosen, so the list is visible without scrolling.
-        if (widget.selected.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: widget.selected.map(_chip).toList(),
-          ),
-        ],
+        // The chips that used to sit here are gone: the name fields above now
+        // show who is chosen, and listing everyone twice only invited the
+        // question of which list was the real one.
       ],
     );
   }
@@ -304,38 +491,6 @@ class _FarmerPickerState extends State<FarmerPicker> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _chip(Map<String, dynamic> person) {
-    final isNew = person['is_new'] == true;
-    final name = '${person['name'] ?? ''}'.trim();
-
-    return Chip(
-      avatar: isNew
-          ? Icon(
-              Icons.person_add_alt_1,
-              size: 15,
-              color: Colors.orange.shade800,
-            )
-          : null,
-      label: Text(
-        name.isNotEmpty ? '$name · ${person['mobile']}' : '${person['mobile']}',
-        style: GoogleFonts.roboto(fontSize: 13),
-      ),
-      deleteIcon: const Icon(Icons.close, size: 16),
-      onDeleted: () => _remove(person),
-      backgroundColor: isNew
-          ? Colors.orange.shade50
-          : AppColors.primary.withValues(alpha: 0.08),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: isNew
-              ? Colors.orange.shade200
-              : AppColors.primary.withValues(alpha: 0.3),
-        ),
       ),
     );
   }

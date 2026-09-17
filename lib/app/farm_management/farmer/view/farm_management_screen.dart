@@ -321,14 +321,43 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
             child: TabBar(
               labelColor: AppColors.primary,
               unselectedLabelColor: Colors.grey.shade600,
-              indicatorColor: AppColors.primary,
-              indicatorWeight: 4,
+
+              // The underline runs PAST the word rather than hugging it.
+              //
+              // `TabBarIndicatorSize.label` is kept on purpose: the bar stays
+              // proportional to each word, so "Manager" still gets a longer one
+              // than "Farm" — switching to `.tab` would give both half the
+              // screen and lose that. What widens it is the NEGATIVE inset
+              // below, which is the only number to touch if this still wants
+              // adjusting.
+              //
+              // 24px of bar each side of the word. The underline painter
+              // deflates the rect by these insets, so a negative value inflates
+              // it, and nothing clips the result.
+              //
+              // A custom `indicator` supersedes indicatorColor/indicatorWeight,
+              // so the colour and thickness live in the BorderSide now.
+              indicatorSize: TabBarIndicatorSize.label,
+              indicator: UnderlineTabIndicator(
+                borderSide: BorderSide(color: AppColors.primary, width: 4),
+                insets: const EdgeInsets.symmetric(horizontal: -24),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(3),
+                ),
+              ),
+
+              // Material 3 draws its OWN 1px divider under the tab bar
+              // (outlineVariant), which landed on top of the explicit Divider
+              // below and showed as a double line. The Divider below is the one
+              // with the intended colour, so this one gets out of the way.
+              dividerColor: Colors.transparent,
+
               labelStyle: GoogleFonts.roboto(
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
               unselectedLabelStyle: GoogleFonts.roboto(
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: FontWeight.w500,
               ),
               tabs: const [
@@ -365,82 +394,99 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
   ) {
     final showTabs = own.isNotEmpty && managed.isNotEmpty;
 
-    return Column(
-      children: [
-        Expanded(
-          child: Stack(
-            children: [
-              if (showTabs)
-                _tabbedLists(own, managed)
-              else
-                _farmScrollList(
-                  own.isNotEmpty ? own : managed,
-                  _listScrollController,
-                ),
+    // SafeArea, bottom only.
+    //
+    // Contact Us sat at a flat `bottom: 16`, which is under the three-button
+    // navigation bar on a phone not using gestures — the Back/Home/Recents row
+    // covered it and the button could not be tapped at all. Gesture phones have
+    // almost no inset, which is why it looked fine on those.
+    //
+    // Wrapping the whole column rather than padding the button alone, so the
+    // floating buttons inside the Stack above clear the nav bar too; they sit at
+    // the same flat 16 and had the same problem.
+    //
+    // top: false — the AppBar already owns the status bar.
+    return SafeArea(
+      top: false,
+      child: Column(
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                if (showTabs)
+                  _tabbedLists(own, managed)
+                else
+                  _farmScrollList(
+                    own.isNotEmpty ? own : managed,
+                    _listScrollController,
+                  ),
 
-              if (_isChatbotOpen)
-                const Positioned(
-                  bottom: 120,
+                if (_isChatbotOpen)
+                  const Positioned(
+                    bottom: 120,
+                    right: 16,
+                    child: ChatbotWidget(),
+                  ),
+                Positioned(
+                  bottom: 16,
                   right: 16,
-                  child: ChatbotWidget(),
-                ),
-              Positioned(
-                bottom: 16,
-                right: 16,
-                child: Column(
-                  children: [
-                    FloatingActionButton(
-                      heroTag: 'chatbotFab',
-                      backgroundColor: _isChatbotOpen
-                          ? Colors.white
-                          : primaryBlue,
-                      onPressed: _toggleChatbot,
-                      child: Icon(
-                        _isChatbotOpen ? Icons.close : Icons.smart_toy_outlined,
-                        color: _isChatbotOpen ? primaryBlue : Colors.white,
+                  child: Column(
+                    children: [
+                      FloatingActionButton(
+                        heroTag: 'chatbotFab',
+                        backgroundColor: _isChatbotOpen
+                            ? Colors.white
+                            : primaryBlue,
+                        onPressed: _toggleChatbot,
+                        child: Icon(
+                          _isChatbotOpen
+                              ? Icons.close
+                              : Icons.smart_toy_outlined,
+                          color: _isChatbotOpen ? primaryBlue : Colors.white,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    FloatingActionButton(
-                      heroTag: 'addFab',
-                      backgroundColor: primaryBlue,
-                      onPressed: () =>
-                          Get.to(() => AddFarmerDetailsFormScreen()),
-                      child: const Icon(Icons.add, color: Colors.white),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      FloatingActionButton(
+                        heroTag: 'addFab',
+                        backgroundColor: primaryBlue,
+                        onPressed: () =>
+                            Get.to(() => AddFarmerDetailsFormScreen()),
+                        child: const Icon(Icons.add, color: Colors.white),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        // Fixed Contact Us button at bottom
-        Padding(
-          padding: const EdgeInsets.only(bottom: 16, top: 8),
-          child: TextButton(
-            onPressed: () {
-              // Popup, not the bottom sheet: this matches the Contact Us
-              // design. It reads the numbers the admin panel stores,
-              // preferring the farm-management slot and falling back to
-              // the first active contact when that slot is unset.
-              showDialog(
-                context: context,
-                builder: (_) => const ContactUsDialog(
-                  preferredLabel: ContactLabels.farmManagementHelp,
+          // Fixed Contact Us button at bottom
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16, top: 8),
+            child: TextButton(
+              onPressed: () {
+                // Popup, not the bottom sheet: this matches the Contact Us
+                // design. It reads the numbers the admin panel stores,
+                // preferring the farm-management slot and falling back to
+                // the first active contact when that slot is unset.
+                showDialog(
+                  context: context,
+                  builder: (_) => const ContactUsDialog(
+                    preferredLabel: ContactLabels.farmManagementHelp,
+                  ),
+                );
+              },
+              child: Text(
+                'Contact Us',
+                style: GoogleFonts.roboto(
+                  color: AppColors.primary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
-              );
-            },
-            child: Text(
-              'Contact Us',
-              style: GoogleFonts.roboto(
-                color: AppColors.primary,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -487,6 +533,39 @@ class FarmCard extends StatelessWidget {
     );
   }
 
+  /// Farmer / Partner / Manager, outlined rather than filled.
+  ///
+  /// The Active and Inactive chips are solid blocks of colour because they
+  /// carry a number to read; this one states a standing, so it is outlined —
+  /// three solid chips in a row competed with each other and none of them read
+  /// first. Each role gets its own colour so the Farm tab, which mixes farms
+  /// they own with farms they partner on, can be told apart at a glance.
+  Widget _roleChip(FarmAccess access) {
+    final Color color = access.isOwner
+        ? AppColors.primary
+        : access.isManagerGrant
+        ? Colors.deepPurple.shade400
+        : Colors.teal.shade700;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Text(
+        access.roleLabel,
+        maxLines: 1,
+        style: GoogleFonts.roboto(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatusChip(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -522,7 +601,10 @@ class FarmCard extends StatelessWidget {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            // Was 16 all round — 32px of the card's height went on framing the
+            // photo, and with the content's own padding below it the gap
+            // between image and chips came to 32px on its own.
+            padding: const EdgeInsets.all(10),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: Stack(
@@ -663,7 +745,9 @@ class FarmCard extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16),
+            // Less at the TOP than the sides: the image's padding above already
+            // separates the two, so a full 16 here doubled the gap.
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
             child: Column(
               children: [
                 Row(
@@ -681,6 +765,18 @@ class FarmCard extends StatelessWidget {
                         Colors.red,
                       ),
                     ),
+
+                    // How the farmer stands to THIS farm — Farmer on their own,
+                    // Partner or Manager on someone else's. The card looked
+                    // identical either way before, so a farm shared with them
+                    // was indistinguishable from one they created.
+                    //
+                    // Not Flexible: the role is one short word and is the whole
+                    // point of the chip, so the two counts beside it give up
+                    // space first rather than this ellipsing to "Mana…".
+                    const Spacer(),
+                    const SizedBox(width: 8),
+                    _roleChip(farm.access),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -1055,9 +1151,13 @@ void showFarmBottomSheet({
                 icon: Icons.layers,
                 title: "Add today's tanks quantity",
                 onTap: onAddTankQty,
-                enabled: access.canCreate,
+                // create OR edit, matching the endpoint behind it. This row was
+                // left on create alone when the two were joined, so a manager
+                // given edit found the way IN to the feed screen padlocked even
+                // though every control on that screen was open to them.
+                enabled: access.canCreate || access.canEdit,
                 deniedMessage:
-                    "You don't have create access to this farm, so you can't record feed.",
+                    "You don't have access to record feed on this farm.",
               ),
 
               // One row per role, each carrying the role all the way through
@@ -1087,12 +1187,21 @@ void showFarmBottomSheet({
                 deniedMessage: "You hold no access on this farm to pass on.",
               ),
 
+              // Masked for MANAGERS, whatever else they hold.
+              //
+              // A manager runs the farm day to day — feed, tanks, the store —
+              // but the farm's own details are the owner's, and a partner
+              // stands beside the owner rather than working for them, so a
+              // partner keeps it. Their Edit access still covers everything
+              // else it covered before; this one row is the exception.
               _sheetItem(
                 icon: Icons.edit,
                 title: "Edit farm Details",
                 onTap: onEditFarm,
-                enabled: access.canEdit,
-                deniedMessage: "You don't have edit access to this farm.",
+                enabled: access.canEdit && !access.isManagerGrant,
+                deniedMessage: access.isManagerGrant
+                    ? "Managers can't change farm details. The owner or a partner can."
+                    : "You don't have edit access to this farm.",
               ),
 
               _sheetItem(

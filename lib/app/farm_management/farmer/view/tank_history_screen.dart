@@ -32,13 +32,20 @@ class DailyFeedRecord {
   final List<MealEntry> entries;
   final bool hasLink;
 
+  /// What someone wrote about this day, if anything.
+  final String? note;
+
   DailyFeedRecord({
     required this.date,
     this.isExpandable = true,
     this.isExpanded = true,
     required this.entries,
     this.hasLink = false,
+    this.note,
   });
+
+  /// Whether the collapsed card should carry the note marker.
+  bool get hasNote => (note ?? '').trim().isNotEmpty;
 }
 
 class TankFeedScreen extends StatefulWidget {
@@ -53,7 +60,7 @@ class TankFeedScreen extends StatefulWidget {
   final String tankName;
   final String farmName;
 
-  /// Recording feed needs create access, correcting an entry needs edit, and
+  /// Recording feed or correcting one needs create OR edit, and
   /// removing one needs delete — the three endpoints behind this screen are
   /// gated on exactly those. Offering all three to everyone turned a partner's
   /// missing permission into "Failed to save tank".
@@ -85,6 +92,15 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
 
   /// Dates the user has collapsed. Absent means expanded.
   final Map<String, bool> _collapsed = {};
+
+  /// One note field per day, keyed by date — the same shape as [_collapsed] and
+  /// [_rows], and for the same reason: the card is a StatelessWidget rebuilt on
+  /// every setState, so a controller created there would lose what was typed.
+  final Map<String, TextEditingController> _noteControllers = {};
+
+  /// What the server last said each day's note was, so a field can be told
+  /// apart from an unsaved edit and the Save offered only when it matters.
+  final Map<String, String> _savedNotes = {};
 
   /// Generate the report, then either save it or hand it to the share sheet.
   ///
@@ -282,6 +298,9 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
         r.dispose();
       }
     }
+    for (final c in _noteControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -301,8 +320,69 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
   /// changed is updated; an untouched line is skipped. Clearing a line does NOT
   /// delete the meal — that is the bin, so a stray backspace cannot erase a
   /// record.
+  /// The note field for one day, seeded from the server on first use.
+  ///
+  /// [saved] is what the server holds. It is recorded separately so a later
+  /// fetch can refresh a field the farmer is NOT editing, without overwriting
+  /// one they are.
+  TextEditingController _noteFor(String date, String? saved) {
+    final text = (saved ?? '').trim();
+    final controller = _noteControllers.putIfAbsent(
+      date,
+      () => TextEditingController(text: text),
+    );
+
+    // The server's copy changed and the field still shows the old server copy
+    // — adopt it. A field the farmer has edited is left alone.
+    final previous = _savedNotes[date] ?? '';
+    if (previous != text && controller.text == previous) {
+      controller.text = text;
+    }
+    _savedNotes[date] = text;
+
+    return controller;
+  }
+
+  /// Write this day's note, if it differs from what the server holds.
+  ///
+  /// Returns true when something was actually written, so [_saveDay] can tell a
+  /// save that did nothing from one that saved only a note.
+  Future<bool> _saveNoteIfChanged(String date, {bool silent = false}) async {
+    final controller = _noteControllers[date];
+    if (controller == null) return false;
+
+    final text = controller.text.trim();
+    if (text == (_savedNotes[date] ?? '')) return false;
+
+    final ok = await _tankController.saveDayNote(
+      tankId: widget.tankId,
+      date: date,
+      note: text,
+      silent: silent,
+    );
+
+    if (!mounted) return ok;
+
+    if (ok) {
+      // Only on success — recording it regardless would make a failed write
+      // look saved, and the text would vanish on the next fetch.
+      setState(() => _savedNotes[date] = text);
+    }
+
+    return ok;
+  }
+
   Future<void> _saveDay(String date, List<MealEntry> entries) async {
     if (_tankController.isAddingTodayTankQuntity.value) return;
+
+    // The note goes first, and on its own terms.
+    //
+    // It has to be saved BEFORE the meal validation below, which returns early
+    // on a day with nothing fed — and a day with no feed is exactly the day a
+    // note explains. Silent, because this method reports the outcome once at
+    // the end rather than stacking a second toast.
+    final noteSaved = await _saveNoteIfChanged(date, silent: true);
+    if (!mounted) return;
 
     final rows = _rowsFor(date, entries);
     final toAdd = <MapEntry<String, String>>[];
@@ -342,7 +422,13 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
     }
 
     if (toAdd.isEmpty && toUpdate.isEmpty) {
-      CustomToast.show(message: 'Enter a quantity for at least one meal');
+      // Nothing fed. That is a complete, valid save when the note was the
+      // point of it — only an empty note AND no meals is nothing to do.
+      CustomToast.show(
+        message: noteSaved
+            ? 'Note saved'
+            : 'Enter a quantity for at least one meal',
+      );
       return;
     }
 
@@ -492,14 +578,23 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
           cursor = today.subtract(const Duration(days: 400));
         }
 
+        final notesByDate = tankHistory?.notes ?? const <String, String>{};
         final dates = <TankDate>[];
         for (
           var d = today;
           !d.isBefore(cursor);
           d = d.subtract(const Duration(days: 1))
         ) {
+          // A day with no feed rows can still carry a note, so the synthesised
+          // card reads it from the response's map — `dates` only ever holds
+          // days that HAVE feed.
           dates.add(
-            byDate[key(d)] ?? TankDate(date: key(d), tankDateHistory: []),
+            byDate[key(d)] ??
+                TankDate(
+                  date: key(d),
+                  tankDateHistory: const [],
+                  note: notesByDate[key(d)],
+                ),
           );
         }
 
@@ -782,8 +877,18 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
                               isExpanded:
                                   !(_collapsed[date] ?? !_isToday(date)),
                               entries: entries,
+                              note: tankDate.note,
                             ),
                             rows: _rowsFor(date, entries),
+                            noteController: _noteFor(date, tankDate.note),
+                            // Writing a note goes with recording feed:
+                            // create OR edit. A finished crop takes no new
+                            // notes — the note stays readable either way.
+                            // The day's own Save writes it.
+                            canEditNote:
+                                batchActive &&
+                                (widget.access.canCreate ||
+                                    widget.access.canEdit),
                             onTapHeader: () => setState(() {
                               _collapsed[date] =
                                   !(_collapsed[date] ?? !_isToday(date));
@@ -801,15 +906,39 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
                             // there is nothing left to record against it. The
                             // records stay visible and the report stays
                             // downloadable.
+                            // The boxes are SHOWN to anyone who can write on
+                            // this farm at all — a manager or partner sees the
+                            // same card the owner does, and what they may
+                            // actually save is settled on Save.
+                            //
+                            // They were briefly hidden on a day with nothing
+                            // recorded unless the viewer held create, which
+                            // left an edit-only manager staring at "Nothing
+                            // recorded on this day." with no way to see what
+                            // the day even offers. Hiding the fields answered
+                            // the wrong question: the fields are the record,
+                            // and access governs the write, not the view.
                             canRecord:
                                 batchActive &&
                                 (widget.access.canCreate ||
                                     widget.access.canEdit),
-                            onAddRow: batchActive && widget.access.canCreate
+                            // Same rule as saving one: create OR edit.
+                            // Left on create alone, an edit-only manager could
+                            // change meal 1 but never add meal 2.
+                            onAddRow:
+                                batchActive &&
+                                    (widget.access.canCreate ||
+                                        widget.access.canEdit)
                                 ? () => _addRow(date, entries)
                                 : null,
                             onRemoveRow: (i) => _removeRow(date, entries, i),
-                            onDeleteRow: widget.access.canDelete
+                            // delete OR edit, matching the endpoint.
+                            // Removing a meal is part of correcting a day: a
+                            // figure typed against the wrong tank can only be
+                            // undone by taking the row away, so someone trusted
+                            // to fix the record needs it.
+                            onDeleteRow:
+                                widget.access.canDelete || widget.access.canEdit
                                 ? (row) => _deleteRow(date, row)
                                 : null,
                           ),
@@ -866,6 +995,17 @@ class DailyFeedCard extends StatelessWidget {
 
   final bool isLoading;
 
+  /// This day's note field. Owned by the screen's State, because this card is
+  /// rebuilt on every setState and a controller made here would lose the text.
+  final TextEditingController? noteController;
+
+  /// Whether the note may be typed into. False leaves it visible but
+  /// read-only — a view-only member, or a crop that has been harvested.
+  ///
+  /// There is no separate save for it: the day's own Save writes the note
+  /// along with the meals.
+  final bool canEditNote;
+
   const DailyFeedCard({
     super.key,
     required this.record,
@@ -874,6 +1014,8 @@ class DailyFeedCard extends StatelessWidget {
     required this.onSave,
     required this.onRemoveRow,
     required this.isLoading,
+    this.noteController,
+    this.canEditNote = false,
     this.canRecord = true,
     this.onAddRow,
     this.onDeleteRow,
@@ -971,6 +1113,37 @@ class DailyFeedCard extends StatelessWidget {
                     ),
                   ),
 
+                  // The note marker.
+                  //
+                  // Sits beside the day's totals so a COLLAPSED card still says
+                  // a note is there — without it the only way to find out was to
+                  // open every day in turn.
+                  if (record.hasNote) ...[
+                    const SizedBox(width: 6),
+                    Tooltip(
+                      message: record.note!.trim(),
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade100,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.amber.shade600),
+                        ),
+                        child: Text(
+                          'N',
+                          style: GoogleFonts.roboto(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.amber.shade900,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+
                   if (record.isExpandable)
                     Icon(
                       record.isExpanded
@@ -1013,6 +1186,8 @@ class DailyFeedCard extends StatelessWidget {
           if (i < rows.length - 1) const SizedBox(height: 10),
         ],
 
+        const SizedBox(height: 14),
+        _noteRow(),
         const SizedBox(height: 10),
 
         // One row: Add meal on the left, Save on the right. Stacked, they cost
@@ -1072,10 +1247,18 @@ class DailyFeedCard extends StatelessWidget {
 
   /// View-only: what was fed, with nothing to type into.
   Widget _readOnly() {
+    // A day with no feed can still carry a note — on a finished crop that is
+    // often the only thing on it — so the note is shown before this returns.
     if (record.entries.isEmpty) {
-      return Text(
-        'Nothing recorded on this day.',
-        style: GoogleFonts.roboto(fontSize: 13, color: Colors.black45),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Nothing recorded on this day.',
+            style: GoogleFonts.roboto(fontSize: 13, color: Colors.black45),
+          ),
+          if (record.hasNote) ...[const SizedBox(height: 12), _noteRow()],
+        ],
       );
     }
 
@@ -1118,6 +1301,8 @@ class DailyFeedCard extends StatelessWidget {
               ],
             ),
           ),
+
+        if (record.hasNote) ...[const SizedBox(height: 12), _noteRow()],
       ],
     );
   }
@@ -1130,6 +1315,72 @@ class DailyFeedCard extends StatelessWidget {
       color: Colors.grey.shade700,
     ),
   );
+
+  /// One free-text note for the day, under the meals.
+  ///
+  /// Written by the day's own Save, NOT a button of its own. It had a separate
+  /// "Save note" at first, shown only while the text differed from the stored
+  /// note — but nothing rebuilt this card as the farmer typed, so the button
+  /// never appeared. The blue Save beside it wrote only the meals, and because
+  /// the field keeps what was typed, the note looked saved right up until the
+  /// app was restarted and it was gone.
+  Widget _noteRow() {
+    if (noteController == null) return const SizedBox.shrink();
+
+    final readOnly = !canEditNote;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.sticky_note_2_outlined,
+              size: 15,
+              color: Colors.grey.shade600,
+            ),
+            const SizedBox(width: 5),
+            _heading('Notes'),
+          ],
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: noteController,
+          readOnly: readOnly,
+          maxLines: 3,
+          minLines: 1,
+          maxLength: 2000,
+          textCapitalization: TextCapitalization.sentences,
+          style: GoogleFonts.roboto(fontSize: 14),
+          decoration: InputDecoration(
+            counterText: '',
+            hintText: readOnly
+                ? 'No notes for this day'
+                : 'Water change, aerator down, medicine given…',
+            hintStyle: GoogleFonts.roboto(
+              fontSize: 13,
+              color: Colors.grey.shade500,
+            ),
+            filled: readOnly,
+            fillColor: Colors.grey.shade100,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: AppColors.primary),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _mealRow(int index) {
     final row = rows[index];

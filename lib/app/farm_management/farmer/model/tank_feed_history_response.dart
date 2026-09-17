@@ -26,6 +26,14 @@ class TankFeedHistoryResponse {
   /// TankBatch::fcr() so every screen quotes the same number.
   final double? fcr;
 
+  /// Every day note for this crop, keyed by Y-m-d.
+  ///
+  /// Kept as a map as well as on each [TankDate], because the screen draws a
+  /// card for every day since stocking — including days with NO feed rows,
+  /// which never appear in `dates` and would otherwise lose their note. Those
+  /// are exactly the days a note explains.
+  final Map<String, String> notes;
+
   TankFeedHistoryResponse({
     required this.status,
     required this.message,
@@ -35,6 +43,7 @@ class TankFeedHistoryResponse {
     this.batchActive = true,
     this.harvestQuantity,
     this.fcr,
+    this.notes = const {},
   });
 }
 
@@ -42,7 +51,19 @@ class TankDate {
   final String date;
   final List<TankFeedHistory> tankDateHistory;
 
-  TankDate({required this.date, required this.tankDateHistory});
+  /// What someone wrote about this day, or null when nothing was.
+  ///
+  /// Separate from the feed rows because a note is most useful on a day with
+  /// NO feed — why a tank went unfed is exactly what the numbers cannot say.
+  final String? note;
+
+  TankDate({required this.date, required this.tankDateHistory, this.note});
+
+  /// True when this day carries a note worth marking on the collapsed card.
+  bool get hasNote => (note ?? '').trim().isNotEmpty;
+
+  TankDate copyWith({String? note}) =>
+      TankDate(date: date, tankDateHistory: tankDateHistory, note: note);
 }
 
 class TankFeedHistory {

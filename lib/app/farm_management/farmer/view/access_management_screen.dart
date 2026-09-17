@@ -332,9 +332,20 @@ class _MemberCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // All SIX, in the order the Setup Access form asks them.
+    //
+    // Tank active/inactive and Total feed were missing, so a member granted
+    // either of them showed a card that did not mention it — the two hardest
+    // permissions to guess from the outside were the two the card never said
+    // anything about. The wording matches the form's own toggles so the card
+    // and the form read as the same list.
     final chips = <Widget>[
       if (member.permissions.view) _chip('View access', AppColors.primary),
       if (member.permissions.edit) _chip('Edit access', AppColors.primary),
+      if (member.permissions.tankStatus)
+        _chip('Tank active / inactive access', AppColors.primary),
+      if (member.permissions.totalFeed)
+        _chip('Store stock access', AppColors.primary),
       if (member.permissions.create) _chip('Create access', AppColors.primary),
       if (member.permissions.delete) _chip('Delete access', Colors.red),
     ];
@@ -419,19 +430,18 @@ class _MemberCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          // const SizedBox(height: 8),
 
           // How they got in, and from whom. Without this an owner had no way
           // to tell someone their manager let in from someone they admitted
           // themselves — which is exactly what decides who may remove them.
-          Text(
-            [
-              'Added directly',
-              if (member.grantedBy != null) 'by ${member.grantedBy}',
-            ].join(' '),
-            style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[600]),
-          ),
-
+          // Text(
+          //   [
+          //     'Added directly',
+          //     if (member.grantedBy != null) 'by ${member.grantedBy}',
+          //   ].join(' '),
+          //   style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey[600]),
+          // ),
           if (chips.isNotEmpty) ...[
             const SizedBox(height: 12),
             Wrap(spacing: 8, runSpacing: 8, children: chips),
@@ -541,15 +551,18 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
     // Depends on the role. Marking a tank inactive harvests it — it closes
     // that tank's crop cycle — which is a partner's call to make, so they get
     // it with the role. A manager runs the farm day to day and is handed it
-    // deliberately, the same way Total Feed is, so they start off without it.
+    // deliberately, so they start off without it.
     _canChangeTankStatus =
         (existing?.tankStatus ?? widget.role.isPartner) &&
         widget.callerAccess.canChangeTankStatus;
 
-    // Off by default: the store figure drives the low-feed alerts and every
-    // remaining-stock number on the farm, so it is handed over deliberately.
+    // ON by default, for both roles. Keeping the store topped up is part of
+    // running a farm day to day, and withholding it left a manager looking at
+    // a padlocked Edit on the farm header with no way to correct a figure they
+    // are the one who knows. Still a question on the form, so it can be taken
+    // away deliberately — it is simply no longer off until someone notices.
     _canEditTotalFeed =
-        (existing?.totalFeed ?? false) && widget.callerAccess.canEditTotalFeed;
+        (existing?.totalFeed ?? true) && widget.callerAccess.canEditTotalFeed;
 
     _canCreate = (existing?.create ?? false) && widget.callerAccess.canCreate;
     _canDelete = (existing?.delete ?? false) && widget.callerAccess.canDelete;
@@ -600,12 +613,27 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
 
     if (ids.isEmpty && mobiles.isEmpty) return;
 
+    // The name this farm calls each person by, as typed in the picker. Keyed by
+    // mobile, which both a registered person and a brand-new number carry.
+    // Blank entries are left out rather than sent as "", so clearing a field
+    // does not overwrite a label with nothing.
+    final names = <String, String>{};
+    for (final person in _selectedPeople) {
+      final mobile = '${person['mobile']}';
+      final name = '${person['display_name'] ?? ''}'.trim();
+
+      if (mobile.length == 10 && name.isNotEmpty) {
+        names[mobile] = name;
+      }
+    }
+
     setState(() => _isSaving = true);
 
     final ok = await _access.grantAccessTo(
       farmId: widget.farmId,
       farmerIds: ids,
       mobiles: mobiles,
+      names: names,
       role: widget.role.apiValue,
       canView: _canView,
       canEdit: _canEdit,
@@ -813,7 +841,7 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
                 ),
               if (widget.callerAccess.canEditTotalFeed)
                 _accessRow(
-                  'Total feed access',
+                  'Store stock access',
                   _canEditTotalFeed,
                   (v) => setState(() => _canEditTotalFeed = v),
                 ),

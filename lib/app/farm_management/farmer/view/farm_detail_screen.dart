@@ -12,6 +12,7 @@ import 'package:seedsuser/app/farm_management/farmer/util/feed_report.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/feed_update_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/harvest_bottom.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/start_batch_sheet.dart';
@@ -69,6 +70,27 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
   /// Shared by the scroll view and its Scrollbar, so the thumb tracks the list.
   final ScrollController _scrollController = ScrollController();
 
+  /// Whether THIS screen is showing its shimmer.
+  ///
+  /// Deliberately NOT `tankController.isLoading`. That controller is shared
+  /// with FeedUpdateScreen and the tank history screen, which are pushed on top
+  /// of this one while it stays mounted underneath — so their fetches flipped
+  /// the flag under us, several times, faster than the 350ms cross-fade below.
+  ///
+  /// The switcher is keyed on this flag, so re-entering a state it was still
+  /// animating out of put TWO children with the same key in its Stack
+  /// ("Duplicate keys found"), and with both of them being the content branch,
+  /// two scroll views bound to one ScrollController ("attached to more than one
+  /// ScrollPosition"). Coming back from Add today's quantity crashed the screen
+  /// to white on exactly that.
+  ///
+  /// Owned here, it only ever changes in [_load] — which holds each state for
+  /// at least 700ms — so the switcher can never re-enter a state mid-animation.
+  bool _showShimmer = true;
+
+  /// Guards against a second load starting while one is running.
+  bool _loading = false;
+
   @override
   void initState() {
     super.initState();
@@ -84,11 +106,13 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
     tankController.isAddingTodayTankQuntity(false);
     tankController.isOverlay(false);
 
-    tankController.getTankList(widget.farmId);
+    // Through _load, like every other read on this screen, so the first paint
+    // is driven by [_showShimmer] too. Calling the controller directly here
+    // left the opening shimmer depending on the SHARED isLoading flag, which
+    // another screen could clear while this one was still fetching.
+    _load();
 
-    final farmIdNum = _farmIdNum;
-    if (farmIdNum != null) {
-      tankController.getFeedStore(farmIdNum);
+    if (_farmIdNum != null) {
       _maybeWarnLowFeed();
     }
 
@@ -105,6 +129,77 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
     _storeWatcher?.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Record today's feed for every tank on this farm.
+  ///
+  /// NAVIGATES to [FeedUpdateScreen] rather than putting the form in a sheet
+  /// here. That screen already lists every tank, remembers the meal number per
+  /// tank, checks the figure against the store and enforces the same create
+  /// access — a second copy of that on this screen would be a second set of
+  /// rules to keep in step, and they would drift the first time one changed.
+  ///
+  /// Same destination as "Add today's tanks quantity" on the farm card's
+  /// options sheet, so both routes land on one screen.
+  Future<void> _openTodaysQuantity() async {
+    // Warm the list so the screen opens with tanks rather than a spinner.
+    // `silent`, or it fires its own "Tank Fetched Successfully" toast as the
+    // next screen is already sliding in.
+    tankController.getTankList(widget.farmId, silent: true);
+
+    await Get.to(
+      () => FeedUpdateScreen(farmId: widget.farmId, access: widget.access),
+    );
+
+    // Feed recorded there moves this screen's store and every tank total, so
+    // re-read on the way back rather than leaving stale figures on screen.
+    //
+    // _load, not _refresh: _refresh announces the farm name, which belongs to a
+    // deliberate tap on the refresh button, not to coming back from a save.
+    if (mounted) await _load();
+  }
+
+  /// The button under the store card.
+  ///
+  /// Masked rather than hidden without create access, matching the options
+  /// sheet: a manager should see that recording feed is a thing this farm does
+  /// and that they were not given it, instead of a screen that simply lacks the
+  /// button.
+  Widget _addTodaysQuantityButton() {
+    // create OR edit, matching the endpoint behind it — recording a meal and
+    // correcting one are the same action to the server now.
+    final allowed = widget.access.canCreate || widget.access.canEdit;
+
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: allowed
+            ? _openTodaysQuantity
+            : () => CustomToast.info(
+                "You don't have create access to this farm, so you can't record feed.",
+              ),
+        icon: Icon(allowed ? Icons.layers : Icons.lock_outline, size: 20),
+        label: Text(
+          "Add today's tanks quantity",
+          style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
+        style: ElevatedButton.styleFrom(
+          // Kept enabled even when denied, so the tap can explain itself —
+          // a truly disabled button swallows the press and says nothing. The
+          // greys below are what make it read as unavailable.
+          backgroundColor: allowed ? AppColors.primary : Colors.grey.shade200,
+          foregroundColor: allowed ? Colors.white : Colors.grey.shade500,
+          elevation: allowed ? 1 : 0,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: allowed
+                ? BorderSide.none
+                : BorderSide(color: Colors.grey.shade300),
+          ),
+        ),
+      ),
+    );
   }
 
   /// Re-read this farm's tanks and its feed store, showing the shimmer while
@@ -125,12 +220,25 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
       CustomToast.info(name);
     }
 
-    // The shimmer is raised here rather than by the controller, and the
-    // fetches stay `silent`. Non-silent calls DO raise isLoading, but they
-    // also fire their own "Tank Feched Successfully" toast, which landed on
-    // top of the farm-name one above and cut it off. This way the grid shows
-    // its loading state and only the name is announced.
-    tankController.isLoading.value = true;
+    await _load();
+  }
+
+  /// Read this farm's tanks and its feed store, with the shimmer up.
+  ///
+  /// The one place [_showShimmer] moves, so every load — first and refresh —
+  /// holds the shimmer for the same minimum spell and the cross-fade can never
+  /// be re-entered mid-animation.
+  ///
+  /// The fetches stay `silent`: a non-silent call raises the CONTROLLER's
+  /// isLoading (shared with other screens) and fires its own "Tank Fetched
+  /// Successfully" toast, which landed on top of the farm-name one and cut it
+  /// off.
+  Future<void> _load() async {
+    // A second load while one is running would flip the flag out of turn.
+    if (_loading) return;
+    _loading = true;
+
+    if (mounted) setState(() => _showShimmer = true);
     final startedAt = DateTime.now();
 
     try {
@@ -147,19 +255,21 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
       // Hold the shimmer for a minimum spell before revealing the data.
       //
       // Against a local server both requests come back in single-digit
-      // milliseconds, so isLoading went true and false inside one frame and
-      // the shimmer never rendered at all — the refresh looked like nothing
-      // but a toast. Waiting out the remainder gives it time to be seen and
-      // lets the cross-fade actually play. On a slow connection the requests
-      // already exceed this, so nothing is added to the wait.
+      // milliseconds, so the flag went true and false inside one frame and the
+      // shimmer never rendered at all — the refresh looked like nothing but a
+      // toast. Waiting out the remainder gives it time to be seen and lets the
+      // cross-fade actually play. On a slow connection the requests already
+      // exceed this, so nothing is added to the wait.
       const minimumShimmer = Duration(milliseconds: 700);
       final elapsed = DateTime.now().difference(startedAt);
       if (elapsed < minimumShimmer) {
         await Future.delayed(minimumShimmer - elapsed);
       }
 
+      _loading = false;
+
       // finally, so a failed request cannot strand the screen in shimmer.
-      tankController.isLoading.value = false;
+      if (mounted) setState(() => _showShimmer = false);
     }
   }
 
@@ -233,15 +343,24 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
         ),
       ),
       body: Obx(() {
+        // Read the observables UNCONDITIONALLY, before any branch.
+        //
+        // Obx subscribes to whatever it touches WHILE building, and the shimmer
+        // branch below returns early. With the reads left inside that branch
+        // the first build — which starts in shimmer — would subscribe to
+        // nothing and GetX throws "improper use of a GetX". It was safe before
+        // only because the switcher read `isLoading.value` first, and that read
+        // has just been replaced by a plain field.
+        final tanks = tankController.farmList.value?.data ?? <TankModel>[];
+        final updatingStatus = tankController.isUpdatingTankStatus.value;
+
         // Cross-fade the shimmer into the tanks instead of swapping them in
         // one frame, which read as a flicker on a fast local response.
         // Keyed on the loading flag so the switcher knows the two apart.
         Widget buildBody() {
-          if (tankController.isLoading.value) {
+          if (_showShimmer) {
             return const TankGridShimmer();
           }
-
-          final tanks = tankController.farmList.value?.data ?? [];
 
           if (tanks.isEmpty) {
             return const Center(child: Text("No Tanks Available"));
@@ -274,6 +393,8 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
                           farmId: widget.farmId,
                           access: widget.access,
                         ),
+                        const SizedBox(height: 12),
+                        _addTodaysQuantityButton(),
                         const SizedBox(height: 16),
 
                         ...tankPairs.map((pair) {
@@ -313,7 +434,7 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
                   ),
                 ),
               ),
-              if (tankController.isUpdatingTankStatus.value)
+              if (updatingStatus)
                 Positioned.fill(
                   child: Container(
                     height: MediaQuery.of(context).size.height,
@@ -330,10 +451,7 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
           duration: const Duration(milliseconds: 350),
           switchInCurve: Curves.easeOut,
           switchOutCurve: Curves.easeIn,
-          child: KeyedSubtree(
-            key: ValueKey(tankController.isLoading.value),
-            child: buildBody(),
-          ),
+          child: KeyedSubtree(key: ValueKey(_showShimmer), child: buildBody()),
         );
       }),
     );

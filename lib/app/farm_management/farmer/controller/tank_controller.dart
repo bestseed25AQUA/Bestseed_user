@@ -19,12 +19,24 @@ class TankController extends GetxController {
   /// saving one tank used to blank and rebuild the entire list — losing the
   /// scroll position and anything typed into the other cards. The save already
   /// shows its own overlay, so the follow-up refresh should be invisible.
-  Future<void> getTankList(String farmId, {bool silent = false}) async {
+  /// This farm's tanks, with one DAY's feed and note attached to each.
+  ///
+  /// [date] (Y-m-d) picks the day; omitted means today. The Add-feed screen
+  /// uses it to fill in a day that was missed — the server answers with that
+  /// day's meals, so the screen shows what is already recorded rather than a
+  /// blank form that would add duplicates.
+  Future<void> getTankList(
+    String farmId, {
+    bool silent = false,
+    String? date,
+  }) async {
     try {
       if (!silent) isLoading.value = true;
 
       final response = await getRequest(
-        endPoint: "${NetworkConfig.baseURL}/farmer/farms/$farmId/tanks",
+        endPoint:
+            "${NetworkConfig.baseURL}/farmer/farms/$farmId/tanks"
+            "${date == null ? '' : '?date=$date'}",
         headers: await buildHeader(),
       );
 
@@ -319,6 +331,89 @@ class TankController extends GetxController {
     return double.tryParse(raw.toString());
   }
 
+  /// The day notes off a history response, keyed by Y-m-d.
+  ///
+  /// Sent as an object beside `data`, so an empty set arrives as `{}` rather
+  /// than a list — anything else is treated as "no notes" rather than trusted.
+  Map<String, String> _notesFrom(dynamic body) {
+    if (body is! Map) return const {};
+
+    final raw = body['notes'];
+    if (raw is! Map) return const {};
+
+    final out = <String, String>{};
+    raw.forEach((key, value) {
+      final text = '${value ?? ''}'.trim();
+      if (text.isNotEmpty) out['$key'] = text;
+    });
+
+    return out;
+  }
+
+  /// Write, change or clear one day's note.
+  ///
+  /// An empty [note] clears it — the server deletes the row rather than storing
+  /// a blank, so the marker stops showing on that day.
+  Future<bool> saveDayNote({
+    required String tankId,
+    required String date,
+    required String note,
+    /// True when the caller reports the result itself — the day's Save writes
+    /// meals and the note together, and two toasts stack on top of each other.
+    bool silent = false,
+  }) async {
+    try {
+      final response = await postRequest(
+        endPoint: "${NetworkConfig.baseURL}/farmer/tank/day-note",
+        headers: await buildHeader(),
+        body: {'tank_id': tankId, 'date': date, 'note': note},
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Reflect it locally rather than refetching the whole history: the
+        // screen is a long list of cards and a full reload would collapse the
+        // day the farmer is still working in.
+        final current = tankHistoryData.value;
+        if (current != null) {
+          final trimmed = note.trim();
+          tankHistoryData.value = TankFeedHistoryResponse(
+            status: current.status,
+            message: current.message,
+            dates: current.dates
+                .map(
+                  (d) => d.date == date
+                      ? d.copyWith(note: trimmed.isEmpty ? null : trimmed)
+                      : d,
+                )
+                .toList(),
+            stockingDate: current.stockingDate,
+            batchNo: current.batchNo,
+            batchActive: current.batchActive,
+            harvestQuantity: current.harvestQuantity,
+            fcr: current.fcr,
+            notes: {
+              ...current.notes,
+              if (trimmed.isNotEmpty) date: trimmed,
+            }..removeWhere((k, _) => k == date && trimmed.isEmpty),
+          );
+        }
+
+        if (!silent) {
+          CustomToast.success(
+            note.trim().isEmpty ? 'Note removed' : 'Note saved',
+          );
+        }
+        return true;
+      }
+
+      CustomToast.error('Could not save the note');
+    } catch (_) {
+      CustomToast.error('Could not save the note. Please try again.');
+    }
+
+    return false;
+  }
+
   Future<void> getTankHistory(String tankId, {bool silent = false}) async {
     try {
       if (!silent) isTankHistoryLoading.value = true;
@@ -350,8 +445,14 @@ class TankController extends GetxController {
         }
 
         // Step 4: Convert map to List<TankDate>
+        final notes = _notesFrom(dataResponse);
+
         List<TankDate> tankDates = groupedByDate.entries.map((e) {
-          return TankDate(date: e.key, tankDateHistory: e.value);
+          return TankDate(
+            date: e.key,
+            tankDateHistory: e.value,
+            note: notes[e.key],
+          );
         }).toList();
 
         // Step 5: Assign into Rx variable
@@ -364,6 +465,7 @@ class TankController extends GetxController {
           batchActive: _batchActive(dataResponse),
           harvestQuantity: _numOrNull(dataResponse, 'harvest_quantity'),
           fcr: _numOrNull(dataResponse, 'fcr'),
+          notes: notes,
         );
       } else if (response.statusCode == 404) {
         // The API answers 404 (not 200 with []) when a tank has no feed rows
@@ -382,6 +484,7 @@ class TankController extends GetxController {
           batchActive: _batchActive(body),
           harvestQuantity: _numOrNull(body, 'harvest_quantity'),
           fcr: _numOrNull(body, 'fcr'),
+          notes: _notesFrom(body),
         );
       }
     } catch (e) {

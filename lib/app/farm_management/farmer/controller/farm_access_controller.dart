@@ -109,6 +109,13 @@ class FarmAccessController extends GetxController {
     required bool canCreate,
     required bool canDelete,
     List<String> mobiles = const [],
+
+    /// What this farm calls each person, keyed by their 10-digit mobile.
+    ///
+    /// Keyed by number because a person reaches the server through either
+    /// [farmerIds] or [mobiles], and the number is the one thing both carry.
+    /// Stored against the membership, never against the farmer's own profile.
+    Map<String, String> names = const {},
   }) async {
     if (farmerIds.isEmpty && mobiles.isEmpty) return true;
 
@@ -121,6 +128,9 @@ class FarmAccessController extends GetxController {
           // Numbers with no account yet. The server registers them, so the
           // farm is waiting the first time they sign in.
           'mobiles': mobiles,
+          // Omitted entirely when empty, so an edit that carries no names
+          // cannot blank a label someone already set.
+          if (names.isNotEmpty) 'names': names,
           'role': role,
           'view_access': canView ? 1 : 0,
           'edit_access': canEdit ? 1 : 0,

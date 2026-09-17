@@ -35,7 +35,7 @@ class FeedUpdateScreen extends StatefulWidget {
 
   final String farmId;
 
-  /// Recording a meal needs create access, correcting one needs edit and
+  /// Recording a meal or correcting one needs create OR edit, and
   /// removing one needs delete — the endpoints behind this screen are gated on
   /// exactly those, so the controls follow.
   final FarmAccess access;
@@ -58,21 +58,147 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
   /// text its neighbour was typing whenever the order changed.
   final Map<int, List<MealRowState>> _rows = {};
 
+  /// The day being recorded. Today unless the farmer picks an earlier one.
+  ///
+  /// A missed day can be filled in from here rather than hunting for the tank
+  /// in the history screen. Never the future: a day that has not happened
+  /// cannot have been fed, and the server clamps it anyway.
+  DateTime _selectedDate = DateTime.now();
+
+  /// [_selectedDate] as the API wants it.
+  String get _dateParam => DateTime(
+    _selectedDate.year,
+    _selectedDate.month,
+    _selectedDate.day,
+  ).toIso8601String().split('T').first;
+
+  bool get _isToday {
+    final now = DateTime.now();
+    return _selectedDate.year == now.year &&
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day;
+  }
+
+  /// One note field per tank, for the SELECTED day. Keyed by tank id and owned
+  /// here, not by the card: the card is a StatelessWidget rebuilt on every
+  /// setState, so a controller made there would lose what was typed.
+  final Map<int, TextEditingController> _noteControllers = {};
+
+  /// What the server last said each tank's note was, so an unsaved edit can be
+  /// told from a field that simply matches the stored note.
+  final Map<int, String> _savedNotes = {};
+
   @override
   void initState() {
     super.initState();
     tankController.isAddingTodayTankQuntity(false);
-    tankController.getTankList(widget.farmId);
+    tankController.getTankList(widget.farmId, date: _dateParam);
   }
 
   @override
   void dispose() {
+    for (final c in _noteControllers.values) {
+      c.dispose();
+    }
     for (final rows in _rows.values) {
       for (final r in rows) {
         r.dispose();
       }
     }
     super.dispose();
+  }
+
+  /// When the earliest crop on this farm went in.
+  ///
+  /// The lower bound for the picker: nothing can have been fed before the tank
+  /// holding it was stocked. Taken across the tanks ON SCREEN and using the
+  /// earliest, so a farm whose tanks were stocked on different days is bounded
+  /// by the first of them rather than by whichever tank happens to be first in
+  /// the list.
+  DateTime? _earliestStocking(List<TankModel> tanks) {
+    DateTime? earliest;
+
+    for (final tank in tanks) {
+      final raw = tank.effectiveStockingDate;
+      if (raw == null || raw.isEmpty) continue;
+
+      final parsed = DateTime.tryParse(raw);
+      if (parsed == null) continue;
+
+      final day = DateTime(parsed.year, parsed.month, parsed.day);
+      if (earliest == null || day.isBefore(earliest)) earliest = day;
+    }
+
+    return earliest;
+  }
+
+  /// Pick the day to record against.
+  ///
+  /// Bounded at BOTH ends. Not before the farm was stocked — there was no crop
+  /// to feed — and not after today, because a day that has not happened cannot
+  /// have been fed and a record dated ahead of the crop would age every figure
+  /// built from it.
+  Future<void> _pickDate(List<TankModel> tanks) async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // Falls back to a year only when no tank carries a date — without a floor
+    // the picker would offer every day back to 1970.
+    var first =
+        _earliestStocking(tanks) ?? today.subtract(const Duration(days: 400));
+
+    // A stocking date in the future would leave first > last and the picker
+    // asserts on that rather than simply showing nothing.
+    if (first.isAfter(today)) first = today;
+
+    var initial = _selectedDate;
+    if (initial.isAfter(today)) initial = today;
+    if (initial.isBefore(first)) initial = first;
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: first,
+      lastDate: today,
+      helpText: 'Record feed for',
+    );
+
+    if (picked == null || !mounted) return;
+    if (picked.year == _selectedDate.year &&
+        picked.month == _selectedDate.month &&
+        picked.day == _selectedDate.day) {
+      return;
+    }
+
+    setState(() {
+      _selectedDate = picked;
+
+      // Everything cached here describes the OLD day, so it all goes.
+      //
+      // The meal rows re-seed themselves from a fingerprint of the server's
+      // rows, but two days that are both empty fingerprint the same — without
+      // this, text typed against yesterday would still be sitting in the boxes
+      // under today's date, ready to be saved to the wrong day.
+      for (final rows in _rows.values) {
+        for (final r in rows) {
+          r.dispose();
+        }
+      }
+      _rows.clear();
+      _seededFrom.clear();
+
+      for (final c in _noteControllers.values) {
+        c.dispose();
+      }
+      _noteControllers.clear();
+      _savedNotes.clear();
+    });
+
+    await tankController.getTankList(
+      widget.farmId,
+      silent: true,
+      date: _dateParam,
+    );
   }
 
   /// What the server last said about a tank's meals, so a change can be seen.
@@ -167,10 +293,66 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
   /// changed is updated; an untouched line is skipped. Clearing a line does NOT
   /// delete the meal — that is the bin, so a stray backspace cannot erase a
   /// record.
+  /// Today's note field for one tank, seeded from the server on first use.
+  ///
+  /// A field the farmer has edited is left alone when a fetch brings a
+  /// different value; one still showing the old server copy adopts the new one.
+  TextEditingController _noteFor(TankModel tank) {
+    final tankId = tank.id ?? 0;
+    final text = (tank.todayNote ?? '').trim();
+
+    final controller = _noteControllers.putIfAbsent(
+      tankId,
+      () => TextEditingController(text: text),
+    );
+
+    final previous = _savedNotes[tankId] ?? '';
+    if (previous != text && controller.text == previous) {
+      controller.text = text;
+    }
+    _savedNotes[tankId] = text;
+
+    return controller;
+  }
+
+  /// Write today's note for this tank, if it changed. Clearing it removes it.
+  ///
+  /// Returns true when something was actually written, so [_save] can tell a
+  /// save that did nothing from one that saved only a note.
+  Future<bool> _saveNoteIfChanged(TankModel tank, {bool silent = false}) async {
+    final tankId = tank.id ?? 0;
+    final controller = _noteControllers[tankId];
+    if (controller == null) return false;
+
+    final text = controller.text.trim();
+    if (text == (_savedNotes[tankId] ?? '')) return false;
+
+    final ok = await tankController.saveDayNote(
+      tankId: '$tankId',
+      date: _dateParam,
+      note: text,
+      silent: silent,
+    );
+
+    if (!mounted) return ok;
+
+    // Only on success — recording it regardless would make a failed write look
+    // saved, and the text would vanish on the next fetch.
+    if (ok) setState(() => _savedNotes[tankId] = text);
+
+    return ok;
+  }
+
   Future<void> _save(TankModel tank) async {
     final tankId = tank.id;
     if (tankId == null) return;
     if (tankController.isAddingTodayTankQuntity.value) return;
+
+    // The note first, and on its own terms: the meal validation below returns
+    // early when nothing was fed, and a day with no feed is exactly the day a
+    // note explains. Silent, so this method reports the outcome once.
+    final noteSaved = await _saveNoteIfChanged(tank, silent: true);
+    if (!mounted) return;
 
     final rows = _rowsFor(tank);
     final toAdd = <MapEntry<String, String>>[];
@@ -205,14 +387,18 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
       if (row.historyId == null) {
         toAdd.add(MapEntry(number, quantity));
       } else {
-        toUpdate.add(
-          MapEntry(row.historyId!, MapEntry(number, quantity)),
-        );
+        toUpdate.add(MapEntry(row.historyId!, MapEntry(number, quantity)));
       }
     }
 
     if (toAdd.isEmpty && toUpdate.isEmpty) {
-      CustomToast.show(message: 'Enter a quantity for at least one meal');
+      // Nothing fed is a complete, valid save when the note was the point of
+      // it — only an empty note AND no meals is nothing to do.
+      CustomToast.show(
+        message: noteSaved
+            ? 'Note saved'
+            : 'Enter a quantity for at least one meal',
+      );
       return;
     }
 
@@ -238,6 +424,10 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
         feedQty: e.value,
         mealQty: e.key,
         tankId: tankId.toString(),
+        // The SELECTED day, not today. Without it the server dates the row
+        // now, so filling in a missed day silently wrote it to today instead —
+        // and the day the farmer was looking at stayed empty.
+        date: _dateParam,
       );
       if (ok) saved++;
     }
@@ -246,7 +436,11 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
 
     // No manual invalidation: _rowsFor re-seeds itself as soon as the
     // response changes the tank's meals.
-    await tankController.getTankList(widget.farmId, silent: true);
+    await tankController.getTankList(
+      widget.farmId,
+      silent: true,
+      date: _dateParam,
+    );
   }
 
   /// Remove one recorded meal, after confirming.
@@ -292,7 +486,11 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
 
     // No manual invalidation: _rowsFor re-seeds itself as soon as the
     // response changes the tank's meals.
-    await tankController.getTankList(widget.farmId, silent: true);
+    await tankController.getTankList(
+      widget.farmId,
+      silent: true,
+      date: _dateParam,
+    );
   }
 
   @override
@@ -314,13 +512,66 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
           return const TankGridShimmer();
         }
 
-        final tanks = tankController.farmList.value?.data ?? [];
+        final allTanks = tankController.farmList.value?.data ?? [];
 
-        if (tanks.isEmpty) {
+        // ACTIVE tanks only.
+        //
+        // An inactive tank has been harvested: its crop is closed and there is
+        // nothing in it to feed. Listing it here offered a Save that would have
+        // attached today's meal to a FINISHED batch — inflating that crop's
+        // feed total and silently rewriting the FCR on a report the farmer had
+        // already downloaded.
+        //
+        // Both conditions, not just `status`: the two can drift apart, and a
+        // tank flagged active with no open batch has no batch to record
+        // against either. batchActive defaults to true, so a payload from an
+        // older server still behaves as before.
+        final tanks = allTanks
+            .where((t) => t.status == 1 && t.batchActive)
+            .toList();
+
+        if (allTanks.isEmpty) {
           return const Center(child: Text("No Tank Found"));
         }
 
-        final now = DateTime.now();
+        // Every tank on the farm is harvested. Said plainly, because an empty
+        // screen here reads as a loading failure.
+        if (tanks.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.layers_clear_outlined,
+                    size: 56,
+                    color: Colors.grey.shade300,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No active tanks',
+                    style: GoogleFonts.roboto(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Every tank on this farm is inactive, so there is nothing '
+                    'to feed. Activate a tank to start a new crop.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.roboto(
+                      fontSize: 13,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
 
         return Stack(
           children: [
@@ -337,15 +588,82 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
                   ),
                   const SizedBox(height: 4.0),
                   Center(
-                    child: Text(
-                      displayDate(now),
-                      style: GoogleFonts.roboto(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey,
-                      ),
+                    // The date, with an Edit beside it.
+                    //
+                    // It was plain grey text showing today, with no way to
+                    // reach a day that had been missed — the farmer had to open
+                    // each tank's history separately to fill one in. Edit,
+                    // rather than a calendar glyph, because it is the same word
+                    // this app uses everywhere else something can be changed.
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          displayDate(_selectedDate),
+                          style: GoogleFonts.roboto(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: _isToday
+                                ? Colors.grey.shade800
+                                : Colors.orange.shade900,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        InkWell(
+                          onTap: () => _pickDate(tanks),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.edit,
+                                  size: 14,
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Edit',
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+
+                  // Says plainly that this is not today, so a day filled in
+                  // late cannot be mistaken for today's record.
+                  if (!_isToday) ...[
+                    const SizedBox(height: 6),
+                    Center(
+                      child: Text(
+                        'Filling in a past day',
+                        style: GoogleFonts.roboto(
+                          fontSize: 12,
+                          color: Colors.orange.shade900,
+                        ),
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(height: 24.0),
 
                   ListView.builder(
@@ -363,6 +681,12 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
                           tankName: tank.tankName ?? "",
                           dayInfo: "${tank.day ?? 0} Day",
                           rows: _rowsFor(tank),
+                          noteController: _noteFor(tank),
+                          // Writing a note goes with recording feed: create
+                          // OR edit. This screen only ever lists ACTIVE tanks,
+                          // so there is no finished-crop case here.
+                          canEditNote:
+                              widget.access.canCreate || widget.access.canEdit,
                           totalQuantity: tank.todaysQuantity,
                           isSaving:
                               tankController.isAddingTodayTankQuntity.value,
@@ -371,11 +695,16 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
                           // require create and delete access respectively, and
                           // a button that can only come back 403 is worse than
                           // no button.
-                          onAddRow: widget.access.canCreate
+                          // Same rule as saving one: create OR edit.
+                          onAddRow:
+                              widget.access.canCreate || widget.access.canEdit
                               ? () => _addRow(tank)
                               : null,
                           onRemoveRow: (i) => _removeRow(tank, i),
-                          onDeleteRow: widget.access.canDelete
+                          // delete OR edit, matching the endpoint — see the
+                          // tank history screen for why.
+                          onDeleteRow:
+                              widget.access.canDelete || widget.access.canEdit
                               ? (row) => _deleteRow(tankId, row)
                               : null,
                         ),
@@ -422,6 +751,14 @@ class FeedUpdateCard extends StatelessWidget {
   /// Deletes a saved meal. Null when the viewer may not remove one.
   final void Function(MealRowState row)? onDeleteRow;
 
+  /// Today's note for this tank. Owned by the screen's State — see [_noteFor].
+  final TextEditingController? noteController;
+
+  /// Whether the note may be typed into. False leaves it visible but
+  /// read-only. There is no separate save: this card's Save writes the note
+  /// along with the meals.
+  final bool canEditNote;
+
   const FeedUpdateCard({
     super.key,
     required this.tankName,
@@ -433,6 +770,8 @@ class FeedUpdateCard extends StatelessWidget {
     required this.onRemoveRow,
     this.onAddRow,
     this.onDeleteRow,
+    this.noteController,
+    this.canEditNote = false,
   });
 
   /// Whole numbers read better without a trailing ".00".
@@ -516,6 +855,9 @@ class FeedUpdateCard extends StatelessWidget {
               ),
             ],
 
+            const SizedBox(height: 14),
+            _noteRow(),
+
             const Divider(height: 24),
 
             Row(
@@ -574,6 +916,69 @@ class FeedUpdateCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// Today's free-text note for this tank.
+  ///
+  /// Written by this card's own Save, not a button of its own — the same shape
+  /// as the tank history screen, so a note is recorded the same way wherever
+  /// the farmer happens to be.
+  Widget _noteRow() {
+    if (noteController == null) return const SizedBox.shrink();
+
+    final readOnly = !canEditNote;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.sticky_note_2_outlined,
+              size: 15,
+              color: Colors.grey.shade600,
+            ),
+            const SizedBox(width: 5),
+            _heading('Notes'),
+          ],
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: noteController,
+          readOnly: readOnly,
+          maxLines: 3,
+          minLines: 1,
+          maxLength: 2000,
+          textCapitalization: TextCapitalization.sentences,
+          style: GoogleFonts.roboto(fontSize: 14),
+          decoration: InputDecoration(
+            counterText: '',
+            hintText: readOnly
+                ? 'No notes for today'
+                : 'Water change, aerator down, medicine given…',
+            hintStyle: GoogleFonts.roboto(
+              fontSize: 13,
+              color: Colors.grey.shade500,
+            ),
+            filled: readOnly,
+            fillColor: Colors.grey.shade100,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: AppColors.primary),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

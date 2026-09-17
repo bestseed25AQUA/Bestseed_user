@@ -90,6 +90,26 @@ class FarmAccess {
   /// together and keeps "Manager" for farms someone else runs.
   bool get isManagerGrant => !isOwner && role == 'manager';
 
+  /// How this person stands to this farm, in the words the farmer uses.
+  ///
+  /// "Farmer" rather than "Owner" for their own farms: that is what the app
+  /// calls them everywhere else, and "Owner" would be a second word for the
+  /// same thing. Anything unrecognised falls back to Farmer, matching
+  /// [FarmAccess.ownerFallback] — a farm whose payload predates the access
+  /// block is the farmer's own.
+  String get roleLabel {
+    if (isOwner) return 'Farmer';
+
+    switch (role) {
+      case 'manager':
+        return 'Manager';
+      case 'partner':
+        return 'Partner';
+      default:
+        return 'Farmer';
+    }
+  }
+
   bool get canView => isOwner || permissions.view;
   bool get canEdit => isOwner || permissions.edit;
 
