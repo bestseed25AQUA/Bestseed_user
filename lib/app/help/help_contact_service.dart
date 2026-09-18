@@ -77,6 +77,31 @@ Future<void> launchHelpWhatsApp(String number) async {
   }
 }
 
+/// Open WhatsApp with the message already typed out.
+///
+/// Used by the subscription flow, where the message names the exact package
+/// the farmer chose. Getting that in writing avoids the commonest support
+/// problem on this journey: a farmer who says "the big one" on the phone and
+/// is recorded against the wrong plan.
+///
+/// The text is percent-encoded via [Uri.encodeComponent]; passing it raw
+/// truncates the message at the first `&` or `#`.
+Future<void> launchHelpWhatsAppWithMessage(String number, String message) async {
+  final uri = Uri.parse(
+    'https://wa.me/${helpContactDigits(number)}'
+    '?text=${Uri.encodeComponent(message)}',
+  );
+
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    return;
+  }
+
+  // WhatsApp missing or the link unhandled: still better to open the plain
+  // chat than to do nothing at all.
+  await launchHelpWhatsApp(number);
+}
+
 /// Shows a bottom sheet listing the active admin contacts with call /
 /// WhatsApp actions. [fallbackPhone] (e.g. the vendor's number) is shown when
 /// the admin hasn't configured any active contacts.

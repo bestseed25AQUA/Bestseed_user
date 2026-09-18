@@ -47,12 +47,17 @@ class FarmAccess {
   final DateTime? expiresAt;
   final AccessPermissions permissions;
 
+  /// The server's own answer to "may this person give access away", or null on
+  /// a payload that predates the field. Read through [canShareAccess].
+  final bool? _canShareAccess;
+
   const FarmAccess({
     required this.role,
     required this.isOwner,
     required this.permissions,
     this.expiresAt,
-  });
+    bool? canShareAccess,
+  }) : _canShareAccess = canShareAccess;
 
   /// Used when a response predates the access block. Full rights, because the
   /// server is the real gate — the app only decides what to *offer*, and
@@ -61,6 +66,7 @@ class FarmAccess {
     : role = 'owner',
       isOwner = true,
       expiresAt = null,
+      _canShareAccess = true,
       permissions = const AccessPermissions(
         view: true,
         edit: true,
@@ -77,6 +83,11 @@ class FarmAccess {
       role: json['role']?.toString() ?? 'owner',
       isOwner: json['is_owner'] == true,
       expiresAt: DateTime.tryParse('${json['expires_at']}'),
+      // Absent on an older server: left null so canShareAccess falls back to
+      // deriving it, rather than reading a missing key as "no".
+      canShareAccess: json.containsKey('can_share_access')
+          ? json['can_share_access'] == true
+          : null,
       permissions: AccessPermissions.fromJson(
         json['permissions'] as Map<String, dynamic>?,
       ),
@@ -121,15 +132,28 @@ class FarmAccess {
   bool get canCreate => isOwner || permissions.create;
   bool get canDelete => isOwner || permissions.delete;
 
-  /// Anyone holding access may pass it on, capped at what they hold —
-  /// `POST /farmer/farm/{id}/members` enforces the cap server-side.
+  /// True when this person is a partner on the farm rather than the owner.
+  bool get isPartner => !isOwner && role == 'partner';
+
+  /// Whether this person may hand the farm to somebody else.
+  ///
+  /// Owners and partners only. A partner is a co-owner of the farm and may
+  /// bring people in; a manager is staff, and staff do not widen access —
+  /// previously anyone holding any permission could pass it on, so a manager
+  /// given view access could appoint managers and partners of their own.
+  ///
+  /// The server sends this outright, so the option the app offers and the rule
+  /// `POST /farmer/farm/{id}/members` enforces cannot drift apart. The local
+  /// derivation below is only for payloads that predate the field.
   bool get canShareAccess =>
-      canView ||
-      canEdit ||
-      canChangeTankStatus ||
-      canEditTotalFeed ||
-      canCreate ||
-      canDelete;
+      _canShareAccess ??
+      ((isOwner || isPartner) &&
+          (canView ||
+              canEdit ||
+              canChangeTankStatus ||
+              canEditTotalFeed ||
+              canCreate ||
+              canDelete));
 }
 
 /// A person who currently holds access to a farm.

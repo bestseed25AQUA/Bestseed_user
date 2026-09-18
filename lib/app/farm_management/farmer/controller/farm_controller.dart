@@ -7,6 +7,7 @@ import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/feed_store_model.dart';
+import 'package:seedsuser/app/subscription/controller/subscription_controller.dart';
 import 'package:seedsuser/app/utils/network_config.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
 
@@ -77,6 +78,24 @@ class FarmListController extends GetxController {
 
   RxBool isOverlay = false.obs;
 
+  /// Raised when a create was refused for want of a subscription (HTTP 402).
+  ///
+  /// A flag rather than showing the sheet from here: this controller has no
+  /// BuildContext, and reaching for a global one to put a modal on screen is
+  /// how a sheet ends up attached to a route that is being popped. The form
+  /// screen watches this and presents the sheet from its own context.
+  ///
+  /// Consumed by [takeSubscriptionRefusal] so it fires once per refusal.
+  final RxBool needsSubscription = false.obs;
+
+  /// Read and clear the refusal flag.
+  bool takeSubscriptionRefusal() {
+    if (!needsSubscription.value) return false;
+
+    needsSubscription.value = false;
+    return true;
+  }
+
   /// The tanks of the farm currently being edited.
   ///
   /// The edit form needs them to list what the farm already has and to number
@@ -122,6 +141,12 @@ class FarmListController extends GetxController {
     try {
       isOverlay(true);
 
+      // Cleared up front, not just when consumed. If a previous refusal were
+      // somehow left standing — the form was abandoned before the sheet was
+      // shown, say — it would fire against THIS attempt and offer packages to
+      // a farmer whose farm had just been created.
+      needsSubscription.value = false;
+
       final streamedResponse = await multipartPostRequest(
         endPoint: "${NetworkConfig.baseURL}/farmer/create-farm",
         fields: {
@@ -155,6 +180,29 @@ class FarmListController extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         CustomToast.success("Farm added successfully ✔");
         return true;
+      }
+
+      // 402 Payment Required — the free farm limit, checked again server-side.
+      //
+      // The add button asks before opening this form, so reaching here means
+      // the answer changed underneath the farmer: they had two devices open,
+      // or an admin cancelled their subscription while the form was being
+      // filled in. Either way it is not a validation error and must not be
+      // reported as one, so the packages are offered instead.
+      if (response.statusCode == 402) {
+        final body = _decodeBody(response.body);
+
+        if (body is Map && body['data'] is Map<String, dynamic>) {
+          subscriptionController.adoptFromRefusal(
+            body['data'] as Map<String, dynamic>,
+          );
+        } else {
+          // Body was not the shape we expect: re-read rather than guess.
+          await subscriptionController.load(force: true);
+        }
+
+        needsSubscription.value = true;
+        return false;
       }
 
       // Decoded, not the raw Response: parseErrorMessage only understands a

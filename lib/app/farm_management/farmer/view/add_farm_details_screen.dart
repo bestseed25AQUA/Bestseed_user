@@ -16,6 +16,8 @@ import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart'
 import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/request_sent_dialog.dart';
 import 'package:seedsuser/app/farm_management/farmer/util/date_format.dart';
+import 'package:seedsuser/app/subscription/controller/subscription_controller.dart';
+import 'package:seedsuser/app/subscription/view/subscription_plans_sheet.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
 
 class AddFarmerDetailsFormScreen extends StatefulWidget {
@@ -760,6 +762,20 @@ class _AddFarmerDetailsFormScreenState
                               .toList(),
                         );
                       }
+                      // Refused for want of a subscription, not a validation
+                      // error. Offer the packages from THIS screen's context
+                      // and leave the form as it is, so nothing typed is lost
+                      // if they subscribe and come straight back.
+                      if (!success &&
+                          controller.takeSubscriptionRefusal() &&
+                          context.mounted) {
+                        await showSubscriptionPlansSheet(
+                          context,
+                          subscriptionController.status.value,
+                        );
+                        return;
+                      }
+
                       if (success) {
                         // Only a newly submitted farm is a "request"; an edit
                         // just saves, so it skips the confirmation popup.

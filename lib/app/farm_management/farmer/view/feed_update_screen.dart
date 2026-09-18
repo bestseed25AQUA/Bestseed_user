@@ -79,6 +79,40 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
         _selectedDate.day == now.day;
   }
 
+  /// How old the crop was on [_selectedDate], not how old it is now.
+  ///
+  /// `tank.day` is the server's count as of TODAY, so showing it while filling
+  /// in an earlier day labelled that day with the wrong age — a tank stocked on
+  /// the 6th read "Day 13" on the 18th even while the 10th was being recorded,
+  /// when the 10th was Day 5.
+  ///
+  /// Same rule the server uses for `day`, so the two never disagree: the
+  /// stocking day is Day 1, and a date before stocking is Day 0 rather than a
+  /// negative count. Dates are compared in UTC so a DST shift cannot knock the
+  /// difference off by one.
+  int _dayFor(TankModel tank) {
+    final raw = tank.effectiveStockingDate?.isNotEmpty == true
+        ? tank.effectiveStockingDate
+        : tank.stockingDate;
+
+    final start = (raw == null || raw.isEmpty) ? null : DateTime.tryParse(raw);
+
+    // No usable stocking date: fall back to what the server sent rather than
+    // inventing a number.
+    if (start == null) return tank.day ?? 0;
+
+    final from = DateTime.utc(start.year, start.month, start.day);
+    final to = DateTime.utc(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+
+    if (to.isBefore(from)) return 0;
+
+    return to.difference(from).inDays + 1;
+  }
+
   /// One note field per tank, for the SELECTED day. Keyed by tank id and owned
   /// here, not by the card: the card is a StatelessWidget rebuilt on every
   /// setState, so a controller made there would lose what was typed.
@@ -530,6 +564,25 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
             .where((t) => t.status == 1 && t.batchActive)
             .toList();
 
+        // Of those, the ones that existed on the day being recorded.
+        //
+        // A tank cannot be fed before its crop went in. Tanks on one farm are
+        // stocked on different days, so a date early enough for the first of
+        // them is too early for the rest: with tank 2 stocked on the 6th and
+        // tank 4 on the 9th, the 6th offered a card for tank 4 as well, and
+        // feed saved through it landed in tank 4's history dated three days
+        // before that crop existed.
+        //
+        // `_dayFor` is Day 0 for exactly that case, which is the test.
+        // [_pickDate] still floors at the EARLIEST stocking across all tanks,
+        // so the picker keeps offering the 6th — it is a real day for tank 2.
+        final visibleTanks = tanks.where((t) => _dayFor(t) > 0).toList();
+
+        // Hidden by the date rather than missing, so the count is worth
+        // naming: a farmer who sees four tanks on one day and two on another
+        // reads it as the app losing them.
+        final hiddenByDate = tanks.length - visibleTanks.length;
+
         if (allTanks.isEmpty) {
           return const Center(child: Text("No Tank Found"));
         }
@@ -664,22 +717,44 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
                     ),
                   ],
 
+                  // Why the list is shorter on this day than on today.
+                  if (hiddenByDate > 0) ...[
+                    const SizedBox(height: 4),
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          hiddenByDate == 1
+                              ? '1 tank is hidden — it was stocked after this '
+                                    'day'
+                              : '$hiddenByDate tanks are hidden — they were '
+                                    'stocked after this day',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.roboto(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(height: 24.0),
 
                   ListView.builder(
-                    itemCount: tanks.length,
+                    itemCount: visibleTanks.length,
                     shrinkWrap: true,
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     physics: const NeverScrollableScrollPhysics(),
                     itemBuilder: (context, index) {
-                      final tank = tanks[index];
+                      final tank = visibleTanks[index];
                       final tankId = tank.id ?? 0;
 
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 16),
                         child: FeedUpdateCard(
                           tankName: tank.tankName ?? "",
-                          dayInfo: "${tank.day ?? 0} Day",
+                          dayInfo: "${_dayFor(tank)} Day",
                           rows: _rowsFor(tank),
                           noteController: _noteFor(tank),
                           // Writing a note goes with recording feed: create

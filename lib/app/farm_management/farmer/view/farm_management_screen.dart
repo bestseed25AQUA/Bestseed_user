@@ -20,6 +20,9 @@ import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_scree
 import 'package:seedsuser/app/farm_management/farmer/view/feed_update_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/setup_access_guide_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
+import 'package:seedsuser/app/subscription/controller/subscription_controller.dart';
+import 'package:seedsuser/app/subscription/model/subscription_models.dart';
+import 'package:seedsuser/app/subscription/view/subscription_plans_sheet.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_options.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
@@ -56,6 +59,24 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
   final ScrollController _managedScrollController = ScrollController();
   final tankController = Get.put(TankController());
   bool _isChatbotOpen = false;
+
+  /// Whether the add-farm button is currently checking the allowance.
+  ///
+  /// The check is one request, but on a slow connection a farmer will tap
+  /// again; the flag turns the button into a spinner rather than firing two
+  /// checks and opening two forms.
+  bool _checkingAllowance = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Asked once when the screen opens, for two reasons: the add button needs
+    // the answer before it is pressed, and an expiring subscription has to be
+    // shown here as well as pushed — a farmer who denied notification
+    // permission would otherwise never hear that their plan is about to lapse.
+    subscriptionController.load();
+  }
 
   @override
   void dispose() {
@@ -111,6 +132,102 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
   Future<void> _openThenRefresh(Widget screen) async {
     await Get.to(() => screen);
     if (mounted) await controller.fetchFarmList();
+  }
+
+  /// The subscription warning strip.
+  ///
+  /// Red once the plan has ended, amber while it is running out — the same two
+  /// colours the admin panel uses for the same two states, so a farmer and the
+  /// person they ring are looking at the same signal.
+  ///
+  /// Tapping it opens the packages, because "renew it" with no way to renew is
+  /// just an irritation.
+  Widget _expiryBanner(String message, {required bool expired}) {
+    final background = expired ? Colors.red.shade50 : Colors.orange.shade50;
+    final border = expired ? Colors.red.shade200 : Colors.orange.shade200;
+    final foreground = expired ? Colors.red.shade900 : Colors.orange.shade900;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => showSubscriptionPlansSheet(
+          context,
+          subscriptionController.status.value,
+        ),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: background,
+            border: Border(bottom: BorderSide(color: border)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                expired
+                    ? Icons.error_outline_rounded
+                    : Icons.schedule_rounded,
+                size: 19,
+                color: foreground,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: GoogleFonts.roboto(
+                    fontSize: 12.5,
+                    height: 1.35,
+                    color: foreground,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(Icons.chevron_right_rounded, size: 18, color: foreground),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The + button: open the add-farm form, or offer the packages.
+  ///
+  /// A farmer gets a couple of farms for free. Beyond that they need a live
+  /// subscription, which is bought by ringing the helpline rather than in the
+  /// app. The check happens BEFORE the form opens so nobody fills in a long
+  /// form, uploads photos and is refused at the end.
+  ///
+  /// The status is re-read on every press rather than trusted from screen
+  /// load: the farmer may have just added a farm, and — more importantly — an
+  /// admin may have recorded their payment while they sat on this screen
+  /// waiting for exactly that.
+  Future<void> _onAddFarm() async {
+    if (_checkingAllowance) return;
+
+    setState(() => _checkingAllowance = true);
+
+    SubscriptionStatus status;
+    try {
+      status = await subscriptionController.load(force: true);
+    } finally {
+      if (mounted) setState(() => _checkingAllowance = false);
+    }
+
+    if (!mounted) return;
+
+    if (status.canCreateFarm) {
+      // Same call the button always made, plus the refresh on return so a new
+      // farm appears without a pull.
+      await _openThenRefresh(AddFarmerDetailsFormScreen());
+
+      // And re-read the allowance: that farm may have been their last free
+      // one, so the next press must offer the packages instead.
+      if (mounted) await subscriptionController.load(force: true);
+      return;
+    }
+
+    await showSubscriptionPlansSheet(context, status);
   }
 
   List<FarmSection> get farmSections {
@@ -410,6 +527,22 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
       top: false,
       child: Column(
         children: [
+          // The in-app half of the expiry warning.
+          //
+          // The nightly command pushes a notification, but a farmer who never
+          // granted notification permission — or who cleared it — would hear
+          // nothing at all. This screen is where the consequence lands, so the
+          // warning belongs here too.
+          Obx(() {
+            final warning = subscriptionController.expiryWarning;
+            if (warning == null) return const SizedBox.shrink();
+
+            final expired =
+                subscriptionController.status.value.subscription?.isExpired ??
+                false;
+
+            return _expiryBanner(warning, expired: expired);
+          }),
           Expanded(
             child: Stack(
               children: [
@@ -449,9 +582,21 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
                       FloatingActionButton(
                         heroTag: 'addFab',
                         backgroundColor: primaryBlue,
-                        onPressed: () =>
-                            Get.to(() => AddFarmerDetailsFormScreen()),
-                        child: const Icon(Icons.add, color: Colors.white),
+                        // Null while checking, which disables the button and
+                        // stops a second tap opening a second form.
+                        onPressed: _checkingAllowance ? null : _onAddFarm,
+                        child: _checkingAllowance
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  valueColor: AlwaysStoppedAnimation(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : const Icon(Icons.add, color: Colors.white),
                       ),
                     ],
                   ),
@@ -1143,6 +1288,15 @@ void showFarmBottomSheet({
                   ),
                 ],
               ),
+
+              // What a manager or partner actually holds on this farm.
+              //
+              // Only for them: an owner holds everything, so six chips saying
+              // so is noise on the farm they own. Someone working a farm for
+              // somebody else has no other way to see what they were given —
+              // they found out by tapping a row and being refused.
+              if (!access.isOwner) ..._sheetAccessSummary(access),
+
               const SizedBox(height: 18),
 
               // Recording feed is a create, not an edit — matches
@@ -1171,12 +1325,19 @@ void showFarmBottomSheet({
               //
               // Not owner-only: the members endpoint lets anyone with access
               // pass on what they hold, so a manager can appoint someone too.
+              // Sharing the farm is for the owner and their partners. A
+              // manager is staff: they work the farm, they do not decide who
+              // else gets it. The message says which of the two reasons
+              // applies, because "you hold no access to pass on" told a
+              // manager something plainly untrue — they hold plenty.
               _sheetItem(
                 icon: Icons.person,
                 title: "Set Up Access for Manager",
                 onTap: onManagerAccess,
                 enabled: access.canShareAccess,
-                deniedMessage: "You hold no access on this farm to pass on.",
+                deniedMessage: access.isManagerGrant
+                    ? "Only the farm owner or a partner can give access."
+                    : "You hold no access on this farm to pass on.",
               ),
 
               _sheetItem(
@@ -1184,7 +1345,9 @@ void showFarmBottomSheet({
                 title: "Set Up Access for Partner",
                 onTap: onPartnerAccess,
                 enabled: access.canShareAccess,
-                deniedMessage: "You hold no access on this farm to pass on.",
+                deniedMessage: access.isManagerGrant
+                    ? "Only the farm owner or a partner can give access."
+                    : "You hold no access on this farm to pass on.",
               ),
 
               // Masked for MANAGERS, whatever else they hold.
@@ -1244,6 +1407,100 @@ void showFarmBottomSheet({
         ),
       );
     },
+  );
+}
+
+/// A manager's or partner's standing on this farm, above the action list.
+///
+/// Returns the rows to splice into the sheet's column, so the caller keeps its
+/// own spacing. Empty when there is nothing worth saying.
+///
+/// The wording is lifted from the Setup Access form's own toggles, minus the
+/// trailing "access" that the "Your access" heading already supplies. Someone
+/// reading this saw those exact words when the permission was granted, so the
+/// two lists read as the same list.
+List<Widget> _sheetAccessSummary(FarmAccess access) {
+  final Color roleColour = access.isManagerGrant
+      ? Colors.deepPurple.shade400
+      : Colors.teal.shade700;
+
+  final labels = <String>[
+    if (access.canView) 'View',
+    if (access.canEdit) 'Edit',
+    if (access.canChangeTankStatus) 'Tank active / inactive',
+    if (access.canEditTotalFeed) 'Store stock',
+    if (access.canCreate) 'Create',
+    if (access.canDelete) 'Delete',
+  ];
+
+  return [
+    const SizedBox(height: 10),
+    Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: roleColour.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: roleColour.withValues(alpha: 0.5)),
+          ),
+          child: Text(
+            access.roleLabel,
+            style: GoogleFonts.roboto(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: roleColour,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'Your access',
+          style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
+        ),
+      ],
+    ),
+    const SizedBox(height: 8),
+    if (labels.isEmpty)
+      Text(
+        'No permissions have been given to you on this farm yet.',
+        style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
+      )
+    else
+      // Wrap, not a Row: six chips do not fit one line on a narrow phone, and
+      // a Row would overflow rather than move them down.
+      Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (final label in labels)
+            _accessSummaryChip(
+              label,
+              // Delete is the one that destroys work, so it is the one that
+              // should not look like the rest.
+              label == 'Delete' ? Colors.red.shade700 : AppColors.primary,
+            ),
+        ],
+      ),
+  ];
+}
+
+Widget _accessSummaryChip(String label, Color colour) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: colour.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: colour.withValues(alpha: 0.35)),
+    ),
+    child: Text(
+      label,
+      style: GoogleFonts.roboto(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        color: colour,
+      ),
+    ),
   );
 }
 
