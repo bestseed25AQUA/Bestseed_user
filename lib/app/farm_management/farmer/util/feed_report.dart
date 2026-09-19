@@ -14,18 +14,53 @@ import 'package:seedsuser/app/common/custom_toast.dart';
 /// tank history page offer these, and a screen importing another screen just
 /// to reach two functions is a dependency neither of them wants.
 
-/// Turn a tank name into something safe to use as a filename.
+/// Strip anything that has no business in a filename.
 ///
-/// The name reaches WhatsApp as the document's title, so "Tank 2" should
-/// arrive as `Tank_2_feed_report.pdf`, not `feed_report.pdf` — and certainly
-/// not with a slash in it.
-String _reportFileName(String? tankName) {
-  final safe = (tankName ?? 'tank')
+/// Returns an empty string when nothing usable is left, so callers can decide
+/// on their own fallback rather than being handed "_".
+String _safeNamePart(String? value) {
+  return (value ?? '')
       .trim()
       .replaceAll(RegExp(r'[^A-Za-z0-9]+'), '_')
       .replaceAll(RegExp(r'^_+|_+$'), '');
+}
 
-  return '${safe.isEmpty ? 'tank' : safe}_feed_report.pdf';
+/// Turn a tank and its farm into something safe to use as a filename.
+///
+/// Tank first, then farm: `Tank_2_Green_Valley_feed_report.pdf`.
+///
+/// The farm matters as much as the tank. This was the tank alone, so a farmer
+/// working more than one farm collected Tank_1, Tank_2, Tank_1 again in a
+/// single Downloads folder with nothing to say which farm any of them came
+/// from — and the name reaches WhatsApp as the document's title, so the person
+/// receiving it had even less to go on.
+///
+/// Either part may be missing; the name degrades rather than ending up as
+/// stray underscores.
+String _reportFileName(String? tankName, String? farmName) {
+  final tank = _safeNamePart(tankName);
+  final farm = _safeNamePart(farmName);
+
+  final parts = [
+    tank.isEmpty ? 'tank' : tank,
+    if (farm.isNotEmpty) farm,
+    'feed_report',
+  ];
+
+  return '${parts.join('_')}.pdf';
+}
+
+/// The report's name in prose, for a download notification or a share sheet.
+///
+/// "Tank 2 · Green Valley feed report". Same information as the filename, in
+/// the form a person reads rather than the form a filesystem accepts.
+String _reportTitle(String? tankName, String? farmName) {
+  final tank = (tankName ?? '').trim();
+  final farm = (farmName ?? '').trim();
+
+  final subject = tank.isEmpty ? 'Tank' : tank;
+
+  return farm.isEmpty ? '$subject feed report' : '$subject · $farm feed report';
 }
 
 /// The native side of saving into the phone's own Downloads folder.
@@ -130,14 +165,18 @@ Future<bool> _enqueueSystemDownload(
 /// On iOS it stays in the app's Documents directory, which the Files app shows
 /// under On My iPhone › Bestseed thanks to the UIFileSharingEnabled and
 /// LSSupportsOpeningDocumentsInPlace keys in Info.plist.
-Future<String?> downloadReport(String url, {String? tankName}) async {
+Future<String?> downloadReport(
+  String url, {
+  String? tankName,
+  String? farmName,
+}) async {
   try {
     // FIX URL ISSUE
     if (url.startsWith("https:/") && !url.startsWith("https://")) {
       url = url.replaceFirst("https:/", "https://");
     }
 
-    final fileName = _reportFileName(tankName);
+    final fileName = _reportFileName(tankName, farmName);
 
     // Android's own download service first, so this behaves like every other
     // download on the phone: a progress notification while it runs, a "download
@@ -148,7 +187,9 @@ Future<String?> downloadReport(String url, {String? tankName}) async {
       final queued = await _enqueueSystemDownload(
         url,
         fileName,
-        title: '${tankName ?? 'Tank'} feed report',
+        // Shown in the download notification, so it names the farm for the
+        // same reason the filename does.
+        title: _reportTitle(tankName, farmName),
       );
 
       if (queued) {
@@ -218,6 +259,7 @@ Future<String?> downloadReport(String url, {String? tankName}) async {
 Future<void> shareReport(
   String url, {
   String? tankName,
+  String? farmName,
   Rect? sharePositionOrigin,
 }) async {
   if (url.isEmpty) {
@@ -233,7 +275,7 @@ Future<void> shareReport(
     // The cache, not documents: this copy exists to be handed to another app,
     // and the system is free to reclaim it afterwards.
     final directory = await getTemporaryDirectory();
-    final filePath = '${directory.path}/${_reportFileName(tankName)}';
+    final filePath = '${directory.path}/${_reportFileName(tankName, farmName)}';
 
     await Dio().download(url, filePath);
 
@@ -246,8 +288,12 @@ Future<void> shareReport(
     await SharePlus.instance.share(
       ShareParams(
         files: [XFile(filePath, mimeType: 'application/pdf')],
-        subject: '${tankName ?? 'Tank'} feed report',
-        text: 'Feed report for ${tankName ?? 'this tank'}.',
+        subject: _reportTitle(tankName, farmName),
+        // Whoever receives this has no other context, so the farm is worth
+        // more to them than it is to the farmer who sent it.
+        text: (farmName ?? '').trim().isEmpty
+            ? 'Feed report for ${tankName ?? 'this tank'}.'
+            : 'Feed report for ${tankName ?? 'this tank'} at ${farmName!.trim()}.',
         // Required on iPad, where the share sheet is a popover needing an anchor.
         sharePositionOrigin: sharePositionOrigin,
       ),

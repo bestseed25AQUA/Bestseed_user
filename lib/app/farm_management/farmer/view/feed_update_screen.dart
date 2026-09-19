@@ -9,6 +9,7 @@ import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dar
 import 'package:seedsuser/app/farm_management/farmer/model/meal_row_state.dart';
 import 'package:seedsuser/app/farm_management/farmer/util/date_format.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_save_button.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 
 /// Record today's feed, tank by tank, one line per meal.
@@ -756,7 +757,11 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
                           tankName: tank.tankName ?? "",
                           dayInfo: "${_dayFor(tank)} Day",
                           rows: _rowsFor(tank),
+                          // _noteFor FIRST: it refreshes _savedNotes from the
+                          // server copy, and reading the baseline before that
+                          // would hand the card the previous fetch's note.
                           noteController: _noteFor(tank),
+                          savedNote: _savedNotes[tank.id ?? 0] ?? '',
                           // Writing a note goes with recording feed: create
                           // OR edit. This screen only ever lists ACTIVE tanks,
                           // so there is no finished-crop case here.
@@ -829,6 +834,11 @@ class FeedUpdateCard extends StatelessWidget {
   /// Today's note for this tank. Owned by the screen's State — see [_noteFor].
   final TextEditingController? noteController;
 
+  /// What the server holds for this tank's note today. The card needs the
+  /// baseline to tell a typed note from one that arrived with the tank —
+  /// that difference is half of whether Save has anything to do.
+  final String savedNote;
+
   /// Whether the note may be typed into. False leaves it visible but
   /// read-only. There is no separate save: this card's Save writes the note
   /// along with the meals.
@@ -846,12 +856,26 @@ class FeedUpdateCard extends StatelessWidget {
     this.onAddRow,
     this.onDeleteRow,
     this.noteController,
+    this.savedNote = '',
     this.canEditNote = false,
   });
 
   /// Whole numbers read better without a trailing ".00".
   static String _fmt(num value) =>
       value % 1 == 0 ? value.toStringAsFixed(0) : value.toStringAsFixed(2);
+
+  /// Whether this tank has anything worth writing for the selected day.
+  ///
+  /// Either a meal line that has been typed into or changed, or a note that
+  /// differs from the server's. Same rule as the tank history card, so the two
+  /// screens agree about when Save is worth offering.
+  bool get _hasUnsavedChanges {
+    if (rows.any((row) => row.isDirty)) return true;
+
+    final note = noteController?.text.trim();
+
+    return note != null && note != savedNote.trim();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -965,26 +989,21 @@ class FeedUpdateCard extends StatelessWidget {
 
             // One Save for the whole card — the farmer fills the meals they
             // have given and saves once, rather than once per meal.
+            // Pale and inert until this tank has something worth writing.
+            // Same button and the same rule as the tank history card, so the
+            // two screens a farmer moves between behave alike.
             Align(
               alignment: Alignment.centerRight,
-              child: ElevatedButton.icon(
-                onPressed: isSaving ? null : onSave,
-                icon: const Icon(Icons.check, size: 18),
-                label: const Text('Save'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: AppColors.primary.withValues(
-                    alpha: .5,
-                  ),
-                  disabledForegroundColor: Colors.white70,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0,
-                    vertical: 10.0,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18.0),
-                  ),
+              child: SaveStateBuilder(
+                inputs: [
+                  for (final row in rows) ...row.listenables,
+                  if (noteController != null) noteController!,
+                ],
+                builder: (_) => FarmSaveButton(
+                  onPressed: onSave,
+                  enabled: _hasUnsavedChanges,
+                  isLoading: isSaving,
+                  borderRadius: 18,
                 ),
               ),
             ),

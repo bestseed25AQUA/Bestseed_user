@@ -14,6 +14,7 @@ import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dar
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/feed_update_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_save_button.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/harvest_bottom.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/start_batch_sheet.dart';
 import 'package:share_plus/share_plus.dart';
@@ -910,12 +911,14 @@ class TankStatusCard extends StatelessWidget {
                                       downloadReport(
                                         report,
                                         tankName: tank.tankName,
+                                        farmName: farmName,
                                       );
                                     },
                                     () {
                                       shareReport(
                                         report,
                                         tankName: tank.tankName,
+                                        farmName: farmName,
                                       );
                                     },
                                   );
@@ -1163,6 +1166,21 @@ void showEditFeedBottomSheet(BuildContext context, String farmId) {
     text: controller.feedStoreData.value?.lowFeedLimit?.toString() ?? '',
   );
 
+  // What the sheet opened with, so Save can tell an edit from a farmer who
+  // opened it to look. Captured here rather than compared against the
+  // controller's live data: that data can be refreshed underneath an open
+  // sheet, and Save would then light up on a change the farmer did not make.
+  final openedWith = [
+    totalFeedController.text.trim(),
+    storeController.text.trim(),
+    lowFeedController.text.trim(),
+  ];
+
+  bool hasEdits() =>
+      totalFeedController.text.trim() != openedWith[0] ||
+      storeController.text.trim() != openedWith[1] ||
+      lowFeedController.text.trim() != openedWith[2];
+
   // Flutter's own sheet, not Get.bottomSheet.
   //
   // GetX lays this out through a CustomSingleChildLayout of its own, and with a
@@ -1273,9 +1291,27 @@ void showEditFeedBottomSheet(BuildContext context, String farmId) {
                   const SizedBox(height: 30),
 
                   // Save Button
-                  Obx(() {
+                  //
+                  // Wrapped so it repaints as the fields are typed into:
+                  // the Obx alone only rebuilds on the saving flag, so a
+                  // pale button would have stayed pale after the first
+                  // keystroke.
+                  SaveStateBuilder(
+                    inputs: [
+                      totalFeedController,
+                      storeController,
+                      lowFeedController,
+                    ],
+                    builder: (_) => Obx(() {
+                    final enabled = hasEdits() && !controller.isOverlay.value;
+
                     return GestureDetector(
                       onTap: () async {
+                        // Nothing typed: the button is already pale, and this
+                        // stops a stray tap firing an update that would write
+                        // back exactly what is already stored.
+                        if (!hasEdits()) return;
+
                         // Don't fire a second request while one is in flight — a
                         // double tap on Save sent the update twice.
                         if (controller.isOverlay.value) return;
@@ -1313,24 +1349,33 @@ void showEditFeedBottomSheet(BuildContext context, String farmId) {
                         width: double.infinity,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: AppColors.primary,
+                          // The same pale blue the card Save buttons use when
+                          // they have nothing to do: the brand colour faded,
+                          // not grey. Grey reads as broken, faded reads as
+                          // waiting.
+                          color: enabled
+                              ? AppColors.primary
+                              : AppColors.primary.withValues(alpha: 0.35),
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: controller.isOverlay.value
                             ? const CircularProgressIndicator(
                                 color: Colors.white,
                               )
-                            : const Text(
+                            : Text(
                                 "Save",
                                 style: TextStyle(
                                   fontSize: 18,
-                                  color: Colors.white,
+                                  color: enabled
+                                      ? Colors.white
+                                      : Colors.white.withValues(alpha: 0.85),
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                       ),
                     );
-                  }),
+                    }),
+                  ),
 
                   const SizedBox(height: 20),
                 ],

@@ -11,6 +11,7 @@ import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.
 import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/meal_row_state.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_feed_history_response.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_save_button.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 
 // Data model for a single meal entry
@@ -118,9 +119,17 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
       if (!mounted || link == null || link.isEmpty) return;
 
       if (action == _ReportAction.download) {
-        await downloadReport(link, tankName: widget.tankName);
+        await downloadReport(
+          link,
+          tankName: widget.tankName,
+          farmName: widget.farmName,
+        );
       } else {
-        await shareReport(link, tankName: widget.tankName);
+        await shareReport(
+          link,
+          tankName: widget.tankName,
+          farmName: widget.farmName,
+        );
       }
     } finally {
       if (mounted) setState(() => _reportAction = null);
@@ -880,7 +889,13 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
                               note: tankDate.note,
                             ),
                             rows: _rowsFor(date, entries),
+                            // _noteFor FIRST: it refreshes _savedNotes[date]
+                            // from the server's copy, and reading the baseline
+                            // before that would hand the card the previous
+                            // fetch's note and light Save on a day nobody had
+                            // touched.
                             noteController: _noteFor(date, tankDate.note),
+                            savedNote: _savedNotes[date] ?? '',
                             // Writing a note goes with recording feed:
                             // create OR edit. A finished crop takes no new
                             // notes — the note stays readable either way.
@@ -999,6 +1014,13 @@ class DailyFeedCard extends StatelessWidget {
   /// rebuilt on every setState and a controller made here would lose the text.
   final TextEditingController? noteController;
 
+  /// What the server holds for this day's note.
+  ///
+  /// Passed in rather than read back off the controller, because the card has
+  /// to tell a note the farmer has just typed from one that arrived with the
+  /// day — that difference is the whole of whether Save has anything to do.
+  final String savedNote;
+
   /// Whether the note may be typed into. False leaves it visible but
   /// read-only — a view-only member, or a crop that has been harvested.
   ///
@@ -1015,6 +1037,7 @@ class DailyFeedCard extends StatelessWidget {
     required this.onRemoveRow,
     required this.isLoading,
     this.noteController,
+    this.savedNote = '',
     this.canEditNote = false,
     this.canRecord = true,
     this.onAddRow,
@@ -1166,6 +1189,20 @@ class DailyFeedCard extends StatelessWidget {
     );
   }
 
+  /// Whether this day has anything worth writing.
+  ///
+  /// Either a meal line that has been typed into or changed, or a note that
+  /// differs from the server's. Deliberately the same test [_saveDay] applies
+  /// on the other side, so the button being lit and the save doing something
+  /// cannot disagree.
+  bool get _hasUnsavedChanges {
+    if (rows.any((row) => row.isDirty)) return true;
+
+    final note = noteController?.text.trim();
+
+    return note != null && note != savedNote.trim();
+  }
+
   Widget _editable() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1219,23 +1256,22 @@ class DailyFeedCard extends StatelessWidget {
                   ),
                 ),
               ),
-            ElevatedButton.icon(
-              onPressed: isLoading ? null : onSave,
-              icon: const Icon(Icons.check, size: 18),
-              label: const Text('Save'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.primary.withValues(
-                  alpha: .5,
-                ),
-                disabledForegroundColor: Colors.white70,
+            // Pale and inert until this day has something worth writing, so a
+            // card showing feed already recorded does not sit there inviting
+            // the farmer to re-save what is already saved.
+            SaveStateBuilder(
+              inputs: [
+                for (final row in rows) ...row.listenables,
+                if (noteController != null) noteController!,
+              ],
+              builder: (_) => FarmSaveButton(
+                onPressed: onSave,
+                enabled: _hasUnsavedChanges,
+                isLoading: isLoading,
+                borderRadius: 30,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 0,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
                 ),
               ),
             ),

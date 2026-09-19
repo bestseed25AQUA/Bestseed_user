@@ -15,6 +15,7 @@ import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_list_model.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/farm_activity_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_detail_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/feed_update_screen.dart';
@@ -787,6 +788,18 @@ class FarmCard extends StatelessWidget {
                             );
                           },
 
+                          onHistory: () {
+                            Navigator.of(context).pop();
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => FarmActivityScreen(
+                                  farmId: farm.id,
+                                  farmName: farm.name,
+                                ),
+                              ),
+                            );
+                          },
+
                           // One entry point per role. The role is chosen HERE
                           // and carried through the guide, the access list and
                           // the add form, so it is never asked for twice.
@@ -1238,6 +1251,7 @@ void showFarmBottomSheet({
   required String farmName,
   required FarmAccess access,
   required VoidCallback onAddTankQty,
+  required VoidCallback onHistory,
   required VoidCallback onManagerAccess,
   required VoidCallback onPartnerAccess,
   required VoidCallback onEditFarm,
@@ -1330,6 +1344,23 @@ void showFarmBottomSheet({
               // else gets it. The message says which of the two reasons
               // applies, because "you hold no access to pass on" told a
               // manager something plainly untrue — they hold plenty.
+              // Who changed what, last 15 days.
+              //
+              // Same audience as giving access away, and for the same reason:
+              // auditing the farm is a "this is my farm" action, not a
+              // "I work here" one. A manager's changes are IN the history;
+              // appearing in it and being able to read it are different
+              // things, and the server refuses them either way.
+              _sheetItem(
+                icon: Icons.history,
+                title: "Farm History",
+                onTap: onHistory,
+                enabled: access.canShareAccess,
+                deniedMessage: access.isManagerGrant
+                    ? "Only the farm owner or a partner can view the farm history."
+                    : "You hold no access on this farm.",
+              ),
+
               _sheetItem(
                 icon: Icons.person,
                 title: "Set Up Access for Manager",
