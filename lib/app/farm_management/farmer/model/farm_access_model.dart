@@ -51,13 +51,18 @@ class FarmAccess {
   /// a payload that predates the field. Read through [canShareAccess].
   final bool? _canShareAccess;
 
+  /// The server's answer to "may they REMOVE someone", when it sends one.
+  final bool? _canRevokeAccess;
+
   const FarmAccess({
     required this.role,
     required this.isOwner,
     required this.permissions,
     this.expiresAt,
     bool? canShareAccess,
-  }) : _canShareAccess = canShareAccess;
+    bool? canRevokeAccess,
+  }) : _canShareAccess = canShareAccess,
+       _canRevokeAccess = canRevokeAccess;
 
   /// Used when a response predates the access block. Full rights, because the
   /// server is the real gate — the app only decides what to *offer*, and
@@ -67,6 +72,7 @@ class FarmAccess {
       isOwner = true,
       expiresAt = null,
       _canShareAccess = true,
+      _canRevokeAccess = true,
       permissions = const AccessPermissions(
         view: true,
         edit: true,
@@ -87,6 +93,9 @@ class FarmAccess {
       // deriving it, rather than reading a missing key as "no".
       canShareAccess: json.containsKey('can_share_access')
           ? json['can_share_access'] == true
+          : null,
+      canRevokeAccess: json.containsKey('can_revoke_access')
+          ? json['can_revoke_access'] == true
           : null,
       permissions: AccessPermissions.fromJson(
         json['permissions'] as Map<String, dynamic>?,
@@ -145,15 +154,25 @@ class FarmAccess {
   /// The server sends this outright, so the option the app offers and the rule
   /// `POST /farmer/farm/{id}/members` enforces cannot drift apart. The local
   /// derivation below is only for payloads that predate the field.
-  bool get canShareAccess =>
-      _canShareAccess ??
-      ((isOwner || isPartner) &&
-          (canView ||
-              canEdit ||
-              canChangeTankStatus ||
-              canEditTotalFeed ||
-              canCreate ||
-              canDelete));
+  /// Whether they may bring someone onto this farm.
+  ///
+  /// CREATE decides it, for a manager and a partner alike — bringing someone
+  /// in is creating something, so it rides on the checkbox the owner already
+  /// ticks. It used to turn on the ROLE, which meant a partner could always
+  /// share and a manager never could, whatever either had been given.
+  ///
+  /// The server's own answer wins when it sends one; the fallback is for a
+  /// payload that predates the field.
+  bool get canShareAccess => _canShareAccess ?? (isOwner || canCreate);
+
+  /// Whether they may take someone's access away.
+  ///
+  /// Create AND delete. Delete alone is not enough: without create they cannot
+  /// reach the access screen at all, so delete on its own would be a permission
+  /// with nowhere to be used. Delete is what turns "may bring people in" into
+  /// "may also remove them".
+  bool get canRevokeAccess =>
+      _canRevokeAccess ?? (isOwner || (canCreate && canDelete));
 }
 
 /// A person who currently holds access to a farm.

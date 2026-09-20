@@ -63,11 +63,53 @@ Future<List<HelpContact>> fetchActiveHelpContacts() async {
 String helpContactDigits(String value) =>
     value.replaceAll(RegExp(r'[^0-9]'), '');
 
-Future<void> launchHelpCall(String phone) async {
-  final uri = Uri.parse('tel:${helpContactDigits(phone)}');
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri);
+/// Open the dialler on [phone]. True when the dialler actually opened.
+///
+/// `canLaunchUrl` is consulted but not obeyed: on Android it answers false for
+/// `tel:` unless the app declares a `<queries>` entry for it, and on a device
+/// that does have a dialler the launch then succeeds anyway. Refusing on its
+/// word alone made the button do nothing at all, with no way to tell that from
+/// a missing number.
+Future<bool> launchHelpCall(String phone) async {
+  final digits = helpContactDigits(phone);
+  if (digits.isEmpty) return false;
+
+  final uri = Uri.parse('tel:$digits');
+
+  try {
+    if (await canLaunchUrl(uri)) return await launchUrl(uri);
+  } catch (_) {
+    // Fall through and try anyway.
   }
+
+  try {
+    return await launchUrl(uri);
+  } catch (_) {
+    return false;
+  }
+}
+
+/// The phone number configured for one contact slot, or null when there is
+/// none.
+///
+/// Falls back to the first contact that HAS a number: a farm without its own
+/// Farm Management Help row should still reach somebody rather than a dead
+/// button. Null only when the admin panel has no numbers at all.
+Future<String?> helpPhoneFor(String label) async {
+  final contacts = await fetchActiveHelpContacts();
+  if (contacts.isEmpty) return null;
+
+  for (final c in contacts) {
+    if (contactLabelMatches(c.label, label) && c.hasPhone) {
+      return c.phone!.trim();
+    }
+  }
+
+  for (final c in contacts) {
+    if (c.hasPhone) return c.phone!.trim();
+  }
+
+  return null;
 }
 
 Future<void> launchHelpWhatsApp(String number) async {
@@ -86,7 +128,10 @@ Future<void> launchHelpWhatsApp(String number) async {
 ///
 /// The text is percent-encoded via [Uri.encodeComponent]; passing it raw
 /// truncates the message at the first `&` or `#`.
-Future<void> launchHelpWhatsAppWithMessage(String number, String message) async {
+Future<void> launchHelpWhatsAppWithMessage(
+  String number,
+  String message,
+) async {
   final uri = Uri.parse(
     'https://wa.me/${helpContactDigits(number)}'
     '?text=${Uri.encodeComponent(message)}',
@@ -120,8 +165,7 @@ Future<void> showHelpContactsSheet(
       return FutureBuilder<List<HelpContact>>(
         future: fetchActiveHelpContacts(),
         builder: (context, snapshot) {
-          final loading =
-              snapshot.connectionState == ConnectionState.waiting;
+          final loading = snapshot.connectionState == ConnectionState.waiting;
           var contacts = snapshot.data ?? [];
 
           // Prefer the slot this screen asked for (e.g. "Booking Help"), but
@@ -221,8 +265,11 @@ Widget _sheetContactRow(HelpContact contact) {
             color: AppColors.primary.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.support_agent_rounded,
-              color: AppColors.primary, size: 22),
+          child: const Icon(
+            Icons.support_agent_rounded,
+            color: AppColors.primary,
+            size: 22,
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(

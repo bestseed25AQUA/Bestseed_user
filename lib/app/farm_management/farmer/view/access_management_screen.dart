@@ -246,7 +246,11 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
                   // server lets the owner touch anyone and lets a member touch
                   // only the people they admitted; it will still refuse, but
                   // there is no reason to show a control that must fail.
+                  // Editing a member is part of granting, so it rides on
+                  // canShareAccess; REMOVING them is the destructive half and
+                  // needs delete on top — see [FarmAccess.canRevokeAccess].
                   canManage: widget.access.canShareAccess,
+                  canRemove: widget.access.canRevokeAccess,
                   onEdit: () => _editMember(member),
                   onRemove: () => _confirmRemove(member),
                 );
@@ -320,12 +324,17 @@ class _AccessManagementScreenState extends State<AccessManagementScreen> {
 class _MemberCard extends StatelessWidget {
   final FarmMember member;
   final bool canManage;
+
+  /// Whether the Remove entry is offered. Create alone brings people in;
+  /// taking them out needs delete as well.
+  final bool canRemove;
   final VoidCallback onEdit;
   final VoidCallback onRemove;
 
   const _MemberCard({
     required this.member,
     required this.canManage,
+    required this.canRemove,
     required this.onEdit,
     required this.onRemove,
   });
@@ -411,15 +420,19 @@ class _MemberCard extends StatelessWidget {
                   // let them back in. Saving from the same sheet restores
                   // them, because granting clears the revoke.
                   itemBuilder: (_) => member.isActive
-                      ? const [
-                          PopupMenuItem(
+                      ? [
+                          const PopupMenuItem(
                             value: 'edit',
                             child: Text('Change access'),
                           ),
-                          PopupMenuItem(
-                            value: 'remove',
-                            child: Text('Remove access'),
-                          ),
+                          // Only for someone who also holds delete. Offering it
+                          // without would open a confirm dialog that ends in a
+                          // 403 — a refusal dressed up as a fault.
+                          if (canRemove)
+                            const PopupMenuItem(
+                              value: 'remove',
+                              child: Text('Remove access'),
+                            ),
                         ]
                       : const [
                           PopupMenuItem(

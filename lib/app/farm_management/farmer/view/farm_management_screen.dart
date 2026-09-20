@@ -59,7 +59,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
   /// gives it two positions to draw and throws the moment the bar paints.
   final ScrollController _managedScrollController = ScrollController();
   final tankController = Get.put(TankController());
-  bool _isChatbotOpen = false;
 
   /// Whether the add-farm button is currently checking the allowance.
   ///
@@ -84,12 +83,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
     _listScrollController.dispose();
     _managedScrollController.dispose();
     super.dispose();
-  }
-
-  void _toggleChatbot() {
-    setState(() {
-      _isChatbotOpen = !_isChatbotOpen;
-    });
   }
 
   /// Re-read the farm list.
@@ -165,9 +158,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
           child: Row(
             children: [
               Icon(
-                expired
-                    ? Icons.error_outline_rounded
-                    : Icons.schedule_rounded,
+                expired ? Icons.error_outline_rounded : Icons.schedule_rounded,
                 size: 19,
                 color: foreground,
               ),
@@ -555,31 +546,11 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
                     _listScrollController,
                   ),
 
-                if (_isChatbotOpen)
-                  const Positioned(
-                    bottom: 120,
-                    right: 16,
-                    child: ChatbotWidget(),
-                  ),
                 Positioned(
                   bottom: 16,
                   right: 16,
                   child: Column(
                     children: [
-                      FloatingActionButton(
-                        heroTag: 'chatbotFab',
-                        backgroundColor: _isChatbotOpen
-                            ? Colors.white
-                            : primaryBlue,
-                        onPressed: _toggleChatbot,
-                        child: Icon(
-                          _isChatbotOpen
-                              ? Icons.close
-                              : Icons.smart_toy_outlined,
-                          color: _isChatbotOpen ? primaryBlue : Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
                       FloatingActionButton(
                         heroTag: 'addFab',
                         backgroundColor: primaryBlue,
@@ -1311,7 +1282,7 @@ void showFarmBottomSheet({
               // they found out by tapping a row and being refused.
               if (!access.isOwner) ..._sheetAccessSummary(access),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 10),
 
               // Recording feed is a create, not an edit — matches
               // `farm.access:create` on /tanks/add-todays-tanks-quantity.
@@ -1366,9 +1337,8 @@ void showFarmBottomSheet({
                 title: "Set Up Access for Manager",
                 onTap: onManagerAccess,
                 enabled: access.canShareAccess,
-                deniedMessage: access.isManagerGrant
-                    ? "Only the farm owner or a partner can give access."
-                    : "You hold no access on this farm to pass on.",
+                deniedMessage:
+                    "You need create access on this farm to give someone access.",
               ),
 
               _sheetItem(
@@ -1376,9 +1346,8 @@ void showFarmBottomSheet({
                 title: "Set Up Access for Partner",
                 onTap: onPartnerAccess,
                 enabled: access.canShareAccess,
-                deniedMessage: access.isManagerGrant
-                    ? "Only the farm owner or a partner can give access."
-                    : "You hold no access on this farm to pass on.",
+                deniedMessage:
+                    "You need create access on this farm to give someone access.",
               ),
 
               // Masked for MANAGERS, whatever else they hold.
@@ -1441,20 +1410,19 @@ void showFarmBottomSheet({
   );
 }
 
-/// A manager's or partner's standing on this farm, above the action list.
+/// What this farmer may do on the farm, as chips above the action list.
 ///
 /// Returns the rows to splice into the sheet's column, so the caller keeps its
 /// own spacing. Empty when there is nothing worth saying.
 ///
-/// The wording is lifted from the Setup Access form's own toggles, minus the
-/// trailing "access" that the "Your access" heading already supplies. Someone
-/// reading this saw those exact words when the permission was granted, so the
-/// two lists read as the same list.
+/// Just the permissions — the role badge and "Your access" heading that used to
+/// sit over them are gone. The sheet is opened from a card that already carries
+/// the role, and a second "Manager" label on top of the same farm read as the
+/// app labouring the point.
+///
+/// The wording is lifted from the Setup Access form's own toggles, so someone
+/// reading this sees the words they were shown when the permission was granted.
 List<Widget> _sheetAccessSummary(FarmAccess access) {
-  final Color roleColour = access.isManagerGrant
-      ? Colors.deepPurple.shade400
-      : Colors.teal.shade700;
-
   final labels = <String>[
     if (access.canView) 'View',
     if (access.canEdit) 'Edit',
@@ -1466,32 +1434,6 @@ List<Widget> _sheetAccessSummary(FarmAccess access) {
 
   return [
     const SizedBox(height: 10),
-    Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: roleColour.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: roleColour.withValues(alpha: 0.5)),
-          ),
-          child: Text(
-            access.roleLabel,
-            style: GoogleFonts.roboto(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: roleColour,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'Your access',
-          style: GoogleFonts.roboto(fontSize: 12, color: Colors.grey.shade600),
-        ),
-      ],
-    ),
-    const SizedBox(height: 8),
     if (labels.isEmpty)
       Text(
         'No permissions have been given to you on this farm yet.',

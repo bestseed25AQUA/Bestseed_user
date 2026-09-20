@@ -5,6 +5,7 @@ import 'package:seedsuser/app/common/safe_back.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/help/contact_labels.dart';
+import 'package:seedsuser/app/help/help_contact_service.dart';
 import 'package:seedsuser/app/common/app_globals.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/common/refresh_button.dart';
@@ -19,7 +20,6 @@ import 'package:seedsuser/app/farm_management/farmer/widget/harvest_bottom.dart'
 import 'package:seedsuser/app/farm_management/farmer/widget/start_batch_sheet.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_access_controller.dart';
-import 'package:seedsuser/app/farm_management/farmer/widget/contact_us_dialog.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/feed_low_alert_dialog.dart';
 
 import 'dart:io';
@@ -298,14 +298,30 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
     await showFeedLowAlert(
       context,
       remainingKgs: limit,
-      onContactDealer: () {
+      // Straight to the dialler, with the Farm Management Help number the
+      // admin panel holds.
+      //
+      // It used to close this alert and open the Contact Us dialog — a second
+      // popup asking which way you wanted to get in touch, when the farmer has
+      // already said so by pressing "Contact Dealer". One tap, one call.
+      onContactDealer: () async {
         Navigator.of(context).pop();
-        showDialog(
-          context: context,
-          builder: (_) => const ContactUsDialog(
-            preferredLabel: ContactLabels.farmManagementHelp,
-          ),
-        );
+
+        final phone = await helpPhoneFor(ContactLabels.farmManagementHelp);
+
+        if (phone == null) {
+          CustomToast.error('No dealer number has been set yet.');
+          return;
+        }
+
+        final opened = await launchHelpCall(phone);
+
+        // Said plainly rather than silently: a button that does nothing reads
+        // as a broken app, and the number is worth showing so it can be dialled
+        // by hand.
+        if (!opened) {
+          CustomToast.error('Could not open the dialler. Call $phone.');
+        }
       },
     );
   }
@@ -313,7 +329,11 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      // Light grey, so the white cards read AS cards. On white they had to be
+      // drawn with a border and a shadow to separate from the page; against a
+      // grey ground the fill does that on its own, which is what the reference
+      // design relies on.
+      backgroundColor: const Color(0xFFF4F5F7),
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(60.0),
         child: CustomAppBar(
@@ -400,7 +420,10 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
 
                         ...tankPairs.map((pair) {
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 16.0),
+                            // Tighter grid: the cards themselves lost padding,
+                            // so 16 between them read as a gap rather than a
+                            // gutter. A dozen tanks is six of these rows.
+                            padding: const EdgeInsets.only(bottom: 10.0),
                             child: Row(
                               children: [
                                 Expanded(
@@ -412,7 +435,7 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
                                     farmId: widget.farmId,
                                   ),
                                 ),
-                                const SizedBox(width: 16),
+                                const SizedBox(width: 10),
 
                                 // if odd number → show empty box
                                 Expanded(
@@ -652,6 +675,87 @@ class TankStatusCard extends StatelessWidget {
     this.access = const FarmAccess.ownerFallback(),
   });
 
+  /// Start or finish this tank's crop.
+  ///
+  /// Lifted out of the Switch's onChanged so the card's power button can call
+  /// the same thing — the two must never drift, because between them they are
+  /// the only way a crop is opened or harvested from the app.
+  Future<void> _setActive(BuildContext context, bool value) async {
+    if (value) {
+      // Activating starts a NEW crop, not a
+      // resumption: ask when it went in, and what it
+      // has already been fed if that was before today.
+      // Without a date the tank would read as day 1
+      // with no way to record what it had already had.
+      final batch = await showStartBatchSheet(
+        context,
+        tankName: tank.tankName ?? 'This tank',
+      );
+
+      // Cancelled — leave the tank as it was.
+      if (batch == null) return;
+
+      await controller.updateTankStatus(
+        status: 1,
+        tankId: tank.id.toString(),
+        farmId: farmId,
+        stockingDate: batch.stockingDate,
+        feedUsedBefore: batch.feedUsedBefore,
+      );
+    } else {
+      bool isUpdated = false;
+
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        useSafeArea: true,
+        builder: (_) => SafeArea(
+          top: false,
+          child: HarvestBottomSheet(
+            tank: tank,
+            statusToUpdate: value ? 1 : 0,
+            onSubmit: (harvestQuantity) async {
+              isUpdated = await controller.updateTankStatus(
+                status: 0,
+                tankId: tank.id.toString(),
+                farmId: farmId,
+                harvestQuantity: harvestQuantity,
+              );
+              safeBack();
+            },
+          ),
+        ),
+      );
+
+      await Future.delayed(const Duration(seconds: 2));
+
+      if (isUpdated) {
+        String? report = await controller.getReport(tankId: tank.id.toString());
+
+        // No link means the report was not generated —
+        // getReport has already said so. Offering Download
+        // and Share for a link that does not exist only
+        // produces a second, more confusing failure.
+        final safeContext = navigatorKey.currentContext;
+        if (report == null || report.isEmpty || safeContext == null) {
+          return;
+        }
+
+        showReportPopup(
+          safeContext,
+          tankName: tank.tankName ?? 'Tank',
+          () async {
+            downloadReport(report, tankName: tank.tankName, farmName: farmName);
+          },
+          () {
+            shareReport(report, tankName: tank.tankName, farmName: farmName);
+          },
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isActive = tank.status == 1;
@@ -682,289 +786,91 @@ class TankStatusCard extends StatelessWidget {
         }
       },
       child: Container(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.black.withOpacity(.2), width: .5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(.1),
-              blurRadius: 2,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          // The card carries the state, not a switch sitting on it: white and
+          // solid while the crop runs, flat grey once it is harvested. A
+          // farmer scanning a dozen tanks reads the colour before the words.
+          color: isActive ? Colors.white : const Color(0xFFE7EAEE),
+          borderRadius: BorderRadius.circular(18),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // top row
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // tank name
+                Icon(
+                  Icons.water_drop,
+                  size: 26,
+                  color: isActive ? AppColors.primary : Colors.grey.shade400,
+                ),
+                const Spacer(),
+
+                // The power button IS the control now.
                 //
-                // Flexible, because the card is half the screen wide and the
-                // switch beside it is a fixed ~60dp: on a narrow phone the
-                // name and the switch together were wider than the card and
-                // the row overflowed. The name gives way instead.
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFF1976D2)),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      tank.tankName ?? "Tank",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.roboto(
-                        color: const Color(0xFF1976D2),
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
+                // A Switch reads as a setting; a tank being stocked or
+                // harvested is an action, and harvesting closes the crop for
+                // good. Round, filled, and unmistakable — green while running,
+                // grey once finished.
+                //
+                // Greyed and inert without tank_status access, rather than
+                // hidden: the farmer still needs to see whether the tank is
+                // running, which is the point of the card.
+                GestureDetector(
+                  onTap: access.canChangeTankStatus
+                      ? () => _setActive(context, !isActive)
+                      : () => CustomToast.info(
+                          "You don't have access to change this tank's status.",
+                        ),
+                  child: Opacity(
+                    opacity: access.canChangeTankStatus ? 1 : .45,
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isActive
+                            ? const Color(0xFF12C08A)
+                            : Colors.grey.shade300,
+                      ),
+                      child: Icon(
+                        Icons.power_settings_new,
+                        size: 20,
+                        color: isActive ? Colors.white : Colors.grey.shade600,
                       ),
                     ),
                   ),
                 ),
-
-                // switch
-                // Switch(
-                //   value: isActive,
-                //   activeThumbColor: Colors.green,
-                //   inactiveThumbColor: Colors.red,
-                //   activeTrackColor: Colors.green.withOpacity(.5),
-                //   inactiveTrackColor: Colors.red.withOpacity(.5),
-                //   onChanged: (value) async {
-                //     if (value) {
-                //       controller.updateTankStatus(
-                //         status: 1,
-                //         tankId: tank.id.toString(),
-                //         farmId: farmId,
-                //       );
-                //     } else {
-                //       bool isUpdated = false;
-
-                //       await showModalBottomSheet(
-                //         context: context,
-                //         isScrollControlled: true,
-                //         backgroundColor: Colors.transparent,
-                //         builder: (_) => HarvestBottomSheet(
-                //           tank: tank,
-                //           statusToUpdate: value ? 1 : 0,
-                //           onSubmit: () async {
-                //             isUpdated = await controller.updateTankStatus(
-                //               status: 0,
-                //               tankId: tank.id.toString(),
-                //               farmId: farmId,
-                //             );
-                //             safeBack();
-                //           },
-                //         ),
-                //       );
-
-                //       await Future.delayed(Duration(seconds: 2));
-
-                //       if (isUpdated) {
-                //         String? report = await controller.getReport(
-                //           tankId: tank.id.toString(),
-                //         );
-
-                //         // ✅ Use global safe context (never disposed)
-                //         final safeContext = navigatorKey.currentContext!;
-
-                //         showReportPopup(
-                //           safeContext,
-                //           () async {
-                //             downloadReport(report ?? '');
-                //           },
-                //           () {
-                //             shareReport(report ?? '');
-                //           },
-                //         );
-                //       }
-                //     }
-                //   },
-                // ),
-                // A tap on the MASKED switch says why nothing happened. A
-                // disabled Switch has no gesture recogniser of its own, so the
-                // tap reaches this; when the switch is live the null onTap
-                // leaves the gesture to the switch itself.
-                GestureDetector(
-                  onTap: access.canChangeTankStatus
-                      ? null
-                      : () => CustomToast.info(
-                          "You don't have access to change this tank's status.",
-                        ),
-                  child: SwitchTheme(
-                    data: SwitchThemeData(
-                      // The disabled cases come FIRST. These resolvers only
-                      // ever looked at `selected`, so a switch that could not
-                      // be moved still painted full green or red — it looked
-                      // exactly like a working one and simply ignored taps.
-                      // Faded, it reads as present but not yours to touch,
-                      // while still showing whether the tank is running.
-                      thumbColor: MaterialStateProperty.resolveWith<Color?>((
-                        states,
-                      ) {
-                        final off = states.contains(MaterialState.disabled);
-                        if (states.contains(MaterialState.selected)) {
-                          return off ? Colors.green.shade200 : Colors.green;
-                        }
-                        return off ? Colors.red.shade200 : Colors.red;
-                      }),
-                      trackColor: MaterialStateProperty.resolveWith<Color?>((
-                        states,
-                      ) {
-                        final off = states.contains(MaterialState.disabled);
-                        if (states.contains(MaterialState.selected)) {
-                          return Colors.green.withOpacity(off ? .18 : .5);
-                        }
-                        return Colors.red.withOpacity(off ? .18 : .5);
-                      }),
-                    ),
-                    child: Switch(
-                      value: isActive,
-                      // Null disables the switch rather than hiding it: the
-                      // colour still tells a view-only partner whether the tank
-                      // is running, which is the point of the card. /tank/status
-                      // requires `farm.access:tank_status`.
-                      onChanged: !access.canChangeTankStatus
-                          ? null
-                          : (value) async {
-                              if (value) {
-                                // Activating starts a NEW crop, not a
-                                // resumption: ask when it went in, and what it
-                                // has already been fed if that was before today.
-                                // Without a date the tank would read as day 1
-                                // with no way to record what it had already had.
-                                final batch = await showStartBatchSheet(
-                                  context,
-                                  tankName: tank.tankName ?? 'This tank',
-                                );
-
-                                // Cancelled — leave the tank as it was.
-                                if (batch == null) return;
-
-                                await controller.updateTankStatus(
-                                  status: 1,
-                                  tankId: tank.id.toString(),
-                                  farmId: farmId,
-                                  stockingDate: batch.stockingDate,
-                                  feedUsedBefore: batch.feedUsedBefore,
-                                );
-                              } else {
-                                bool isUpdated = false;
-
-                                await showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  useSafeArea: true,
-                                  builder: (_) => SafeArea(
-                                    top: false,
-                                    child: HarvestBottomSheet(
-                                      tank: tank,
-                                      statusToUpdate: value ? 1 : 0,
-                                      onSubmit: (harvestQuantity) async {
-                                        isUpdated = await controller
-                                            .updateTankStatus(
-                                              status: 0,
-                                              tankId: tank.id.toString(),
-                                              farmId: farmId,
-                                              harvestQuantity: harvestQuantity,
-                                            );
-                                        safeBack();
-                                      },
-                                    ),
-                                  ),
-                                );
-
-                                await Future.delayed(
-                                  const Duration(seconds: 2),
-                                );
-
-                                if (isUpdated) {
-                                  String? report = await controller.getReport(
-                                    tankId: tank.id.toString(),
-                                  );
-
-                                  // No link means the report was not generated —
-                                  // getReport has already said so. Offering Download
-                                  // and Share for a link that does not exist only
-                                  // produces a second, more confusing failure.
-                                  final safeContext =
-                                      navigatorKey.currentContext;
-                                  if (report == null ||
-                                      report.isEmpty ||
-                                      safeContext == null) {
-                                    return;
-                                  }
-
-                                  showReportPopup(
-                                    safeContext,
-                                    tankName: tank.tankName ?? 'Tank',
-                                    () async {
-                                      downloadReport(
-                                        report,
-                                        tankName: tank.tankName,
-                                        farmName: farmName,
-                                      );
-                                    },
-                                    () {
-                                      shareReport(
-                                        report,
-                                        tankName: tank.tankName,
-                                        farmName: farmName,
-                                      );
-                                    },
-                                  );
-                                }
-                              }
-                            },
-                    ),
-                  ),
-                ),
               ],
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
 
-            // feed + days
-            Row(
-              children: [
-                // total_feed_used, not the tank's feed_quantity column: that
-                // column is never written to, so every tank read "0 Kgs" even
-                // with weeks of feed recorded against it.
-                // Expanded rather than a Spacer after it: a four-figure total
-                // ("1,250.00 Kgs") plus the day label is wider than half a
-                // narrow screen, and the row overflowed instead of trimming.
-                Expanded(
-                  child: Text(
-                    "${tank.totalFeedUsed ?? "0"} Kgs",
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.roboto(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                // The API computes `day` as the number of distinct days fed.
-                // This showed `meals` — a different, unset column — so it was
-                // always "Day. 0".
-                Text(
-                  "Day. ${tank.day ?? 0}",
-                  style: GoogleFonts.roboto(
-                    fontSize: 14,
-                    color: Colors.black54,
-                  ),
-                ),
-              ],
+            Text(
+              tank.tankName ?? 'Tank',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.roboto(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isActive ? Colors.black87 : Colors.grey.shade500,
+              ),
+            ),
+            const SizedBox(height: 2),
+
+            // One muted line instead of a row of two competing figures — the
+            // subtitle slot in the reference design. Kgs first, because that is
+            // what the farmer came to the card for.
+            Text(
+              "${tank.totalFeedUsed ?? "0"} Kgs · Day ${tank.day ?? 0}",
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.roboto(
+                fontSize: 13,
+                color: isActive ? Colors.black54 : Colors.grey.shade400,
+              ),
             ),
           ],
         ),
@@ -1303,77 +1209,81 @@ void showEditFeedBottomSheet(BuildContext context, String farmId) {
                       lowFeedController,
                     ],
                     builder: (_) => Obx(() {
-                    final enabled = hasEdits() && !controller.isOverlay.value;
+                      final enabled = hasEdits() && !controller.isOverlay.value;
 
-                    return GestureDetector(
-                      onTap: () async {
-                        // Nothing typed: the button is already pale, and this
-                        // stops a stray tap firing an update that would write
-                        // back exactly what is already stored.
-                        if (!hasEdits()) return;
+                      return GestureDetector(
+                        onTap: () async {
+                          // Nothing typed: the button is already pale, and this
+                          // stops a stray tap firing an update that would write
+                          // back exactly what is already stored.
+                          if (!hasEdits()) return;
 
-                        // Don't fire a second request while one is in flight — a
-                        // double tap on Save sent the update twice.
-                        if (controller.isOverlay.value) return;
+                          // Don't fire a second request while one is in flight — a
+                          // double tap on Save sent the update twice.
+                          if (controller.isOverlay.value) return;
 
-                        final store = storeController.text.trim();
-                        final lowLimit = lowFeedController.text.trim();
+                          final store = storeController.text.trim();
+                          final lowLimit = lowFeedController.text.trim();
 
-                        // The server rejects a non-numeric store with a 422 the
-                        // screen reports only as "Failed to update feed". Say what
-                        // is actually wrong, before sending it.
-                        if (store.isEmpty || double.tryParse(store) == null) {
-                          CustomToast.error('Enter the store quantity in Kgs');
-                          return;
-                        }
-                        if (lowLimit.isNotEmpty &&
-                            double.tryParse(lowLimit) == null) {
-                          CustomToast.error('Enter the low feed limit in Kgs');
-                          return;
-                        }
+                          // The server rejects a non-numeric store with a 422 the
+                          // screen reports only as "Failed to update feed". Say what
+                          // is actually wrong, before sending it.
+                          if (store.isEmpty || double.tryParse(store) == null) {
+                            CustomToast.error(
+                              'Enter the store quantity in Kgs',
+                            );
+                            return;
+                          }
+                          if (lowLimit.isNotEmpty &&
+                              double.tryParse(lowLimit) == null) {
+                            CustomToast.error(
+                              'Enter the low feed limit in Kgs',
+                            );
+                            return;
+                          }
 
-                        bool ok = await controller.updateFeedStore(
-                          farmId: farmId,
-                          totalFeedUsed: totalFeedController.text.trim(),
-                          feedStore: store,
-                          lowFeedLimit: lowLimit,
-                        );
+                          bool ok = await controller.updateFeedStore(
+                            farmId: farmId,
+                            totalFeedUsed: totalFeedController.text.trim(),
+                            feedStore: store,
+                            lowFeedLimit: lowLimit,
+                          );
 
-                        if (ok) {
-                          safeBack();
-                          controller.getFeedStore(farmId);
-                        }
-                      },
-                      child: Container(
-                        height: 50,
-                        width: double.infinity,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          // The same pale blue the card Save buttons use when
-                          // they have nothing to do: the brand colour faded,
-                          // not grey. Grey reads as broken, faded reads as
-                          // waiting.
-                          color: enabled
-                              ? AppColors.primary
-                              : AppColors.primary.withValues(alpha: 0.35),
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: controller.isOverlay.value
-                            ? const CircularProgressIndicator(
-                                color: Colors.white,
-                              )
-                            : Text(
-                                "Save",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: enabled
-                                      ? Colors.white
-                                      : Colors.white.withValues(alpha: 0.85),
-                                  fontWeight: FontWeight.bold,
+                          if (ok) {
+                            safeBack();
+                            controller.getFeedStore(farmId);
+                          }
+                        },
+                        child: Container(
+                          height: 50,
+                          width: double.infinity,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            // The same pale blue the card Save buttons use when
+                            // they have nothing to do: the brand colour faded,
+                            // not grey. Grey reads as broken, faded reads as
+                            // waiting.
+                            color: enabled
+                                ? AppColors.primary
+                                : AppColors.primary.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: controller.isOverlay.value
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
+                              : Text(
+                                  "Save",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: enabled
+                                        ? Colors.white
+                                        : Colors.white.withValues(alpha: 0.85),
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                      ),
-                    );
+                        ),
+                      );
                     }),
                   ),
 
