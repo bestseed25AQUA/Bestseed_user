@@ -64,19 +64,17 @@ class _FarmActivityScreenState extends State<FarmActivityScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),
       appBar: CustomAppBar(
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => safeBack(),
+        ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => safeBack(),
-        ),
-        // A single Text: CustomAppBar takes no subtitle, so what this history
-        // is OF goes in the strip at the top of the body instead.
         title: Text(
           'History',
-          style: GoogleFonts.roboto(color: Colors.white),
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.roboto(color: Colors.white, fontSize: 18),
         ),
       ),
       body: Obx(() {

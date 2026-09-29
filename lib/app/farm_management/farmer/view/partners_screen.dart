@@ -20,7 +20,7 @@ class PartnersScreen extends StatelessWidget {
     return Scaffold(
       appBar: CustomAppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_circle_left, size: 28),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         backgroundColor: AppColors.primary,

@@ -12,6 +12,7 @@ import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dar
 import 'package:seedsuser/app/farm_management/farmer/model/meal_row_state.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_feed_history_response.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_save_button.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_note_field.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 
 // Data model for a single meal entry
@@ -528,7 +529,7 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
         preferredSize: const Size.fromHeight(60.0),
         child: CustomAppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_circle_left, size: 28),
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
             onPressed: () => Navigator.of(context).pop(),
           ),
           backgroundColor: AppColors.primary,
@@ -1365,56 +1366,12 @@ class DailyFeedCard extends StatelessWidget {
 
     final readOnly = !canEditNote;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.sticky_note_2_outlined,
-              size: 15,
-              color: Colors.grey.shade600,
-            ),
-            const SizedBox(width: 5),
-            _heading('Notes'),
-          ],
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: noteController,
-          readOnly: readOnly,
-          maxLines: 3,
-          minLines: 1,
-          maxLength: 2000,
-          textCapitalization: TextCapitalization.sentences,
-          style: GoogleFonts.roboto(fontSize: 14),
-          decoration: InputDecoration(
-            counterText: '',
-            hintText: readOnly
-                ? 'No notes for this day'
-                : 'Water change, aerator down, medicine given…',
-            hintStyle: GoogleFonts.roboto(
-              fontSize: 13,
-              color: Colors.grey.shade500,
-            ),
-            filled: readOnly,
-            fillColor: Colors.grey.shade100,
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: AppColors.primary),
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-      ],
+    return FarmNoteField(
+      controller: noteController!,
+      readOnly: readOnly,
+      hintText: readOnly
+          ? 'No notes for this day'
+          : 'Water change, aerator down, medicine given…',
     );
   }
 

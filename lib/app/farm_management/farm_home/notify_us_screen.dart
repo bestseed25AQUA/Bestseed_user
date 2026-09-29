@@ -33,7 +33,7 @@ class _NotifyUsScreenState extends State<NotifyUsScreen> {
       backgroundColor: Colors.grey.shade50,
       appBar: CustomAppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_circle_left, size: 28),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text('Notify Us'),

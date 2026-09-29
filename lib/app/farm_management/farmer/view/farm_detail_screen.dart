@@ -338,7 +338,7 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
         preferredSize: const Size.fromHeight(60.0),
         child: CustomAppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_circle_left, size: 28),
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
             onPressed: () => Navigator.of(context).pop(),
           ),
 
@@ -659,6 +659,23 @@ class EditButton extends StatelessWidget {
   }
 }
 
+/// Drops trailing zeros: "6390.00" reads as "6390", "2503.50" as "2503.5".
+String _feedAmount(String? raw) {
+  final text = (raw ?? '').trim();
+
+  if (text.isEmpty) return '0';
+
+  final value = double.tryParse(text);
+  if (value == null) return text;
+
+  if (value == value.roundToDouble()) return value.toStringAsFixed(0);
+
+  return value
+      .toStringAsFixed(2)
+      .replaceFirst(RegExp(r'0+$'), '')
+      .replaceFirst(RegExp(r'\.$'), '');
+}
+
 class TankStatusCard extends StatelessWidget {
   final TankModel tank;
   final TankController controller;
@@ -860,16 +877,22 @@ class TankStatusCard extends StatelessWidget {
             ),
             const SizedBox(height: 2),
 
-            // One muted line instead of a row of two competing figures — the
-            // subtitle slot in the reference design. Kgs first, because that is
-            // what the farmer came to the card for.
-            Text(
-              "${tank.totalFeedUsed ?? "0"} Kgs · Day ${tank.day ?? 0}",
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.roboto(
-                fontSize: 13,
-                color: isActive ? Colors.black54 : Colors.grey.shade400,
+            // Shrinks to fit rather than truncating, so every card stays one
+            // line tall and the day is never cut off.
+            SizedBox(
+              width: double.infinity,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '${_feedAmount(tank.totalFeedUsed)} Kgs · Day ${tank.day ?? 0}',
+                  maxLines: 1,
+                  softWrap: false,
+                  style: GoogleFonts.roboto(
+                    fontSize: 13,
+                    color: isActive ? Colors.black54 : Colors.grey.shade400,
+                  ),
+                ),
               ),
             ),
           ],
@@ -1174,7 +1197,7 @@ void showEditFeedBottomSheet(BuildContext context, String farmId) {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      "Store",
+                      "Store (Confirm & Change Stock)",
                       style: GoogleFonts.roboto(fontSize: 16),
                     ),
                   ),

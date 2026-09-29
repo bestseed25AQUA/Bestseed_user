@@ -486,36 +486,17 @@ class _AddFarmerDetailsFormScreenState
                 _buildTextField(controller: farmName, hint: "Enter Farm Name"),
                 const SizedBox(height: 20),
 
-                // No. of Tanks FIRST, because everything below it is per tank.
-                //
-                // There is no farm-level Stocking Date on either path. Tanks
-                // are stocked as ponds are prepared, so one date for the whole
-                // farm made a tank stocked last week and one stocked today the
-                // same age, and the history generated from it was wrong for
-                // both.
                 _buildLabel("No. of Tanks"),
                 const SizedBox(height: 8),
 
-                // CREATE picks a count from the dropdown. EDIT shows the count
-                // it has with a + beside it: the dropdown never created a tank,
-                // it only wrote a number to the farm, so raising 5 to 6 changed
-                // a label and nothing else.
                 if (isEdit) _buildTankCountWithAdd() else _buildTanksDropdown(),
                 const SizedBox(height: 16),
 
-                // Every tank, in one list and one style: the ones the farm
-                // already has first — shown exactly like the others but not
-                // editable — then any being added, numbered on from them.
                 if (isEdit) ..._buildExistingTanks(),
                 ..._buildTankRows(startNumber: isEdit ? _existingTankCount : 0),
 
                 if (isEdit) const SizedBox(height: 4),
 
-                // Store
-                // Label and its explanation on one line. Expanded, so the
-                // sentence gives way with an ellipsis on a narrow phone
-                // instead of overflowing the row — the placeholder repeats the
-                // example, so nothing is lost if it does.
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
@@ -530,10 +511,7 @@ class _AddFarmerDetailsFormScreenState
                   ],
                 ),
                 const SizedBox(height: 8),
-                // Optional: a farm can be set up before any feed has been
-                // delivered, so there is no stock figure to give yet. Left
-                // blank the server stores NULL, and it can be filled in later
-                // from the farm's feed-store card.
+              
                 _buildTextField(
                   controller: store,
                   hint: "e.g., 3,000 kg",
@@ -542,7 +520,6 @@ class _AddFarmerDetailsFormScreenState
                 ),
                 const SizedBox(height: 20),
 
-                // Low Feed Limit with info tooltip
                 Row(
                   children: [
                     _buildLabel("Low feed Limit"),
@@ -571,10 +548,6 @@ class _AddFarmerDetailsFormScreenState
                       ),
                     ),
                     const SizedBox(width: 6),
-                    // Same treatment as Store above: label, then what the box
-                    // is for, on one line. Expanded so it truncates on a narrow
-                    // phone instead of overflowing the row — the placeholder
-                    // repeats the example, so nothing is lost if it does.
                     Expanded(
                       child: _buildHelperText(
                         "Set a low stock limit (e.g., 500) to get an alert",
@@ -587,27 +560,16 @@ class _AddFarmerDetailsFormScreenState
                   controller: lowFeedLimit,
                   hint: "e.g., 500 kg",
                   keyboardType: TextInputType.number,
-                  // Optional, like Store above it. Left blank the farm simply
-                  // has no threshold, so the low-feed alert never fires —
-                  // the API stores it as null (nullIfBlank) rather than 0.
                   isRequired: false,
                 ),
                 const SizedBox(height: 36),
 
-                // Save Button
                 Obx(() {
                   return CustomButton(
                     text: isEdit ? "Update" : "Save",
                     isLoading: controller.isOverlay.value,
                     borderRadius: 12,
                     onPressed: () async {
-                      // Put the keyboard away before anything else.
-                      //
-                      // It used to stay up through the whole save and close
-                      // itself only once the farm list had replaced this
-                      // screen, so the list was laid out at the shorter
-                      // keyboard height for a frame and then jumped — which is
-                      // where the empty state's overflow came from.
                       FocusScope.of(context).unfocus();
 
                       if (!_formKey.currentState!.validate()) return;
@@ -619,18 +581,6 @@ class _AddFarmerDetailsFormScreenState
                         return;
                       }
 
-                      // Every tank being added needs a stocking date, and one
-                      // stocked in the past needs its prior feed — that figure
-                      // is what builds its history, and a blank one leaves the
-                      // tank reading "0 kgs" for weeks it was actually fed.
-                      //
-                      // Checked here rather than with the field validators
-                      // because the rule spans two fields per row, and the
-                      // message has to name which tank is at fault.
-                      //
-                      // Runs on BOTH paths: create sizes the rows from the
-                      // dropdown, edit grows them a tap at a time, but a row is
-                      // a row and an added tank needs the same answers.
                       final startNumber = isEdit ? _existingTankCount : 0;
                       final rowCount = isEdit
                           ? _tankDates.length
@@ -648,10 +598,6 @@ class _AddFarmerDetailsFormScreenState
 
                         if (!_tankIsPast(i)) continue;
 
-                        // Optional. A farmer stocking a past date often does
-                        // not have the running total to hand, and feed is
-                        // recorded per tank per day on the tank screen anyway,
-                        // so a blank here just means "nothing logged yet".
                         final used = _tankFeedUsed[i].text.trim();
                         if (used.isEmpty) continue;
 

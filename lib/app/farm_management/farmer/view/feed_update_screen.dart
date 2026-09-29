@@ -10,6 +10,7 @@ import 'package:seedsuser/app/farm_management/farmer/model/meal_row_state.dart';
 import 'package:seedsuser/app/farm_management/farmer/util/date_format.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_save_button.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_note_field.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 
 /// Record today's feed, tank by tank, one line per meal.
@@ -534,7 +535,7 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
       backgroundColor: Colors.white,
       appBar: CustomAppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_circle_left, size: 28),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         backgroundColor: AppColors.primary,
@@ -1023,56 +1024,12 @@ class FeedUpdateCard extends StatelessWidget {
 
     final readOnly = !canEditNote;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.sticky_note_2_outlined,
-              size: 15,
-              color: Colors.grey.shade600,
-            ),
-            const SizedBox(width: 5),
-            _heading('Notes'),
-          ],
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: noteController,
-          readOnly: readOnly,
-          maxLines: 3,
-          minLines: 1,
-          maxLength: 2000,
-          textCapitalization: TextCapitalization.sentences,
-          style: GoogleFonts.roboto(fontSize: 14),
-          decoration: InputDecoration(
-            counterText: '',
-            hintText: readOnly
-                ? 'No notes for today'
-                : 'Water change, aerator down, medicine given…',
-            hintStyle: GoogleFonts.roboto(
-              fontSize: 13,
-              color: Colors.grey.shade500,
-            ),
-            filled: readOnly,
-            fillColor: Colors.grey.shade100,
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: AppColors.primary),
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-      ],
+    return FarmNoteField(
+      controller: noteController!,
+      readOnly: readOnly,
+      hintText: readOnly
+          ? 'No notes for today'
+          : 'Water change, aerator down, medicine given…',
     );
   }
 
@@ -1124,9 +1081,6 @@ class FeedUpdateCard extends StatelessWidget {
             ),
           ),
         ]
-        // A line added here gets a ✕, which only takes the line away —
-        // nothing is being deleted, because nothing has been saved. The first
-        // line stays: a card with no lines has nothing to record into.
         else if (!row.isSaved && index > 0) ...[
           const SizedBox(width: 4),
           InkWell(
