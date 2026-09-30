@@ -9,6 +9,14 @@ class SubscriptionPlan {
   final int months;
   final double amount;
 
+  /// How many farms this package allows, on top of the free allowance and any
+  /// other package already held.
+  ///
+  /// The number the farmer is actually buying — a package grants farms for a
+  /// period now, not unlimited farms. Defaults to 1 for a server that predates
+  /// the change, where a live plan meant "as many as you like".
+  final int farmLimit;
+
   /// Preformatted by the server, e.g. "₹1,899". Used as-is so every surface
   /// renders the price identically.
   final String priceLabel;
@@ -23,6 +31,7 @@ class SubscriptionPlan {
     required this.months,
     required this.amount,
     required this.priceLabel,
+    this.farmLimit = 1,
     this.perMonth,
   });
 
@@ -32,6 +41,7 @@ class SubscriptionPlan {
       label: json['label']?.toString() ?? '',
       months: int.tryParse('${json['months']}') ?? 1,
       amount: double.tryParse('${json['amount']}') ?? 0,
+      farmLimit: int.tryParse('${json['farm_limit']}') ?? 1,
       priceLabel: json['price_label']?.toString() ?? '',
       perMonth: json['per_month'] == null
           ? null
@@ -131,6 +141,17 @@ class SubscriptionStatus {
   final int freeLimit;
   final int freeRemaining;
 
+  /// Farms this farmer may own in total: the free allowance plus every live
+  /// package. A package grants a NUMBER of farms now, not unlimited farms for
+  /// a period, so this — not "has a subscription" — is what decides.
+  final int farmAllowance;
+
+  /// What packages contribute on top of the free allowance.
+  final int purchasedFarms;
+
+  /// Slots left before another package is needed.
+  final int farmsRemaining;
+
   /// May the farmer create another farm right now?
   final bool canCreateFarm;
 
@@ -147,6 +168,9 @@ class SubscriptionStatus {
     required this.ownedFarms,
     required this.freeLimit,
     required this.freeRemaining,
+    required this.farmAllowance,
+    required this.purchasedFarms,
+    required this.farmsRemaining,
     required this.canCreateFarm,
     required this.needsSubscription,
     required this.message,
@@ -166,6 +190,9 @@ class SubscriptionStatus {
       ownedFarms: 0,
       freeLimit: 0,
       freeRemaining: 0,
+      farmAllowance: 0,
+      purchasedFarms: 0,
+      farmsRemaining: 0,
       canCreateFarm: true,
       needsSubscription: false,
       message: null,
@@ -180,6 +207,16 @@ class SubscriptionStatus {
       ownedFarms: int.tryParse('${json['owned_farms']}') ?? 0,
       freeLimit: int.tryParse('${json['free_limit']}') ?? 0,
       freeRemaining: int.tryParse('${json['free_remaining']}') ?? 0,
+      // Total farms allowed — free plus every live package. Falls back to the
+      // free limit for a server that predates packages granting farms, where
+      // a live plan meant "as many as you like" and there was no total to send.
+      farmAllowance:
+          int.tryParse('${json['farm_allowance']}') ??
+          (int.tryParse('${json['free_limit']}') ?? 0),
+      purchasedFarms: int.tryParse('${json['purchased_farms']}') ?? 0,
+      farmsRemaining:
+          int.tryParse('${json['farms_remaining']}') ??
+          (int.tryParse('${json['free_remaining']}') ?? 0),
       // Absent means yes. An older server that does not know about
       // subscriptions must not lock everybody out of adding farms.
       canCreateFarm: json['can_create_farm'] != false,

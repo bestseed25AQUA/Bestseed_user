@@ -82,7 +82,10 @@ class _SubscriptionContactScreenState extends State<SubscriptionContactScreen> {
   /// farmer who says "the big one" and is recorded on the wrong plan.
   String get _enquiry =>
       'Hello, I would like to subscribe to the '
-      '${widget.plan.label} Farm Management package (${widget.plan.priceLabel}).';
+      '${widget.plan.label} Farm Management package '
+      '(${widget.plan.farmLimit} '
+      '${widget.plan.farmLimit == 1 ? 'farm' : 'farms'}, '
+      '${widget.plan.priceLabel}).';
 
   @override
   Widget build(BuildContext context) {
@@ -167,8 +170,12 @@ class _SubscriptionContactScreenState extends State<SubscriptionContactScreen> {
             ),
           ),
           const SizedBox(height: 4),
+          // A package grants a NUMBER of farms now, not unlimited ones — and
+          // this screen is what the farmer reads to the dealer on the phone,
+          // so it has to match what they will actually be given.
           Text(
-            'Unlimited farms for '
+            '${widget.plan.farmLimit} more '
+            '${widget.plan.farmLimit == 1 ? 'farm' : 'farms'} for '
             '${widget.plan.months} month${widget.plan.months == 1 ? '' : 's'}',
             style: GoogleFonts.roboto(
               fontSize: 12.5,
@@ -336,10 +343,8 @@ class _SubscriptionContactScreenState extends State<SubscriptionContactScreen> {
           SizedBox(
             height: 52,
             child: OutlinedButton.icon(
-              onPressed: () => launchHelpWhatsAppWithMessage(
-                _contact!.whatsapp!,
-                _enquiry,
-              ),
+              onPressed: () =>
+                  launchHelpWhatsAppWithMessage(_contact!.whatsapp!, _enquiry),
               icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
               label: Text(
                 'Message on WhatsApp',

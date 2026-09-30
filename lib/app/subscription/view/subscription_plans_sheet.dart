@@ -243,8 +243,15 @@ class _PlanCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 3),
+                    // What the package actually grants.
+                    //
+                    // This read "Unlimited farms for N months", which is no
+                    // longer true and was the whole point of the change: a
+                    // package now buys a NUMBER of farms for a period, and a
+                    // farmer who needs more buys another alongside it.
                     Text(
-                      'Unlimited farms for '
+                      '${plan.farmLimit} more '
+                      '${plan.farmLimit == 1 ? 'farm' : 'farms'} for '
                       '${plan.months} month${plan.months == 1 ? '' : 's'}',
                       style: GoogleFonts.roboto(
                         fontSize: 12,
