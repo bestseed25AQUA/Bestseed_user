@@ -47,6 +47,12 @@ class FarmAccess {
   final DateTime? expiresAt;
   final AccessPermissions permissions;
 
+  /// The owner's package no longer covers this farm, so it is read-only.
+  ///
+  /// Nothing to do with what this person was granted — a farm past the
+  /// owner's paid allowance is read-only for the owner too.
+  final bool locked;
+
   /// The server's own answer to "may this person give access away", or null on
   /// a payload that predates the field. Read through [canShareAccess].
   final bool? _canShareAccess;
@@ -58,6 +64,7 @@ class FarmAccess {
     required this.role,
     required this.isOwner,
     required this.permissions,
+    this.locked = false,
     this.expiresAt,
     bool? canShareAccess,
     bool? canRevokeAccess,
@@ -71,6 +78,7 @@ class FarmAccess {
     : role = 'owner',
       isOwner = true,
       expiresAt = null,
+      locked = false,
       _canShareAccess = true,
       _canRevokeAccess = true,
       permissions = const AccessPermissions(
@@ -88,6 +96,7 @@ class FarmAccess {
     return FarmAccess(
       role: json['role']?.toString() ?? 'owner',
       isOwner: json['is_owner'] == true,
+      locked: json['locked'] == true,
       expiresAt: DateTime.tryParse('${json['expires_at']}'),
       // Absent on an older server: left null so canShareAccess falls back to
       // deriving it, rather than reading a missing key as "no".
@@ -131,15 +140,21 @@ class FarmAccess {
   }
 
   bool get canView => isOwner || permissions.view;
-  bool get canEdit => isOwner || permissions.edit;
+  /// Every write getter is gated on [locked] as well as on the grant.
+  /// Without it an owner keeps every button on a farm the server will
+  /// refuse, because owning it short-circuits the permission check.
+  bool get canEdit => !locked && (isOwner || permissions.edit);
 
   /// Whether this person may harvest a tank (mark it active or inactive).
   bool get canChangeTankStatus => isOwner || permissions.tankStatus;
 
   /// Whether this person may change the farm's feed store and low-feed limit.
-  bool get canEditTotalFeed => isOwner || permissions.totalFeed;
-  bool get canCreate => isOwner || permissions.create;
-  bool get canDelete => isOwner || permissions.delete;
+  bool get canEditTotalFeed => !locked && (isOwner || permissions.totalFeed);
+  bool get canCreate => !locked && (isOwner || permissions.create);
+  bool get canDelete => !locked && (isOwner || permissions.delete);
+
+  /// Harvesting survives a lapsed package; starting a new crop does not.
+  bool get canStartCrop => !locked && canChangeTankStatus;
 
   /// True when this person is a partner on the farm rather than the owner.
   bool get isPartner => !isOwner && role == 'partner';
@@ -163,7 +178,8 @@ class FarmAccess {
   ///
   /// The server's own answer wins when it sends one; the fallback is for a
   /// payload that predates the field.
-  bool get canShareAccess => _canShareAccess ?? (isOwner || canCreate);
+  bool get canShareAccess =>
+      !locked && (_canShareAccess ?? (isOwner || permissions.create));
 
   /// Whether they may take someone's access away.
   ///
@@ -172,7 +188,9 @@ class FarmAccess {
   /// with nowhere to be used. Delete is what turns "may bring people in" into
   /// "may also remove them".
   bool get canRevokeAccess =>
-      _canRevokeAccess ?? (isOwner || (canCreate && canDelete));
+      !locked &&
+      (_canRevokeAccess ??
+          (isOwner || (permissions.create && permissions.delete)));
 }
 
 /// A person who currently holds access to a farm.

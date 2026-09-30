@@ -22,9 +22,11 @@ import 'package:seedsuser/app/farm_management/farmer/view/feed_update_screen.dar
 import 'package:seedsuser/app/farm_management/farmer/view/setup_access_guide_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
 import 'package:seedsuser/app/subscription/controller/subscription_controller.dart';
+import 'package:seedsuser/app/subscription/expiry_reminder.dart';
 import 'package:seedsuser/app/subscription/model/subscription_models.dart';
 import 'package:seedsuser/app/subscription/view/subscription_plans_sheet.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_options.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_banner_carousel.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
@@ -71,11 +73,18 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
   void initState() {
     super.initState();
 
-    // Asked once when the screen opens, for two reasons: the add button needs
-    // the answer before it is pressed, and an expiring subscription has to be
-    // shown here as well as pushed — a farmer who denied notification
-    // permission would otherwise never hear that their plan is about to lapse.
-    subscriptionController.load();
+    // Asked once when the screen opens: the add button needs the answer before
+    // it is pressed, and the expiry warning belongs here as well as in a push,
+    // for a farmer who denied notification permission.
+    _loadSubscription();
+  }
+
+  Future<void> _loadSubscription() async {
+    final status = await subscriptionController.load();
+
+    if (!mounted) return;
+
+    await SubscriptionExpiryReminder.instance.maybeShow(context, status);
   }
 
   @override
@@ -269,19 +278,8 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
   Widget build(BuildContext context) {
     const Color primaryBlue = Color(0xFF007BFF);
 
-    // Deleting the last farm leaves this screen with nothing to show, so hand
-    // back to the empty-state screen.
-    //
-    // This REPLACES the route in a post-frame callback. Returning
-    // InitialFarmScreen from here instead made the two screens render each
-    // other: its initState refetched, that flipped isLoading, this Obx rebuilt,
-    // and round it went — an endless stream of /farm-lists calls and a
-    // "!_dirty is not true" crash every frame. Navigating leaves exactly one
-    // screen mounted, and the guard makes it fire once.
     return Obx(() {
-      // `!hasLoadError`: an empty list after a FAILED request is not the same
-      // as a farmer with no farms, and handing over on it showed the
-      // add-your-first-farm screen to someone who simply had no signal.
+   
       if (!controller.isLoading.value &&
           !controller.hasLoadError.value &&
           farmSections.isEmpty &&
@@ -315,11 +313,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
           'Farm Management',
           style: GoogleFonts.roboto(color: Colors.white),
         ),
-        // leading: const Icon(Icons.menu),
-        //
-        // The Scan action is gone with the rest of the QR flow: access is
-        // given by picking people directly in Setup Access, so there is no
-        // code to scan.
+
         actions: [
           // The shared button, as on the farm detail and tank screens.
           RefreshButton(onTap: _refreshList),
@@ -331,11 +325,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
         final own = _ownAndPartnered(farms);
         final managed = _managed(farms);
 
-        // Shimmer on the FIRST load, and on an app-bar refresh.
-        //
-        // NOT during a pull-to-refresh: RefreshIndicator draws its own spinner
-        // and swapping the body out would tear the gesture away mid-pull —
-        // which is why this reads _refreshing rather than isLoading alone.
+      
         final showShimmer =
             (controller.isLoading.value && farms.isEmpty) || _refreshing;
 
@@ -352,12 +342,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
     );
   }
 
-  /// One scrolling list of farm cards.
-  ///
-  /// Lifted out of [_farmListBody] so the two tabs can each have one. Every
-  /// list needs its OWN [scrollController]: a Scrollbar draws from the
-  /// controller's position, and a controller attached to two lists at once has
-  /// two, which throws as soon as the bar paints.
+
   Widget _farmScrollList(
     List<FarmSection> farms,
     ScrollController scrollController,
@@ -365,9 +350,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: () => controller.fetchFarmList(),
-      // Same treatment as the tank list: a visible thumb, so a
-      // farmer with more farms than fit on screen can see there
-      // is more below and where they are in it.
       child: Scrollbar(
         controller: scrollController,
         thumbVisibility: true,
@@ -375,14 +357,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
         thickness: 4,
         child: ListView.builder(
           controller: scrollController,
-          // Not reversed: a reversed list anchors its items to the
-          // BOTTOM of the viewport, which left a single farm
-          // floating at the bottom of an empty screen. Newest-first
-          // ordering is done in `farmSections` instead, so the list
-          // fills from the top like every other list in the app.
-          //
-          // AlwaysScrollable so the pull gesture still works when
-          // there are too few farms to fill the screen.
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(
             top: 12,
@@ -414,12 +388,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
     );
   }
 
-  /// The Farm / Manager tabs.
-  ///
-  /// Only reached when BOTH lists have something in them — see [_farmListBody].
-  /// DefaultTabController rather than one built in initState, because whether
-  /// there are tabs at all depends on data that arrives after this screen does,
-  /// and can change under a refresh when a grant is given or revoked.
   Widget _tabbedLists(List<FarmSection> own, List<FarmSection> managed) {
     return DefaultTabController(
       length: 2,
@@ -431,21 +399,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
               labelColor: AppColors.primary,
               unselectedLabelColor: Colors.grey.shade600,
 
-              // The underline runs PAST the word rather than hugging it.
-              //
-              // `TabBarIndicatorSize.label` is kept on purpose: the bar stays
-              // proportional to each word, so "Manager" still gets a longer one
-              // than "Farm" — switching to `.tab` would give both half the
-              // screen and lose that. What widens it is the NEGATIVE inset
-              // below, which is the only number to touch if this still wants
-              // adjusting.
-              //
-              // 24px of bar each side of the word. The underline painter
-              // deflates the rect by these insets, so a negative value inflates
-              // it, and nothing clips the result.
-              //
-              // A custom `indicator` supersedes indicatorColor/indicatorWeight,
-              // so the colour and thickness live in the BorderSide now.
               indicatorSize: TabBarIndicatorSize.label,
               indicator: UnderlineTabIndicator(
                 borderSide: BorderSide(color: AppColors.primary, width: 4),
@@ -455,10 +408,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
                 ),
               ),
 
-              // Material 3 draws its OWN 1px divider under the tab bar
-              // (outlineVariant), which landed on top of the explicit Divider
-              // below and showed as a double line. The Divider below is the one
-              // with the intended colour, so this one gets out of the way.
               dividerColor: Colors.transparent,
 
               labelStyle: GoogleFonts.roboto(
@@ -489,12 +438,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
     );
   }
 
-  /// The list itself, split out so the shimmer and it can be cross-faded.
-  ///
-  /// [own] is what the farmer created plus anything they partner on; [managed]
-  /// is what someone else made them a manager of. The tabs appear only when
-  /// there is something in both — with one bucket empty a tab bar would just be
-  /// a header over the only list there is, and an empty tab beside it.
+
   Widget _farmListBody(
     BuildContext context,
     Color primaryBlue,
@@ -503,28 +447,10 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
   ) {
     final showTabs = own.isNotEmpty && managed.isNotEmpty;
 
-    // SafeArea, bottom only.
-    //
-    // Contact Us sat at a flat `bottom: 16`, which is under the three-button
-    // navigation bar on a phone not using gestures — the Back/Home/Recents row
-    // covered it and the button could not be tapped at all. Gesture phones have
-    // almost no inset, which is why it looked fine on those.
-    //
-    // Wrapping the whole column rather than padding the button alone, so the
-    // floating buttons inside the Stack above clear the nav bar too; they sit at
-    // the same flat 16 and had the same problem.
-    //
-    // top: false — the AppBar already owns the status bar.
     return SafeArea(
       top: false,
       child: Column(
         children: [
-          // The in-app half of the expiry warning.
-          //
-          // The nightly command pushes a notification, but a farmer who never
-          // granted notification permission — or who cleared it — would hear
-          // nothing at all. This screen is where the consequence lands, so the
-          // warning belongs here too.
           Obx(() {
             final warning = subscriptionController.expiryWarning;
             if (warning == null) return const SizedBox.shrink();
@@ -535,6 +461,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
 
             return _expiryBanner(warning, expired: expired);
           }),
+          const FarmBannerCarousel(),
           Expanded(
             child: Stack(
               children: [
@@ -581,10 +508,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
             padding: const EdgeInsets.only(bottom: 16, top: 8),
             child: TextButton(
               onPressed: () {
-                // Popup, not the bottom sheet: this matches the Contact Us
-                // design. It reads the numbers the admin panel stores,
-                // preferring the farm-management slot and falling back to
-                // the first active contact when that slot is unset.
                 showDialog(
                   context: context,
                   builder: (_) => const ContactUsDialog(
@@ -613,21 +536,12 @@ class FarmCard extends StatelessWidget {
   const FarmCard({super.key, required this.farm, required this.tankController});
   final TankController tankController;
 
-  /// Open a screen from the farm's options sheet and re-read the list after.
-  ///
-  /// Same reason as the screen's own version: recording feed and editing a farm
-  /// both change what this card shows, and nothing was re-reading the list on
-  /// the way back. Uses the shared controller directly — this card is
-  /// stateless, and the list it feeds is a singleton.
   Future<void> _openThenRefresh(Widget screen) async {
     await Get.to(() => screen);
     await farmListController.fetchFarmList();
   }
 
-  /// One "label: value" figure on a farm card.
-  ///
-  /// No maxLines and no ellipsis on purpose — see the Wrap that lays these
-  /// out. A long figure wraps within itself rather than being cut short.
+
   Widget _farmFigure(String label, String value) {
     return RichText(
       text: TextSpan(
@@ -650,13 +564,6 @@ class FarmCard extends StatelessWidget {
     );
   }
 
-  /// Farmer / Partner / Manager, outlined rather than filled.
-  ///
-  /// The Active and Inactive chips are solid blocks of colour because they
-  /// carry a number to read; this one states a standing, so it is outlined —
-  /// three solid chips in a row competed with each other and none of them read
-  /// first. Each role gets its own colour so the Farm tab, which mixes farms
-  /// they own with farms they partner on, can be told apart at a glance.
   Widget _roleChip(FarmAccess access) {
     final Color color = access.isOwner
         ? AppColors.primary
@@ -679,6 +586,35 @@ class FarmCard extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
+      ),
+    );
+  }
+
+  /// On the card as well as in the sheet: a farmer with several farms needs
+  /// to see which one stopped taking entries without opening each.
+  Widget _lockedChip() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.orange.shade300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.lock_outline, size: 12, color: Colors.orange.shade900),
+          const SizedBox(width: 4),
+          Text(
+            'Read-only',
+            maxLines: 1,
+            style: GoogleFonts.roboto(
+              color: Colors.orange.shade900,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -904,6 +840,10 @@ class FarmCard extends StatelessWidget {
                     // point of the chip, so the two counts beside it give up
                     // space first rather than this ellipsing to "Mana…".
                     const Spacer(),
+                    if (farm.access.locked) ...[
+                      const SizedBox(width: 8),
+                      _lockedChip(),
+                    ],
                     const SizedBox(width: 8),
                     _roleChip(farm.access),
                   ],
@@ -1234,6 +1174,12 @@ void showFarmBottomSheet({
     backgroundColor: Colors.transparent,
     useSafeArea: true,
     builder: (context) {
+      // One reason for every padlock on a locked farm, so the farmer is not
+      // told they lack an access they were never denied.
+      String denied(String otherwise) => access.locked
+          ? 'This farm is read-only until you renew your subscription.'
+          : otherwise;
+
       return SafeArea(
         top: false,
         child: Container(
@@ -1280,6 +1226,8 @@ void showFarmBottomSheet({
               // so is noise on the farm they own. Someone working a farm for
               // somebody else has no other way to see what they were given —
               // they found out by tapping a row and being refused.
+              if (access.locked) _sheetLockedNotice(),
+
               if (!access.isOwner) ..._sheetAccessSummary(access),
 
               const SizedBox(height: 10),
@@ -1295,8 +1243,9 @@ void showFarmBottomSheet({
                 // given edit found the way IN to the feed screen padlocked even
                 // though every control on that screen was open to them.
                 enabled: access.canCreate || access.canEdit,
-                deniedMessage:
-                    "You don't have access to record feed on this farm.",
+                deniedMessage: denied(
+                  "You don't have access to record feed on this farm.",
+                ),
               ),
 
               // One row per role, each carrying the role all the way through
@@ -1327,9 +1276,11 @@ void showFarmBottomSheet({
                 title: "Farm History",
                 onTap: onHistory,
                 enabled: access.canShareAccess,
-                deniedMessage: access.isManagerGrant
-                    ? "Only the farm owner or a partner can view the farm history."
-                    : "You hold no access on this farm.",
+                deniedMessage: denied(
+                  access.isManagerGrant
+                      ? "Only the farm owner or a partner can view the farm history."
+                      : "You hold no access on this farm.",
+                ),
               ),
 
               _sheetItem(
@@ -1337,8 +1288,9 @@ void showFarmBottomSheet({
                 title: "Set Up Access for Manager",
                 onTap: onManagerAccess,
                 enabled: access.canShareAccess,
-                deniedMessage:
-                    "You need create access on this farm to give someone access.",
+                deniedMessage: denied(
+                  "You need create access on this farm to give someone access.",
+                ),
               ),
 
               _sheetItem(
@@ -1346,8 +1298,9 @@ void showFarmBottomSheet({
                 title: "Set Up Access for Partner",
                 onTap: onPartnerAccess,
                 enabled: access.canShareAccess,
-                deniedMessage:
-                    "You need create access on this farm to give someone access.",
+                deniedMessage: denied(
+                  "You need create access on this farm to give someone access.",
+                ),
               ),
 
               // Masked for MANAGERS, whatever else they hold.
@@ -1362,9 +1315,11 @@ void showFarmBottomSheet({
                 title: "Edit farm Details",
                 onTap: onEditFarm,
                 enabled: access.canEdit && !access.isManagerGrant,
-                deniedMessage: access.isManagerGrant
-                    ? "Managers can't change farm details. The owner or a partner can."
-                    : "You don't have edit access to this farm.",
+                deniedMessage: denied(
+                  access.isManagerGrant
+                      ? "Managers can't change farm details. The owner or a partner can."
+                      : "You don't have edit access to this farm.",
+                ),
               ),
 
               _sheetItem(
@@ -1373,7 +1328,7 @@ void showFarmBottomSheet({
                 iconColor: Colors.red,
                 textColor: Colors.red,
                 enabled: access.canDelete,
-                deniedMessage: "You don't have delete access to this farm.",
+                deniedMessage: denied("You don't have delete access to this farm."),
                 onTap: () {
                   showDialog(
                     context: context,
@@ -1388,7 +1343,8 @@ void showFarmBottomSheet({
 
               // Says why the rows above are greyed out. Without it a manager
               // sees four padlocks and no explanation.
-              if (!access.canCreate &&
+              if (!access.locked &&
+                  !access.canCreate &&
                   !access.canEdit &&
                   !access.canDelete &&
                   !access.canShareAccess)
@@ -1407,6 +1363,56 @@ void showFarmBottomSheet({
         ),
       );
     },
+  );
+}
+
+/// Why every write on this farm is padlocked.
+///
+/// Names what still works, because a farmer who reads only "read-only"
+/// assumes the crop in the water is stranded and rings the helpline.
+Widget _sheetLockedNotice() {
+  return Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(top: 12),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: Colors.orange.shade50,
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: Colors.orange.shade200),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.lock_outline, size: 18, color: Colors.orange.shade900),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Read-only until you renew',
+                style: GoogleFonts.roboto(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.orange.shade900,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'This farm is beyond your free allowance and your package has '
+                'ended. You can still open it, harvest the tanks running in it '
+                'and download reports.',
+                style: GoogleFonts.roboto(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: Colors.orange.shade900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
   );
 }
 

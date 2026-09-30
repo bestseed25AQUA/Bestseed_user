@@ -387,9 +387,6 @@ class _AddFarmerDetailsFormScreenState
       lowFeedLimit.text = widget.farmData!.lowFeedLimit ?? "";
       selectedTanks = widget.farmData!.noOfTanks;
 
-      // Prefill with the figure the farmer entered. Farms created before that
-      // figure was recorded fall back to their running total, so the box shows
-      // something meaningful instead of sitting empty next to weeks of history.
       final entered =
           widget.farmData!.feedUsedBefore ??
           widget.farmData!.totalFeedUsed ??

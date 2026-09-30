@@ -115,6 +115,25 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
     return to.difference(from).inDays + 1;
   }
 
+  /// Feed already saved for [_selectedDate], summed across the tanks shown.
+  double _recordedTotal(List<TankModel> tanks) {
+    var total = 0.0;
+    for (final tank in tanks) {
+      for (final entry in tank.todaysFeed) {
+        total += double.tryParse(entry.feedQuantity) ?? 0;
+      }
+    }
+    return total;
+  }
+
+  String _formatKg(double value) {
+    var text = value.toStringAsFixed(2);
+    if (text.endsWith('0')) text = text.substring(0, text.length - 1);
+    if (text.endsWith('0')) text = text.substring(0, text.length - 1);
+    if (text.endsWith('.')) text = text.substring(0, text.length - 1);
+    return text;
+  }
+
   /// One note field per tank, for the SELECTED day. Keyed by tank id and owned
   /// here, not by the card: the card is a StatelessWidget rebuilt on every
   /// setState, so a controller made there would lose what was typed.
@@ -585,6 +604,11 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
         // reads it as the app losing them.
         final hiddenByDate = tanks.length - visibleTanks.length;
 
+        final recordedTotal = _recordedTotal(visibleTanks);
+        final fedTanks = visibleTanks
+            .where((t) => t.todaysFeed.isNotEmpty)
+            .length;
+
         if (allTanks.isEmpty) {
           return const Center(child: Text("No Tank Found"));
         }
@@ -643,13 +667,6 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
                   ),
                   const SizedBox(height: 4.0),
                   Center(
-                    // The date, with an Edit beside it.
-                    //
-                    // It was plain grey text showing today, with no way to
-                    // reach a day that had been missed — the farmer had to open
-                    // each tank's history separately to fill one in. Edit,
-                    // rather than a calendar glyph, because it is the same word
-                    // this app uses everywhere else something can be changed.
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -704,8 +721,6 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
                     ),
                   ),
 
-                  // Says plainly that this is not today, so a day filled in
-                  // late cannot be mistaken for today's record.
                   if (!_isToday) ...[
                     const SizedBox(height: 6),
                     Center(
@@ -719,7 +734,6 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
                     ),
                   ],
 
-                  // Why the list is shorter on this day than on today.
                   if (hiddenByDate > 0) ...[
                     const SizedBox(height: 4),
                     Center(
@@ -740,6 +754,71 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
                       ),
                     ),
                   ],
+
+                  const SizedBox(height: 14),
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: recordedTotal > 0
+                              ? AppColors.primary.withValues(alpha: 0.07)
+                              : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: recordedTotal > 0
+                                ? AppColors.primary.withValues(alpha: 0.25)
+                                : Colors.grey.shade300,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.scale_outlined,
+                              size: 16,
+                              color: recordedTotal > 0
+                                  ? AppColors.primary
+                                  : Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                recordedTotal > 0
+                                    ? 'Feed added: ${_formatKg(recordedTotal)} kg'
+                                    : 'No feed added yet',
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.roboto(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: recordedTotal > 0
+                                      ? AppColors.primary
+                                      : Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                            if (fedTanks > 0) ...[
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  '$fedTanks of ${visibleTanks.length} tanks',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
 
                   const SizedBox(height: 24.0),
 

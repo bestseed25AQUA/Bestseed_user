@@ -835,30 +835,44 @@ class TankStatusCard extends StatelessWidget {
                 // Greyed and inert without tank_status access, rather than
                 // hidden: the farmer still needs to see whether the tank is
                 // running, which is the point of the card.
-                GestureDetector(
-                  onTap: access.canChangeTankStatus
-                      ? () => _setActive(context, !isActive)
-                      : () => CustomToast.info(
-                          "You don't have access to change this tank's status.",
+                // Harvesting survives a lapsed package; stocking a fresh crop
+                // does not, so an inactive tank needs canStartCrop.
+                Builder(
+                  builder: (context) {
+                    final allowed = isActive
+                        ? access.canChangeTankStatus
+                        : access.canStartCrop;
+
+                    return GestureDetector(
+                      onTap: allowed
+                          ? () => _setActive(context, !isActive)
+                          : () => CustomToast.info(
+                              access.locked
+                                  ? 'Renew your subscription to start a new crop on this farm.'
+                                  : "You don't have access to change this tank's status.",
+                            ),
+                      child: Opacity(
+                        opacity: allowed ? 1 : .45,
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isActive
+                                ? const Color(0xFF12C08A)
+                                : Colors.grey.shade300,
+                          ),
+                          child: Icon(
+                            Icons.power_settings_new,
+                            size: 20,
+                            color: isActive
+                                ? Colors.white
+                                : Colors.grey.shade600,
+                          ),
                         ),
-                  child: Opacity(
-                    opacity: access.canChangeTankStatus ? 1 : .45,
-                    child: Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isActive
-                            ? const Color(0xFF12C08A)
-                            : Colors.grey.shade300,
                       ),
-                      child: Icon(
-                        Icons.power_settings_new,
-                        size: 20,
-                        color: isActive ? Colors.white : Colors.grey.shade600,
-                      ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ],
             ),

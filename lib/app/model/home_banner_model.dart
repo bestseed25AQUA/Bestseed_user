@@ -22,6 +22,7 @@ class BannerItem {
   String type; // "image" or "video"
   String url;
   String? thumbnail; // thumbnail image URL (for video banners)
+  String? redirectUrl; // opened when the banner is tapped, when set
 
   BannerItem({
     required this.title,
@@ -29,6 +30,7 @@ class BannerItem {
     required this.url,
     this.id,
     this.thumbnail,
+    this.redirectUrl,
   });
 
   factory BannerItem.fromJson(Map<String, dynamic> json) {
@@ -38,6 +40,7 @@ class BannerItem {
       type: json['type'] ?? 'image',
       url: json['url'] ?? '',
       thumbnail: json['thumbnail'],
+      redirectUrl: json['redirect_url'],
     );
   }
 
@@ -47,5 +50,6 @@ class BannerItem {
         'type': type,
         'url': url,
         'thumbnail': thumbnail,
+        'redirect_url': redirectUrl,
       };
 }
