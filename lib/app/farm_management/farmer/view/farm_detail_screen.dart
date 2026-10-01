@@ -18,13 +18,9 @@ import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.da
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_save_button.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/harvest_bottom.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/start_batch_sheet.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_access_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/feed_low_alert_dialog.dart';
-
-import 'dart:io';
-import 'package:dio/dio.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:seedsuser/app/subscription/view/subscription_plans_sheet.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 
 class FarmTankListScreen extends StatefulWidget {
@@ -161,14 +157,7 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
   }
 
   /// The button under the store card.
-  ///
-  /// Masked rather than hidden without create access, matching the options
-  /// sheet: a manager should see that recording feed is a thing this farm does
-  /// and that they were not given it, instead of a screen that simply lacks the
-  /// button.
   Widget _addTodaysQuantityButton() {
-    // create OR edit, matching the endpoint behind it — recording a meal and
-    // correcting one are the same action to the server now.
     final allowed = widget.access.canCreate || widget.access.canEdit;
 
     return SizedBox(
@@ -176,6 +165,8 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
       child: ElevatedButton.icon(
         onPressed: allowed
             ? _openTodaysQuantity
+            : widget.access.locked
+            ? () => offerSubscriptionPackages(context)
             : () => CustomToast.info(
                 "You don't have create access to this farm, so you can't record feed.",
               ),
@@ -185,9 +176,6 @@ class _FarmTankListScreenState extends State<FarmTankListScreen> {
           style: GoogleFonts.roboto(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         style: ElevatedButton.styleFrom(
-          // Kept enabled even when denied, so the tap can explain itself —
-          // a truly disabled button swallows the press and says nothing. The
-          // greys below are what make it read as unavailable.
           backgroundColor: allowed ? AppColors.primary : Colors.grey.shade200,
           foregroundColor: allowed ? Colors.white : Colors.grey.shade500,
           elevation: allowed ? 1 : 0,
@@ -589,19 +577,14 @@ class FeedStoreCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // The store has its own permission — /update-total-feed
-                    // sits behind `farm.access:total_feed`, not plain edit.
-                    //
-                    // Shown either way, masked when it is not held: a manager
-                    // who cannot change the store should still see that the
-                    // store IS editable and that they were not given it,
-                    // rather than a header with no button and no explanation.
                     InkWell(
                       onTap: access.canEditTotalFeed
                           ? () => showEditFeedBottomSheet(
                               context,
                               farmId.toString(),
                             )
+                          : access.locked
+                          ? () => offerSubscriptionPackages(context)
                           : () => CustomToast.info(
                               "You don't have access to change this farm's feed store.",
                             ),
@@ -846,10 +829,10 @@ class TankStatusCard extends StatelessWidget {
                     return GestureDetector(
                       onTap: allowed
                           ? () => _setActive(context, !isActive)
+                          : access.locked
+                          ? () => offerSubscriptionPackages(context)
                           : () => CustomToast.info(
-                              access.locked
-                                  ? 'Renew your subscription to start a new crop on this farm.'
-                                  : "You don't have access to change this tank's status.",
+                              "You don't have access to change this tank's status.",
                             ),
                       child: Opacity(
                         opacity: allowed ? 1 : .45,

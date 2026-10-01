@@ -19,6 +19,8 @@ import 'package:seedsuser/app/farm_management/farmer/view/farm_activity_screen.d
 import 'package:seedsuser/app/farm_management/farmer/view/farm_detail_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/add_farm_details_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/feed_update_screen.dart';
+import 'package:seedsuser/app/farm_management/farmer/controller/farm_access_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/view/access_management_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/setup_access_guide_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
 import 'package:seedsuser/app/subscription/controller/subscription_controller.dart';
@@ -279,7 +281,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
     const Color primaryBlue = Color(0xFF007BFF);
 
     return Obx(() {
-   
       if (!controller.isLoading.value &&
           !controller.hasLoadError.value &&
           farmSections.isEmpty &&
@@ -325,7 +326,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
         final own = _ownAndPartnered(farms);
         final managed = _managed(farms);
 
-      
         final showShimmer =
             (controller.isLoading.value && farms.isEmpty) || _refreshing;
 
@@ -341,7 +341,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
       }),
     );
   }
-
 
   Widget _farmScrollList(
     List<FarmSection> farms,
@@ -437,7 +436,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
       ),
     );
   }
-
 
   Widget _farmListBody(
     BuildContext context,
@@ -541,7 +539,6 @@ class FarmCard extends StatelessWidget {
     await farmListController.fetchFarmList();
   }
 
-
   Widget _farmFigure(String label, String value) {
     return RichText(
       text: TextSpan(
@@ -590,31 +587,52 @@ class FarmCard extends StatelessWidget {
     );
   }
 
-  /// On the card as well as in the sheet: a farmer with several farms needs
-  /// to see which one stopped taking entries without opening each.
-  Widget _lockedChip() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.orange.shade50,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.orange.shade300),
+  /// Open access setup, skipping the guide once the farm has someone on it.
+  Future<void> _openAccessSetup(
+    BuildContext context,
+    int farmId,
+    FarmAccess access,
+    FarmRole role,
+  ) async {
+    final rootNav = Navigator.of(context, rootNavigator: true);
+    Navigator.pop(context);
+
+    final controller = Get.isRegistered<FarmAccessController>()
+        ? Get.find<FarmAccessController>()
+        : Get.put(FarmAccessController());
+
+    await controller.fetchMembers(farmId: farmId);
+
+    final firstTime = controller.members.isEmpty;
+
+    rootNav.push(
+      MaterialPageRoute(
+        builder: (_) => firstTime
+            ? SetupAccessGuideScreen(farmId: farmId, access: access, role: role)
+            : AccessManagementScreen(
+                farmId: farmId,
+                access: access,
+                role: role,
+              ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.lock_outline, size: 12, color: Colors.orange.shade900),
-          const SizedBox(width: 4),
-          Text(
-            'Read-only',
-            maxLines: 1,
-            style: GoogleFonts.roboto(
-              color: Colors.orange.shade900,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+    );
+  }
+
+  Widget _lockedChip(BuildContext context) {
+    return GestureDetector(
+      onTap: () => offerSubscriptionPackages(context),
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.orange.shade300),
+        ),
+        child: Icon(
+          Icons.lock_outline,
+          size: 15,
+          color: Colors.orange.shade900,
+        ),
       ),
     );
   }
@@ -708,41 +726,21 @@ class FarmCard extends StatelessWidget {
                           },
 
                           // One entry point per role. The role is chosen HERE
-                          // and carried through the guide, the access list and
-                          // the add form, so it is never asked for twice.
-                          onManagerAccess: () {
-                            final rootNav = Navigator.of(
-                              context,
-                              rootNavigator: true,
-                            );
-                            Navigator.pop(context);
-                            rootNav.push(
-                              MaterialPageRoute(
-                                builder: (_) => SetupAccessGuideScreen(
-                                  farmId: farmIdNum,
-                                  access: farm.access,
-                                  role: FarmRole.manager,
-                                ),
-                              ),
-                            );
-                          },
+                          // and carried through to the access list and the
+                          // add form, so it is never asked for twice.
+                          onManagerAccess: () => _openAccessSetup(
+                            context,
+                            farmIdNum,
+                            farm.access,
+                            FarmRole.manager,
+                          ),
 
-                          onPartnerAccess: () {
-                            final rootNav = Navigator.of(
-                              context,
-                              rootNavigator: true,
-                            );
-                            Navigator.pop(context);
-                            rootNav.push(
-                              MaterialPageRoute(
-                                builder: (_) => SetupAccessGuideScreen(
-                                  farmId: farmIdNum,
-                                  access: farm.access,
-                                  role: FarmRole.partner,
-                                ),
-                              ),
-                            );
-                          },
+                          onPartnerAccess: () => _openAccessSetup(
+                            context,
+                            farmIdNum,
+                            farm.access,
+                            FarmRole.partner,
+                          ),
 
                           onEditFarm: () {
                             Navigator.pop(context);
@@ -774,6 +772,8 @@ class FarmCard extends StatelessWidget {
                               ),
                             );
                           },
+
+                          onRenew: () => offerSubscriptionPackages(context),
 
                           onDeleteFarm: () async {
                             Navigator.pop(context);
@@ -816,36 +816,39 @@ class FarmCard extends StatelessWidget {
             child: Column(
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Flexible(
-                      child: _buildStatusChip(
-                        'Active - ${farm.activeCount}',
-                        Colors.green,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: _buildStatusChip(
+                              'Active - ${farm.activeCount}',
+                              Colors.green,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: _buildStatusChip(
+                              'Inactive - ${farm.inactiveCount}',
+                              Colors.red,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Flexible(
-                      child: _buildStatusChip(
-                        'Inactive - ${farm.inactiveCount}',
-                        Colors.red,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (farm.access.locked) ...[
+                          _lockedChip(context),
+                          const SizedBox(width: 8),
+                        ],
+                        _roleChip(farm.access),
+                      ],
                     ),
-
-                    // How the farmer stands to THIS farm — Farmer on their own,
-                    // Partner or Manager on someone else's. The card looked
-                    // identical either way before, so a farm shared with them
-                    // was indistinguishable from one they created.
-                    //
-                    // Not Flexible: the role is one short word and is the whole
-                    // point of the chip, so the two counts beside it give up
-                    // space first rather than this ellipsing to "Mana…".
-                    const Spacer(),
-                    if (farm.access.locked) ...[
-                      const SizedBox(width: 8),
-                      _lockedChip(),
-                    ],
-                    const SizedBox(width: 8),
-                    _roleChip(farm.access),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -1167,6 +1170,7 @@ void showFarmBottomSheet({
   required VoidCallback onPartnerAccess,
   required VoidCallback onEditFarm,
   required VoidCallback onDeleteFarm,
+  VoidCallback? onRenew,
 }) {
   showModalBottomSheet(
     context: context,
@@ -1174,11 +1178,16 @@ void showFarmBottomSheet({
     backgroundColor: Colors.transparent,
     useSafeArea: true,
     builder: (context) {
-      // One reason for every padlock on a locked farm, so the farmer is not
-      // told they lack an access they were never denied.
       String denied(String otherwise) => access.locked
           ? 'This farm is read-only until you renew your subscription.'
           : otherwise;
+
+      final VoidCallback? onLocked = access.locked && onRenew != null
+          ? () {
+              Navigator.pop(context);
+              onRenew();
+            }
+          : null;
 
       return SafeArea(
         top: false,
@@ -1226,7 +1235,7 @@ void showFarmBottomSheet({
               // so is noise on the farm they own. Someone working a farm for
               // somebody else has no other way to see what they were given —
               // they found out by tapping a row and being refused.
-              if (access.locked) _sheetLockedNotice(),
+              if (access.locked) _sheetLockedNotice(onLocked),
 
               if (!access.isOwner) ..._sheetAccessSummary(access),
 
@@ -1243,6 +1252,7 @@ void showFarmBottomSheet({
                 // given edit found the way IN to the feed screen padlocked even
                 // though every control on that screen was open to them.
                 enabled: access.canCreate || access.canEdit,
+                onDenied: onLocked,
                 deniedMessage: denied(
                   "You don't have access to record feed on this farm.",
                 ),
@@ -1275,12 +1285,10 @@ void showFarmBottomSheet({
                 icon: Icons.history,
                 title: "Farm History",
                 onTap: onHistory,
-                enabled: access.canShareAccess,
-                deniedMessage: denied(
-                  access.isManagerGrant
-                      ? "Only the farm owner or a partner can view the farm history."
-                      : "You hold no access on this farm.",
-                ),
+                enabled: access.canViewHistory,
+                deniedMessage: access.isManagerGrant
+                    ? "Only the farm owner or a partner can view the farm history."
+                    : "You hold no access on this farm.",
               ),
 
               _sheetItem(
@@ -1288,6 +1296,7 @@ void showFarmBottomSheet({
                 title: "Set Up Access for Manager",
                 onTap: onManagerAccess,
                 enabled: access.canShareAccess,
+                onDenied: onLocked,
                 deniedMessage: denied(
                   "You need create access on this farm to give someone access.",
                 ),
@@ -1298,6 +1307,7 @@ void showFarmBottomSheet({
                 title: "Set Up Access for Partner",
                 onTap: onPartnerAccess,
                 enabled: access.canShareAccess,
+                onDenied: onLocked,
                 deniedMessage: denied(
                   "You need create access on this farm to give someone access.",
                 ),
@@ -1315,6 +1325,7 @@ void showFarmBottomSheet({
                 title: "Edit farm Details",
                 onTap: onEditFarm,
                 enabled: access.canEdit && !access.isManagerGrant,
+                onDenied: onLocked,
                 deniedMessage: denied(
                   access.isManagerGrant
                       ? "Managers can't change farm details. The owner or a partner can."
@@ -1328,7 +1339,10 @@ void showFarmBottomSheet({
                 iconColor: Colors.red,
                 textColor: Colors.red,
                 enabled: access.canDelete,
-                deniedMessage: denied("You don't have delete access to this farm."),
+                onDenied: onLocked,
+                deniedMessage: denied(
+                  "You don't have delete access to this farm.",
+                ),
                 onTap: () {
                   showDialog(
                     context: context,
@@ -1367,51 +1381,56 @@ void showFarmBottomSheet({
 }
 
 /// Why every write on this farm is padlocked.
-///
-/// Names what still works, because a farmer who reads only "read-only"
-/// assumes the crop in the water is stranded and rings the helpline.
-Widget _sheetLockedNotice() {
-  return Container(
-    width: double.infinity,
-    margin: const EdgeInsets.only(top: 12),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    decoration: BoxDecoration(
-      color: Colors.orange.shade50,
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: Colors.orange.shade200),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.lock_outline, size: 18, color: Colors.orange.shade900),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Read-only until you renew',
-                style: GoogleFonts.roboto(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.orange.shade900,
+Widget _sheetLockedNotice(VoidCallback? onTap) {
+  return GestureDetector(
+    onTap: onTap,
+    child: Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.lock_outline, size: 18, color: Colors.orange.shade900),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Read-only until you renew',
+                  style: GoogleFonts.roboto(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.orange.shade900,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'This farm is beyond your free allowance and your package has '
-                'ended. You can still open it, harvest the tanks running in it '
-                'and download reports.',
-                style: GoogleFonts.roboto(
-                  fontSize: 12,
-                  height: 1.4,
-                  color: Colors.orange.shade900,
+                const SizedBox(height: 2),
+                Text(
+                  'This farm is beyond your free allowance and your package has '
+                  'ended. You can still open it, harvest the tanks running in it '
+                  'and download reports. Tap to see the packages.',
+                  style: GoogleFonts.roboto(
+                    fontSize: 12,
+                    height: 1.4,
+                    color: Colors.orange.shade900,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+          Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: Colors.orange.shade900,
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -1502,6 +1521,7 @@ Widget _sheetItem({
   Color? textColor,
   bool enabled = true,
   String? deniedMessage,
+  VoidCallback? onDenied,
 }) {
   // One grey for the icon, the text and the padlock, so the whole row reads as
   // a single unavailable thing rather than three faded pieces.
@@ -1510,9 +1530,10 @@ Widget _sheetItem({
   return InkWell(
     onTap: enabled
         ? onTap
-        : () => CustomToast.info(
-            deniedMessage ?? "You don't have access to do this.",
-          ),
+        : onDenied ??
+              () => CustomToast.info(
+                deniedMessage ?? "You don't have access to do this.",
+              ),
     child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 12.0),
       child: Row(

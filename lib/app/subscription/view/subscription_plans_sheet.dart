@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
+import 'package:seedsuser/app/subscription/controller/subscription_controller.dart';
 import 'package:seedsuser/app/subscription/model/subscription_models.dart';
 import 'package:seedsuser/app/subscription/view/subscription_contact_screen.dart';
 
@@ -22,6 +23,15 @@ Future<void> showSubscriptionPlansSheet(
     ),
     builder: (sheetContext) => _SubscriptionPlansSheet(status: status),
   );
+}
+
+/// The packages, from anywhere a lock stops the farmer.
+Future<void> offerSubscriptionPackages(BuildContext context) async {
+  final status = await subscriptionController.load(force: true);
+
+  if (!context.mounted) return;
+
+  await showSubscriptionPlansSheet(context, status);
 }
 
 class _SubscriptionPlansSheet extends StatelessWidget {
@@ -250,9 +260,12 @@ class _PlanCard extends StatelessWidget {
                     // package now buys a NUMBER of farms for a period, and a
                     // farmer who needs more buys another alongside it.
                     Text(
-                      '${plan.farmLimit} more '
-                      '${plan.farmLimit == 1 ? 'farm' : 'farms'} for '
-                      '${plan.months} month${plan.months == 1 ? '' : 's'}',
+                      plan.farmLimit == 0
+                          ? 'Use your existing farms for '
+                                '${plan.months} month${plan.months == 1 ? '' : 's'}'
+                          : '${plan.farmLimit} more '
+                                '${plan.farmLimit == 1 ? 'farm' : 'farms'} for '
+                                '${plan.months} month${plan.months == 1 ? '' : 's'}',
                       style: GoogleFonts.roboto(
                         fontSize: 12,
                         color: Colors.grey.shade600,

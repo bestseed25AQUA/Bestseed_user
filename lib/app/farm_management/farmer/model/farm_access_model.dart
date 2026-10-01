@@ -140,6 +140,7 @@ class FarmAccess {
   }
 
   bool get canView => isOwner || permissions.view;
+
   /// Every write getter is gated on [locked] as well as on the grant.
   /// Without it an owner keeps every button on a farm the server will
   /// refuse, because owning it short-circuits the permission check.
@@ -158,6 +159,10 @@ class FarmAccess {
 
   /// True when this person is a partner on the farm rather than the owner.
   bool get isPartner => !isOwner && role == 'partner';
+
+  /// Owner or partner. Not gated on [locked]: reading the history is a view,
+  /// like reports, and the server allows it on a lapsed package too.
+  bool get canViewHistory => isOwner || isPartner;
 
   /// Whether this person may hand the farm to somebody else.
   ///
