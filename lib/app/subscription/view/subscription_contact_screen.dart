@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
 import 'package:seedsuser/app/help/contact_labels.dart';
 import 'package:seedsuser/app/help/help_contact_service.dart';
+import 'package:seedsuser/app/subscription/controller/subscription_controller.dart';
 import 'package:seedsuser/app/subscription/model/subscription_models.dart';
 
 /// What to do after picking a package: ring the helpline.
@@ -20,10 +22,21 @@ class SubscriptionContactScreen extends StatefulWidget {
   /// has no active contact at all, in which case we fetch as a last resort.
   final SubscriptionContact? contact;
 
+  /// The locked farm this is about, when the farmer arrived here from one.
+  ///
+  /// Passed on with a request so admin can point the package straight at that
+  /// farm — a package covers ONE farm, so "which one" is the whole question.
+  final int? farmId;
+
+  /// That farm's name, for the message the request carries.
+  final String? farmName;
+
   const SubscriptionContactScreen({
     super.key,
     required this.plan,
     this.contact,
+    this.farmId,
+    this.farmName,
   });
 
   @override
@@ -34,6 +47,10 @@ class SubscriptionContactScreen extends StatefulWidget {
 class _SubscriptionContactScreenState extends State<SubscriptionContactScreen> {
   SubscriptionContact? _contact;
   bool _loading = false;
+
+  /// Sent from THIS screen. Held locally as well as on the controller so the
+  /// button still reads correctly if the controller is replaced underneath it.
+  bool _requestSent = false;
 
   @override
   void initState() {
@@ -189,10 +206,10 @@ class _SubscriptionContactScreenState extends State<SubscriptionContactScreen> {
 
   Widget _steps() {
     const steps = [
-      'Call the number below.',
+      'Call the number below, or send a request and we will call you.',
       'Tell our team which package you want.',
       'Pay over the phone as our team guides you.',
-      'Your farms unlock as soon as it is recorded.',
+      'Your farm unlocks as soon as it is recorded.',
     ];
 
     return Column(
@@ -363,7 +380,86 @@ class _SubscriptionContactScreenState extends State<SubscriptionContactScreen> {
             ),
           ),
         ],
+
+        // The third way in, for a farmer who cannot call.
+        //
+        // Always offered, including when there is no helpline number at all —
+        // that is exactly when it matters most, and it does not depend on the
+        // contact having loaded.
+        const SizedBox(height: 12),
+        _requestButton(),
       ],
     );
+  }
+
+  /// "Ask us to call you" — the request that lands in the admin Requests tab.
+  Widget _requestButton() {
+    return Obx(() {
+      final sending = subscriptionController.isRequesting.value;
+      final sent = _requestSent || subscriptionController.hasRequested.value;
+
+      return SizedBox(
+        height: 52,
+        child: OutlinedButton.icon(
+          // Once sent, it stays visible but inert: the farmer can see their
+          // ask went through, and tapping again would only reorder the same
+          // row in the admin list.
+          onPressed: (sending || sent) ? null : _sendRequest,
+          icon: sending
+              ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2.2),
+                )
+              : Icon(
+                  sent ? Icons.check_circle_rounded : Icons.headset_mic_rounded,
+                  color: sent ? Colors.green.shade600 : AppColors.primary,
+                ),
+          label: Text(
+            sending
+                ? 'Sending…'
+                : sent
+                ? 'Request sent'
+                : 'Ask us to call you',
+            style: GoogleFonts.poppins(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: sent ? Colors.green.shade700 : AppColors.primary,
+            ),
+          ),
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(
+              color: sent ? Colors.green.shade400 : AppColors.primary,
+              width: 1.6,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  Future<void> _sendRequest() async {
+    final result = await subscriptionController.sendRequest(
+      farmId: widget.farmId,
+      planId: widget.plan.id,
+      // The same sentence the farmer would have read out on the phone, plus
+      // the farm when there is one — so the admin taking the request has
+      // everything they need without ringing back to ask.
+      message: widget.farmName == null
+          ? _enquiry
+          : '$_enquiry For my farm "${widget.farmName}".',
+    );
+
+    if (!mounted) return;
+
+    if (result.ok) {
+      setState(() => _requestSent = true);
+      CustomToast.success(result.message);
+    } else {
+      CustomToast.error(result.message);
+    }
   }
 }

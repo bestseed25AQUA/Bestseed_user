@@ -28,7 +28,10 @@ import 'package:seedsuser/app/subscription/expiry_reminder.dart';
 import 'package:seedsuser/app/subscription/model/subscription_models.dart';
 import 'package:seedsuser/app/subscription/view/subscription_plans_sheet.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_options.dart';
-import 'package:seedsuser/app/farm_management/farmer/widget/farm_banner_carousel.dart';
+import 'package:seedsuser/app/farm_management/farmer/controller/farm_intro_controller.dart';
+import 'package:seedsuser/app/farm_management/farmer/model/farm_licence.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_announcement_dialog.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_demo_video_card.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
@@ -79,6 +82,23 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
     // it is pressed, and the expiry warning belongs here as well as in a push,
     // for a farmer who denied notification permission.
     _loadSubscription();
+
+    // The greeting: the newest announcement, and the demo video for a farmer
+    // with no farms. Separate from the subscription call so a slow one does
+    // not hold up the other.
+    _loadIntro();
+  }
+
+  /// Fetch the announcement and demo video, then pop the announcement.
+  ///
+  /// The farmer sees it every time they OPEN the screen, which is why the
+  /// shown-flag is cleared in [dispose] rather than kept for the session.
+  Future<void> _loadIntro() async {
+    await farmIntroController.load(force: true);
+
+    if (!mounted) return;
+
+    await FarmAnnouncementDialog.maybeShow(context);
   }
 
   Future<void> _loadSubscription() async {
@@ -91,6 +111,11 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
 
   @override
   void dispose() {
+    // Cleared on the way out: the announcement is meant to greet the farmer
+    // each time they open the screen, and the flag only exists to stop it
+    // reopening on top of itself during one visit.
+    farmIntroController.forgetShown();
+
     _listScrollController.dispose();
     _managedScrollController.dispose();
     super.dispose();
@@ -261,6 +286,7 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
         totalFeedUsed: e.totalFeedUsed ?? 0,
         feedUsedBefore: e.feedUsedBefore,
         access: e.access,
+        licence: e.licence,
       );
     }).toList();
   }
@@ -459,7 +485,13 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
 
             return _expiryBanner(warning, expired: expired);
           }),
-          const FarmBannerCarousel(),
+          // The banner strip that used to sit here is gone. Its notices are
+          // announcements now — see [FarmAnnouncementDialog] — because a
+          // banner is scenery and was being scrolled straight past.
+          //
+          // The demo video takes its place, and only for a farmer with no
+          // farms yet.
+          const FarmDemoVideoCard(),
           Expanded(
             child: Stack(
               children: [
@@ -618,20 +650,155 @@ class FarmCard extends StatelessWidget {
     );
   }
 
+  /// The "Locked" chip, with the word on it.
+  ///
+  /// It was a bare padlock icon, which told a farmer their farm had stopped
+  /// working but not that it was about money or that they could do anything
+  /// about it. Tapping it now explains which it is and offers the renewal.
   Widget _lockedChip(BuildContext context) {
     return GestureDetector(
-      onTap: () => offerSubscriptionPackages(context),
+      onTap: () => _explainLock(context),
       child: Container(
-        padding: const EdgeInsets.all(5),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
           color: Colors.orange.shade50,
           borderRadius: BorderRadius.circular(4),
           border: Border.all(color: Colors.orange.shade300),
         ),
-        child: Icon(
-          Icons.lock_outline,
-          size: 15,
-          color: Colors.orange.shade900,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline, size: 13, color: Colors.orange.shade900),
+            const SizedBox(width: 3),
+            Text(
+              'Locked',
+              style: GoogleFonts.roboto(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: Colors.orange.shade900,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Why this ONE farm is locked, and how to get it back.
+  ///
+  /// The reason comes from the server so the wording can change without a
+  /// store release, and it is about this farm alone: renewing brings back the
+  /// farm it was bought for and no other, which is the thing farmers most
+  /// often get wrong about a package.
+  Future<void> _explainLock(BuildContext context) async {
+    final reason =
+        farm.licence.lockReason ??
+        'This farm needs a subscription before more data can be recorded. '
+            'Everything already recorded is safe.';
+
+    final renew = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.lock_outline, color: Colors.orange.shade800, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                farm.name,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          reason,
+          style: GoogleFonts.roboto(fontSize: 13.5, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(
+              'Close',
+              style: GoogleFonts.roboto(color: Colors.grey.shade700),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+            ),
+            child: Text(
+              'Renew this farm',
+              style: GoogleFonts.roboto(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (renew != true || !context.mounted) return;
+
+    // Named, so the request reaches admin as "renew THIS farm" rather than
+    // "wants a subscription" — a package covers one farm, so without the name
+    // somebody has to ring back to ask which.
+    await offerSubscriptionPackages(
+      context,
+      farmId: int.tryParse(farm.id),
+      farmName: farm.name,
+    );
+  }
+
+  /// "Cover ends in N days", for a farm that is still open but running out.
+  ///
+  /// Fifteen days, the same window the admin panel starts highlighting a
+  /// renewal in, so the farmer and the person who will take their call begin
+  /// worrying on the same day.
+  Widget _expiryChip(BuildContext context) {
+    final note = farm.licence.expiryNote;
+
+    if (note == null) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () => offerSubscriptionPackages(
+        context,
+        farmId: int.tryParse(farm.id),
+        farmName: farm.name,
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade50,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.amber.shade400),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.schedule_rounded,
+              size: 13,
+              color: Colors.amber.shade900,
+            ),
+            const SizedBox(width: 3),
+            Text(
+              note,
+              style: GoogleFonts.roboto(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: Colors.amber.shade900,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -773,7 +940,11 @@ class FarmCard extends StatelessWidget {
                             );
                           },
 
-                          onRenew: () => offerSubscriptionPackages(context),
+                          onRenew: () => offerSubscriptionPackages(
+                            context,
+                            farmId: int.tryParse(farm.id),
+                            farmName: farm.name,
+                          ),
 
                           onDeleteFarm: () async {
                             Navigator.pop(context);
@@ -844,6 +1015,11 @@ class FarmCard extends StatelessWidget {
                       children: [
                         if (farm.access.locked) ...[
                           _lockedChip(context),
+                          const SizedBox(width: 8),
+                        ] else if (farm.licence.isExpiringSoon) ...[
+                          // Only when it is NOT already locked: saying "ends
+                          // in 3 days" next to "Locked" would contradict it.
+                          _expiryChip(context),
                           const SizedBox(width: 8),
                         ],
                         _roleChip(farm.access),
@@ -1733,8 +1909,17 @@ class FarmSection {
   /// partner with whatever the grant gave them.
   final FarmAccess access;
 
+  /// Whether this farm is paid for, and what to say when it is not.
+  ///
+  /// Distinct from [access]: access says who this person is, licence says
+  /// whether the farm is covered. A farm can be entirely theirs and still
+  /// locked, and the card has to tell the two apart — "you cannot do this"
+  /// and "this farm needs renewing" call for completely different actions.
+  final FarmLicence licence;
+
   FarmSection({
     this.access = const FarmAccess.ownerFallback(),
+    this.licence = FarmLicence.unknown,
     required this.lowFeedLimit,
     required this.noOfTanks,
     this.totalFeedUsed = 0,

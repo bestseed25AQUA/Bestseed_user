@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
+import 'package:seedsuser/app/farm_management/farmer/model/farm_licence.dart';
 
 class FarmListModel {
   bool? status;
@@ -53,6 +54,13 @@ class FarmData {
   /// hide what the caller cannot do; it was being dropped on the floor.
   FarmAccess access = const FarmAccess.ownerFallback();
 
+  /// Whether THIS farm is closed to new data, and why.
+  ///
+  /// Separate from [access]: access is about who the farmer is, licence is
+  /// about whether the farm is paid for. A farm can be fully theirs to edit
+  /// and still locked, and the card has to say which of the two it is.
+  FarmLicence licence = FarmLicence.unknown;
+
   FarmData({
     this.id,
     this.farmName,
@@ -87,6 +95,7 @@ class FarmData {
         ? FarmImages.fromJson(json['images'])
         : null;
     access = FarmAccess.fromJson(json['access'] as Map<String, dynamic>?);
+    licence = FarmLicence.fromJson(json['licence'] as Map<String, dynamic>?);
   }
 
   Map<String, dynamic> toJson() {

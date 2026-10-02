@@ -4,6 +4,13 @@
 /// a change is a backend deploy rather than a store release, and so an old
 /// install can never quote a price the helpline no longer honours.
 class SubscriptionPlan {
+  /// The row's id in the admin catalogue.
+  ///
+  /// Sent back when the farmer asks the team to call them, so the request
+  /// names the package rather than arriving as "wants a subscription". 0 when
+  /// talking to a server that predates the catalogue.
+  final int id;
+
   final String key;
   final String label;
   final int months;
@@ -26,6 +33,7 @@ class SubscriptionPlan {
   final double? perMonth;
 
   const SubscriptionPlan({
+    this.id = 0,
     required this.key,
     required this.label,
     required this.months,
@@ -37,6 +45,7 @@ class SubscriptionPlan {
 
   factory SubscriptionPlan.fromJson(Map<String, dynamic> json) {
     return SubscriptionPlan(
+      id: int.tryParse('${json['id']}') ?? 0,
       key: json['key']?.toString() ?? '',
       label: json['label']?.toString() ?? '',
       months: int.tryParse('${json['months']}') ?? 1,

@@ -32,6 +32,14 @@ class SubscriptionController extends GetxController {
   /// healthy subscription never sees a flash of the wrong state.
   final RxBool hasLoaded = false.obs;
 
+  /// In flight for [sendRequest]. Separate from [isLoading]: the status call
+  /// and the request are different buttons, and one must not spin the other.
+  final RxBool isRequesting = false.obs;
+
+  /// True once a request has gone through in this session, so the button can
+  /// say so rather than inviting a second tap.
+  final RxBool hasRequested = false.obs;
+
   /// Guard against overlapping fetches — the farm screen refreshes on focus
   /// and on pull-to-refresh, which can both fire at once.
   bool _inFlight = false;
@@ -90,6 +98,76 @@ class SubscriptionController extends GetxController {
   void adoptFromRefusal(Map<String, dynamic> data) {
     status.value = SubscriptionStatus.fromJson(data);
     hasLoaded.value = true;
+  }
+
+  /// Ask the team to make contact, instead of ringing them.
+  ///
+  /// Not everyone can call — a farmer in the field with no credit, or one
+  /// ringing outside office hours — and the sale was being lost at exactly
+  /// that point. This leaves a row in the admin panel's Requests tab.
+  ///
+  /// Returns the message to show, and whether it worked. The server's own
+  /// wording is preferred over anything written here, so changing what the
+  /// farmer is told is a backend change rather than a store release.
+  Future<({bool ok, String message})> sendRequest({
+    int? farmId,
+    int? planId,
+    String? message,
+  }) async {
+    if (isRequesting.value) {
+      return (ok: false, message: 'Sending your request…');
+    }
+
+    isRequesting.value = true;
+
+    try {
+      final response = await postRequest(
+        endPoint: "${NetworkConfig.baseURL}/farmer/subscription/request",
+        headers: await buildHeader(),
+        body: {
+          // Only what is known. The endpoint takes both as optional: a farmer
+          // may be asking about one locked farm, or simply asking for more.
+          if (farmId != null && farmId > 0) 'farm_id': farmId,
+          if (planId != null && planId > 0) 'plan_id': planId,
+          if (message != null && message.trim().isNotEmpty)
+            'message': message.trim(),
+        },
+      );
+
+      final body = json.decode(response.body);
+      final serverMessage = body is Map ? body['message']?.toString() : null;
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        hasRequested.value = true;
+
+        return (
+          ok: true,
+          message: serverMessage?.isNotEmpty == true
+              ? serverMessage!
+              : 'Request sent. Our team will contact you shortly.',
+        );
+      }
+
+      debugPrint(
+        '[SUBSCRIPTION] request ${response.statusCode}: ${response.body}',
+      );
+
+      return (
+        ok: false,
+        message: serverMessage?.isNotEmpty == true
+            ? serverMessage!
+            : 'Could not send your request. Please try again.',
+      );
+    } catch (e) {
+      debugPrint('[SUBSCRIPTION] request failed: $e');
+
+      return (
+        ok: false,
+        message: 'Could not send your request. Please check your connection.',
+      );
+    } finally {
+      isRequesting.value = false;
+    }
   }
 
   /// The banner text for the Farm Management screen, or null for silence.

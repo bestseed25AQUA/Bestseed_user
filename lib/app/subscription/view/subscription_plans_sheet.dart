@@ -12,8 +12,10 @@ import 'package:seedsuser/app/subscription/view/subscription_contact_screen.dart
 /// records the subscription in the panel.
 Future<void> showSubscriptionPlansSheet(
   BuildContext context,
-  SubscriptionStatus status,
-) {
+  SubscriptionStatus status, {
+  int? farmId,
+  String? farmName,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.white,
@@ -21,23 +23,50 @@ Future<void> showSubscriptionPlansSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (sheetContext) => _SubscriptionPlansSheet(status: status),
+    builder: (sheetContext) => _SubscriptionPlansSheet(
+      status: status,
+      farmId: farmId,
+      farmName: farmName,
+    ),
   );
 }
 
 /// The packages, from anywhere a lock stops the farmer.
-Future<void> offerSubscriptionPackages(BuildContext context) async {
+///
+/// [farmId] is the locked farm they were stopped on, when there is one. It is
+/// carried through to the request so admin can point the package straight at
+/// that farm — a package covers ONE farm, so "which one" is the whole
+/// question, and without it the request arrives as "wants a subscription" and
+/// somebody has to ring back to ask.
+Future<void> offerSubscriptionPackages(
+  BuildContext context, {
+  int? farmId,
+  String? farmName,
+}) async {
   final status = await subscriptionController.load(force: true);
 
   if (!context.mounted) return;
 
-  await showSubscriptionPlansSheet(context, status);
+  await showSubscriptionPlansSheet(
+    context,
+    status,
+    farmId: farmId,
+    farmName: farmName,
+  );
 }
 
 class _SubscriptionPlansSheet extends StatelessWidget {
   final SubscriptionStatus status;
 
-  const _SubscriptionPlansSheet({required this.status});
+  /// The locked farm this was opened from, passed on to the contact screen.
+  final int? farmId;
+  final String? farmName;
+
+  const _SubscriptionPlansSheet({
+    required this.status,
+    this.farmId,
+    this.farmName,
+  });
 
   /// The plan with the lowest cost per month, badged as the best value.
   ///
@@ -139,6 +168,8 @@ class _SubscriptionPlansSheet extends StatelessWidget {
                                 builder: (_) => SubscriptionContactScreen(
                                   plan: plan,
                                   contact: status.contact,
+                                  farmId: farmId,
+                                  farmName: farmName,
                                 ),
                               ),
                             );
