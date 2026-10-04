@@ -32,8 +32,8 @@ import 'package:seedsuser/app/farm_management/farmer/controller/farm_intro_contr
 import 'package:seedsuser/app/farm_management/farmer/model/farm_licence.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_announcement_dialog.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_demo_video_card.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_empty_state.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
 import 'package:seedsuser/app/utils/network_utils.dart';
 
 class FarmManagementScreen extends StatefulWidget {
@@ -47,7 +47,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
   final FarmListController controller = farmListController;
 
   /// Guards the one-way handover to the empty-state screen.
-  bool _handedOver = false;
 
   /// True only while the app-bar refresh is running.
   ///
@@ -306,22 +305,19 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
   Widget build(BuildContext context) {
     const Color primaryBlue = Color(0xFF007BFF);
 
-    return Obx(() {
-      if (!controller.isLoading.value &&
-          !controller.hasLoadError.value &&
-          farmSections.isEmpty &&
-          !_handedOver) {
-        _handedOver = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const InitialFarmScreen()),
-          );
-        });
-      }
-
-      return _buildFarmList(context, primaryBlue);
-    });
+    // A farmer with no farms STAYS here.
+    //
+    // This used to hand the whole screen over to a separate "Add Farm Details"
+    // page, which carried none of what a new farmer actually needs — no demo
+    // video, no announcement, not even the add button that the rest of the
+    // screen has. The list below shows its own empty state instead, so the
+    // video, the popup and the + button are all still there.
+    //
+    // Deliberately NOT wrapped in Obx here. Every observable this screen
+    // depends on is read inside the Obx around the Scaffold body, and a GetX
+    // builder that finishes without touching one throws "improper use of a
+    // GetX" — the outer wrapper looked reactive while subscribing to nothing.
+    return _buildFarmList(context, primaryBlue);
   }
 
   Widget _buildFarmList(BuildContext context, Color primaryBlue) {
@@ -389,8 +385,26 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
             bottom: 12,
             left: 12,
           ),
-          itemCount: farms.length,
+          // One filler item when the list is empty, rather than an empty
+          // ListView — which renders as blank space and reads as a screen
+          // that failed to load.
+          itemCount: farms.isEmpty ? 1 : farms.length,
           itemBuilder: (context, index) {
+            if (farms.isEmpty) {
+              // Sized to the viewport so the message sits in the middle and
+              // the list still scrolls far enough to trigger a refresh pull.
+              return SizedBox(
+                height: MediaQuery.of(context).size.height * 0.45,
+                child: FarmEmptyState(
+                  icon: Icons.agriculture_rounded,
+                  title: 'No farms yet',
+                  message:
+                      'Add your first farm to start recording feed, tanks and '
+                      'harvests. Tap the + button below.',
+                ),
+              );
+            }
+
             return Padding(
               padding: const EdgeInsets.only(bottom: 16.0),
               child: InkWell(

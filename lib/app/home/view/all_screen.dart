@@ -17,7 +17,6 @@ import 'package:seedsuser/app/farm_management/coming_soon_screen.dart';
 import 'package:seedsuser/app/farm_management/farm_management_feature.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/farm_management_screen.dart';
-import 'package:seedsuser/app/farm_management/farmer/view/initial_farmer_screen.dart';
 import 'package:seedsuser/app/home/contact_us.dart';
 import 'package:seedsuser/app/home/controller/filter_hatchery_controller.dart';
 import 'package:seedsuser/app/home/controller/home_banner_controller.dart';
@@ -61,11 +60,19 @@ class _HomePageState extends State<HomePage>
   final _homeBannerController = Get.find<HomeBannerController>();
   final _hatcheryController = Get.put(HatcheryUpdatesController());
   final _broodStockController = Get.put(BroodStockController());
-  final _farmListController = farmListController;
 
   @override
   void initState() {
     super.initState();
+
+    // Warm the farm list.
+    //
+    // Touching the shared getter registers the controller, whose onInit
+    // fetches. This used to happen as a side effect of a field Home read to
+    // decide which farm screen to open; Home no longer makes that decision,
+    // but the prefetch is worth keeping on its own merit — it means Farm
+    // Management opens with data rather than a shimmer.
+    farmListController;
 
     // Spot Hatchery & Farm Management: always refresh on every Home open. This
     // (1) loads them reliably on first login/open — the old `if (empty)`
@@ -477,20 +484,18 @@ class _HomePageState extends State<HomePage>
                             return;
                           }
 
-                          final farmData =
-                              _farmListController.farmList.value?.data;
-
-                          if (farmData != null && farmData.isNotEmpty) {
-                            Navigator.push(
-                              context,
-                              AppAnimations.fade(const FarmManagementScreen()),
-                            );
-                          } else {
-                            Navigator.push(
-                              context,
-                              AppAnimations.fade(const InitialFarmScreen()),
-                            );
-                          }
+                          // Always Farm Management, with or without farms.
+                          //
+                          // A farmer with none used to be sent to a separate
+                          // "Add Farm Details" screen, which had no demo video,
+                          // no announcement and no add button of its own — so
+                          // the one screen they needed most was the one with
+                          // least on it. Farm Management now carries its own
+                          // empty state.
+                          Navigator.push(
+                            context,
+                            AppAnimations.fade(const FarmManagementScreen()),
+                          );
                         },
                         networkImageUrl: farmIcons.isNotEmpty
                             ? farmIcons.first.url

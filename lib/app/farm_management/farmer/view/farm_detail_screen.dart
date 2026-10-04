@@ -801,10 +801,28 @@ class TankStatusCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.water_drop,
-                  size: 26,
-                  color: isActive ? AppColors.primary : Colors.grey.shade400,
+                // The Bestseed mark, in place of a generic water drop.
+                //
+                // `color` tints every non-transparent pixel, which flattens the
+                // logo to a solid silhouette — right for the inactive state,
+                // where the whole card goes grey, and wrong for the active one,
+                // where the mark should keep its own blue. So it is applied
+                // only when the crop has finished.
+                Image.asset(
+                  'assets/images/logo.png',
+                  width: 26,
+                  height: 26,
+                  color: isActive ? null : Colors.grey.shade400,
+                  // Nearest-neighbour artefacts are visible shrinking 876px to
+                  // 26; this keeps the fins and legs of the mark readable.
+                  filterQuality: FilterQuality.medium,
+                  // A missing or unreadable asset must not take the whole tank
+                  // grid down with a red error box.
+                  errorBuilder: (_, _, _) => Icon(
+                    Icons.water_drop,
+                    size: 26,
+                    color: isActive ? AppColors.primary : Colors.grey.shade400,
+                  ),
                 ),
                 const Spacer(),
 

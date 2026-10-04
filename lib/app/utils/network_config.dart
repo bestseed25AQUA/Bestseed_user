@@ -18,10 +18,14 @@ class NetworkConfig {
   // Both of these must name the same host and port. They did not: the API was
   // on :8100 — where nothing listens at all — while images were on :8000, so
   // every request failed before it left the device.
-  static const baseURL = "http://192.168.1.5:8000/api";
-  // "https://lemonchiffon-dragonfly-369328.hostingersite.com/api";
-  static const imageURL = "http://192.168.1.5:8000";
-  // "https://lemonchiffon-dragonfly-369328.hostingersite.com";
+  static const baseURL =
+      // "https://aqua.bestseed.in/api";
+      // "http://192.168.1.5:8000/api";
+      "https://lemonchiffon-dragonfly-369328.hostingersite.com/api";
+  static const imageURL =
+      // "https://aqua.bestseed.in";
+      // "http://192.168.1.5:8000";
+      "https://lemonchiffon-dragonfly-369328.hostingersite.com";
 
   // Other environments, kept for switching back:
   // "https://lemonchiffon-dragonfly-369328.hostingersite.com/api";
