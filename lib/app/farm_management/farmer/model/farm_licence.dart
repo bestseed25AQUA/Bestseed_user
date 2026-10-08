@@ -70,16 +70,46 @@ class FarmLicence {
       daysRemaining! >= 0 &&
       daysRemaining! <= 15;
 
-  /// The short line for the card when cover is running out. Null when there
-  /// is nothing to say.
+  /// What is running out, in the farmer's words rather than ours.
+  String get coverLabel => isFree ? 'Free period' : 'Subscription';
+
+  /// The line for the card when cover is running out. Null when there is
+  /// nothing to say.
   String? get expiryNote {
     if (!isExpiringSoon) return null;
 
     final days = daysRemaining!;
 
-    if (days == 0) return 'Cover ends today';
-    if (days == 1) return 'Cover ends tomorrow';
+    if (days == 0) return 'Your ${coverLabel.toLowerCase()} ends today';
+    if (days == 1) return 'Your ${coverLabel.toLowerCase()} ends tomorrow';
 
-    return 'Cover ends in $days days';
+    return 'Your ${coverLabel.toLowerCase()} ends in $days days';
+  }
+
+  /// The line for the strip above the farm photo, locked or expiring.
+  ///
+  /// Named, because a farmer with several farms reads this strip on one card
+  /// and needs to know it is about THAT farm and not the account.
+  String? noticeTextFor(String farmName) {
+    final name = farmName.trim().isEmpty ? 'This farm' : farmName.trim();
+
+    if (isLocked) {
+      return lockReason == null
+          ? '$name is read-only. Take a package to record data again.'
+          : '$name — $lockReason';
+    }
+
+    if (!isExpiringSoon) return null;
+
+    final days = daysRemaining!;
+    final what = coverLabel.toLowerCase();
+
+    final when = days == 0
+        ? 'ends today'
+        : days == 1
+        ? 'ends tomorrow'
+        : 'ends in $days days';
+
+    return 'Your $what for $name $when. Renew to keep recording.';
   }
 }

@@ -508,7 +508,7 @@ class _AddFarmerDetailsFormScreenState
                   ],
                 ),
                 const SizedBox(height: 8),
-              
+
                 _buildTextField(
                   controller: store,
                   hint: "e.g., 3,000 kg",

@@ -20,12 +20,12 @@ class NetworkConfig {
   // every request failed before it left the device.
   static const baseURL =
       // "https://aqua.bestseed.in/api";
-      // "http://192.168.1.5:8000/api";
-      "https://lemonchiffon-dragonfly-369328.hostingersite.com/api";
+      "http://192.168.1.5:8000/api";
+      // "https://lemonchiffon-dragonfly-369328.hostingersite.com/api";
   static const imageURL =
       // "https://aqua.bestseed.in";
-      // "http://192.168.1.5:8000";
-      "https://lemonchiffon-dragonfly-369328.hostingersite.com";
+      "http://192.168.1.5:8000";
+      // "https://lemonchiffon-dragonfly-369328.hostingersite.com";
 
   // Other environments, kept for switching back:
   // "https://lemonchiffon-dragonfly-369328.hostingersite.com/api";

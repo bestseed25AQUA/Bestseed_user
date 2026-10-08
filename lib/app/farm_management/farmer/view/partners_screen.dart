@@ -159,9 +159,13 @@ class PartnerCard extends StatelessWidget {
           // Access chips
           Row(
             children: [
-              Flexible(child: _buildAccessChip(context, 'Edit Access', Colors.blue)),
+              Flexible(
+                child: _buildAccessChip(context, 'Edit Access', Colors.blue),
+              ),
               const SizedBox(width: 8),
-              Flexible(child: _buildAccessChip(context, 'View Access', Colors.blue)),
+              Flexible(
+                child: _buildAccessChip(context, 'View Access', Colors.blue),
+              ),
             ],
           ),
         ],

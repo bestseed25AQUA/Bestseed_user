@@ -19,11 +19,12 @@ class FarmAnnouncementDialog extends StatelessWidget {
   ///
   /// [takeAnnouncement] is what decides whether there is anything to show, so
   /// this never pops the same notice twice in one visit.
-  static Future<void> maybeShow(BuildContext context) async {
+  /// True when a dialog was actually put on screen.
+  static Future<bool> maybeShow(BuildContext context) async {
     final announcement = farmIntroController.takeAnnouncement();
 
-    if (announcement == null) return;
-    if (!context.mounted) return;
+    if (announcement == null) return false;
+    if (!context.mounted) return false;
 
     await showDialog(
       context: context,
@@ -32,6 +33,8 @@ class FarmAnnouncementDialog extends StatelessWidget {
       barrierDismissible: true,
       builder: (_) => FarmAnnouncementDialog(announcement: announcement),
     );
+
+    return true;
   }
 
   @override

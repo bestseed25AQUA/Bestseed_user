@@ -24,13 +24,13 @@ import 'package:seedsuser/app/farm_management/farmer/view/access_management_scre
 import 'package:seedsuser/app/farm_management/farmer/view/setup_access_guide_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
 import 'package:seedsuser/app/subscription/controller/subscription_controller.dart';
-import 'package:seedsuser/app/subscription/expiry_reminder.dart';
 import 'package:seedsuser/app/subscription/model/subscription_models.dart';
 import 'package:seedsuser/app/subscription/view/subscription_plans_sheet.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_options.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/farm_intro_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_licence.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_announcement_dialog.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/farm_cover_reminder.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_demo_video_card.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_empty_state.dart';
 import 'package:seedsuser/app/farm_management/farmer/widget/farm_shimmer.dart';
@@ -97,15 +97,34 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
 
     if (!mounted) return;
 
-    await FarmAnnouncementDialog.maybeShow(context);
+    // The announcement comes first. Only when there is none does the cover
+    // reminder get the screen, so two dialogs never stack on one open.
+    final announced = await FarmAnnouncementDialog.maybeShow(context);
+
+    if (announced || !mounted) return;
+
+    // The list loads on the controller's own init, which can land after
+    // this. Without the wait the reminder judges an empty list.
+    if (farmSections.isEmpty) {
+      await controller.fetchFarmList();
+      if (!mounted) return;
+    }
+
+    await FarmCoverReminder.instance.maybeShow(context, _coverEntries());
   }
 
+  List<FarmCoverEntry> _coverEntries() => farmSections
+      .map(
+        (farm) => FarmCoverEntry(
+          name: farm.name,
+          farmId: int.tryParse(farm.id),
+          licence: farm.licence,
+        ),
+      )
+      .toList();
+
   Future<void> _loadSubscription() async {
-    final status = await subscriptionController.load();
-
-    if (!mounted) return;
-
-    await SubscriptionExpiryReminder.instance.maybeShow(context, status);
+    await subscriptionController.load();
   }
 
   @override
@@ -161,61 +180,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
   Future<void> _openThenRefresh(Widget screen) async {
     await Get.to(() => screen);
     if (mounted) await controller.fetchFarmList();
-  }
-
-  /// The subscription warning strip.
-  ///
-  /// Red once the plan has ended, amber while it is running out — the same two
-  /// colours the admin panel uses for the same two states, so a farmer and the
-  /// person they ring are looking at the same signal.
-  ///
-  /// Tapping it opens the packages, because "renew it" with no way to renew is
-  /// just an irritation.
-  Widget _expiryBanner(String message, {required bool expired}) {
-    final background = expired ? Colors.red.shade50 : Colors.orange.shade50;
-    final border = expired ? Colors.red.shade200 : Colors.orange.shade200;
-    final foreground = expired ? Colors.red.shade900 : Colors.orange.shade900;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => showSubscriptionPlansSheet(
-          context,
-          subscriptionController.status.value,
-        ),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: background,
-            border: Border(bottom: BorderSide(color: border)),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                expired ? Icons.error_outline_rounded : Icons.schedule_rounded,
-                size: 19,
-                color: foreground,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  message,
-                  style: GoogleFonts.roboto(
-                    fontSize: 12.5,
-                    height: 1.35,
-                    color: foreground,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Icon(Icons.chevron_right_rounded, size: 18, color: foreground),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   /// The + button: open the add-farm form, or offer the packages.
@@ -489,16 +453,6 @@ class _FarmManagementScreenState extends State<FarmManagementScreen> {
       top: false,
       child: Column(
         children: [
-          Obx(() {
-            final warning = subscriptionController.expiryWarning;
-            if (warning == null) return const SizedBox.shrink();
-
-            final expired =
-                subscriptionController.status.value.subscription?.isExpired ??
-                false;
-
-            return _expiryBanner(warning, expired: expired);
-          }),
           // The banner strip that used to sit here is gone. Its notices are
           // announcements now — see [FarmAnnouncementDialog] — because a
           // banner is scenery and was being scrolled straight past.
@@ -713,9 +667,7 @@ class FarmCard extends StatelessWidget {
     final renew = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             Icon(Icons.lock_outline, color: Colors.orange.shade800, size: 20),
@@ -745,9 +697,7 @@ class FarmCard extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
             child: Text(
               'Renew this farm',
               style: GoogleFonts.roboto(
@@ -772,15 +722,16 @@ class FarmCard extends StatelessWidget {
     );
   }
 
-  /// "Cover ends in N days", for a farm that is still open but running out.
-  ///
-  /// Fifteen days, the same window the admin panel starts highlighting a
-  /// renewal in, so the farmer and the person who will take their call begin
-  /// worrying on the same day.
-  Widget _expiryChip(BuildContext context) {
-    final note = farm.licence.expiryNote;
+  /// The strip above the photo when this farm is locked or running out.
+  Widget _coverNotice(BuildContext context) {
+    final note = farm.licence.noticeTextFor(farm.name);
 
     if (note == null) return const SizedBox.shrink();
+
+    final locked = farm.licence.isLocked;
+    final accent = locked ? Colors.red.shade800 : Colors.orange.shade900;
+    final tint = locked ? Colors.red.shade50 : Colors.orange.shade50;
+    final edge = locked ? Colors.red.shade200 : Colors.orange.shade200;
 
     return GestureDetector(
       onTap: () => offerSubscriptionPackages(
@@ -789,29 +740,38 @@ class FarmCard extends StatelessWidget {
         farmName: farm.name,
       ),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.amber.shade50,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.amber.shade400),
+          color: tint,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
+          ),
+          border: Border(bottom: BorderSide(color: edge)),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(
-              Icons.schedule_rounded,
-              size: 13,
-              color: Colors.amber.shade900,
+              locked ? Icons.lock_outline : Icons.schedule_rounded,
+              size: 16,
+              color: accent,
             ),
-            const SizedBox(width: 3),
-            Text(
-              note,
-              style: GoogleFonts.roboto(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w600,
-                color: Colors.amber.shade900,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                note,
+                style: GoogleFonts.roboto(
+                  fontSize: 12.5,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                  color: accent,
+                ),
               ),
             ),
+            const SizedBox(width: 6),
+            Icon(Icons.chevron_right_rounded, size: 18, color: accent),
           ],
         ),
       ),
@@ -852,10 +812,8 @@ class FarmCard extends StatelessWidget {
       ),
       child: Column(
         children: [
+          _coverNotice(context),
           Padding(
-            // Was 16 all round — 32px of the card's height went on framing the
-            // photo, and with the content's own padding below it the gap
-            // between image and chips came to 32px on its own.
             padding: const EdgeInsets.all(10),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
@@ -1029,11 +987,6 @@ class FarmCard extends StatelessWidget {
                       children: [
                         if (farm.access.locked) ...[
                           _lockedChip(context),
-                          const SizedBox(width: 8),
-                        ] else if (farm.licence.isExpiringSoon) ...[
-                          // Only when it is NOT already locked: saying "ends
-                          // in 3 days" next to "Locked" would contradict it.
-                          _expiryChip(context),
                           const SizedBox(width: 8),
                         ],
                         _roleChip(farm.access),

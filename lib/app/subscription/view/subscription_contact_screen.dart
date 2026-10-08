@@ -48,9 +48,16 @@ class _SubscriptionContactScreenState extends State<SubscriptionContactScreen> {
   SubscriptionContact? _contact;
   bool _loading = false;
 
-  /// Sent from THIS screen. Held locally as well as on the controller so the
-  /// button still reads correctly if the controller is replaced underneath it.
+  /// Sent from THIS screen, for this farm and this package.
   bool _requestSent = false;
+
+  /// Already waiting on an answer for THIS farm and THIS package.
+  ///
+  /// Asking about one farm must not silence the button on another, nor on a
+  /// different package for the same farm.
+  bool get _alreadyAsked =>
+      _requestSent ||
+      subscriptionController.hasOpenRequest(widget.farmId, widget.plan.id);
 
   @override
   void initState() {
@@ -330,6 +337,9 @@ class _SubscriptionContactScreenState extends State<SubscriptionContactScreen> {
     final hasWhatsapp = _contact?.hasWhatsapp ?? false;
 
     return Column(
+      // Stretch, or each button sizes to its own label and the three come out
+      // narrow, wide, narrow down the middle of the screen.
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
           height: 52,
@@ -341,7 +351,7 @@ class _SubscriptionContactScreenState extends State<SubscriptionContactScreen> {
             label: Text(
               'Call Now',
               style: GoogleFonts.poppins(
-                fontSize: 15.5,
+                fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
               ),
@@ -392,11 +402,11 @@ class _SubscriptionContactScreenState extends State<SubscriptionContactScreen> {
     );
   }
 
-  /// "Ask us to call you" — the request that lands in the admin Requests tab.
+  /// The request that lands in the admin Requests tab.
   Widget _requestButton() {
     return Obx(() {
       final sending = subscriptionController.isRequesting.value;
-      final sent = _requestSent || subscriptionController.hasRequested.value;
+      final sent = _alreadyAsked;
 
       return SizedBox(
         height: 52,
@@ -404,7 +414,11 @@ class _SubscriptionContactScreenState extends State<SubscriptionContactScreen> {
           // Once sent, it stays visible but inert: the farmer can see their
           // ask went through, and tapping again would only reorder the same
           // row in the admin list.
-          onPressed: (sending || sent) ? null : _sendRequest,
+          onPressed: sending
+              ? null
+              : sent
+              ? _sayAlreadyAsked
+              : _sendRequest,
           icon: sending
               ? const SizedBox(
                   height: 18,
@@ -420,7 +434,7 @@ class _SubscriptionContactScreenState extends State<SubscriptionContactScreen> {
                 ? 'Sending…'
                 : sent
                 ? 'Request sent'
-                : 'Ask us to call you',
+                : 'Request farm',
             style: GoogleFonts.poppins(
               fontSize: 15,
               fontWeight: FontWeight.w600,
@@ -439,6 +453,18 @@ class _SubscriptionContactScreenState extends State<SubscriptionContactScreen> {
         ),
       );
     });
+  }
+
+  void _sayAlreadyAsked() {
+    final farm = widget.farmName;
+
+    CustomToast.info(
+      farm == null
+          ? 'You have already asked about the ${widget.plan.label} package. '
+                'Please wait — our team will get back to you.'
+          : 'You have already asked about the ${widget.plan.label} package '
+                'for "$farm". Please wait — our team will get back to you.',
+    );
   }
 
   Future<void> _sendRequest() async {

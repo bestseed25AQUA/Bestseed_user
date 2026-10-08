@@ -102,9 +102,7 @@ class _FarmNoteFieldState extends State<FarmNoteField> {
 
   @override
   Widget build(BuildContext context) {
-    final borderColour = _focused
-        ? AppColors.primary
-        : Colors.grey.shade300;
+    final borderColour = _focused ? AppColors.primary : Colors.grey.shade300;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -132,10 +130,7 @@ class _FarmNoteFieldState extends State<FarmNoteField> {
           padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
           decoration: BoxDecoration(
             color: widget.readOnly ? Colors.grey.shade100 : null,
-            border: Border.all(
-              color: borderColour,
-              width: _focused ? 1.6 : 1,
-            ),
+            border: Border.all(color: borderColour, width: _focused ? 1.6 : 1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: SizedBox(

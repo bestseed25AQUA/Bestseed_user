@@ -358,6 +358,7 @@ class TankController extends GetxController {
     required String tankId,
     required String date,
     required String note,
+
     /// True when the caller reports the result itself — the day's Save writes
     /// meals and the note together, and two toasts stack on top of each other.
     bool silent = false,
@@ -391,10 +392,8 @@ class TankController extends GetxController {
             batchActive: current.batchActive,
             harvestQuantity: current.harvestQuantity,
             fcr: current.fcr,
-            notes: {
-              ...current.notes,
-              if (trimmed.isNotEmpty) date: trimmed,
-            }..removeWhere((k, _) => k == date && trimmed.isEmpty),
+            notes: {...current.notes, if (trimmed.isNotEmpty) date: trimmed}
+              ..removeWhere((k, _) => k == date && trimmed.isEmpty),
           );
         }
 

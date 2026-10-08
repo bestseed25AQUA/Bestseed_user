@@ -406,7 +406,10 @@ class _FarmActivityScreenState extends State<FarmActivityScreen> {
             ),
             if (onRetry != null) ...[
               const SizedBox(height: 16),
-              OutlinedButton(onPressed: onRetry, child: const Text('Try again')),
+              OutlinedButton(
+                onPressed: onRetry,
+                child: const Text('Try again'),
+              ),
             ],
           ],
         ),

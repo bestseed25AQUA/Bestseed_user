@@ -21,8 +21,8 @@ import 'package:http/http.dart' as http;
 /// a freshly added farm did not appear. Always reuse the registered instance.
 FarmListController get farmListController =>
     Get.isRegistered<FarmListController>()
-        ? Get.find<FarmListController>()
-        : Get.put(FarmListController());
+    ? Get.find<FarmListController>()
+    : Get.put(FarmListController());
 
 class FarmListController extends GetxController {
   var isLoading = true.obs;
@@ -111,10 +111,8 @@ class FarmListController extends GetxController {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        farmTanks.value = TankListModel.fromJson(
-          json.decode(response.body),
-        ).data ??
-            [];
+        farmTanks.value =
+            TankListModel.fromJson(json.decode(response.body)).data ?? [];
         return;
       }
 

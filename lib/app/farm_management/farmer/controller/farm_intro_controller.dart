@@ -13,8 +13,8 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 /// again on the other.
 FarmIntroController get farmIntroController =>
     Get.isRegistered<FarmIntroController>()
-        ? Get.find<FarmIntroController>()
-        : Get.put(FarmIntroController());
+    ? Get.find<FarmIntroController>()
+    : Get.put(FarmIntroController());
 
 /// What greets the farmer when Farm Management opens.
 ///

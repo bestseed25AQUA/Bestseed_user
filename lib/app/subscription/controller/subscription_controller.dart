@@ -14,8 +14,8 @@ import 'package:seedsuser/app/utils/network_utils.dart';
 /// add-farm button would go on offering the form after a farm was created.
 SubscriptionController get subscriptionController =>
     Get.isRegistered<SubscriptionController>()
-        ? Get.find<SubscriptionController>()
-        : Get.put(SubscriptionController());
+    ? Get.find<SubscriptionController>()
+    : Get.put(SubscriptionController());
 
 /// Whether this farmer may add another farm, and what to offer them if not.
 ///
@@ -36,9 +36,37 @@ class SubscriptionController extends GetxController {
   /// and the request are different buttons, and one must not spin the other.
   final RxBool isRequesting = false.obs;
 
-  /// True once a request has gone through in this session, so the button can
-  /// say so rather than inviting a second tap.
-  final RxBool hasRequested = false.obs;
+  /// Requests already waiting on an answer, keyed `farmId:planId`.
+  ///
+  /// Per farm AND per package, because that is what the farmer asked for.
+  /// A single flag marked every screen as sent the moment one request went
+  /// through, so asking about one farm silenced the button on all the rest.
+  final RxSet<String> openRequests = <String>{}.obs;
+
+  /// Seeded from the server on every status read, so a request survives the
+  /// app being closed rather than living only in this object.
+  void _adoptOpenRequests(Map<String, dynamic> data) {
+    final raw = data['open_requests'];
+
+    if (raw is! List) return;
+
+    openRequests
+      ..clear()
+      ..addAll(
+        raw.whereType<Map>().map(
+          (r) => requestKey(
+            int.tryParse('${r['farm_id']}'),
+            int.tryParse('${r['plan_id']}'),
+          ),
+        ),
+      );
+  }
+
+  static String requestKey(int? farmId, int? planId) =>
+      '${farmId ?? 0}:${planId ?? 0}';
+
+  bool hasOpenRequest(int? farmId, int? planId) =>
+      openRequests.contains(requestKey(farmId, planId));
 
   /// Guard against overlapping fetches — the farm screen refreshes on focus
   /// and on pull-to-refresh, which can both fire at once.
@@ -74,6 +102,7 @@ class SubscriptionController extends GetxController {
             body['data'] as Map<String, dynamic>,
           );
           hasLoaded.value = true;
+          _adoptOpenRequests(body['data'] as Map<String, dynamic>);
         }
       } else {
         debugPrint(
@@ -98,6 +127,7 @@ class SubscriptionController extends GetxController {
   void adoptFromRefusal(Map<String, dynamic> data) {
     status.value = SubscriptionStatus.fromJson(data);
     hasLoaded.value = true;
+    _adoptOpenRequests(data);
   }
 
   /// Ask the team to make contact, instead of ringing them.
@@ -138,7 +168,7 @@ class SubscriptionController extends GetxController {
       final serverMessage = body is Map ? body['message']?.toString() : null;
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        hasRequested.value = true;
+        openRequests.add(requestKey(farmId, planId));
 
         return (
           ok: true,

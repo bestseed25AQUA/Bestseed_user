@@ -46,7 +46,8 @@ class FarmActivityController extends GetxController {
           : '?${query.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
 
       final response = await getRequest(
-        endPoint: "${NetworkConfig.baseURL}/farmer/farm/$farmId/activity$suffix",
+        endPoint:
+            "${NetworkConfig.baseURL}/farmer/farm/$farmId/activity$suffix",
         headers: await buildHeader(),
       );
 

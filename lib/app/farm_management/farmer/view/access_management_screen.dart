@@ -561,21 +561,18 @@ class _AddAccessFormScreenState extends State<_AddAccessFormScreen> {
     // correcting what a tank was fed is the core of that.
     _canEdit = (existing?.edit ?? true) && widget.callerAccess.canEdit;
 
-    // Depends on the role. Marking a tank inactive harvests it — it closes
-    // that tank's crop cycle — which is a partner's call to make, so they get
-    // it with the role. A manager runs the farm day to day and is handed it
-    // deliberately, so they start off without it.
+    // Off for both roles. Marking a tank inactive harvests it, closing that
+    // tank's crop cycle, so it is handed over deliberately rather than by
+    // default.
     _canChangeTankStatus =
-        (existing?.tankStatus ?? widget.role.isPartner) &&
+        (existing?.tankStatus ?? false) &&
         widget.callerAccess.canChangeTankStatus;
 
-    // ON by default, for both roles. Keeping the store topped up is part of
-    // running a farm day to day, and withholding it left a manager looking at
-    // a padlocked Edit on the farm header with no way to correct a figure they
-    // are the one who knows. Still a question on the form, so it can be taken
-    // away deliberately — it is simply no longer off until someone notices.
+    // Partners only. A partner stands beside the owner and buys the feed; a
+    // manager works the farm and is given it deliberately.
     _canEditTotalFeed =
-        (existing?.totalFeed ?? true) && widget.callerAccess.canEditTotalFeed;
+        (existing?.totalFeed ?? widget.role.isPartner) &&
+        widget.callerAccess.canEditTotalFeed;
 
     _canCreate = (existing?.create ?? false) && widget.callerAccess.canCreate;
     _canDelete = (existing?.delete ?? false) && widget.callerAccess.canDelete;

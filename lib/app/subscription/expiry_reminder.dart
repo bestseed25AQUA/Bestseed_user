@@ -56,10 +56,8 @@ class SubscriptionExpiryReminder {
     final renew = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
-      builder: (dialogContext) => _ExpiryDialog(
-        message: message,
-        expired: subscription.isExpired,
-      ),
+      builder: (dialogContext) =>
+          _ExpiryDialog(message: message, expired: subscription.isExpired),
     );
 
     _showing = false;
@@ -94,9 +92,7 @@ class _ExpiryDialog extends StatelessWidget {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
               child: Icon(
-                expired
-                    ? Icons.error_outline_rounded
-                    : Icons.schedule_rounded,
+                expired ? Icons.error_outline_rounded : Icons.schedule_rounded,
                 size: 32,
                 color: accent,
               ),

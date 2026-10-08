@@ -1159,8 +1159,7 @@ class FeedUpdateCard extends StatelessWidget {
               child: Icon(Icons.delete_outline, size: 20, color: Colors.red),
             ),
           ),
-        ]
-        else if (!row.isSaved && index > 0) ...[
+        ] else if (!row.isSaved && index > 0) ...[
           const SizedBox(width: 4),
           InkWell(
             onTap: () => onRemoveRow(index),

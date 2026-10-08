@@ -76,14 +76,12 @@ const MethodChannel _downloads = MethodChannel('bestseed/downloads');
 /// and then retried once, rather than being requested up front on phones that
 /// will never need it.
 Future<String?> _saveIntoDownloads(String sourcePath, String fileName) async {
-  Future<String?> attempt() => _downloads.invokeMethod<String>(
-    'saveToDownloads',
-    {
-      'sourcePath': sourcePath,
-      'fileName': fileName,
-      'mimeType': 'application/pdf',
-    },
-  );
+  Future<String?> attempt() =>
+      _downloads.invokeMethod<String>('saveToDownloads', {
+        'sourcePath': sourcePath,
+        'fileName': fileName,
+        'mimeType': 'application/pdf',
+      });
 
   try {
     return await attempt();
@@ -105,7 +103,9 @@ Future<String?> _saveIntoDownloads(String sourcePath, String fileName) async {
     try {
       return await attempt();
     } on PlatformException catch (e) {
-      debugPrint('Report save failed after permission [${e.code}]: ${e.message}');
+      debugPrint(
+        'Report save failed after permission [${e.code}]: ${e.message}',
+      );
       return null;
     }
   } on MissingPluginException {
