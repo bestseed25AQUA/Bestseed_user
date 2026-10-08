@@ -715,12 +715,13 @@ class TankStatusCard extends StatelessWidget {
           child: HarvestBottomSheet(
             tank: tank,
             statusToUpdate: value ? 1 : 0,
-            onSubmit: (harvestQuantity) async {
+            onSubmit: (harvestQuantity, harvestCount) async {
               isUpdated = await controller.updateTankStatus(
                 status: 0,
                 tankId: tank.id.toString(),
                 farmId: farmId,
                 harvestQuantity: harvestQuantity,
+                harvestCount: harvestCount,
               );
               safeBack();
             },

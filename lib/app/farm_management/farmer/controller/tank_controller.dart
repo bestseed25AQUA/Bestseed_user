@@ -132,6 +132,10 @@ class TankController extends GetxController {
     /// What the crop weighed, when harvesting. Null means "not weighed" — the
     /// server leaves the stored figure alone rather than recording a zero.
     double? harvestQuantity,
+
+    /// Pieces per kilogram at harvest, the measure the crop is priced on.
+    /// Null means "not recorded", with the same leave-it-alone rule.
+    int? harvestCount,
   }) async {
     isUpdatingTankStatus(true);
     try {
@@ -149,6 +153,7 @@ class TankController extends GetxController {
           // Only meaningful when harvesting. Omitted when null so a blank box
           // does not overwrite a weight recorded earlier.
           if (harvestQuantity != null) "harvest_quantity": harvestQuantity,
+          if (harvestCount != null) "harvest_count": harvestCount,
         },
       );
 

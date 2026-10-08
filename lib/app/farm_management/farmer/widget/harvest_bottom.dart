@@ -8,11 +8,14 @@ class HarvestBottomSheet extends StatefulWidget {
   final TankModel tank;
   final int statusToUpdate;
 
-  /// Called with what the crop weighed, or null when the farmer left it blank.
+  /// Called with what the crop weighed and how it graded, each null when
+  /// the farmer left that box blank.
   ///
-  /// Null and 0 are different: null is "not weighed", 0 would claim the crop
-  /// yielded nothing. The server only writes a figure it was actually given.
-  final Future<void> Function(double? harvestQuantity) onSubmit;
+  /// Null and 0 are different: null is "not recorded", 0 would claim the crop
+  /// yielded nothing. The server only writes a figure it was actually given,
+  /// so a blank box never wipes something entered earlier.
+  final Future<void> Function(double? harvestQuantity, int? harvestCount)
+  onSubmit;
 
   const HarvestBottomSheet({
     super.key,
@@ -28,6 +31,11 @@ class HarvestBottomSheet extends StatefulWidget {
 class _HarvestBottomSheetState extends State<HarvestBottomSheet> {
   final TextEditingController _harvest = TextEditingController();
 
+  /// Pieces per kilogram at harvest — the trade measure the crop is priced
+  /// on. Separate from the weight because the two are known at different
+  /// times: the count usually comes back from the buyer.
+  final TextEditingController _count = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +49,7 @@ class _HarvestBottomSheetState extends State<HarvestBottomSheet> {
   void dispose() {
     _harvest.removeListener(_onHarvestChanged);
     _harvest.dispose();
+    _count.dispose();
     super.dispose();
   }
 
@@ -50,6 +59,21 @@ class _HarvestBottomSheetState extends State<HarvestBottomSheet> {
     final cleaned = _harvest.text.replaceAll(RegExp(r'[^0-9.]'), '');
     if (cleaned.isEmpty) return null;
     return double.tryParse(cleaned);
+  }
+
+  /// Digits only, for the same reason as the weight above.
+  ///
+  /// Null when blank: an unrecorded count is not a count of zero, and the
+  /// server leaves the field alone rather than overwriting it.
+  int? get _countValue {
+    final cleaned = _count.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleaned.isEmpty) return null;
+
+    final value = int.tryParse(cleaned);
+
+    // Matches the server's rule, so a figure that would be rejected is never
+    // sent in the first place.
+    return (value != null && value >= 1 && value <= 10000) ? value : null;
   }
 
   /// Kilos of feed per kilo harvested.
@@ -138,18 +162,21 @@ class _HarvestBottomSheetState extends State<HarvestBottomSheet> {
 
                 const SizedBox(height: 24),
 
-                // Count Label and Input
-                // ReadOnlyInput(text: '${widget.tank.meals ?? 0}'),
-
-                // const SizedBox(height: 8),
-                // const EditableInput(hint: 'Enter count'),
-                // const SizedBox(height: 24),
-
-                // // Harvest Quantity Label and Input
-                // const OptionalInputLabel(text: 'Harvest Quantity'),
-                // const SizedBox(height: 8),
-                // const EditableInput(hint: 'Enter Harvest Quantity'),
-                // const SizedBox(height: 40),
+                // Count — pieces per kilogram.
+                //
+                // The measure the crop is actually priced on: count 30 shrimp
+                // are large and valuable, count 80 are small and fetch much
+                // less, so a harvest stated as a weight alone is only half the
+                // result. Optional, because the count normally comes back from
+                // the buyer and may not be known the day the tank is emptied.
+                const OptionalInputLabel(text: 'Count'),
+                const SizedBox(height: 8),
+                EditableInput(
+                  controller: _count,
+                  hint: 'e.g., 50 pieces per kg',
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 24),
 
                 // Total harvest — optional, and the other half of FCR.
                 //
@@ -211,7 +238,8 @@ class _HarvestBottomSheetState extends State<HarvestBottomSheet> {
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: () => widget.onSubmit(_harvestValue),
+                    onPressed: () =>
+                        widget.onSubmit(_harvestValue, _countValue),
 
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFE53935), // Bright Red
