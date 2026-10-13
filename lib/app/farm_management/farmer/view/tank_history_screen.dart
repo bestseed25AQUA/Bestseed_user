@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/refresh_button.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/blank_meals_dialog.dart';
 import 'package:seedsuser/app/farm_management/farmer/util/date_format.dart';
 import 'package:seedsuser/app/farm_management/farmer/util/feed_report.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
@@ -119,18 +120,25 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
 
       if (!mounted || link == null || link.isEmpty) return;
 
-      if (action == _ReportAction.download) {
-        await downloadReport(
-          link,
-          tankName: widget.tankName,
-          farmName: widget.farmName,
-        );
-      } else {
-        await shareReport(
-          link,
-          tankName: widget.tankName,
-          farmName: widget.farmName,
-        );
+      switch (action) {
+        case _ReportAction.open:
+          await openReport(
+            link,
+            tankName: widget.tankName,
+            farmName: widget.farmName,
+          );
+        case _ReportAction.download:
+          await downloadReport(
+            link,
+            tankName: widget.tankName,
+            farmName: widget.farmName,
+          );
+        case _ReportAction.share:
+          await shareReport(
+            link,
+            tankName: widget.tankName,
+            farmName: widget.farmName,
+          );
       }
     } finally {
       if (mounted) setState(() => _reportAction = null);
@@ -399,6 +407,9 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
     final toUpdate = <MapEntry<int, MapEntry<String, String>>>[];
     final seen = <int>{};
 
+    // Meals the farmer left empty, named so the confirmation can list them.
+    final blankMeals = <String>[];
+
     for (final row in rows) {
       final number = row.number.text.trim();
       final quantity = row.quantity.text.trim();
@@ -412,7 +423,18 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
         return;
       }
 
-      if (quantity.isEmpty || double.tryParse(quantity) == null) {
+      // A blank quantity is not an error.
+      //
+      // It means the tank was not fed at that sitting, which is ordinary —
+      // and refusing the whole save over it threw away the figures the farmer
+      // HAD typed into the other rows. Collected here and confirmed once
+      // below, then saved as 0.
+      //
+      // A quantity that is present but unreadable is still an error: that is
+      // a typo, not a skipped meal.
+      if (quantity.isEmpty) {
+        blankMeals.add(number);
+      } else if (double.tryParse(quantity) == null) {
         CustomToast.show(message: 'Enter a quantity for meal $number');
         return;
       }
@@ -424,11 +446,23 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
         return;
       }
 
+      // Blank becomes an explicit zero, so the day records that this meal
+      // happened and nothing was given — different from no row at all.
+      final value = quantity.isEmpty ? '0' : quantity;
+
       if (row.historyId == null) {
-        toAdd.add(MapEntry(number, quantity));
+        toAdd.add(MapEntry(number, value));
       } else {
-        toUpdate.add(MapEntry(row.historyId!, MapEntry(number, quantity)));
+        toUpdate.add(MapEntry(row.historyId!, MapEntry(number, value)));
       }
+    }
+
+    // Asked once, after the rows are known, so the farmer is not interrupted
+    // per row. Nothing is asked when every meal has a figure.
+    if (blankMeals.isNotEmpty) {
+      final goAhead = await confirmBlankMeals(context, blankMeals);
+
+      if (!goAhead || !mounted) return;
     }
 
     if (toAdd.isEmpty && toUpdate.isEmpty) {
@@ -799,6 +833,21 @@ class _TankFeedScreenState extends State<TankFeedScreen> {
                                 ),
                               ],
 
+                              const SizedBox(height: 10),
+                              // Open, above the other two and full width —
+                              // the same arrangement as the popup shown right
+                              // after harvesting, so the two places a farmer
+                              // meets these buttons look alike.
+                              SizedBox(
+                                width: double.infinity,
+                                child: _reportButton(
+                                  icon: Icons.visibility_rounded,
+                                  label: 'Open',
+                                  busy: _reportAction == _ReportAction.open,
+                                  onTap: () =>
+                                      _handleReport(_ReportAction.open),
+                                ),
+                              ),
                               const SizedBox(height: 10),
                               Row(
                                 children: [
@@ -1479,4 +1528,5 @@ class DailyFeedCard extends StatelessWidget {
 String formatDate(String? date) => displayDateFrom(date);
 
 /// The two things left to do with a finished tank.
-enum _ReportAction { download, share }
+/// What the farmer asked for: read it now, file it, or send it on.
+enum _ReportAction { open, download, share }

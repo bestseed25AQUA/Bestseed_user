@@ -767,6 +767,9 @@ class TankStatusCard extends StatelessWidget {
           () {
             shareReport(report, tankName: tank.tankName, farmName: farmName);
           },
+          ontapOpen: () {
+            openReport(report, tankName: tank.tankName, farmName: farmName);
+          },
         );
       }
     }
@@ -938,6 +941,12 @@ void showReportPopup(
   VoidCallback ontapDownload,
   VoidCallback ontapShare, {
   String tankName = 'Tank',
+
+  /// Read the report now, rather than filing it or sending it on.
+  ///
+  /// Optional so older callers keep working; the button is simply left out
+  /// when nothing is passed.
+  VoidCallback? ontapOpen,
 }) {
   showDialog(
     context: context,
@@ -1009,6 +1018,49 @@ void showReportPopup(
                   ),
 
                   const SizedBox(height: 18),
+
+                  // Open — full width, above the other two.
+                  //
+                  // Reading the report is the likeliest thing a farmer wants
+                  // the moment it is produced, and three buttons across a
+                  // dialog this wide leaves no room to label them.
+                  if (ontapOpen != null) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 45,
+                      child: InkWell(
+                        onTap: ontapOpen,
+                        borderRadius: BorderRadius.circular(30),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xffD9F1FF),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(color: AppColors.primary),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.visibility_rounded,
+                                size: 22,
+                                color: AppColors.primary,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                "Open",
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
 
                   // Buttons Row
                   Row(

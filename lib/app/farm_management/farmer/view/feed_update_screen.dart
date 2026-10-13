@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:seedsuser/app/common/app_color.dart';
 import 'package:seedsuser/app/common/custom_toast.dart';
+import 'package:seedsuser/app/farm_management/farmer/widget/blank_meals_dialog.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/meal_row_state.dart';
@@ -414,6 +415,9 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
     final toUpdate = <MapEntry<int, MapEntry<String, String>>>[];
     final seen = <int>{};
 
+    // Meals the farmer left empty, named so the confirmation can list them.
+    final blankMeals = <String>[];
+
     for (final row in rows) {
       final number = row.number.text.trim();
       final quantity = row.quantity.text.trim();
@@ -427,7 +431,18 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
         return;
       }
 
-      if (quantity.isEmpty || double.tryParse(quantity) == null) {
+      // A blank quantity is not an error.
+      //
+      // It means the tank was not fed at that sitting, which is ordinary —
+      // and refusing the whole save over it threw away the figures the farmer
+      // HAD typed into the other rows. Collected here and confirmed once
+      // below, then saved as 0.
+      //
+      // A quantity that is present but unreadable is still an error: that is
+      // a typo, not a skipped meal.
+      if (quantity.isEmpty) {
+        blankMeals.add(number);
+      } else if (double.tryParse(quantity) == null) {
         CustomToast.show(message: 'Enter a quantity for meal $number');
         return;
       }
@@ -439,11 +454,23 @@ class _FeedUpdateScreenState extends State<FeedUpdateScreen> {
         return;
       }
 
+      // Blank becomes an explicit zero, so the day records that this meal
+      // happened and nothing was given — different from no row at all.
+      final value = quantity.isEmpty ? '0' : quantity;
+
       if (row.historyId == null) {
-        toAdd.add(MapEntry(number, quantity));
+        toAdd.add(MapEntry(number, value));
       } else {
-        toUpdate.add(MapEntry(row.historyId!, MapEntry(number, quantity)));
+        toUpdate.add(MapEntry(row.historyId!, MapEntry(number, value)));
       }
+    }
+
+    // Asked once, after the rows are known, so the farmer is not interrupted
+    // per row. Nothing is asked when every meal has a figure.
+    if (blankMeals.isNotEmpty) {
+      final goAhead = await confirmBlankMeals(context, blankMeals);
+
+      if (!goAhead || !mounted) return;
     }
 
     if (toAdd.isEmpty && toUpdate.isEmpty) {

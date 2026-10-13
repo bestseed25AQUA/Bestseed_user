@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
@@ -300,5 +301,63 @@ Future<void> shareReport(
     );
   } catch (e) {
     CustomToast.error('Could not share the report');
+  }
+}
+
+/// Open the report in the device's own PDF viewer.
+///
+/// The third thing a farmer wants to do with a report, and the one that was
+/// missing: Download puts it somewhere to find later, Share hands it to
+/// somebody else, but neither lets them simply READ it. Doing that used to
+/// mean downloading, leaving the app, and hunting through Files.
+///
+/// Fetched into the cache rather than the Downloads folder: this copy exists
+/// to be read now, and the system is free to reclaim it afterwards. A farmer
+/// who wants to keep it still has Download.
+Future<void> openReport(
+  String url, {
+  String? tankName,
+  String? farmName,
+}) async {
+  if (url.isEmpty) {
+    CustomToast.error('No report to open');
+    return;
+  }
+
+  // The same repair the other two make: a server occasionally hands back a
+  // single-slash URL, which Dio treats as a relative path and fails on.
+  if (url.startsWith("https:/") && !url.startsWith("https://")) {
+    url = url.replaceFirst("https:/", "https://");
+  }
+
+  try {
+    final directory = await getTemporaryDirectory();
+    final filePath = '${directory.path}/${_reportFileName(tankName, farmName)}';
+
+    await Dio().download(url, filePath);
+
+    final file = File(filePath);
+
+    if (!file.existsSync() || await file.length() == 0) {
+      CustomToast.error('Could not open the report');
+      return;
+    }
+
+    // The MIME type is given explicitly. Without it Android guesses from the
+    // extension and offers a chooser that sometimes has nothing in it.
+    final result = await OpenFilex.open(filePath, type: 'application/pdf');
+
+    // `done` is the only success. Everything else is worth saying out loud —
+    // a silent no-op reads as the button being broken.
+    if (result.type != ResultType.done) {
+      CustomToast.error(
+        result.type == ResultType.noAppToOpen
+            ? 'No PDF viewer is installed on this phone'
+            : 'Could not open the report',
+      );
+    }
+  } catch (e) {
+    debugPrint('[REPORT] open failed: $e');
+    CustomToast.error('Could not open the report');
   }
 }
