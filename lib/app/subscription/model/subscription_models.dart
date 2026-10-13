@@ -173,6 +173,16 @@ class SubscriptionStatus {
   final List<SubscriptionPlan> plans;
   final SubscriptionContact? contact;
 
+  /// The earliest day a tank in a NEW farm may be recorded as stocked,
+  /// `yyyy-MM-dd`.
+  ///
+  /// The add-farm form asks for tank dates before the farm exists, so it
+  /// cannot read that farm's own cover. The server answers from the other
+  /// end: null when a free slot is next in line — a farmer catching the app
+  /// up on ponds stocked weeks ago must still enter the real dates — and
+  /// otherwise the start of the package the farm is about to go onto.
+  final String? earliestStockingDate;
+
   const SubscriptionStatus({
     required this.ownedFarms,
     required this.freeLimit,
@@ -182,6 +192,7 @@ class SubscriptionStatus {
     required this.farmsRemaining,
     required this.canCreateFarm,
     required this.needsSubscription,
+    this.earliestStockingDate,
     required this.message,
     required this.subscription,
     required this.plans,
@@ -230,6 +241,7 @@ class SubscriptionStatus {
       // subscriptions must not lock everybody out of adding farms.
       canCreateFarm: json['can_create_farm'] != false,
       needsSubscription: json['needs_subscription'] == true,
+      earliestStockingDate: json['earliest_stocking_date']?.toString(),
       message: json['message']?.toString(),
       subscription: json['subscription'] is Map<String, dynamic>
           ? SubscriptionDetails.fromJson(

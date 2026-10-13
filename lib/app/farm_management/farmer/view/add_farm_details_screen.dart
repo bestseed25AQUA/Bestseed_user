@@ -133,11 +133,13 @@ class _AddFarmerDetailsFormScreenState
         ? today
         : current;
 
+    final firstDate = _earliestStockingDate(today);
+
     final picked = await showDatePicker(
       context: context,
-      firstDate: DateTime(2000),
+      firstDate: firstDate,
       lastDate: today,
-      initialDate: initial,
+      initialDate: initial.isBefore(firstDate) ? firstDate : initial,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.light(
@@ -273,17 +275,44 @@ class _AddFarmerDetailsFormScreenState
   /// A stocking date is a record of when the tank WAS stocked, so a date that
   /// has not arrived cannot be one, and it left the tank on Day 0 with no
   /// history until it came round.
+  /// The earliest day a tank here may be recorded as stocked.
+  ///
+  /// From the subscription status the screen already loads. Null — meaning no
+  /// limit — when a free slot is next in line, because a farmer entering their
+  /// first farms is usually catching the app up on ponds stocked weeks ago.
+  /// On a paid slot it is the day that package starts, so the picker cannot
+  /// offer a date the server will then refuse.
+  DateTime _earliestStockingDate(DateTime today) {
+    final raw = subscriptionController.status.value.earliestStockingDate;
+
+    if (raw == null) return DateTime(2000);
+
+    final floor = DateTime.tryParse(raw);
+
+    if (floor == null) return DateTime(2000);
+
+    // A floor later than today would leave the picker with no selectable day
+    // at all and throw. Cover starting in the future is the only way that
+    // happens, and today is the only sensible answer.
+    return floor.isAfter(today) ? today : floor;
+  }
+
   Future<void> _pickTankDate(int i) async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    final firstDate = _earliestStockingDate(today);
+
+    final existing = _tankDate(i);
 
     final picked = await showDatePicker(
       context: context,
-      firstDate: DateTime(2000),
+      firstDate: firstDate,
       lastDate: today,
-      initialDate: (_tankDate(i) == null || _tankDate(i)!.isAfter(today))
+      initialDate: (existing == null ||
+              existing.isAfter(today) ||
+              existing.isBefore(firstDate))
           ? today
-          : _tankDate(i)!,
+          : existing,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.light(

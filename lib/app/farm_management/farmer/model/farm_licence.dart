@@ -26,6 +26,14 @@ class FarmLicence {
 
   final bool neverExpires;
 
+  /// The first day a crop here may be recorded as stocked, `yyyy-MM-dd`.
+  ///
+  /// Null means no limit — a free farm, where a farmer catching the app up on
+  /// ponds stocked weeks ago must still be able to enter the real dates. On a
+  /// PAID farm it is the start of the term covering it, so a crop cannot be
+  /// backdated into a period the farm was closed to new data.
+  final String? earliestStockingDate;
+
   const FarmLicence({
     this.isLocked = false,
     this.lockReason,
@@ -33,6 +41,7 @@ class FarmLicence {
     this.coverEndsOn,
     this.daysRemaining,
     this.neverExpires = true,
+    this.earliestStockingDate,
   });
 
   /// What to assume when the server said nothing about this farm.
@@ -55,6 +64,7 @@ class FarmLicence {
           ? null
           : int.tryParse('${json['days_remaining']}'),
       neverExpires: json['never_expires'] == true,
+      earliestStockingDate: json['earliest_stocking_date']?.toString(),
     );
   }
 

@@ -26,23 +26,35 @@ class StartBatchResult {
 /// it needs a date to count days from. Defaulting silently to today would make
 /// a pond stocked three days ago read as day 1 and give it no way to record
 /// what it has already been fed — the same reason a tank being added asks.
+/// [earliestStockingDate] is the first day this farm's cover allows, as
+/// `yyyy-MM-dd`, or null when there is no limit.
+///
+/// A farm on the free plan has none — a farmer's first farms are usually
+/// catching the app up on ponds stocked weeks ago. A PAID farm cannot be
+/// backdated before the term covering it, so the picker is bounded rather than
+/// letting the farmer choose a day the server will then refuse.
 Future<StartBatchResult?> showStartBatchSheet(
   BuildContext context, {
   required String tankName,
+  String? earliestStockingDate,
 }) {
   return showModalBottomSheet<StartBatchResult>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     useSafeArea: true,
-    builder: (_) => _StartBatchSheet(tankName: tankName),
+    builder: (_) => _StartBatchSheet(
+      tankName: tankName,
+      earliestStockingDate: earliestStockingDate,
+    ),
   );
 }
 
 class _StartBatchSheet extends StatefulWidget {
   final String tankName;
+  final String? earliestStockingDate;
 
-  const _StartBatchSheet({required this.tankName});
+  const _StartBatchSheet({required this.tankName, this.earliestStockingDate});
 
   @override
   State<_StartBatchSheet> createState() => _StartBatchSheetState();
@@ -94,13 +106,27 @@ class _StartBatchSheetState extends State<_StartBatchSheet> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
+    // The first day this farm's cover allows. Falls back to 2000 when the
+    // farm is free or the server said nothing — an unbounded picker is the
+    // old behaviour, and the server is the backstop either way.
+    final floor = widget.earliestStockingDate == null
+        ? DateTime(2000)
+        : (DateTime.tryParse(widget.earliestStockingDate!) ?? DateTime(2000));
+
+    // A floor later than today would leave the picker with no selectable day
+    // at all and throw. That happens when cover starts in the future, and
+    // today is the only sensible answer.
+    final firstDate = floor.isAfter(today) ? today : floor;
+
+    final initial = (_picked ?? today).isBefore(firstDate) ? firstDate : (_picked ?? today);
+
     final picked = await showDatePicker(
       context: context,
-      firstDate: DateTime(2000),
+      firstDate: firstDate,
       // Capped at today: a crop cannot already have been stocked on a date
       // that has not arrived, and the server rejects one.
       lastDate: today,
-      initialDate: _picked ?? today,
+      initialDate: initial.isAfter(today) ? today : initial,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.light(

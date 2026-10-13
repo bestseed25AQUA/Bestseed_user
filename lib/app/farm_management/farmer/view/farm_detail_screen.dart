@@ -12,6 +12,7 @@ import 'package:seedsuser/app/common/refresh_button.dart';
 import 'package:seedsuser/app/farm_management/farmer/util/feed_report.dart';
 import 'package:seedsuser/app/farm_management/farmer/controller/tank_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/farm_access_model.dart';
+import 'package:seedsuser/app/farm_management/farmer/controller/farm_controller.dart';
 import 'package:seedsuser/app/farm_management/farmer/model/tank_list_model.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/feed_update_screen.dart';
 import 'package:seedsuser/app/farm_management/farmer/view/tank_history_screen.dart';
@@ -687,9 +688,23 @@ class TankStatusCard extends StatelessWidget {
       // has already been fed if that was before today.
       // Without a date the tank would read as day 1
       // with no way to record what it had already had.
+      // The first stocking date this farm's cover allows.
+      //
+      // Read from the shared farm list, which already carries each farm's
+      // licence, so the picker cannot offer a day the server will refuse. Null
+      // on a free farm — and null if the farm is not in the list for any
+      // reason, which simply leaves the picker unbounded as before. The server
+      // checks regardless.
+      final farms = farmListController.farmList.value?.data ?? const [];
+      final licence = farms
+          .where((f) => f.id.toString() == farmId)
+          .map((f) => f.licence)
+          .firstOrNull;
+
       final batch = await showStartBatchSheet(
         context,
         tankName: tank.tankName ?? 'This tank',
+        earliestStockingDate: licence?.earliestStockingDate,
       );
 
       // Cancelled — leave the tank as it was.
